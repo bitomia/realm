@@ -9,7 +9,7 @@ import (
 
 func createRoutes(router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
-	router.HandleFunc("/health", handlers.HealthStatusHandler).Methods("GET")
+	router.Handle("/health", auth.WithAuth(handlers.HealthStatusHandler)).Methods("GET")
 
 	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
 	router.Handle("/images", auth.WithAuth(handlers.PullImageHandler)).Methods("POST")

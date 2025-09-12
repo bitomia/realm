@@ -27,5 +27,5 @@ func setDefaults() {
 	viper.SetDefault("daemon.containerd_sock", "/run/containerd/containerd.sock")
 	viper.SetDefault("daemon.containerd_namespace", "realm")
 	viper.SetDefault("daemon.containers_log_path", "/var/log/realm")
-	viper.SetDefault("daemon.etcd_enpoints", []string{"127.0.0.1:2379"})
+	viper.SetDefault("daemon.etcd_endpoints", []string{"127.0.0.1:2379"})
 }

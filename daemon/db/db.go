@@ -29,6 +29,7 @@ const ETCD_TIMEOUT = 5 * time.Second
 func GetDB() *DaemonDB {
 	once.Do(func() {
 		endpoints := getEtcdEndpoints()
+		slog.Info("Initialiazing DB connection", "endpoints", endpoints)
 		client, err := clientv3.New(clientv3.Config{
 			Endpoints:   endpoints,
 			DialTimeout: ETCD_TIMEOUT,

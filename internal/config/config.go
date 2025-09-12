@@ -22,7 +22,7 @@ type DaemonConfig struct {
 	HerdMcastAddress    string   `mapstructure:"herd_mcast_address"`
 	ContainerdSock      string   `mapstructure:"containerd_sock"`
 	ContainerdNamespace string   `mapstructure:"containerd_namespace"`
-	EtcdEndpoints       []string `mapstructure:"etcd_enpoints"`
+	EtcdEndpoints       []string `mapstructure:"etcd_endpoints"`
 }
 
 type ClientConfig struct {
