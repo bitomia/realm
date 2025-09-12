@@ -30,5 +30,5 @@
     - name: Setup etcd
       import_tasks: tasks/setup/etcd.yml
 
-    - name: Setup realmd
-      import_tasks: tasks/setup/realmd.yml
+    - name: Setup Realm
+      import_tasks: tasks/setup/realm.yml
