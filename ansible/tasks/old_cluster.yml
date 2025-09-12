@@ -1,0 +1,200 @@
+---
+# TODO DEPRECATE
+- name: Configure cluster security and networking
+  hosts: all
+  become: yes
+  vars:
+    # Define host groups - adjust these based on your inventory
+    realmd_hosts_group: "realmd"
+    master_hosts_group: "masters"
+  
+  tasks:
+    # IPv6 Configuration for realmd hosts
+    - name: Disable IPv6 on realmd hosts - Configure sysctl
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1"
+        state: present
+        reload: yes
+        sysctl_file: /etc/sysctl.conf
+      loop:
+        - net.ipv6.conf.all.disable_ipv6
+        - net.ipv6.conf.default.disable_ipv6
+        - net.ipv6.conf.lo.disable_ipv6
+      when: inventory_hostname in groups[realmd_hosts_group]
+      tags:
+        - ipv6
+        - networking
+        - realmd
+
+    - name: Apply sysctl changes immediately
+      ansible.builtin.command: sysctl -p
+      when: inventory_hostname in groups[realmd_hosts_group]
+      tags:
+        - ipv6
+        - networking
+        - realmd
+
+    - name: Verify IPv6 is disabled
+      ansible.builtin.shell: ip a | grep inet6
+      register: ipv6_check
+      failed_when: false
+      changed_when: false
+      when: inventory_hostname in groups[realmd_hosts_group]
+      tags:
+        - ipv6
+        - verification
+        - realmd
+
+    - name: Display IPv6 status
+      ansible.builtin.debug:
+        msg: "IPv6 interfaces found: {{ ipv6_check.stdout_lines | default('None - IPv6 successfully disabled') }}"
+      when: 
+        - inventory_hostname in groups[realmd_hosts_group]
+        - ipv6_check is defined
+      tags:
+        - ipv6
+        - verification
+        - realmd
+
+    # Iptables persistence for master hosts
+    - name: Install iptables-persistent on master hosts
+      ansible.builtin.apt:
+        name: iptables-persistent
+        state: present
+        update_cache: yes
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "Debian"
+      tags:
+        - iptables
+        - persistence
+        - masters
+
+    - name: Install iptables-services on RHEL-based master hosts
+      ansible.builtin.yum:
+        name: iptables-services
+        state: present
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "RedHat"
+      tags:
+        - iptables
+        - persistence
+        - masters
+
+    - name: Save current iptables rules (Debian/Ubuntu)
+      ansible.builtin.command: netfilter-persistent save
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "Debian"
+      tags:
+        - iptables
+        - persistence
+        - masters
+
+    - name: Save current iptables rules (RHEL/CentOS)
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - iptables-save > /etc/sysconfig/iptables
+        - ip6tables-save > /etc/sysconfig/ip6tables
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "RedHat"
+      tags:
+        - iptables
+        - persistence
+        - masters
+
+    - name: Enable iptables service on boot (RHEL/CentOS)
+      ansible.builtin.systemd:
+        name: iptables
+        enabled: yes
+        state: started
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "RedHat"
+      tags:
+        - iptables
+        - persistence
+        - masters
+
+    # Container Security Configuration
+    - name: Ensure Docker daemon configuration directory exists
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+      tags:
+        - docker
+        - security
+        - containers
+
+    - name: Configure Docker daemon for enhanced security
+      ansible.builtin.copy:
+        content: |
+          {
+            "no-new-privileges": true,
+            "security-opts": ["no-new-privileges:true"],
+            "default-capabilities": []
+          }
+        dest: /etc/docker/daemon.json
+        backup: yes
+        mode: '0644'
+      notify: restart docker
+      tags:
+        - docker
+        - security
+        - containers
+
+    # Verification tasks
+    - name: Verify sysctl IPv6 settings
+      ansible.builtin.shell: sysctl net.ipv6.conf.all.disable_ipv6
+      register: sysctl_verification
+      changed_when: false
+      when: inventory_hostname in groups[realmd_hosts_group]
+      tags:
+        - verification
+        - ipv6
+
+    - name: Display sysctl verification results
+      ansible.builtin.debug:
+        var: sysctl_verification.stdout
+      when: 
+        - inventory_hostname in groups[realmd_hosts_group]
+        - sysctl_verification is defined
+      tags:
+        - verification
+        - ipv6
+
+    - name: Check iptables-persistent status
+      ansible.builtin.command: dpkg -l iptables-persistent
+      register: iptables_status
+      failed_when: false
+      changed_when: false
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "Debian"
+      tags:
+        - verification
+        - iptables
+
+    - name: Display iptables-persistent status
+      ansible.builtin.debug:
+        msg: "iptables-persistent is {{ 'installed' if iptables_status.rc == 0 else 'not installed' }}"
+      when: 
+        - inventory_hostname in groups[master_hosts_group]
+        - ansible_os_family == "Debian"
+        - iptables_status is defined
+      tags:
+        - verification
+        - iptables
+
+  handlers:
+    - name: restart docker
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+      tags:
+        - docker
+        - security

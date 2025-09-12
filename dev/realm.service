@@ -1,0 +1,17 @@
+[Unit]
+Description=shipd
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/opt/ship/shipd
+WorkingDirectory=/opt/ship
+EnvironmentFile=/opt/ship/ship.env
+StandardOutput=append:/var/log/shipd.stdout.log
+StandardError=append:/var/log/shipd.stderr.log
+#Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

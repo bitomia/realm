@@ -1,0 +1,10 @@
+
+- name: REALM > Create configuration file
+  ansible.builtin.template:
+    src: realm.yml.j2
+    dest: /home/ansible/realm.yml
+    owner: ansible
+    group: ansible
+    mode: '0600'
+
+

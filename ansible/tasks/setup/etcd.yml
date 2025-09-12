@@ -1,0 +1,44 @@
+- name: ETCD > Install etcd server
+  ansible.builtin.package:
+    name: etcd-server
+    state: present
+  when: install_etcd | default(false) | bool
+  become: true
+
+- name: ETCD > Configure etcd to listen on all interfaces
+  ansible.builtin.copy:
+    dest: /etc/default/etcd
+    content: |
+      DAEMON_ARGS="--name={{ inventory_hostname }} --listen-client-urls=http://0.0.0.0:2379 --advertise-client-urls=http://{{ ansible_host }}:2379 --listen-peer-urls=http://0.0.0.0:2380 --initial-advertise-peer-urls=http://{{ ansible_host }}:2380"
+    owner: root
+    group: root
+    mode: '0644'
+  when: install_etcd | default(false) | bool
+  become: true
+
+- name: ETCD > Create systemd override directory
+  file:
+    path: /etc/systemd/system/etcd.service.d
+    state: directory
+    mode: '0755'
+  become: true
+
+- name: ETCD > Remove ETCD_NAME by creating override file
+  copy:
+    dest: /etc/systemd/system/etcd.service.d/override.conf
+    content: |
+      [Service]
+      Environment=
+      Environment=ETCD_DATA_DIR=/var/lib/etcd/default
+      EnvironmentFile=-/etc/default/etcd
+  when: install_etcd | default(false) | bool
+  become: true
+
+- name: ETCD > Enable and start etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: install_etcd | default(false) | bool
+  become: true

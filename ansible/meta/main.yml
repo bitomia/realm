@@ -1,0 +1,16 @@
+#SPDX-License-Identifier: MIT-0
+galaxy_info:
+  author: Juan Fernández
+  description: Realm daemon role
+  company: Bitomia
+  license: BSD
+  min_ansible_version: "2.9"
+  role_name: realm
+  namespace: community
+  platforms:
+    - name: Debian
+      versions:
+        - "12"
+
+dependencies: []
+

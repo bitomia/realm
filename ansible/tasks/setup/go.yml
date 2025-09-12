@@ -1,0 +1,21 @@
+- name: GO > Install go
+  vars:
+    go_version: "1.24.1"
+    go_arch: "linux-amd64"
+  ansible.builtin.shell: |
+    cd /tmp
+    curl -fsSLO https://go.dev/dl/go{{ go_version }}.{{ go_arch }}.tar.gz
+    rm -rf /usr/local/go
+    tar -C /usr/local -xzf go{{ go_version }}.{{ go_arch }}.tar.gz
+    env -u GOROOT /usr/local/go/bin/go version
+  become: true
+
+- name: GO > Set environment variables
+  ansible.builtin.copy:
+    dest: /etc/profile.d/go.sh
+    content: |
+      export PATH=/usr/local/go/bin:$PATH
+      export GOPATH=$HOME/go
+      export PATH=$PATH:$GOPATH/bin
+    mode: '0755'
+  become: true

@@ -1,0 +1,12 @@
+- name: Local
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars_files:
+    - vars/local.yml
+  vars_prompt:
+    - name: zfs_device
+      prompt: "Enter ZFS device (e.g. /dev/sde). Warning: it can destroy the device filesystem"
+      private: false
+  tasks:
+    - include_tasks: tasks/local.yml

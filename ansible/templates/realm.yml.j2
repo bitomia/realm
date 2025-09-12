@@ -1,0 +1,6 @@
+etcd_endpoints:
+{% for host in groups['targets'] %}
+{%   if hostvars[host]['install_etcd'] == "true" %}
+  - http://{{ hostvars[host]['ansible_host'] }}:2379
+{%   endif %}
+{% endfor %}

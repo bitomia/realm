@@ -1,0 +1,16 @@
+---
+driver:
+  name: docker
+
+platforms:
+  - name: debian-12
+    groups:
+      - realm_instances
+    image: geerlingguy/docker-debian12-ansible
+    capabilities:
+      - SYS_ADMIN
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    privileged: true
+    command: /bin/systemd

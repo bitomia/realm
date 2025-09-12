@@ -1,0 +1,96 @@
+- name: ZFS > Install dependencies (Debian 12 only)
+  ansible.builtin.apt:
+    name:
+      - zfsutils-linux
+      - libzfslinux-dev
+    state: present
+    default_release: bookworm-backports
+  when:
+    - ansible_distribution == "Debian"
+    - ansible_distribution_major_version == "12"
+  become: true
+
+- name: ZFS > Install dependencies (non-Debian 12)
+  ansible.builtin.package:
+    name:
+      - zfsutils-linux
+      - libzfslinux-dev
+    state: present
+  when: not (ansible_distribution == "Debian" and ansible_distribution_major_version == "12")
+  become: true
+
+- name: ZFS > Rebooting the machine for updates
+  reboot:
+    msg: "Reboot initiated by Ansible for updates"
+    connect_timeout: 20
+    reboot_timeout: 600
+    pre_reboot_delay: 0
+    post_reboot_delay: 30
+    test_command: whoami
+  become: true
+
+- name: ZFS > Check block devices
+  command: lsblk
+  register: lsblk_output
+
+- name: ZFS > Debug lsblk output
+  debug:
+    var: lsblk_output.stdout_lines
+
+- name: ZFS > Check if running in container
+  shell: systemd-detect-virt
+  register: virt_check
+  ignore_errors: yes
+
+- name: ZFS > Load kernel module (if not in container)
+  community.general.modprobe:
+    name: zfs
+    state: present
+  become: yes
+  when:
+    - virt_check.stdout != "docker"
+    - not zfs_local
+
+- name: ZFS > Load kernel module (container fallback)
+  shell: /sbin/modprobe zfs
+  become: yes
+  ignore_errors: yes
+  when:
+    - virt_check.stdout != "docker"
+    - not zfs_local
+
+- name: ZFS > Check if pool already exists
+  command: zpool list -H -o name
+  register: existing_pools
+  changed_when: false
+  failed_when: false
+
+- name: ZFS > List existing pools
+  debug:
+    var: existing_pools.stdout_lines
+
+# TODO add ZFS raid option
+# eg: zpool create  -f [new pool name] mirror /dev/sdb /dev/sdc
+- name: ZFS > Create pool (Single disk with no RAID)
+  command: zpool create {{ zfs_pool_name }} {{ zfs_device }} -f
+  register: zpool_create
+  failed_when: "'already exists' not in zpool_create.stderr and zpool_create.rc != 0"
+  changed_when:
+    - "'already exists' not in zpool_create.stderr"
+    - "'is part of potentially active pool' not in zpool_create.stderr"
+  when:
+    - virt_check.stdout != "docker"
+    - zfs_pool_name not in existing_pools.stdout_lines
+  become: true
+
+- name: ZFS > Check pool status
+  command: zpool status
+  register: zpool_status
+  when: virt_check.stdout != "docker"
+
+- name: ZFS > Debug pool status
+  debug:
+    var: zpool_status.stdout_lines
+  when: virt_check.stdout != "docker"
+
+
