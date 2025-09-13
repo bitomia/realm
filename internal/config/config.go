@@ -46,9 +46,9 @@ var (
 // Get reads configuration once from file or environment variables.
 func Get() *Config {
 	once.Do(func() {
-		viper.SetConfigName("realm.yaml")
-		viper.SetConfigType("yaml")
 		viper.AddConfigPath(getExeDir())
+		viper.SetConfigType("yaml")
+		viper.SetConfigName("realm.yaml")
 
 		setDefaults()
 
@@ -57,7 +57,7 @@ func Get() *Config {
 
 		viper.AutomaticEnv()
 
-		if err := viper.ReadInConfig(); err == nil {
+		if err = viper.ReadInConfig(); err == nil {
 			err = viper.Unmarshal(&config)
 		}
 	})
