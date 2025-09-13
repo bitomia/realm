@@ -8,8 +8,9 @@ import (
 )
 
 var imagesCmd = &cobra.Command{
-	Use:   "images",
-	Short: "Interface with images",
+	Use:     "images",
+	Aliases: []string{"i"},
+	Short:   "Interface with images",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},

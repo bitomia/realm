@@ -10,8 +10,9 @@ import (
 )
 
 var hostCmd = &cobra.Command{
-	Use:   "host",
-	Short: "Interface with hosts",
+	Use:     "hosts",
+	Aliases: []string{"h"},
+	Short:   "Interface with hosts",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},
