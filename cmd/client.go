@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/internal/config"
 )
 
@@ -46,12 +47,32 @@ func getAuthToken() string {
 	return strings.TrimSpace(string(tokenBytes))
 }
 
+func checkStatus(rep *http.Response) error {
+	if rep == nil {
+		return errors.New("nil request")
+	}
+
+	switch rep.StatusCode {
+	case 200:
+		return nil
+	case 401:
+		return errors.New("Unauthorized")
+	case 400:
+		return errors.New("Bad request")
+	default:
+		return fmt.Errorf("Request failed: %d", rep.StatusCode)
+	}
+}
+
 func NewClient() Client {
 	token := getAuthToken()
 	if token == "" {
-		log.Fatalf("Authentication token not found. Please run 'realm login' first.")
+		return Client{
+			http.Header{
+				"ContentType": []string{"application/json"},
+			},
+		}
 	}
-
 	return Client{
 		http.Header{
 			"ContentType":   []string{"application/json"},
@@ -79,27 +100,33 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		url := fmt.Sprintf("%s/images", daemon)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Fatalf("Failed to create request: %v", err)
-			return nil, err
+			log.Error("Failed to create request: %v", err)
+			continue
 		}
 		req.Header = c.header
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Fatalf("Failed to make request: %v", err)
-			return nil, err
+			log.Error("Failed to make request: %v", err)
+			continue
 		}
 		defer resp.Body.Close()
 
+		if err := checkStatus(resp); err != nil {
+			log.Error("Failed requesting image: %s %s", daemon, err)
+			continue
+		}
+
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("Failed to read response body: %v", err)
-			return nil, err
+			log.Error("Failed to read response body: %v", err)
+			continue
 		}
+
 		var images []Image
 		if err := json.Unmarshal(body, &images); err != nil {
-			log.Fatalf("Failed to parse JSON: %v", err)
-			return nil, err
+			log.Error("Failed to parse JSON: %v %s", err, body)
+			continue
 		}
 		imagesPerHost[daemon] = images
 	}
@@ -127,28 +154,29 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 		url := fmt.Sprintf("%s/containers", daemon)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Fatalf("Failed to create request: %v", err)
-			return nil, err
+			log.Error("Failed to create request: %v", err)
+			continue
+
 		}
 		req.Header = c.header
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Fatalf("Failed to make request: %v", err)
-			return nil, err
+			log.Error("Failed to make request: %v", err)
+			continue
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("Failed to read response body: %v", err)
-			return nil, err
+			log.Error("Failed to read response body: %v", err)
+			continue
 		}
 
 		var containers map[string]Container
 		if err := json.Unmarshal(body, &containers); err != nil {
-			log.Fatalf("Failed to parse JSON: %v", err)
-			return nil, err
+			log.Error("Failed to parse JSON: %v", err)
+			continue
 		}
 		containersPerHost[daemon] = containers
 	}
@@ -171,19 +199,19 @@ func (c *Client) CreateContainer(host string, image string, container string) {
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
+		log.Fatal("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	fmt.Println(string(body))
 }
@@ -204,19 +232,19 @@ func (c *Client) StartContainer(host string, container string) {
 
 	req, err := http.NewRequest("PUT", url, payload)
 	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
+		log.Fatal("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	println(string(body))
 }
@@ -232,19 +260,19 @@ func (c *Client) StopContainer(host string, container string) {
 	json.NewEncoder(payload).Encode(request)
 	req, err := http.NewRequest("PUT", url, payload)
 	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
+		log.Fatal("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	println(string(body))
 }
@@ -256,19 +284,19 @@ func (c *Client) DeleteContainer(host string, container string) {
 	url := fmt.Sprintf("%s/containers/%s", host, container)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
+		log.Fatal("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	println(string(body))
 }
@@ -284,13 +312,13 @@ func (c *Client) CreateNetwork(host string, container string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	println(string(body))
 }
@@ -306,13 +334,13 @@ func (c *Client) DeleteNetwork(host string, container string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+		log.Fatal("Failed to read response body: %v", err)
 	}
 	println(string(body))
 }
@@ -332,13 +360,13 @@ func (c *Client) ListNetworks() {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Fatalf("Failed to make request: %v", err)
+			log.Fatal("Failed to make request: %v", err)
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalf("Failed to read response body: %v", err)
+			log.Fatal("Failed to read response body: %v", err)
 		}
 		println(string(body))
 	}
@@ -378,7 +406,7 @@ type HostStatus struct {
 func (c *Client) GetHostStatus(host string) (HostStatus, error) {
 	var status HostStatus
 
-	log.Printf("Getting status %s", host)
+	log.Info("Getting status %s", host)
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -386,27 +414,27 @@ func (c *Client) GetHostStatus(host string) (HostStatus, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatalf("Failed to create request: %v", err)
-		return status, err
+		log.Fatal("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatalf("Failed to make request: %v", err)
-		return status, err
+		log.Fatal("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("Failed to read response body: %v", err)
+	if err := checkStatus(resp); err != nil {
 		return status, err
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal("Failed to read response body: %v", err)
+	}
+
 	if err := json.Unmarshal(body, &status); err != nil {
-		log.Fatalf("Failed to parse JSON: %v", err)
-		return status, err
+		log.Fatal("Failed to parse JSON: %v", err)
 	}
 	return status, nil
 }
@@ -437,6 +465,10 @@ func (c *Client) PullImage(host string, image string) error {
 		return fmt.Errorf("failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
+
+	if err := checkStatus(resp); err != nil {
+		return err
+	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

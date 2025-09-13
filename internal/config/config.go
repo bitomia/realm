@@ -15,7 +15,6 @@ type DaemonConfig struct {
 	ListenAddress       string   `mapstructure:"listen_address"`
 	ListenPort          int      `mapstructure:"listen_port"`
 	ContainersLogPath   string   `mapstructure:"containers_log_path"`
-	SecretKey           string   `mapstructure:"secret_key"`
 	LocalCaddyUrl       string   `mapstructure:"local_caddy_url"`
 	MasterCaddyUrl      string   `mapstructure:"master_caddy_url"`
 	GitHubRegistryToken string   `mapstructure:"github_registry_token"`

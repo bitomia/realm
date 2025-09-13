@@ -2,32 +2,45 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
-
-	"github.com/golang-jwt/jwt/v5"
-
-	"github.com/bitomia/realm/internal/config"
 )
 
-func WithAuth(handler http.HandlerFunc) http.Handler {
-	secretKey := config.Get().Daemon.SecretKey
+var (
+	secretKey string
+	enabled   bool = false
+)
 
+func Initialize() {
+	secretKey = os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		slog.Warn("** Running without authentication **")
+		enabled = false
+	} else {
+		slog.Info("Authentication initialized")
+		enabled = true
+	}
+}
+
+func WithAuth(handler http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !enabled {
+			handler.ServeHTTP(w, r)
+			return
+		}
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := strings.TrimSpace(strings.Replace(authHeader, "Bearer", "", 1))
-		claims := &Claims{}
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
-		})
-
-		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+		bearer := strings.TrimSpace(strings.Replace(authHeader, "Bearer", "", 1))
+		claims, err := ValidateBearer(bearer, secretKey)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 

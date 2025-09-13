@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/bitomia/realm/daemon/auth"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
@@ -70,6 +71,7 @@ func Start() {
 
 	go func() {
 		serverAddr := fmt.Sprintf("%s:%d", cfg.Daemon.ListenAddress, cfg.Daemon.ListenPort)
+		auth.Initialize()
 		slog.Info("Daemon running", "addr", serverAddr)
 		http.ListenAndServe(serverAddr, router)
 	}()
