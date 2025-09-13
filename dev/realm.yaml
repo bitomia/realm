@@ -1,8 +1,7 @@
+daemon:
+  cni_path: /opt/cni
+  volumes_pool: realmpool
+  listen_address: 0.0.0.0
+
 daemons:
   - http://localhost:9000
-  - http://localhost:9001
-  - http://localhost:9002
-  - http://localhost:9003
-  - http://localhost:9004
-
-
