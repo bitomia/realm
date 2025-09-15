@@ -2,9 +2,9 @@ package log
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"time"
+
+	"github.com/fatih/color"
 )
 
 type LogLevel int
@@ -18,21 +18,20 @@ const (
 )
 
 func logMessage(level LogLevel, format string, args ...any) {
-	var logLevel string
+	msg := fmt.Sprintf(format, args...)
+
 	switch level {
 	case INFO:
-		logLevel = "info"
+		fmt.Printf("%s\n", msg)
 	case WARN:
-		logLevel = "warn"
+		fmt.Printf("%s\n", color.YellowString(msg))
 	case ERROR:
-		logLevel = "error"
+		fmt.Printf("%s\n", color.RedString(msg))
 	case DEBUG:
-		logLevel = "debug"
+		fmt.Printf("[debug] %s\n", color.CyanString(msg))
 	case FATAL:
-		logLevel = "fatal"
+		fmt.Printf("%s\n", color.HiRedString(msg))
 	}
-	msg := fmt.Sprintf(format, args...)
-	log.Printf("[%s] %s: %s\n", logLevel, time.Now().Format(time.RFC3339), msg)
 }
 
 func Info(format string, args ...any) {

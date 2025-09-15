@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/bitomia/realm/cmd/log"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -27,9 +28,9 @@ var listImages = &cobra.Command{
 			return
 		}
 		for host, images := range imagesPerHost {
-			color.Green("Images in %s:\n", host)
+			color.Blue("Images in %s\n", color.CyanString(host))
 			for _, image := range images {
-				fmt.Printf("- %s\n", color.CyanString(image.Name))
+				log.Info("- %s\n", color.CyanString(image.Name))
 			}
 		}
 	},

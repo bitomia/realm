@@ -27,13 +27,20 @@ type DaemonConfig struct {
 type ClientConfig struct {
 }
 
-type Config struct {
-	Daemon  DaemonConfig `mapstructure:"daemon"`
-	Client  ClientConfig `mapstructure:"client"`
-	Daemons []string     `mapstructure:"daemons"`
+type Daemon struct {
+	Name string `mapstructure:"name"`
+	Url  string `mapstructure:"url"`
 }
 
-type AppConfig struct {
+type DiscoveryConfig struct {
+	MdnsEnabled bool     `mapstructure:"mdns"`
+	Daemons     []Daemon `mapstructure:"daemons"`
+}
+
+type Config struct {
+	Daemon    DaemonConfig    `mapstructure:"daemon"`
+	Client    ClientConfig    `mapstructure:"client"`
+	Discovery DiscoveryConfig `mapstructure:"discovery"`
 }
 
 var (

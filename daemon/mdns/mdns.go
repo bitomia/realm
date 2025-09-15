@@ -42,10 +42,11 @@ func (m *MDNSService) Start() error {
 		return fmt.Errorf("failed to start mDNS server: cannot get hostname")
 	}
 
-	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, []string{"txtv=0"}, nil)
+	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start mDNS server: %w", err)
 	}
+	server.TTL(255)
 
 	m.server = server
 

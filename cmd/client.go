@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
-	"github.com/bitomia/realm/internal/config"
 )
 
 type Image struct {
@@ -90,14 +89,14 @@ func NewUnauthClient() Client {
 }
 
 func (c *Client) GetAllImages() (map[string][]Image, error) {
-	daemons := config.Get().Daemons
+	daemons := GetDaemonAddresses()
 	imagesPerHost := make(map[string][]Image)
 
 	for _, daemon := range daemons {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/images", daemon)
+		url := fmt.Sprintf("%s/images", daemon.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -113,7 +112,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-			log.Error("Failed requesting image: %s %s", daemon, err)
+			log.Error("Failed requesting image: %s %s", daemon.Url, err)
 			continue
 		}
 
@@ -128,7 +127,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 			log.Error("Failed to parse JSON: %v %s", err, body)
 			continue
 		}
-		imagesPerHost[daemon] = images
+		imagesPerHost[daemon.Name] = images
 	}
 	return imagesPerHost, nil
 }
@@ -144,14 +143,14 @@ type Container struct {
 }
 
 func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
-	daemons := config.Get().Daemons
+	daemons := GetDaemonAddresses()
 	containersPerHost := make(map[string]map[string]Container)
 
 	for _, daemon := range daemons {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/containers", daemon)
+		url := fmt.Sprintf("%s/containers", daemon.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -178,7 +177,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 			log.Error("Failed to parse JSON: %v", err)
 			continue
 		}
-		containersPerHost[daemon] = containers
+		containersPerHost[daemon.Name] = containers
 	}
 	return containersPerHost, nil
 }
@@ -350,11 +349,11 @@ func (c *Client) ListNetworks() {
 		Timeout: 10 * time.Second,
 	}
 
-	daemons := config.Get().Daemons
+	daemons := GetDaemonAddresses()
 	//networksPerHost := make(map[string]map[string]Container)
 
 	for _, daemon := range daemons {
-		url := fmt.Sprintf("%s/network", daemon)
+		url := fmt.Sprintf("%s/network", daemon.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		req.Header = c.header
 
@@ -406,7 +405,6 @@ type HostStatus struct {
 func (c *Client) GetHostStatus(host string) (HostStatus, error) {
 	var status HostStatus
 
-	log.Info("Getting status %s", host)
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}

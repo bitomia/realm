@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"github.com/bitomia/realm/cmd/log"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
@@ -25,20 +26,20 @@ var listContainers = &cobra.Command{
 		client := NewClient()
 		containersPerHost, err := client.GetAllContainers()
 		if err != nil {
-			color.Red("Error %v\n", err)
+			log.Error("Error %v\n", err)
 			return
 		}
 		for host, containers := range containersPerHost {
-			color.Green("Containers in %s:\n", host)
+			color.Blue("Containers in %s\n", color.CyanString(host))
 			for _, c := range containers {
-				fmt.Printf("- %s\n", color.CyanString(fmt.Sprintf("%v", c)))
+				log.Info("- %s\n", color.CyanString(fmt.Sprintf("%v", c)))
 			}
 		}
 	},
 }
 
 var createContainer = &cobra.Command{
-	Use:                   "create [host] [image] [container]",
+	Use:                   "create [daemon] [image] [container]",
 	Short:                 "Create a container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
