@@ -30,6 +30,7 @@ var hostStatus = &cobra.Command{
 			status, err := client.GetHostStatus(daemon.Url)
 			if err == nil {
 				color.Blue("Host: %s\n", color.CyanString(daemon.Name))
+				color.Blue("URL: %s\n", color.CyanString(daemon.Url))
 
 				log.Info("CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
 				log.Info("CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))

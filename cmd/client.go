@@ -221,7 +221,7 @@ type UpdateContainerState struct {
 	State string `json:"state"`
 }
 
-func (c *Client) StartContainer(host string, container string) {
+func (c *Client) StartContainer(host string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -233,24 +233,29 @@ func (c *Client) StartContainer(host string, container string) {
 
 	req, err := http.NewRequest("PUT", url, payload)
 	if err != nil {
-		log.Fatal("Failed to create request: %v", err)
+		return fmt.Errorf("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return fmt.Errorf("Failed to read response body: %v", err)
 	}
-	println(string(body))
+
+	if err := checkStatus(resp); err != nil {
+		return errors.New(string(body))
+	}
+
+	return nil
 }
 
-func (c *Client) StopContainer(host string, container string) {
+func (c *Client) StopContainer(host string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -261,21 +266,26 @@ func (c *Client) StopContainer(host string, container string) {
 	json.NewEncoder(payload).Encode(request)
 	req, err := http.NewRequest("PUT", url, payload)
 	if err != nil {
-		log.Fatal("Failed to create request: %v", err)
+		return fmt.Errorf("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return fmt.Errorf("Failed to read response body: %v", err)
 	}
-	println(string(body))
+
+	if err := checkStatus(resp); err != nil {
+		return errors.New(string(body))
+	}
+
+	return nil
 }
 
 func (c *Client) DeleteContainer(host string, container string) error {

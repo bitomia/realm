@@ -69,9 +69,20 @@ var startContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
 		color.Blue("Starting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		client.StartContainer(args[0], args[1])
-		color.Green("Successfully started container %s\n", color.CyanString(args[1]))
+		if err := client.StartContainer(daemon.Url, args[1]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully started container %s\n", color.CyanString(args[1]))
+		}
 	},
 }
 
@@ -82,9 +93,20 @@ var stopContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
 		color.Blue("Stopping container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		client.StopContainer(args[0], args[1])
-		color.Green("Successfully stopped container %s\n", color.CyanString(args[1]))
+		if err := client.StopContainer(daemon.Url, args[1]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully stopped container %s\n", color.CyanString(args[1]))
+		}
 	},
 }
 
