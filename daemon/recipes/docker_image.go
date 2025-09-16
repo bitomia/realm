@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"syscall"
 
+	"github.com/google/uuid"
+
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/proxy"
-	"github.com/google/uuid"
+	"github.com/bitomia/realm/internal/requests"
 )
 
 type RecipeDockerImageRet struct {
@@ -49,9 +51,9 @@ func LaunchDockerImage(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Doc
 		slog.Info("LaunchDockerImage - Start docker image", "recipeID", recipeId.String())
 
 		containerName := fmt.Sprintf("%s_%s", "di", recipeId)
-		createContainerOpts := containers.CreateContainerOpts{
+		createContainerOpts := requests.CreateContainerOpts{
 			Image: recipeOpts.Image,
-			Quotas: containers.Quotas{
+			Quotas: requests.Quotas{
 				MemLimit: &memLimit,
 			},
 		}

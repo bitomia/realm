@@ -39,20 +39,31 @@ var listContainers = &cobra.Command{
 }
 
 var createContainer = &cobra.Command{
-	Use:                   "create [daemon] [image] [container]",
+	Use:                   "create [daemon] [name] [image]",
 	Short:                 "Create a container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
-		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[2]), color.CyanString(args[0]), color.CyanString(args[1]))
-		client.CreateContainer(args[0], args[1], args[2])
-		color.Green("Successfully created container %s\n", color.CyanString(args[2]))
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
+		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
+		if err := client.CreateContainer(daemon.Url, args[1], args[2]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully created container %s\n", color.CyanString(args[2]))
+		}
 	},
 }
 
 var startContainer = &cobra.Command{
-	Use:                   "start [host] [container]",
+	Use:                   "start [daemon] [name]",
 	Short:                 "Start a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
@@ -65,7 +76,7 @@ var startContainer = &cobra.Command{
 }
 
 var stopContainer = &cobra.Command{
-	Use:                   "stop [host] [container]",
+	Use:                   "stop [daemon] [name]",
 	Short:                 "Stop a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
@@ -78,20 +89,31 @@ var stopContainer = &cobra.Command{
 }
 
 var deleteContainer = &cobra.Command{
-	Use:                   "delete [host] [container]",
+	Use:                   "delete [daemon] [name]",
 	Short:                 "Delete a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
 		color.Blue("Deleting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		client.DeleteContainer(args[0], args[1])
-		color.Green("Successfully deleted container %s\n", color.CyanString(args[1]))
+		if err := client.DeleteContainer(daemon.Url, args[1]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully deleted container %s\n", color.CyanString(args[1]))
+		}
 	},
 }
 
 var updateQuotas = &cobra.Command{
-	Use:                   "quotas [host] [container] --cpu [cpu_quota] --memory [memory_limit] --volume [volume_size]",
+	Use:                   "quotas [daemon] [name] --cpu [cpu_quota] --memory [memory_limit] --volume [volume_size]",
 	Short:                 "Update container resource quotas",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
@@ -111,7 +133,7 @@ var updateQuotas = &cobra.Command{
 }
 
 var repairContainer = &cobra.Command{
-	Use:                   "repair [host] [container]",
+	Use:                   "repair [daemon] [name]",
 	Short:                 "Repair a container to restore its previous state",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
@@ -127,7 +149,7 @@ var repairContainer = &cobra.Command{
 }
 
 var sendSignal = &cobra.Command{
-	Use:                   "signal [host] [container] [signal]",
+	Use:                   "signal [daemon] [name] [signal]",
 	Short:                 "Send a system signal to a container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
@@ -143,7 +165,7 @@ var sendSignal = &cobra.Command{
 }
 
 var migrateContainer = &cobra.Command{
-	Use:                   "migrate [host] [container] [new_image]",
+	Use:                   "migrate [daemon] [name] [new_image]",
 	Short:                 "Migrate container to new image while preserving state",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
@@ -159,7 +181,7 @@ var migrateContainer = &cobra.Command{
 }
 
 var getLogs = &cobra.Command{
-	Use:                   "logs [host] [container]",
+	Use:                   "logs [daemon] [name]",
 	Short:                 "Get container logs",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,

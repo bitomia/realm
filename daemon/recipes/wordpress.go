@@ -17,6 +17,7 @@ import (
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/utils"
+	"github.com/bitomia/realm/internal/requests"
 )
 
 type WordpressRecipeOpts struct {
@@ -147,10 +148,10 @@ func LaunchWordpress(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Wordp
 
 	dbVolumeSize := planOpts.DBVolumeSize
 	//dbMemLimit := planOpts.dbMemLimit
-	createContainerOpts := containers.CreateContainerOpts{
+	createContainerOpts := requests.CreateContainerOpts{
 		Image:            "docker.io/bitnami/mariadb:latest",
 		VolumeMountPoint: "/bitnami/mariadb",
-		Quotas: containers.Quotas{
+		Quotas: requests.Quotas{
 			VolumeSize: &dbVolumeSize,
 			//			MemLimit:   &dbMemLimit,
 		},
@@ -233,10 +234,10 @@ func LaunchWordpress(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Wordp
 		wpVolumeSize := planOpts.WPVolumeSize
 		wpMemLimit := planOpts.WPMemLimit
 
-		createContainerOpts := containers.CreateContainerOpts{
+		createContainerOpts := requests.CreateContainerOpts{
 			Image:            "ghcr.io/bitomia/wordpress-nginx:6.7.1",
 			VolumeMountPoint: "/bitnami/wordpress",
-			Quotas: containers.Quotas{
+			Quotas: requests.Quotas{
 				VolumeSize: &wpVolumeSize,
 				MemLimit:   &wpMemLimit,
 			},

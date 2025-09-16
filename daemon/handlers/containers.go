@@ -15,12 +15,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
-
-	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
+	"github.com/bitomia/realm/internal/requests"
 )
 
 func RepairContainerHandler(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +113,7 @@ func CreateContainerHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
 	slog.Info("CreateContainerHandler", "container", containerName)
 
-	var opts containers.CreateContainerOpts
+	var opts requests.CreateContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
 	if err := containers.CreateContainer(containerName, opts, nil); err != nil {
@@ -150,7 +150,7 @@ func UpdateContainerQuotasHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("UpdateContainerQuotasHandler", "container", containerName)
 
 	type UpdateContainerQuotas struct {
-		Quotas containers.Quotas `json:"quotas"`
+		Quotas requests.Quotas `json:"quotas"`
 	}
 	var updateContainerQuotas UpdateContainerQuotas
 	json.NewDecoder(r.Body).Decode(&updateContainerQuotas)
