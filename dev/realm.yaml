@@ -1,5 +1,5 @@
 daemon:
-  cni_path: /opt/cni
+  cni_path: /opt/cni/bin
   volumes_pool: realmpool
   listen_address: 0.0.0.0
 

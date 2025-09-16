@@ -78,7 +78,7 @@ func LaunchDockerImage(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Doc
 		json.NewEncoder(w).Encode(Progress{0.8, "docker_image_running"})
 		flusher.Flush()
 
-		startNetworkOpts := network.StartNetworkOpts{
+		startNetworkOpts := requests.StartNetworkOpts{
 			Network: recipeId.String(),
 			DNS:     true,
 		}

@@ -179,7 +179,7 @@ func LaunchWordpress(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Wordp
 		}
 		return nil, err
 	}
-	startNetworkOpts := network.StartNetworkOpts{
+	startNetworkOpts := requests.StartNetworkOpts{
 		Network: recipeId.String(),
 		IPMasq:  false,
 		DNS:     true,
@@ -260,7 +260,7 @@ func LaunchWordpress(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Wordp
 			return nil, err
 		}
 
-		startNetworkOpts := network.StartNetworkOpts{
+		startNetworkOpts := requests.StartNetworkOpts{
 			Network: recipeId.String(),
 			IPMasq:  true,
 			DNS:     true,

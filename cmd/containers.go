@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/log"
 )
 
 var containersCmd = &cobra.Command{

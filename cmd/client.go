@@ -316,29 +316,43 @@ func (c *Client) DeleteContainer(host string, container string) error {
 	return nil
 }
 
-func (c *Client) CreateNetwork(host string, container string) {
+func (c *Client) CreateNetwork(host string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
+	portMaps := []requests.PortmapOpts{{
+		HostPort:      12000,
+		ContainerPort: 80,
+		Protocol:      "tcp",
+	}}
+	request := requests.StartNetworkOpts{Network: container, IPMasq: true, DNS: false, PortMap: portMaps}
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(request)
+
 	url := fmt.Sprintf("%s/containers/%s/network", host, container)
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, payload)
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return fmt.Errorf("Failed to read response body: %v", err)
 	}
-	println(string(body))
+
+	if err := checkStatus(resp); err != nil {
+		return errors.New(string(body))
+	}
+
+	return nil
 }
 
-func (c *Client) DeleteNetwork(host string, container string) {
+func (c *Client) DeleteNetwork(host string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -349,24 +363,29 @@ func (c *Client) DeleteNetwork(host string, container string) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return fmt.Errorf("Failed to read response body: %v", err)
 	}
-	println(string(body))
+
+	if err := checkStatus(resp); err != nil {
+		return errors.New(string(body))
+	}
+
+	return nil
 }
 
-func (c *Client) ListNetworks() {
+func (c *Client) ListNetworks() (map[string]any, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
 	daemons := GetDaemonAddresses()
-	//networksPerHost := make(map[string]map[string]Container)
+	networksPerHost := make(map[string]any)
 
 	for _, daemon := range daemons {
 		url := fmt.Sprintf("%s/network", daemon.Url)
@@ -383,8 +402,17 @@ func (c *Client) ListNetworks() {
 		if err != nil {
 			log.Fatal("Failed to read response body: %v", err)
 		}
-		println(string(body))
+
+		var networkConfig any
+		if err := json.Unmarshal(body, &networkConfig); err != nil {
+			log.Error("Failed to parse JSON: %v", err)
+			continue
+		}
+
+		networksPerHost[daemon.Name] = networkConfig
 	}
+
+	return networksPerHost, nil
 }
 
 type Stats struct {

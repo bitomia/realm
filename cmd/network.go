@@ -5,10 +5,13 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/log"
 )
 
 var networkCmd = &cobra.Command{
-	Use:                   "network",
+	Use:                   "networks",
+	Aliases:               []string{"n"},
 	Short:                 "Interface with network",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -23,38 +26,69 @@ var listNetworks = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
 		color.Blue("Listing networks...\n")
-		client.ListNetworks()
+		networksPerHost, err := client.ListNetworks()
+
+		if err != nil {
+			log.Error("Error %v\n", err)
+			return
+		}
+		for host, networks := range networksPerHost {
+			color.Blue("Networks in %s\n", color.CyanString(host))
+			log.Info("- %s\n", color.CyanString(fmt.Sprintf("%v", networks)))
+		}
 	},
 }
 
 var createNetwork = &cobra.Command{
-	Use:                   "create [host] [container]",
+	Use:                   "create [daemon] [container]",
 	Short:                 "Create network",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
 		color.Blue("Creating network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		client.CreateNetwork(args[0], args[1])
-		color.Green("Successfully created network for container %s\n", color.CyanString(args[1]))
+		if err := client.CreateNetwork(daemon.Url, args[1]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully created network for container %s\n", color.CyanString(args[1]))
+		}
 	},
 }
 
 var deleteNetwork = &cobra.Command{
-	Use:                   "delete [host] [container]",
+	Use:                   "delete [daemon] [container]",
 	Short:                 "Delete network",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := NewClient()
+
+		daemons := GetDaemonAddresses()
+		daemon, exists := daemons[args[0]]
+
+		if !exists {
+			log.Fatal("Daemon %s not found", args[0])
+		}
+
 		color.Blue("Deleting network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		client.DeleteNetwork(args[0], args[1])
-		color.Green("Successfully deleted network for container %s\n", color.CyanString(args[1]))
+		if err := client.DeleteNetwork(daemon.Url, args[1]); err != nil {
+			log.Error("%s", err.Error())
+		} else {
+			color.Green("Successfully deleted network for container %s\n", color.CyanString(args[1]))
+		}
 	},
 }
 
 var repairNetwork = &cobra.Command{
-	Use:                   "repair [host] [container]",
+	Use:                   "repair [daemon] [container]",
 	Short:                 "Repair container network configuration",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),

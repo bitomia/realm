@@ -13,11 +13,12 @@ import (
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
+	"github.com/bitomia/realm/internal/requests"
 )
 
 func LinkContainerToNetworkHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
-	var opts network.StartNetworkOpts
+	var opts requests.StartNetworkOpts
 	err := json.NewDecoder(r.Body).Decode(&opts)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
