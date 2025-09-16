@@ -18,6 +18,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
 	"github.com/bitomia/realm/daemon/health"
+	"github.com/bitomia/realm/daemon/id"
 	"github.com/bitomia/realm/daemon/mdns"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/volumes"
@@ -25,7 +26,7 @@ import (
 )
 
 func Start() {
-	slog.Info("Initializing daemon", "version", config.GetVersion())
+	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", id.GetDaemonId())
 
 	cfg := config.Get()
 	if err := config.GetError(); err != nil {

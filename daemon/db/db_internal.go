@@ -9,16 +9,17 @@ import (
 
 	"go.etcd.io/etcd/client/v3"
 
+	"github.com/bitomia/realm/daemon/id"
 	"github.com/bitomia/realm/internal/config"
 )
 
 const (
-	containerPrefix = "containers/"
-	networkPrefix   = "networks/"
-	subnetPrefix    = "subnets/"
-	userPrefix      = "users/"
-	dnsPrefix       = "dns/"
-	healthPrefix    = "health/"
+	containerPrefix = "/containers/"
+	networkPrefix   = "/networks/"
+	subnetPrefix    = "/subnets/"
+	userPrefix      = "/users/"
+	dnsPrefix       = "/dns/"
+	healthPrefix    = "/health/"
 )
 
 func getEtcdEndpoints() []string {
@@ -27,27 +28,27 @@ func getEtcdEndpoints() []string {
 
 // Helper functions to build etcd keys
 func (db *DaemonDB) containerKey(name string) string {
-	return containerPrefix + name
+	return id.GetDaemonId() + containerPrefix + name
 }
 
 func (db *DaemonDB) networkKey(container string) string {
-	return networkPrefix + container
+	return id.GetDaemonId() + networkPrefix + container
 }
 
 func (db *DaemonDB) subnetKey(network string) string {
-	return subnetPrefix + network
+	return id.GetDaemonId() + subnetPrefix + network
 }
 
 func (db *DaemonDB) userKey(username string) string {
-	return userPrefix + username
+	return id.GetDaemonId() + userPrefix + username
 }
 
 func (db *DaemonDB) dnsKey(dnsName string) string {
-	return dnsPrefix + dnsName
+	return id.GetDaemonId() + dnsPrefix + dnsName
 }
 
 func (db *DaemonDB) healthKey(nodeId string) string {
-	return healthPrefix + nodeId
+	return id.GetDaemonId() + healthPrefix + nodeId
 }
 
 // Generic put operation
