@@ -31,5 +31,10 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version-file: go.mod
+    - name: Install ZFS utilities (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zfsutils-linux libzfslinux-dev
     - name: Build all
       run: make all
