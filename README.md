@@ -16,11 +16,11 @@ deb http://deb.debian.org/debian bookworm-backports main contrib non-free-firmwa
 EOF
 ```
 
-Now install the ZFS devel dependencies:
+Now install the ZFS devel and ansible dependencies:
 
 ```shell
 apt update
-apt install zfsutils-linux libzfslinux-dev -y
+apt install zfsutils-linux libzfslinux-dev ansible -y
 ```
 
 ## Production setup
