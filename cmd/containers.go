@@ -6,6 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/bitomia/realm/cmd/internal"
 	"github.com/bitomia/realm/cmd/log"
 )
 
@@ -24,14 +25,14 @@ var listContainers = &cobra.Command{
 	Short:                 "List all available containers",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
-		containersPerHost, err := client.GetAllContainers()
+		client := internal.NewClient()
+		containersPerNode, err := client.GetAllContainers()
 		if err != nil {
 			log.Error("Error %v\n", err)
 			return
 		}
-		for host, containers := range containersPerHost {
-			color.Blue("Containers in %s\n", color.CyanString(host))
+		for node, containers := range containersPerNode {
+			color.Blue("Containers in %s\n", color.CyanString(node))
 			for _, c := range containers {
 				log.Info("- %s\n", color.CyanString(fmt.Sprintf("%v", c)))
 			}
@@ -40,22 +41,21 @@ var listContainers = &cobra.Command{
 }
 
 var createContainer = &cobra.Command{
-	Use:                   "create [daemon] [name] [image]",
+	Use:                   "create [node] [container] [image]",
 	Short:                 "Create a container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 
-		daemons := GetDaemonAddresses()
-		daemon, exists := daemons[args[0]]
-
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
 		if !exists {
-			log.Fatal("Daemon %s not found", args[0])
+			log.Fatal("Node %s not found", args[0])
 		}
 
 		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
-		if err := client.CreateContainer(daemon.Url, args[1], args[2]); err != nil {
+		if err := client.CreateContainer(node.Url.String(), args[1], args[2]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully created container %s\n", color.CyanString(args[2]))
@@ -64,22 +64,22 @@ var createContainer = &cobra.Command{
 }
 
 var startContainer = &cobra.Command{
-	Use:                   "start [daemon] [name]",
+	Use:                   "start [node] [container]",
 	Short:                 "Start a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 
-		daemons := GetDaemonAddresses()
-		daemon, exists := daemons[args[0]]
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
 
 		if !exists {
-			log.Fatal("Daemon %s not found", args[0])
+			log.Fatal("Node %s not found", args[0])
 		}
 
 		color.Blue("Starting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.StartContainer(daemon.Url, args[1]); err != nil {
+		if err := client.StartContainer(node.Url.String(), args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully started container %s\n", color.CyanString(args[1]))
@@ -88,22 +88,22 @@ var startContainer = &cobra.Command{
 }
 
 var stopContainer = &cobra.Command{
-	Use:                   "stop [daemon] [name]",
+	Use:                   "stop [node] [container]",
 	Short:                 "Stop a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 
-		daemons := GetDaemonAddresses()
-		daemon, exists := daemons[args[0]]
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
 
 		if !exists {
-			log.Fatal("Daemon %s not found", args[0])
+			log.Fatal("Node %s not found", args[0])
 		}
 
 		color.Blue("Stopping container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.StopContainer(daemon.Url, args[1]); err != nil {
+		if err := client.StopContainer(node.Url.String(), args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully stopped container %s\n", color.CyanString(args[1]))
@@ -112,22 +112,22 @@ var stopContainer = &cobra.Command{
 }
 
 var deleteContainer = &cobra.Command{
-	Use:                   "delete [daemon] [name]",
+	Use:                   "delete [node] [container]",
 	Short:                 "Delete a container",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 
-		daemons := GetDaemonAddresses()
-		daemon, exists := daemons[args[0]]
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
 
 		if !exists {
-			log.Fatal("Daemon %s not found", args[0])
+			log.Fatal("Node %s not found", args[0])
 		}
 
 		color.Blue("Deleting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.DeleteContainer(daemon.Url, args[1]); err != nil {
+		if err := client.DeleteContainer(node.Url.String(), args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully deleted container %s\n", color.CyanString(args[1]))
@@ -136,12 +136,12 @@ var deleteContainer = &cobra.Command{
 }
 
 var updateQuotas = &cobra.Command{
-	Use:                   "quotas [daemon] [name] --cpu [cpu_quota] --memory [memory_limit] --volume [volume_size]",
+	Use:                   "quotas [node] [container] --cpu [cpu_quota] --memory [memory_limit] --volume [volume_size]",
 	Short:                 "Update container resource quotas",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		cpuQuota, _ := cmd.Flags().GetInt64("cpu")
 		memoryLimit, _ := cmd.Flags().GetInt64("memory")
 		volumeSize, _ := cmd.Flags().GetInt64("volume")
@@ -156,12 +156,12 @@ var updateQuotas = &cobra.Command{
 }
 
 var repairContainer = &cobra.Command{
-	Use:                   "repair [daemon] [name]",
+	Use:                   "repair [node] [container]",
 	Short:                 "Repair a container to restore its previous state",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Repairing container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.RepairContainer(args[0], args[1]); err != nil {
 			color.Red("Error repairing container: %v\n", err)
@@ -172,12 +172,12 @@ var repairContainer = &cobra.Command{
 }
 
 var sendSignal = &cobra.Command{
-	Use:                   "signal [daemon] [name] [signal]",
+	Use:                   "signal [node] [container] [signal]",
 	Short:                 "Send a system signal to a container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Sending signal %s to container %s on %s\n", color.CyanString(args[2]), color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.SendContainerSignal(args[0], args[1], args[2]); err != nil {
 			color.Red("Error sending signal: %v\n", err)
@@ -188,14 +188,20 @@ var sendSignal = &cobra.Command{
 }
 
 var migrateContainer = &cobra.Command{
-	Use:                   "migrate [daemon] [name] [new_image]",
+	Use:                   "migrate [node] [container] [new_image]",
 	Short:                 "Migrate container to new image while preserving state",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
+		if !exists {
+			log.Fatal("Node %s not found", args[0])
+		}
+
 		color.Blue("Migrating container %s on %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
-		if err := client.MigrateContainer(args[0], args[1], args[2]); err != nil {
+		if err := client.MigrateContainer(node.Url.String(), args[1], args[2]); err != nil {
 			color.Red("Error migrating container: %v\n", err)
 		} else {
 			color.Green("Successfully migrated container %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[2]))
@@ -204,14 +210,21 @@ var migrateContainer = &cobra.Command{
 }
 
 var getLogs = &cobra.Command{
-	Use:                   "logs [daemon] [name]",
+	Use:                   "logs [node] [container]",
 	Short:                 "Get container logs",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
+
+		nodes := internal.GetNodes()
+		node, exists := nodes[args[0]]
+		if !exists {
+			log.Fatal("Node %s not found", args[0])
+		}
+
 		color.Blue("Getting logs for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.GetContainerLogs(args[0], args[1]); err != nil {
+		if err := client.GetContainerLogs(node.Url.String(), args[1]); err != nil {
 			color.Red("Error getting logs: %v\n", err)
 		}
 	},

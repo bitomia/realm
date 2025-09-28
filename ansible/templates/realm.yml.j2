@@ -1,6 +1,8 @@
-etcd_endpoints:
+daemon:
+  listen_address: 0.0.0.0
+  etcd_endpoints:
 {% for host in groups['targets'] %}
 {%   if hostvars[host]['install_etcd'] == "true" %}
-  - http://{{ hostvars[host]['ansible_host'] }}:2379
+    - http://{{ hostvars[host]['ansible_host'] }}:2379
 {%   endif %}
 {% endfor %}

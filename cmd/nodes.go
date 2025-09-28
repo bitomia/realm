@@ -3,34 +3,34 @@ package main
 import (
 	"fmt"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/internal"
+	"github.com/bitomia/realm/cmd/log"
 )
 
 var hostCmd = &cobra.Command{
-	Use:     "hosts",
-	Aliases: []string{"h"},
-	Short:   "Interface with hosts",
+	Use:     "nodes",
+	Aliases: []string{"n"},
+	Short:   "Interface with nodes",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},
 }
 
-var hostStatus = &cobra.Command{
-	Use:                   "status",
-	Short:                 "Get host status",
+var nodeStates = &cobra.Command{
+	Use:                   "ls",
+	Short:                 "List and retrieve all node states",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 
-		daemons := GetDaemonAddresses()
-
-		for _, daemon := range daemons {
-			status, err := client.GetHostStatus(daemon.Url)
+		for _, node := range internal.GetNodes() {
+			status, err := client.GetNodeState(node.Url.String())
 			if err == nil {
-				color.Blue("Host: %s\n", color.CyanString(daemon.Name))
-				color.Blue("URL: %s\n", color.CyanString(daemon.Url))
+				color.Blue("Node: %s\n", color.CyanString(node.Name))
+				color.Blue("URL: %s\n", color.CyanString(node.Url.String()))
 
 				log.Info("CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
 				log.Info("CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))
@@ -66,13 +66,13 @@ var hostStatus = &cobra.Command{
 
 				fmt.Println()
 			} else {
-				log.Error("Error getting status for host %s: %v", daemon, err)
+				log.Error("Error retrieving node state %v: %v", node, err)
 			}
 		}
 	},
 }
 
 func init() {
-	hostCmd.AddCommand(hostStatus)
+	hostCmd.AddCommand(nodeStates)
 	rootCmd.AddCommand(hostCmd)
 }

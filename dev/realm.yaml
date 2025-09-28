@@ -3,5 +3,5 @@ daemon:
   volumes_pool: realmpool
   listen_address: 0.0.0.0
 
-daemons:
+nodes:
   - http://localhost:9000

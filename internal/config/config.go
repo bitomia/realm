@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net/url"
 	"strings"
 	"sync"
 
@@ -24,22 +25,22 @@ type DaemonConfig struct {
 	EtcdEndpoints       []string `mapstructure:"etcd_endpoints"`
 }
 
-type ClientConfig struct {
+type Node struct {
+	Name string  `mapstructure:"name"`
+	Url  url.URL `mapstructure:"url"`
 }
 
-type Daemon struct {
-	Name string `mapstructure:"name"`
-	Url  string `mapstructure:"url"`
+type ClientConfig struct {
+	Nodes []Node `mapstructure:"nodes"`
 }
 
 type DiscoveryConfig struct {
-	MdnsEnabled bool     `mapstructure:"mdns"`
-	Daemons     []Daemon `mapstructure:"daemons"`
+	MdnsEnabled bool `mapstructure:"mdns"`
 }
 
 type Config struct {
+	ClientConfig
 	Daemon    DaemonConfig    `mapstructure:"daemon"`
-	Client    ClientConfig    `mapstructure:"client"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
 }
 

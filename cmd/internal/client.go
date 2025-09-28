@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"bytes"
@@ -90,14 +90,14 @@ func NewUnauthClient() Client {
 }
 
 func (c *Client) GetAllImages() (map[string][]Image, error) {
-	daemons := GetDaemonAddresses()
-	imagesPerHost := make(map[string][]Image)
+	nodes := GetNodes()
+	imagesPerNode := make(map[string][]Image)
 
-	for _, daemon := range daemons {
+	for _, node := range nodes {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/images", daemon.Url)
+		url := fmt.Sprintf("%s/images", node.Url.String())
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -113,7 +113,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-			log.Error("Failed requesting image: %s %s", daemon.Url, err)
+			log.Error("Failed requesting image: %s %s", node.Url.String(), err)
 			continue
 		}
 
@@ -128,9 +128,9 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 			log.Error("Failed to parse JSON: %v %s", err, body)
 			continue
 		}
-		imagesPerHost[daemon.Name] = images
+		imagesPerNode[node.Name] = images
 	}
-	return imagesPerHost, nil
+	return imagesPerNode, nil
 }
 
 type ContainerInfo struct {
@@ -144,14 +144,14 @@ type Container struct {
 }
 
 func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
-	daemons := GetDaemonAddresses()
-	containersPerHost := make(map[string]map[string]Container)
+	nodes := GetNodes()
+	containersPerNode := make(map[string]map[string]Container)
 
-	for _, daemon := range daemons {
+	for _, node := range nodes {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/containers", daemon.Url)
+		url := fmt.Sprintf("%s/containers", node.Url.String())
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -178,16 +178,16 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 			log.Error("Failed to parse JSON: %v", err)
 			continue
 		}
-		containersPerHost[daemon.Name] = containers
+		containersPerNode[node.Name] = containers
 	}
-	return containersPerHost, nil
+	return containersPerNode, nil
 }
 
-func (c *Client) CreateContainer(host string, name string, image string) error {
+func (c *Client) CreateContainer(node string, name string, image string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s", host, name)
+	url := fmt.Sprintf("%s/containers/%s", node, name)
 
 	request := requests.CreateContainerOpts{Image: image}
 	payload := new(bytes.Buffer)
@@ -221,11 +221,11 @@ type UpdateContainerState struct {
 	State string `json:"state"`
 }
 
-func (c *Client) StartContainer(host string, container string) error {
+func (c *Client) StartContainer(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/state", host, container)
+	url := fmt.Sprintf("%s/containers/%s/state", node, container)
 
 	request := UpdateContainerState{"start"}
 	payload := new(bytes.Buffer)
@@ -255,11 +255,11 @@ func (c *Client) StartContainer(host string, container string) error {
 	return nil
 }
 
-func (c *Client) StopContainer(host string, container string) error {
+func (c *Client) StopContainer(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/state", host, container)
+	url := fmt.Sprintf("%s/containers/%s/state", node, container)
 
 	request := UpdateContainerState{"stop"}
 	payload := new(bytes.Buffer)
@@ -288,11 +288,11 @@ func (c *Client) StopContainer(host string, container string) error {
 	return nil
 }
 
-func (c *Client) DeleteContainer(host string, container string) error {
+func (c *Client) DeleteContainer(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s", host, container)
+	url := fmt.Sprintf("%s/containers/%s", node, container)
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create request: %v", err)
@@ -316,7 +316,7 @@ func (c *Client) DeleteContainer(host string, container string) error {
 	return nil
 }
 
-func (c *Client) CreateNetwork(host string, container string) error {
+func (c *Client) CreateNetwork(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -330,7 +330,7 @@ func (c *Client) CreateNetwork(host string, container string) error {
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 
-	url := fmt.Sprintf("%s/containers/%s/network", host, container)
+	url := fmt.Sprintf("%s/containers/%s/network", node, container)
 	req, err := http.NewRequest("POST", url, payload)
 	req.Header = c.header
 
@@ -352,12 +352,12 @@ func (c *Client) CreateNetwork(host string, container string) error {
 	return nil
 }
 
-func (c *Client) DeleteNetwork(host string, container string) error {
+func (c *Client) DeleteNetwork(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/containers/%s/network", host, container)
+	url := fmt.Sprintf("%s/containers/%s/network", node, container)
 	req, err := http.NewRequest("DELETE", url, nil)
 	req.Header = c.header
 
@@ -384,12 +384,15 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 		Timeout: 10 * time.Second,
 	}
 
-	daemons := GetDaemonAddresses()
-	networksPerHost := make(map[string]any)
+	nodes := GetNodes()
+	networksPerNode := make(map[string]any)
 
-	for _, daemon := range daemons {
-		url := fmt.Sprintf("%s/network", daemon.Url)
+	for _, node := range nodes {
+		url := fmt.Sprintf("%s/network", node.Url.String())
 		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			log.Fatal("Failed to create request: %v", err)
+		}
 		req.Header = c.header
 
 		resp, err := client.Do(req)
@@ -409,50 +412,19 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 			continue
 		}
 
-		networksPerHost[daemon.Name] = networkConfig
+		networksPerNode[node.Name] = networkConfig
 	}
 
-	return networksPerHost, nil
+	return networksPerNode, nil
 }
 
-type Stats struct {
-	ContainerID   string  `json:"container_id"`
-	CPUUsage      float64 `json:"cpu_usage"`
-	CPUSystem     float64 `json:"cpu_system"`
-	CPUUser       float64 `json:"cpu_user"`
-	MemoryUsage   float64 `json:"mem_usage"`
-	MemoryLimit   float64 `json:"mem_limit"`
-	MemoryPercent float64 `json:"mem_percentage"`
-}
-
-type HostStatus struct {
-	NumCPU          int     `json:"ncpu"`
-	UserCPU         uint64  `json:"cpu_user"`
-	IdleCPU         uint64  `json:"cpu_idle"`
-	SystemCPU       uint64  `json:"cpu_system"`
-	TotalCPU        uint64  `json:"cpu_total"`
-	UsageCPUPercent float64 `json:"cpu_usage_percentage"`
-
-	TotalMem       uint64  `json:"mem_total"`
-	UsedMem        uint64  `json:"mem_used"`
-	InactiveMem    uint64  `json:"mem_inactive"`
-	CachedMem      uint64  `json:"mem_cached"`
-	FreeMem        uint64  `json:"mem_free"`
-	AvailableMem   uint64  `json:"mem_available"`
-	FreeMemPercent float64 `json:"mem_free_percentage"`
-
-	FreeStorage uint64 `json:"free_storage"`
-
-	Containers []Stats `json:"containers"`
-}
-
-func (c *Client) GetHostStatus(host string) (HostStatus, error) {
-	var status HostStatus
+func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
+	var status requests.NodeState
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/host", host)
+	url := fmt.Sprintf("%s/node", node)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -486,11 +458,11 @@ type PullImageRequest struct {
 	Image string `json:"image"`
 }
 
-func (c *Client) PullImage(host string, image string) error {
+func (c *Client) PullImage(node string, image string) error {
 	client := &http.Client{
 		Timeout: 300 * time.Second, // Extended timeout for image pulls
 	}
-	url := fmt.Sprintf("%s/images", host)
+	url := fmt.Sprintf("%s/images", node)
 
 	request := PullImageRequest{Image: image}
 	payload := new(bytes.Buffer)
@@ -532,11 +504,11 @@ type UpdateQuotasRequest struct {
 	VolumeSize  int64 `json:"volume_size,omitempty"`
 }
 
-func (c *Client) UpdateContainerQuotas(host string, container string, cpuQuota, memoryLimit, volumeSize int64) error {
+func (c *Client) UpdateContainerQuotas(node string, container string, cpuQuota, memoryLimit, volumeSize int64) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/quotas", host, container)
+	url := fmt.Sprintf("%s/containers/%s/quotas", node, container)
 
 	request := UpdateQuotasRequest{
 		CPUQuota:    cpuQuota,
@@ -571,11 +543,11 @@ func (c *Client) UpdateContainerQuotas(host string, container string, cpuQuota, 
 	return nil
 }
 
-func (c *Client) RepairContainer(host string, container string) error {
+func (c *Client) RepairContainer(node string, container string) error {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/repair", host, container)
+	url := fmt.Sprintf("%s/containers/%s/repair", node, container)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -606,11 +578,11 @@ type SendSignalRequest struct {
 	Signal string `json:"signal"`
 }
 
-func (c *Client) SendContainerSignal(host string, container string, signal string) error {
+func (c *Client) SendContainerSignal(node string, container string, signal string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/signal", host, container)
+	url := fmt.Sprintf("%s/containers/%s/signal", node, container)
 
 	request := SendSignalRequest{Signal: signal}
 	payload := new(bytes.Buffer)
@@ -645,11 +617,11 @@ type MigrateContainerRequest struct {
 	NewImage string `json:"new_image"`
 }
 
-func (c *Client) MigrateContainer(host string, container string, newImage string) error {
+func (c *Client) MigrateContainer(node string, container string, newImage string) error {
 	client := &http.Client{
 		Timeout: 120 * time.Second, // Extended timeout for migration
 	}
-	url := fmt.Sprintf("%s/containers/%s/migrate", host, container)
+	url := fmt.Sprintf("%s/containers/%s/migrate", node, container)
 
 	request := MigrateContainerRequest{NewImage: newImage}
 	payload := new(bytes.Buffer)
@@ -680,11 +652,11 @@ func (c *Client) MigrateContainer(host string, container string, newImage string
 	return nil
 }
 
-func (c *Client) GetContainerLogs(host string, container string) error {
+func (c *Client) GetContainerLogs(node string, container string) error {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/logs", host, container)
+	url := fmt.Sprintf("%s/containers/%s/logs", node, container)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -712,11 +684,11 @@ func (c *Client) GetContainerLogs(host string, container string) error {
 }
 
 // Network operations
-func (c *Client) RepairNetwork(host string, container string) error {
+func (c *Client) RepairNetwork(node string, container string) error {
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
-	url := fmt.Sprintf("%s/network/%s/repair", host, container)
+	url := fmt.Sprintf("%s/network/%s/repair", node, container)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -744,11 +716,11 @@ func (c *Client) RepairNetwork(host string, container string) error {
 }
 
 // Server/Proxy operations
-func (c *Client) GetProxyConfig(host string, container string) error {
+func (c *Client) GetProxyConfig(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/server", host, container)
+	url := fmt.Sprintf("%s/containers/%s/server", node, container)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -782,14 +754,14 @@ type SetProxyRequest struct {
 	HttpsUpstream bool     `json:"https_upstream"`
 }
 
-func (c *Client) SetProxy(host string, container string, hosts []string, upstream string, httpUpstream, httpsUpstream bool) error {
+func (c *Client) SetProxy(node string, container string, nodes []string, upstream string, httpUpstream, httpsUpstream bool) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/proxy", host, container)
+	url := fmt.Sprintf("%s/containers/%s/proxy", node, container)
 
 	request := SetProxyRequest{
-		Hosts:         hosts,
+		Hosts:         nodes,
 		Upstream:      upstream,
 		HttpUpstream:  httpUpstream,
 		HttpsUpstream: httpsUpstream,
@@ -822,11 +794,11 @@ func (c *Client) SetProxy(host string, container string, hosts []string, upstrea
 	return nil
 }
 
-func (c *Client) DeleteProxy(host string, container string) error {
+func (c *Client) DeleteProxy(node string, container string) error {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/containers/%s/proxy", host, container)
+	url := fmt.Sprintf("%s/containers/%s/proxy", node, container)
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -863,11 +835,11 @@ type LoginResponse struct {
 	Token string `json:"token"`
 }
 
-func (c *Client) Login(host string, username string, password string) (string, error) {
+func (c *Client) Login(node string, username string, password string) (string, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/login", host)
+	url := fmt.Sprintf("%s/login", node)
 
 	request := LoginRequest{
 		Username: username,
@@ -907,11 +879,11 @@ func (c *Client) Login(host string, username string, password string) (string, e
 }
 
 // Recipe operations
-func (c *Client) LaunchRecipe(host string, recipeData map[string]interface{}) error {
+func (c *Client) LaunchRecipe(node string, recipeData map[string]interface{}) error {
 	client := &http.Client{
 		Timeout: 120 * time.Second, // Extended timeout for recipe deployment
 	}
-	url := fmt.Sprintf("%s/recipes", host)
+	url := fmt.Sprintf("%s/recipes", node)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(recipeData)
@@ -941,11 +913,11 @@ func (c *Client) LaunchRecipe(host string, recipeData map[string]interface{}) er
 	return nil
 }
 
-func (c *Client) RecipeAction(host string, recipeId string, actionData map[string]interface{}) error {
+func (c *Client) RecipeAction(node string, recipeId string, actionData map[string]interface{}) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
-	url := fmt.Sprintf("%s/recipes/%s", host, recipeId)
+	url := fmt.Sprintf("%s/recipes/%s", node, recipeId)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(actionData)
@@ -975,11 +947,11 @@ func (c *Client) RecipeAction(host string, recipeId string, actionData map[strin
 	return nil
 }
 
-func (c *Client) RollbackRecipe(host string, recipeId string) error {
+func (c *Client) RollbackRecipe(node string, recipeId string) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
-	url := fmt.Sprintf("%s/recipes/%s", host, recipeId)
+	url := fmt.Sprintf("%s/recipes/%s", node, recipeId)
 
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {

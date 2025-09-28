@@ -6,6 +6,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/internal"
 )
 
 var proxyCmd = &cobra.Command{
@@ -18,12 +20,12 @@ var proxyCmd = &cobra.Command{
 }
 
 var getProxyConfig = &cobra.Command{
-	Use:                   "get [host] [container]",
+	Use:                   "get [node] [container]",
 	Short:                 "Get reverse proxy configuration for container",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Getting proxy config for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetProxyConfig(args[0], args[1]); err != nil {
 			color.Red("Error getting proxy config: %v\n", err)
@@ -32,27 +34,27 @@ var getProxyConfig = &cobra.Command{
 }
 
 var setProxy = &cobra.Command{
-	Use:                   "set [host] [container] [upstream] --hosts [host1,host2,...]",
+	Use:                   "set [node] [container] [upstream] --nodes [node1,node2,...]",
 	Short:                 "Set up reverse proxy for container",
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
-		hostsStr, _ := cmd.Flags().GetString("hosts")
+		client := internal.NewClient()
+		nodesStr, _ := cmd.Flags().GetString("nodes")
 		httpUpstream, _ := cmd.Flags().GetBool("http")
 		httpsUpstream, _ := cmd.Flags().GetBool("https")
 
-		var hosts []string
-		if hostsStr != "" {
-			hosts = strings.Split(hostsStr, ",")
-			// Trim whitespace from each host
-			for i, host := range hosts {
-				hosts[i] = strings.TrimSpace(host)
+		var nodes []string
+		if nodesStr != "" {
+			nodes = strings.Split(nodesStr, ",")
+			// Trim whitespace from each node
+			for i, node := range nodes {
+				nodes[i] = strings.TrimSpace(node)
 			}
 		}
 
 		color.Blue("Setting proxy for container %s on %s with upstream %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
-		if err := client.SetProxy(args[0], args[1], hosts, args[2], httpUpstream, httpsUpstream); err != nil {
+		if err := client.SetProxy(args[0], args[1], nodes, args[2], httpUpstream, httpsUpstream); err != nil {
 			color.Red("Error setting proxy: %v\n", err)
 		} else {
 			color.Green("Successfully set proxy for container %s\n", color.CyanString(args[1]))
@@ -61,12 +63,12 @@ var setProxy = &cobra.Command{
 }
 
 var deleteProxy = &cobra.Command{
-	Use:                   "delete [host] [container]",
+	Use:                   "delete [node] [container]",
 	Short:                 "Remove reverse proxy for container",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Deleting proxy for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteProxy(args[0], args[1]); err != nil {
 			color.Red("Error deleting proxy: %v\n", err)
@@ -78,7 +80,7 @@ var deleteProxy = &cobra.Command{
 
 func init() {
 	// Add flags for set proxy command
-	setProxy.Flags().String("hosts", "", "Comma-separated list of hostnames")
+	setProxy.Flags().String("nodes", "", "Comma-separated list of nodes")
 	setProxy.Flags().Bool("http", false, "Enable HTTP upstream")
 	setProxy.Flags().Bool("https", false, "Enable HTTPS upstream")
 

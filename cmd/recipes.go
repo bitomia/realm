@@ -6,6 +6,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/internal"
 )
 
 var recipesCmd = &cobra.Command{
@@ -18,7 +20,7 @@ var recipesCmd = &cobra.Command{
 }
 
 var launchRecipe = &cobra.Command{
-	Use:   "launch [host] [recipe_type]",
+	Use:   "launch [node] [recipe_type]",
 	Short: "Launch a pre-configured recipe",
 	Long: `Launch a pre-configured recipe. Supported recipe types:
 - wordpress_starter, wordpress_pro, wordpress_business
@@ -28,7 +30,7 @@ var launchRecipe = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		recipeType := args[1]
 
 		// Build recipe data based on type and flags
@@ -79,7 +81,7 @@ var launchRecipe = &cobra.Command{
 }
 
 var recipeAction = &cobra.Command{
-	Use:   "action [host] [recipe_id] [action_type]",
+	Use:   "action [node] [recipe_id] [action_type]",
 	Short: "Perform actions on existing recipes",
 	Long: `Perform actions on existing recipes. Supported action types:
 - add_domain: Add domain to static project
@@ -87,7 +89,7 @@ var recipeAction = &cobra.Command{
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		recipeId := args[1]
 		actionType := args[2]
 
@@ -112,12 +114,12 @@ var recipeAction = &cobra.Command{
 }
 
 var rollbackRecipe = &cobra.Command{
-	Use:                   "rollback [host] [recipe_id]",
+	Use:                   "rollback [node] [recipe_id]",
 	Short:                 "Rollback/remove a deployed recipe",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Rolling back recipe %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.RollbackRecipe(args[0], args[1]); err != nil {
 			color.Red("Error rolling back recipe: %v\n", err)
