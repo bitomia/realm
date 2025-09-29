@@ -59,3 +59,12 @@ func GetNodes() map[string]config.Node {
 
 	return nodes
 }
+
+func GetNode(nodeName string) config.Node {
+	nodes := GetNodes()
+	node, exists := nodes[nodeName]
+	if !exists {
+		log.Fatal("Node %s not found", nodeName)
+	}
+	return node
+}

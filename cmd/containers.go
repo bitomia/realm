@@ -47,12 +47,7 @@ var createContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
 		if err := client.CreateContainer(node.Url.String(), args[1], args[2]); err != nil {
@@ -70,13 +65,7 @@ var startContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Starting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.StartContainer(node.Url.String(), args[1]); err != nil {
@@ -94,13 +83,7 @@ var stopContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Stopping container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.StopContainer(node.Url.String(), args[1]); err != nil {
@@ -118,13 +101,7 @@ var deleteContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Deleting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteContainer(node.Url.String(), args[1]); err != nil {
@@ -142,12 +119,14 @@ var updateQuotas = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
+		node := internal.GetNode(args[0])
+
 		cpuQuota, _ := cmd.Flags().GetInt64("cpu")
 		memoryLimit, _ := cmd.Flags().GetInt64("memory")
 		volumeSize, _ := cmd.Flags().GetInt64("volume")
 
 		color.Blue("Updating quotas for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.UpdateContainerQuotas(args[0], args[1], cpuQuota, memoryLimit, volumeSize); err != nil {
+		if err := client.UpdateContainerQuotas(node.Url.String(), args[1], cpuQuota, memoryLimit, volumeSize); err != nil {
 			color.Red("Error updating quotas: %v\n", err)
 		} else {
 			color.Green("Successfully updated quotas for container %s\n", color.CyanString(args[1]))
@@ -162,8 +141,10 @@ var repairContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
+		node := internal.GetNode(args[0])
+
 		color.Blue("Repairing container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.RepairContainer(args[0], args[1]); err != nil {
+		if err := client.RepairContainer(node.Url.String(), args[1]); err != nil {
 			color.Red("Error repairing container: %v\n", err)
 		} else {
 			color.Green("Successfully repaired container %s\n", color.CyanString(args[1]))
@@ -178,8 +159,10 @@ var sendSignal = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
+		node := internal.GetNode(args[0])
+
 		color.Blue("Sending signal %s to container %s on %s\n", color.CyanString(args[2]), color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.SendContainerSignal(args[0], args[1], args[2]); err != nil {
+		if err := client.SendContainerSignal(node.Url.String(), args[1], args[2]); err != nil {
 			color.Red("Error sending signal: %v\n", err)
 		} else {
 			color.Green("Successfully sent signal %s to container %s\n", color.CyanString(args[2]), color.CyanString(args[1]))
@@ -194,11 +177,7 @@ var migrateContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Migrating container %s on %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
 		if err := client.MigrateContainer(node.Url.String(), args[1], args[2]); err != nil {
@@ -216,12 +195,7 @@ var getLogs = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Getting logs for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetContainerLogs(node.Url.String(), args[1]); err != nil {

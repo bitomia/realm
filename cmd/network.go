@@ -47,13 +47,7 @@ var createNetwork = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Creating network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.CreateNetwork(node.Url.String(), args[1]); err != nil {
@@ -71,13 +65,7 @@ var deleteNetwork = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-
-		nodes := internal.GetNodes()
-		node, exists := nodes[args[0]]
-
-		if !exists {
-			log.Fatal("Node %s not found", args[0])
-		}
+		node := internal.GetNode(args[0])
 
 		color.Blue("Deleting network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteNetwork(node.Url.String(), args[1]); err != nil {
@@ -95,8 +83,10 @@ var repairNetwork = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
+		node := internal.GetNode(args[0])
+
 		color.Blue("Repairing network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.RepairNetwork(args[0], args[1]); err != nil {
+		if err := client.RepairNetwork(node.Url.String(), args[1]); err != nil {
 			color.Red("Error repairing network: %v\n", err)
 		} else {
 			color.Green("Successfully repaired network for container %s\n", color.CyanString(args[1]))
