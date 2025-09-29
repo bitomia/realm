@@ -11,40 +11,11 @@ import (
 	cgroupstats "github.com/containerd/cgroups/v2/stats"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/errdefs"
+
+	"github.com/bitomia/realm/internal/requests"
 )
 
-type Stats struct {
-	ContainerID   string  `json:"container_id"`
-	CPUUsage      float64 `json:"cpu_usage"` // Important (percentage)
-	CPUSystem     float64 `json:"cpu_system"`
-	CPUUser       float64 `json:"cpu_user"`
-	MemoryUsage   float64 `json:"mem_usage"`
-	MemoryLimit   float64 `json:"mem_limit"`
-	MemoryPercent float64 `json:"mem_percentage"` // Important (percentage)
-}
-
-type HostStatus struct {
-	NumCPU          int     `json:"ncpu"`
-	UserCPU         uint64  `json:"cpu_user"`
-	IdleCPU         uint64  `json:"cpu_idle"`
-	SystemCPU       uint64  `json:"cpu_system"`
-	TotalCPU        uint64  `json:"cpu_total"`
-	UsageCPUPercent float64 `json:"cpu_usage_percentage"` // Important
-
-	TotalMem       uint64  `json:"mem_total"`
-	UsedMem        uint64  `json:"mem_used"`
-	InactiveMem    uint64  `json:"mem_inactive"`
-	CachedMem      uint64  `json:"mem_cached"`
-	FreeMem        uint64  `json:"mem_free"`
-	AvailableMem   uint64  `json:"mem_available"`
-	FreeMemPercent float64 `json:"mem_free_percentage"` // Important
-
-	FreeStorage uint64 `json:"free_storage"`
-
-	Containers []Stats `json:"containers"`
-}
-
-func GetHostMemLimit() float64 {
+func GetMemLimit() float64 {
 	file, err := os.Open("/proc/meminfo")
 	if err != nil {
 		return float64(^uint64(0))
@@ -69,7 +40,7 @@ func GetHostMemLimit() float64 {
 
 func GetCgroupMemLimit(memLimit float64) float64 {
 	if memLimit == float64(^uint64(0)) {
-		return GetHostMemLimit()
+		return GetMemLimit()
 	}
 	return memLimit
 }
@@ -81,13 +52,13 @@ func GetMemUsage(memStat *cgroupstats.MemoryStat) float64 {
 	return float64(memStat.Usage)
 }
 
-func GetContainerStats(ctx context.Context, client *containerd.Client) (map[string]Stats, error) {
+func GetContainerState(ctx context.Context, client *containerd.Client) (map[string]requests.ContainerState, error) {
 	containers, err := client.Containers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var stats = make(map[string]Stats)
+	var stats = make(map[string]requests.ContainerState)
 	for _, container := range containers {
 		id := container.ID()
 		task, err := container.Task(ctx, nil)
@@ -111,7 +82,7 @@ func GetContainerStats(ctx context.Context, client *containerd.Client) (map[stri
 		memLimit := GetCgroupMemLimit(float64(statsMetrics.Memory.UsageLimit))
 		memPercent := memUsage / memLimit * 100
 
-		stats[id] = Stats{
+		stats[id] = requests.ContainerState{
 			ContainerID:   id,
 			CPUUsage:      float64(statsMetrics.CPU.UsageUsec),
 			CPUSystem:     float64(statsMetrics.CPU.SystemUsec),

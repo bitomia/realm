@@ -35,7 +35,7 @@ func createRoutes(router *mux.Router) {
 
 	router.Handle("/network", auth.WithAuth(handlers.ListNetworksHandler)).Methods("GET")
 	router.Handle("/network", auth.WithAuth(handlers.PurgeNetworksHandler)).Methods("POST")
-	router.Handle("/host", auth.WithAuth(handlers.GetHostStatusHandler)).Methods("GET")
+	router.Handle("/node", auth.WithAuth(handlers.GetNodeStatusHandler)).Methods("GET")
 	router.Handle("/network/{container}/repair", auth.WithAuth(handlers.RepairNetworkHandler)).Methods("POST")
 
 	router.Handle("/recipes", auth.WithAuth(handlers.LaunchRecipeHandler)).Methods("POST")

@@ -11,6 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/bitomia/realm/daemon/cruntime"
+	"github.com/bitomia/realm/internal/requests"
 )
 
 func GetCPUStat(s *cpu.Stats) (float64, float64) {
@@ -19,17 +20,17 @@ func GetCPUStat(s *cpu.Stats) (float64, float64) {
 	return float64(active), float64(total)
 }
 
-func GetHostStatus() (*HostStatus, error) {
+func GetNodeState() (*requests.NodeState, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return nil, err
 	}
 	defer client.Close()
 
-	var hostStatus HostStatus
+	var nodeState requests.NodeState
 
 	statsATime := time.Now()
-	statsA, err := GetContainerStats(ctx, client)
+	statsA, err := GetContainerState(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func GetHostStatus() (*HostStatus, error) {
 		return nil, err
 	}
 
-	statsB, err := GetContainerStats(ctx, client)
+	statsB, err := GetContainerState(ctx, client)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +58,7 @@ func GetHostStatus() (*HostStatus, error) {
 		cpuSystem := (statB.CPUSystem*1000 - statA.CPUSystem*1000) / float64(timeDelta.Nanoseconds()) * 100
 		cpuUser := (statB.CPUUser*1000 - statA.CPUUser*1000) / float64(timeDelta.Nanoseconds()) * 100
 
-		stat := Stats{
+		stat := requests.ContainerState{
 			ContainerID:   container,
 			CPUUsage:      cpuUsage,
 			CPUSystem:     cpuSystem,
@@ -66,35 +67,35 @@ func GetHostStatus() (*HostStatus, error) {
 			MemoryLimit:   statB.MemoryLimit,
 			MemoryPercent: statB.MemoryPercent,
 		}
-		hostStatus.Containers = append(hostStatus.Containers, stat)
+		nodeState.Containers = append(nodeState.Containers, stat)
 	}
 
-	hostStatus.NumCPU = cpuStatB.CPUCount
-	hostStatus.UserCPU = cpuStatB.User
-	hostStatus.IdleCPU = cpuStatB.Idle
-	hostStatus.SystemCPU = cpuStatB.System
-	hostStatus.TotalCPU = cpuStatB.Total
+	nodeState.NumCPU = cpuStatB.CPUCount
+	nodeState.UserCPU = cpuStatB.User
+	nodeState.IdleCPU = cpuStatB.Idle
+	nodeState.SystemCPU = cpuStatB.System
+	nodeState.TotalCPU = cpuStatB.Total
 
 	cpuAActive, cpuATotal := GetCPUStat(cpuStatA)
 	cpuBActive, cpuBTotal := GetCPUStat(cpuStatB)
 	cpuUsage := ((cpuBActive - cpuAActive) / (cpuBTotal - cpuATotal)) * 100
-	hostStatus.UsageCPUPercent = cpuUsage
+	nodeState.UsageCPUPercent = cpuUsage
 
 	memStat, err := memory.Get()
 	if err != nil {
 		return nil, err
 	}
-	hostStatus.TotalMem = memStat.Total
-	hostStatus.UsedMem = memStat.Used
-	hostStatus.InactiveMem = memStat.Inactive
-	hostStatus.CachedMem = memStat.Cached
-	hostStatus.FreeMem = memStat.Free
-	hostStatus.AvailableMem = memStat.Available
-	hostStatus.FreeMemPercent = float64(memStat.Available) / float64(memStat.Total) * 100
+	nodeState.TotalMem = memStat.Total
+	nodeState.UsedMem = memStat.Used
+	nodeState.InactiveMem = memStat.Inactive
+	nodeState.CachedMem = memStat.Cached
+	nodeState.FreeMem = memStat.Free
+	nodeState.AvailableMem = memStat.Available
+	nodeState.FreeMemPercent = float64(memStat.Available) / float64(memStat.Total) * 100
 
 	var fsStat unix.Statfs_t
 	unix.Statfs("/", &fsStat)
-	hostStatus.FreeStorage = fsStat.Bfree * uint64(fsStat.Bsize)
+	nodeState.FreeStorage = fsStat.Bfree * uint64(fsStat.Bsize)
 
-	return &hostStatus, nil
+	return &nodeState, nil
 }

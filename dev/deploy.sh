@@ -1,6 +1,6 @@
 #!/bin/bash
 
-hosts=("192.168.47.77" "192.168.47.78")
+hosts=("192.168.47.82" "192.168.47.86")
 
 for host in "${hosts[@]}"; do
     echo "Deploying to $host"

@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/bitomia/realm/cmd/internal"
+	"github.com/bitomia/realm/cmd/log"
 )
 
 var imagesCmd = &cobra.Command{
@@ -21,14 +23,14 @@ var listImages = &cobra.Command{
 	Use:   "ls",
 	Short: "List all available images",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
-		imagesPerHost, err := client.GetAllImages()
+		client := internal.NewClient()
+		imagesPerNode, err := client.GetAllImages()
 		if err != nil {
 			color.Red("Error %v\n", err)
 			return
 		}
-		for host, images := range imagesPerHost {
-			color.Blue("Images in %s\n", color.CyanString(host))
+		for node, images := range imagesPerNode {
+			color.Blue("Images in %s\n", color.CyanString(node))
 			for _, image := range images {
 				log.Info("- %s\n", color.CyanString(image.Name))
 			}
@@ -37,12 +39,12 @@ var listImages = &cobra.Command{
 }
 
 var pullImage = &cobra.Command{
-	Use:                   "pull [host] [image]",
+	Use:                   "pull [node] [image]",
 	Short:                 "Pull a container image",
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := NewClient()
+		client := internal.NewClient()
 		color.Blue("Pulling image %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.PullImage(args[0], args[1]); err != nil {
 			color.Red("Error pulling image: %v\n", err)
