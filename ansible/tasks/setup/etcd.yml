@@ -34,11 +34,20 @@
   when: install_etcd | default(false) | bool
   become: true
 
-- name: ETCD > Enable and start etcd service
+- name: ETCD > Enable etcd service
   ansible.builtin.systemd:
     name: etcd
     enabled: true
     state: started
+    daemon_reload: true
+  when: install_etcd | default(false) | bool
+  become: true
+
+- name: ETCD > Restart etcd service
+  ansible.builtin.systemd:
+    name: etcd
+    enabled: true
+    state: restarted
     daemon_reload: true
   when: install_etcd | default(false) | bool
   become: true
