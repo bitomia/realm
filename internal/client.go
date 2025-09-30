@@ -6,13 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/internal/requests"
 )
 
@@ -100,32 +100,36 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		url := fmt.Sprintf("%s/images", node.Url.String())
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Error("Failed to create request: %v", err)
+			log.Printf("Failed to create request: %v\n", err)
 			continue
 		}
 		req.Header = c.header
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Error("Failed to make request: %v", err)
+			log.Printf("Failed to make request: %v\n", err)
 			continue
 		}
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
+<<<<<<<< HEAD:cmd/internal/client.go
 			log.Error("Failed requesting image: %s %s", node.Url.String(), err)
+========
+			log.Printf("Failed requesting image: %s %s\n", daemon.Url, err)
+>>>>>>>> 2064d5b (wip):internal/client.go
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Error("Failed to read response body: %v", err)
+			log.Printf("Failed to read response body: %v\n", err)
 			continue
 		}
 
 		var images []Image
 		if err := json.Unmarshal(body, &images); err != nil {
-			log.Error("Failed to parse JSON: %v %s", err, body)
+			log.Printf("Failed to parse JSON: %v %s\n", err, body)
 			continue
 		}
 		imagesPerNode[node.Name] = images
@@ -154,7 +158,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 		url := fmt.Sprintf("%s/containers", node.Url.String())
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Error("Failed to create request: %v", err)
+			log.Printf("Failed to create request: %v\n", err)
 			continue
 
 		}
@@ -162,20 +166,20 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Error("Failed to make request: %v", err)
+			log.Printf("Failed to make request: %v\n", err)
 			continue
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Error("Failed to read response body: %v", err)
+			log.Printf("Failed to read response body: %v\n", err)
 			continue
 		}
 
 		var containers map[string]Container
 		if err := json.Unmarshal(body, &containers); err != nil {
-			log.Error("Failed to parse JSON: %v", err)
+			log.Printf("Failed to parse JSON: %v\n", err)
 			continue
 		}
 		containersPerNode[node.Name] = containers
@@ -397,18 +401,18 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Fatal("Failed to make request: %v", err)
+			return nil, fmt.Errorf("Failed to make request: %v", err)
 		}
 		defer resp.Body.Close()
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatal("Failed to read response body: %v", err)
+			return nil, fmt.Errorf("Failed to read response body: %v", err)
 		}
 
 		var networkConfig any
 		if err := json.Unmarshal(body, &networkConfig); err != nil {
-			log.Error("Failed to parse JSON: %v", err)
+			log.Printf("Failed to parse JSON: %v\n", err)
 			continue
 		}
 
@@ -418,8 +422,44 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
+<<<<<<<< HEAD:cmd/internal/client.go
 func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
 	var status requests.NodeState
+========
+type Stats struct {
+	ContainerID   string  `json:"container_id"`
+	CPUUsage      float64 `json:"cpu_usage"`
+	CPUSystem     float64 `json:"cpu_system"`
+	CPUUser       float64 `json:"cpu_user"`
+	MemoryUsage   float64 `json:"mem_usage"`
+	MemoryLimit   float64 `json:"mem_limit"`
+	MemoryPercent float64 `json:"mem_percentage"`
+}
+
+type HostStatus struct {
+	NumCPU          int     `json:"ncpu"`
+	UserCPU         uint64  `json:"cpu_user"`
+	IdleCPU         uint64  `json:"cpu_idle"`
+	SystemCPU       uint64  `json:"cpu_system"`
+	TotalCPU        uint64  `json:"cpu_total"`
+	UsageCPUPercent float64 `json:"cpu_usage_percentage"`
+
+	TotalMem       uint64  `json:"mem_total"`
+	UsedMem        uint64  `json:"mem_used"`
+	InactiveMem    uint64  `json:"mem_inactive"`
+	CachedMem      uint64  `json:"mem_cached"`
+	FreeMem        uint64  `json:"mem_free"`
+	AvailableMem   uint64  `json:"mem_available"`
+	FreeMemPercent float64 `json:"mem_free_percentage"`
+
+	FreeStorage uint64 `json:"free_storage"`
+
+	Containers []Stats `json:"containers"`
+}
+
+func (c *Client) GetHostStatus(host string) (*HostStatus, error) {
+	var status HostStatus
+>>>>>>>> 2064d5b (wip):internal/client.go
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
@@ -428,29 +468,30 @@ func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Fatal("Failed to create request: %v", err)
+		return nil, fmt.Errorf("Failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return nil, fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if err := checkStatus(resp); err != nil {
-		return status, err
+		return &status, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return nil, fmt.Errorf("Failed to read response body: %v", err)
 	}
 
 	if err := json.Unmarshal(body, &status); err != nil {
-		log.Fatal("Failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
 	}
-	return status, nil
+
+	return &status, nil
 }
 
 // Image operations
