@@ -4,22 +4,23 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"strings"
 
 	"github.com/bitomia/realm/internal/config"
 )
 
-func GetDaemonAddresses() map[string]config.Daemon {
-	daemons := make(map[string]config.Daemon)
+func GetNodes() map[string]config.Node {
+	nodes := make(map[string]config.Node)
 	seenUrls := make(map[string]string)
 
-	for _, daemon := range config.Get().Discovery.Daemons {
-		if existingName, exists := seenUrls[daemon.Url]; exists {
-			log.Printf("Duplicate URL detected: %s (replacing daemon '%s' with '%s')\n", daemon.Url, existingName, daemon.Name)
-			delete(daemons, existingName)
+	for _, node := range config.Get().Nodes {
+		if existingName, exists := seenUrls[node.Url.String()]; exists {
+			log.Printf("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url.String(), existingName, node.Name)
+			delete(nodes, existingName)
 		}
-		daemons[daemon.Name] = daemon
-		seenUrls[daemon.Url] = daemon.Name
+		nodes[node.Name] = node
+		seenUrls[node.Url.String()] = node.Name
 	}
 
 	services, _ := QueryServices("_realm._tcp.local")
@@ -39,17 +40,30 @@ func GetDaemonAddresses() map[string]config.Daemon {
 				continue
 			}
 			name := serviceNameParts[0]
-			url := fmt.Sprintf("http://%s:%d", service.IPs[0], service.Port)
-
-			if existingName, exists := seenUrls[url]; exists {
-				log.Printf("Duplicate URL detected: %s (replacing daemon '%s' with '%s')\n", url, existingName, name)
-				delete(daemons, existingName)
+			urlStr := fmt.Sprintf("http://%s:%d", service.IPs[0], service.Port)
+			url, error := url.Parse(urlStr)
+			if error != nil {
+				log.Printf("Error parsing URL %s\n", urlStr)
+				continue
+			}
+			if existingName, exists := seenUrls[url.String()]; exists {
+				log.Printf("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", url, existingName, name)
+				delete(nodes, existingName)
 			}
 
-			daemons[name] = config.Daemon{Name: name, Url: url}
-			seenUrls[url] = name
+			nodes[name] = config.Node{Name: name, Url: *url}
+			seenUrls[url.String()] = name
 		}
 	}
 
-	return daemons
+	return nodes
+}
+
+func GetNode(nodeName string) config.Node {
+	nodes := GetNodes()
+	node, exists := nodes[nodeName]
+	if !exists {
+		log.Fatalf("Node %s not found", nodeName)
+	}
+	return node
 }

@@ -113,11 +113,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-<<<<<<<< HEAD:cmd/internal/client.go
-			log.Error("Failed requesting image: %s %s", node.Url.String(), err)
-========
-			log.Printf("Failed requesting image: %s %s\n", daemon.Url, err)
->>>>>>>> 2064d5b (wip):internal/client.go
+			log.Printf("Failed requesting image: %s %s\n", node.Url.String(), err)
 			continue
 		}
 
@@ -422,44 +418,8 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-<<<<<<<< HEAD:cmd/internal/client.go
-func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
+func (c *Client) GetNodeState(node string) (*requests.NodeState, error) {
 	var status requests.NodeState
-========
-type Stats struct {
-	ContainerID   string  `json:"container_id"`
-	CPUUsage      float64 `json:"cpu_usage"`
-	CPUSystem     float64 `json:"cpu_system"`
-	CPUUser       float64 `json:"cpu_user"`
-	MemoryUsage   float64 `json:"mem_usage"`
-	MemoryLimit   float64 `json:"mem_limit"`
-	MemoryPercent float64 `json:"mem_percentage"`
-}
-
-type HostStatus struct {
-	NumCPU          int     `json:"ncpu"`
-	UserCPU         uint64  `json:"cpu_user"`
-	IdleCPU         uint64  `json:"cpu_idle"`
-	SystemCPU       uint64  `json:"cpu_system"`
-	TotalCPU        uint64  `json:"cpu_total"`
-	UsageCPUPercent float64 `json:"cpu_usage_percentage"`
-
-	TotalMem       uint64  `json:"mem_total"`
-	UsedMem        uint64  `json:"mem_used"`
-	InactiveMem    uint64  `json:"mem_inactive"`
-	CachedMem      uint64  `json:"mem_cached"`
-	FreeMem        uint64  `json:"mem_free"`
-	AvailableMem   uint64  `json:"mem_available"`
-	FreeMemPercent float64 `json:"mem_free_percentage"`
-
-	FreeStorage uint64 `json:"free_storage"`
-
-	Containers []Stats `json:"containers"`
-}
-
-func (c *Client) GetHostStatus(host string) (*HostStatus, error) {
-	var status HostStatus
->>>>>>>> 2064d5b (wip):internal/client.go
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,

@@ -7,7 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/cmd/internal"
+	"github.com/bitomia/realm/internal"
 )
 
 var proxyCmd = &cobra.Command{
