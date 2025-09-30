@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -29,16 +32,41 @@ var startConfig = &cobra.Command{
 }
 
 var shutdownConfig = &cobra.Command{
-	Use:                   "start",
-	Short:                 "Startup cluster",
-	Args:                  cobra.ExactArgs(2),
+	Use:                   "shutdown",
+	Short:                 "Shutdown all cluster nodes",
+	Args:                  cobra.NoArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
+		client := internal.NewClient()
 		nodes := internal.GetNodes()
 
-		color.Blue("Getting proxy config for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.GetProxyConfig(args[0], args[1]); err != nil {
-			color.Red("Error getting proxy config: %v\n", err)
+		color.Yellow("WARNING: This will shutdown all cluster nodes (%d nodes)\n", len(nodes))
+		for _, node := range nodes {
+			fmt.Printf("  - %s (%s)\n", node.Name, node.Url)
+		}
+		fmt.Print("\nAre you sure you want to continue? (yes/no): ")
+
+		reader := bufio.NewReader(os.Stdin)
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			color.Red("Error reading input: %v\n", err)
+			return
+		}
+
+		response = strings.TrimSpace(strings.ToLower(response))
+		if response != "yes" && response != "y" {
+			color.Yellow("Shutdown cancelled\n")
+			return
+		}
+
+		color.Blue("\nShutting down all cluster nodes\n")
+		for _, node := range nodes {
+			color.Blue("Shutting down node %s (%s)\n", color.CyanString(node.Name), color.CyanString(node.Url))
+			if err := client.ShutdownHost(node.Url); err != nil {
+				color.Red("Error shutting down node %s: %v\n", node.Name, err)
+				continue
+			}
+			color.Green("Shutdown initiated successfully for node %s\n", node.Name)
 		}
 	},
 }

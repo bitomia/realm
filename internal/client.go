@@ -97,7 +97,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/images", node.Url.String())
+		url := fmt.Sprintf("%s/images", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Printf("Failed to create request: %v\n", err)
@@ -113,7 +113,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-			log.Printf("Failed requesting image: %s %s\n", node.Url.String(), err)
+			log.Printf("Failed requesting image: %s %s\n", node.Url, err)
 			continue
 		}
 
@@ -151,7 +151,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/containers", node.Url.String())
+		url := fmt.Sprintf("%s/containers", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Printf("Failed to create request: %v\n", err)
@@ -388,7 +388,7 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	networksPerNode := make(map[string]any)
 
 	for _, node := range nodes {
-		url := fmt.Sprintf("%s/network", node.Url.String())
+		url := fmt.Sprintf("%s/network", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Fatal("Failed to create request: %v", err)
@@ -973,6 +973,38 @@ func (c *Client) RollbackRecipe(node string, recipeId string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to rollback recipe: %s", string(body))
+	}
+
+	fmt.Println(string(body))
+	return nil
+}
+
+// Host operations
+func (c *Client) ShutdownHost(node string) error {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	url := fmt.Sprintf("%s/node/shutdown", node)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to shutdown host: %s", string(body))
 	}
 
 	fmt.Println(string(body))

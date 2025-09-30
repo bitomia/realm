@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"os/exec"
 
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
@@ -46,4 +47,20 @@ func HealthStatusHandler(w http.ResponseWriter, r *http.Request) {
 		"health_statuses": healthStatuses,
 		"count":           len(healthStatuses),
 	})
+}
+
+func ShutdownHostHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("ShutdownHostHandler")
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Shutdown initiated",
+	})
+
+	go func() {
+		cmd := exec.Command("shutdown", "-h", "now")
+		if err := cmd.Run(); err != nil {
+			slog.Error("Failed to shutdown host", "error", err.Error())
+		}
+	}()
 }

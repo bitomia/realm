@@ -1,7 +1,7 @@
 package config
 
 import (
-	"net/url"
+	"log"
 	"strings"
 	"sync"
 
@@ -26,12 +26,8 @@ type DaemonConfig struct {
 }
 
 type Node struct {
-	Name string  `mapstructure:"name"`
-	Url  url.URL `mapstructure:"url"`
-}
-
-type ClientConfig struct {
-	Nodes []Node `mapstructure:"nodes"`
+	Name string `mapstructure:"name"`
+	Url  string `mapstructure:"url"`
 }
 
 type DiscoveryConfig struct {
@@ -39,9 +35,9 @@ type DiscoveryConfig struct {
 }
 
 type Config struct {
-	ClientConfig
 	Daemon    DaemonConfig    `mapstructure:"daemon"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
+	Nodes     []Node          `mapstructure:"nodes"`
 }
 
 var (
@@ -62,10 +58,16 @@ func Get() *Config {
 		viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 		viper.SetConfigName("realm")
 
-		if err = viper.ReadInConfig(); err == nil {
-			err = viper.Unmarshal(&config)
+		err := viper.ReadInConfig()
+		if err != nil {
+			log.Fatalf("Error reading config file %s", err.Error())
+		}
+		err = viper.Unmarshal(&config)
+		if err != nil {
+			log.Fatalf("Error parsing config file %s", err.Error())
 		}
 	})
+
 	return config
 }
 

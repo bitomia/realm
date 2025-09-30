@@ -14,13 +14,14 @@ func GetNodes() map[string]config.Node {
 	nodes := make(map[string]config.Node)
 	seenUrls := make(map[string]string)
 
+	fmt.Printf("%v\n", config.Get().Nodes)
 	for _, node := range config.Get().Nodes {
-		if existingName, exists := seenUrls[node.Url.String()]; exists {
-			log.Printf("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url.String(), existingName, node.Name)
+		if existingName, exists := seenUrls[node.Url]; exists {
+			log.Printf("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
 			delete(nodes, existingName)
 		}
 		nodes[node.Name] = node
-		seenUrls[node.Url.String()] = node.Name
+		seenUrls[node.Url] = node.Name
 	}
 
 	services, _ := QueryServices("_realm._tcp.local")
@@ -51,7 +52,7 @@ func GetNodes() map[string]config.Node {
 				delete(nodes, existingName)
 			}
 
-			nodes[name] = config.Node{Name: name, Url: *url}
+			nodes[name] = config.Node{Name: name, Url: url.String()}
 			seenUrls[url.String()] = name
 		}
 	}
