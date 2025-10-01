@@ -31,6 +31,31 @@ var startConfig = &cobra.Command{
 	},
 }
 
+var lsConfig = &cobra.Command{
+	Use:                   "ls",
+	Short:                 "List all nodes boot configurations",
+	Args:                  cobra.NoArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		nodes := internal.GetStaticNodes()
+
+		if len(nodes) == 0 {
+			color.Yellow("No nodes configured\n")
+			return
+		}
+
+		fmt.Printf("Boot Configurations (%d nodes):\n\n", len(nodes))
+		for _, node := range nodes {
+			fmt.Printf("Node: %s\n", color.CyanString(node.Name))
+			fmt.Printf("  URL: %s\n", node.Url)
+			fmt.Printf("  Priority (startup): %d\n", node.Boot.StartPriority)
+			fmt.Printf("  Priority (shutdown): %d\n", node.Boot.ShutdownPriority)
+			fmt.Printf("  WakeOnLan: %v\n", node.Boot.WoL)
+			fmt.Println()
+		}
+	},
+}
+
 var shutdownConfig = &cobra.Command{
 	Use:                   "shutdown",
 	Short:                 "Shutdown all cluster nodes",
@@ -72,6 +97,7 @@ var shutdownConfig = &cobra.Command{
 }
 
 func init() {
+	bootCmd.AddCommand(lsConfig)
 	bootCmd.AddCommand(startConfig)
 	bootCmd.AddCommand(shutdownConfig)
 	rootCmd.AddCommand(bootCmd)

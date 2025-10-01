@@ -5,4 +5,4 @@ daemon:
 
 nodes:
   - http://localhost:9000
-`
+

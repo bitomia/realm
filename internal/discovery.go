@@ -10,12 +10,15 @@ import (
 	"github.com/bitomia/realm/internal/config"
 )
 
+func GetStaticNodes() []config.Node {
+	return config.Get().Nodes
+}
+
 func GetNodes() map[string]config.Node {
 	nodes := make(map[string]config.Node)
 	seenUrls := make(map[string]string)
 
-	fmt.Printf("%v\n", config.Get().Nodes)
-	for _, node := range config.Get().Nodes {
+	for _, node := range GetStaticNodes() {
 		if existingName, exists := seenUrls[node.Url]; exists {
 			log.Printf("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
 			delete(nodes, existingName)

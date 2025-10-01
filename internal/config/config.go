@@ -25,9 +25,16 @@ type DaemonConfig struct {
 	EtcdEndpoints       []string `mapstructure:"etcd_endpoints"`
 }
 
+type BootConfig struct {
+	StartPriority    uint `mapstructure:"start_priority"`
+	ShutdownPriority uint `mapstructure:"shutdown_priority"`
+	WoL              bool `mapstructure:"wol"`
+}
+
 type Node struct {
-	Name string `mapstructure:"name"`
-	Url  string `mapstructure:"url"`
+	Name string     `mapstructure:"name"`
+	Url  string     `mapstructure:"url"`
+	Boot BootConfig `mapstructure:"boot"`
 }
 
 type DiscoveryConfig struct {
