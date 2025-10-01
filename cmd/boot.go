@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/config"
 )
 
 var bootCmd = &cobra.Command{
@@ -58,14 +59,40 @@ var lsConfig = &cobra.Command{
 
 var shutdownConfig = &cobra.Command{
 	Use:                   "shutdown",
-	Short:                 "Shutdown all cluster nodes",
+	Short:                 "Shutdown cluster nodes",
 	Args:                  cobra.NoArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
-		nodes := internal.GetNodes()
+		staticOnly, _ := cmd.Flags().GetBool("static")
+		all, _ := cmd.Flags().GetBool("all")
 
-		color.Yellow("WARNING: This will shutdown all cluster nodes (%d nodes)\n", len(nodes))
+		if !staticOnly && !all {
+			color.Red("Error: You must specify either --static or --all\n")
+			return
+		}
+
+		if staticOnly && all {
+			color.Red("Error: Cannot specify both --static and --all\n")
+			return
+		}
+
+		var nodes map[string]config.Node
+		if staticOnly {
+			staticNodes := internal.GetStaticNodes()
+			nodes = make(map[string]config.Node)
+			for _, node := range staticNodes {
+				nodes[node.Name] = node
+			}
+		} else {
+			nodes = internal.GetNodes()
+		}
+
+		nodeType := "all cluster"
+		if staticOnly {
+			nodeType = "static configured"
+		}
+		color.Yellow("WARNING: This will shutdown %s nodes (%d nodes)\n", nodeType, len(nodes))
 		for _, node := range nodes {
 			fmt.Printf("  - %s (%s)\n", node.Name, node.Url)
 		}
@@ -84,7 +111,7 @@ var shutdownConfig = &cobra.Command{
 			return
 		}
 
-		color.Blue("\nShutting down all cluster nodes\n")
+		color.Blue("\nShutting down %s nodes\n", nodeType)
 		for _, node := range nodes {
 			color.Blue("Shutting down node %s (%s)\n", color.CyanString(node.Name), color.CyanString(node.Url))
 			if err := client.ShutdownHost(node.Url); err != nil {
@@ -97,6 +124,8 @@ var shutdownConfig = &cobra.Command{
 }
 
 func init() {
+	shutdownConfig.Flags().Bool("static", false, "Only shutdown static configured nodes")
+	shutdownConfig.Flags().Bool("all", false, "Shutdown all nodes (static + discovered)")
 	bootCmd.AddCommand(lsConfig)
 	bootCmd.AddCommand(startConfig)
 	bootCmd.AddCommand(shutdownConfig)
