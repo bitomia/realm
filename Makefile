@@ -4,6 +4,7 @@ GOLANGCI_LINT_PACKAGE ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@
 ROOT:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 BIN_DIR := $(ROOT)/bin
 REALM_OUT := $(BIN_DIR)/realm
+REALM_LIB := librealm.a
 
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 COMMIT_FLAG := -X 'github.com/bitomia/realm/internal/config.BuildGitCommit=$(GIT_COMMIT)'
@@ -14,6 +15,10 @@ all:
 	@echo "Building ($(GIT_COMMIT))..."
 	$(GO) mod tidy
 	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)"
+
+.PHONY: lib
+lib:
+	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
 
 .PHONY: clean
 clean:
