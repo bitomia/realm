@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strconv"
 	"time"
 
 	"go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/server/v3/embed"
 
 	"github.com/bitomia/realm/daemon/id"
 	"github.com/bitomia/realm/internal/config"
@@ -22,8 +24,63 @@ const (
 	healthPrefix    = "/health/"
 )
 
-func getEtcdEndpoints() []string {
-	return config.Get().Daemon.EtcdEndpoints
+func getEtcdDataDir() string {
+	dataDir := config.Get().Daemon.EtcdDataDir
+	if dataDir == "" {
+		dataDir = "/var/lib/realm/etcd"
+	}
+	return dataDir
+}
+
+func getEtcdConfig() *embed.Config {
+	daemonCfg := config.Get().Daemon
+	cfg := embed.NewConfig()
+
+	// Basic configuration
+	cfg.Dir = getEtcdDataDir()
+	cfg.LogLevel = "error"
+
+	// Set name - use daemon ID if not specified
+	if daemonCfg.EtcdName != "" {
+		cfg.Name = daemonCfg.EtcdName
+	} else {
+		cfg.Name = id.GetDaemonId()
+	}
+
+	// Parse and set client URL
+	clientUrl, err := url.Parse(daemonCfg.EtcdListenClientUrl)
+	if err != nil {
+		slog.Error("Invalid etcd client URL", "url", daemonCfg.EtcdListenClientUrl, "error", err.Error())
+		clientUrl, _ = url.Parse("http://127.0.0.1:2379")
+	}
+	cfg.ListenClientUrls = []url.URL{*clientUrl}
+	cfg.AdvertiseClientUrls = []url.URL{*clientUrl}
+
+	// Parse and set peer URL
+	peerUrl, err := url.Parse(daemonCfg.EtcdListenPeerUrl)
+	if err != nil {
+		slog.Error("Invalid etcd peer URL", "url", daemonCfg.EtcdListenPeerUrl, "error", err.Error())
+		peerUrl, _ = url.Parse("http://127.0.0.1:2380")
+	}
+	cfg.ListenPeerUrls = []url.URL{*peerUrl}
+	cfg.AdvertisePeerUrls = []url.URL{*peerUrl}
+
+	// Set initial cluster configuration
+	if daemonCfg.EtcdInitialCluster != "" {
+		cfg.InitialCluster = daemonCfg.EtcdInitialCluster
+	} else {
+		// Single node cluster by default
+		cfg.InitialCluster = fmt.Sprintf("%s=%s", cfg.Name, peerUrl.String())
+	}
+
+	// Set cluster state (new or existing)
+	if daemonCfg.EtcdClusterState != "" {
+		cfg.ClusterState = daemonCfg.EtcdClusterState
+	} else {
+		cfg.ClusterState = embed.ClusterStateFlagNew
+	}
+
+	return cfg
 }
 
 // Helper functions to build etcd keys

@@ -27,5 +27,10 @@ func setDefaults() {
 	viper.SetDefault("daemon.containerd_sock", "/run/containerd/containerd.sock")
 	viper.SetDefault("daemon.containerd_namespace", "realm")
 	viper.SetDefault("daemon.containers_log_path", "/var/log/realm")
-	viper.SetDefault("daemon.etcd_endpoints", []string{"127.0.0.1:2379"})
+	viper.SetDefault("daemon.etcd_data_dir", "/var/lib/realm/etcd")
+	viper.SetDefault("daemon.etcd_name", "")
+	viper.SetDefault("daemon.etcd_listen_client_url", "http://127.0.0.1:2379")
+	viper.SetDefault("daemon.etcd_listen_peer_url", "http://127.0.0.1:2380")
+	viper.SetDefault("daemon.etcd_initial_cluster", "")
+	viper.SetDefault("daemon.etcd_cluster_state", "new")
 }

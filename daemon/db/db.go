@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type DaemonDB struct {
 	client *clientv3.Client
+	server *embed.Etcd
 	ctx    context.Context
 }
 
@@ -28,32 +30,60 @@ const ETCD_TIMEOUT = 5 * time.Second
 
 func GetDB() *DaemonDB {
 	once.Do(func() {
-		endpoints := getEtcdEndpoints()
-		slog.Info("Initialiazing DB connection", "endpoints", endpoints)
+		cfg := getEtcdConfig()
+		slog.Info("Initializing embedded etcd",
+			"data_dir", cfg.Dir,
+			"name", cfg.Name,
+			"cluster_state", cfg.ClusterState,
+			"initial_cluster", cfg.InitialCluster)
+
+		// Start embedded etcd server
+		e, err := embed.StartEtcd(cfg)
+		if err != nil {
+			slog.Error("Error starting embedded etcd", "error", err.Error())
+			os.Exit(1)
+		}
+
+		// Wait for etcd to be ready
+		select {
+		case <-e.Server.ReadyNotify():
+			slog.Info("Embedded etcd server is ready")
+		case <-time.After(60 * time.Second):
+			e.Server.Stop()
+			slog.Error("Embedded etcd server took too long to start")
+			os.Exit(1)
+		}
+
+		// Create client for the embedded etcd
 		client, err := clientv3.New(clientv3.Config{
-			Endpoints:   endpoints,
+			Endpoints:   []string{cfg.ListenClientUrls[0].String()},
 			DialTimeout: ETCD_TIMEOUT,
 		})
 
 		if err != nil {
 			slog.Error("Error creating etcd client", "error", err.Error())
+			e.Close()
+			os.Exit(1)
 		}
 
 		ctx := context.Background()
 		// Test connection
 		ctxTimeout, cancel := context.WithTimeout(ctx, ETCD_TIMEOUT)
 		defer cancel()
-		_, err = client.Status(ctxTimeout, endpoints[0])
+		_, err = client.Status(ctxTimeout, cfg.ListenClientUrls[0].String())
 		if err != nil {
-			slog.Error("Error connecting to etcd", "error", err.Error())
+			slog.Error("Error connecting to embedded etcd", "error", err.Error())
+			client.Close()
+			e.Close()
 			os.Exit(1)
 		}
 
 		instance = &DaemonDB{
 			client: client,
+			server: e,
 			ctx:    ctx,
 		}
-		slog.Info("Database initialized")
+		slog.Info("Database initialized with embedded etcd")
 	})
 
 	return instance
@@ -62,6 +92,9 @@ func GetDB() *DaemonDB {
 func (db *DaemonDB) Close() {
 	if db.client != nil {
 		db.client.Close()
+	}
+	if db.server != nil {
+		db.server.Close()
 	}
 }
 

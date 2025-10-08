@@ -10,18 +10,23 @@ import (
 var BuildGitCommit string
 
 type DaemonConfig struct {
-	CniPath             string   `mapstructure:"cni_path"`
-	VolumesPool         string   `mapstructure:"volumes_pool"`
-	ListenAddress       string   `mapstructure:"listen_address"`
-	ListenPort          int      `mapstructure:"listen_port"`
-	ContainersLogPath   string   `mapstructure:"containers_log_path"`
-	LocalCaddyUrl       string   `mapstructure:"local_caddy_url"`
-	MasterCaddyUrl      string   `mapstructure:"master_caddy_url"`
-	GitHubRegistryToken string   `mapstructure:"github_registry_token"`
-	HerdMcastAddress    string   `mapstructure:"herd_mcast_address"`
-	ContainerdSock      string   `mapstructure:"containerd_sock"`
-	ContainerdNamespace string   `mapstructure:"containerd_namespace"`
-	EtcdEndpoints       []string `mapstructure:"etcd_endpoints"`
+	CniPath             string `mapstructure:"cni_path"`
+	VolumesPool         string `mapstructure:"volumes_pool"`
+	ListenAddress       string `mapstructure:"listen_address"`
+	ListenPort          int    `mapstructure:"listen_port"`
+	ContainersLogPath   string `mapstructure:"containers_log_path"`
+	LocalCaddyUrl       string `mapstructure:"local_caddy_url"`
+	MasterCaddyUrl      string `mapstructure:"master_caddy_url"`
+	GitHubRegistryToken string `mapstructure:"github_registry_token"`
+	HerdMcastAddress    string `mapstructure:"herd_mcast_address"`
+	ContainerdSock      string `mapstructure:"containerd_sock"`
+	ContainerdNamespace string `mapstructure:"containerd_namespace"`
+	EtcdDataDir         string `mapstructure:"etcd_data_dir"`
+	EtcdName            string `mapstructure:"etcd_name"`
+	EtcdListenClientUrl string `mapstructure:"etcd_listen_client_url"`
+	EtcdListenPeerUrl   string `mapstructure:"etcd_listen_peer_url"`
+	EtcdInitialCluster  string `mapstructure:"etcd_initial_cluster"`
+	EtcdClusterState    string `mapstructure:"etcd_cluster_state"`
 }
 
 type Node struct {
