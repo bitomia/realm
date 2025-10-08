@@ -97,7 +97,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/images", node.Url.String())
+		url := fmt.Sprintf("%s/images", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -113,7 +113,7 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-			log.Error("Failed requesting image: %s %s", node.Url.String(), err)
+			log.Error("Failed requesting image: %s %s", node.Url, err)
 			continue
 		}
 
@@ -151,7 +151,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 		}
-		url := fmt.Sprintf("%s/containers", node.Url.String())
+		url := fmt.Sprintf("%s/containers", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Error("Failed to create request: %v", err)
@@ -388,7 +388,7 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	networksPerNode := make(map[string]any)
 
 	for _, node := range nodes {
-		url := fmt.Sprintf("%s/network", node.Url.String())
+		url := fmt.Sprintf("%s/network", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			log.Fatal("Failed to create request: %v", err)

@@ -50,7 +50,7 @@ var createContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
-		if err := client.CreateContainer(node.Url.String(), args[1], args[2]); err != nil {
+		if err := client.CreateContainer(node.Url, args[1], args[2]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully created container %s\n", color.CyanString(args[2]))
@@ -68,7 +68,7 @@ var startContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Starting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.StartContainer(node.Url.String(), args[1]); err != nil {
+		if err := client.StartContainer(node.Url, args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully started container %s\n", color.CyanString(args[1]))
@@ -86,7 +86,7 @@ var stopContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Stopping container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.StopContainer(node.Url.String(), args[1]); err != nil {
+		if err := client.StopContainer(node.Url, args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully stopped container %s\n", color.CyanString(args[1]))
@@ -104,7 +104,7 @@ var deleteContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Deleting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.DeleteContainer(node.Url.String(), args[1]); err != nil {
+		if err := client.DeleteContainer(node.Url, args[1]); err != nil {
 			log.Error("%s", err.Error())
 		} else {
 			color.Green("Successfully deleted container %s\n", color.CyanString(args[1]))
@@ -126,7 +126,7 @@ var updateQuotas = &cobra.Command{
 		volumeSize, _ := cmd.Flags().GetInt64("volume")
 
 		color.Blue("Updating quotas for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.UpdateContainerQuotas(node.Url.String(), args[1], cpuQuota, memoryLimit, volumeSize); err != nil {
+		if err := client.UpdateContainerQuotas(node.Url, args[1], cpuQuota, memoryLimit, volumeSize); err != nil {
 			color.Red("Error updating quotas: %v\n", err)
 		} else {
 			color.Green("Successfully updated quotas for container %s\n", color.CyanString(args[1]))
@@ -144,7 +144,7 @@ var repairContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Repairing container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.RepairContainer(node.Url.String(), args[1]); err != nil {
+		if err := client.RepairContainer(node.Url, args[1]); err != nil {
 			color.Red("Error repairing container: %v\n", err)
 		} else {
 			color.Green("Successfully repaired container %s\n", color.CyanString(args[1]))
@@ -162,7 +162,7 @@ var sendSignal = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Sending signal %s to container %s on %s\n", color.CyanString(args[2]), color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.SendContainerSignal(node.Url.String(), args[1], args[2]); err != nil {
+		if err := client.SendContainerSignal(node.Url, args[1], args[2]); err != nil {
 			color.Red("Error sending signal: %v\n", err)
 		} else {
 			color.Green("Successfully sent signal %s to container %s\n", color.CyanString(args[2]), color.CyanString(args[1]))
@@ -180,7 +180,7 @@ var migrateContainer = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Migrating container %s on %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
-		if err := client.MigrateContainer(node.Url.String(), args[1], args[2]); err != nil {
+		if err := client.MigrateContainer(node.Url, args[1], args[2]); err != nil {
 			color.Red("Error migrating container: %v\n", err)
 		} else {
 			color.Green("Successfully migrated container %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[2]))
@@ -198,7 +198,7 @@ var getLogs = &cobra.Command{
 		node := internal.GetNode(args[0])
 
 		color.Blue("Getting logs for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.GetContainerLogs(node.Url.String(), args[1]); err != nil {
+		if err := client.GetContainerLogs(node.Url, args[1]); err != nil {
 			color.Red("Error getting logs: %v\n", err)
 		}
 	},

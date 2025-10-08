@@ -27,10 +27,10 @@ var nodeStates = &cobra.Command{
 		client := internal.NewClient()
 
 		for _, node := range internal.GetNodes() {
-			status, err := client.GetNodeState(node.Url.String())
+			status, err := client.GetNodeState(node.Url)
 			if err == nil {
 				color.Blue("Node: %s\n", color.CyanString(node.Name))
-				color.Blue("URL: %s\n", color.CyanString(node.Url.String()))
+				color.Blue("URL: %s\n", color.CyanString(node.Url))
 
 				log.Info("CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
 				log.Info("CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))

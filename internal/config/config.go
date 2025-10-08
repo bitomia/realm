@@ -1,7 +1,6 @@
 package config
 
 import (
-	"net/url"
 	"strings"
 	"sync"
 
@@ -26,12 +25,8 @@ type DaemonConfig struct {
 }
 
 type Node struct {
-	Name string  `mapstructure:"name"`
-	Url  url.URL `mapstructure:"url"`
-}
-
-type ClientConfig struct {
-	Nodes []Node `mapstructure:"nodes"`
+	Name string `mapstructure:"name"`
+	Url  string `mapstructure:"url"`
 }
 
 type DiscoveryConfig struct {
@@ -39,9 +34,12 @@ type DiscoveryConfig struct {
 }
 
 type Config struct {
-	ClientConfig
-	Daemon    DaemonConfig    `mapstructure:"daemon"`
+	// Client config
+	Nodes     []Node          `mapstructure:"nodes"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
+
+	// Daemon config
+	Daemon DaemonConfig `mapstructure:"daemon"`
 }
 
 var (

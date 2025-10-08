@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"net"
-	"net/url"
 	"strings"
 
 	"github.com/bitomia/realm/internal"
@@ -14,11 +13,14 @@ import (
 
 func GetNodes() map[string]config.Node {
 	nodes := make(map[string]config.Node)
-	seenUrls := make(map[url.URL]string)
+	seenUrls := make(map[string]string)
 
+	if config.Get() == nil {
+		log.Fatal("Config error: %s", config.GetError())
+	}
 	for _, node := range config.Get().Nodes {
 		if existingName, exists := seenUrls[node.Url]; exists {
-			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url.String(), existingName, node.Name)
+			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
 			delete(nodes, existingName)
 		}
 		nodes[node.Name] = node
@@ -41,19 +43,16 @@ func GetNodes() map[string]config.Node {
 			if len(serviceNameParts) == 0 {
 				continue
 			}
+
 			name := serviceNameParts[0]
-			urlStr := fmt.Sprintf("http://%s:%d", service.IPs[0], service.Port)
-			url, err := url.Parse(urlStr)
-			if err != nil {
-				log.Warn("Invalid node URL %s", urlStr)
-			}
-			if existingName, exists := seenUrls[*url]; exists {
+			url := fmt.Sprintf("http://%s:%d", service.IPs[0], service.Port)
+			if existingName, exists := seenUrls[url]; exists {
 				log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", url, existingName, name)
 				delete(nodes, existingName)
 			}
 
-			nodes[name] = config.Node{Name: name, Url: *url}
-			seenUrls[*url] = name
+			nodes[name] = config.Node{Name: name, Url: url}
+			seenUrls[url] = name
 		}
 	}
 
