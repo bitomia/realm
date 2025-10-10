@@ -418,7 +418,7 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
+func (c *Client) GetNodeState(node string) (*requests.NodeState, error) {
 	var status requests.NodeState
 
 	client := &http.Client{
@@ -434,23 +434,24 @@ func (c *Client) GetNodeState(node string) (requests.NodeState, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Fatal("Failed to make request: %v", err)
+		return nil, fmt.Errorf("Failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if err := checkStatus(resp); err != nil {
-		return status, err
+		return &status, err
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Failed to read response body: %v", err)
+		return nil, fmt.Errorf("Failed to read response body: %v", err)
 	}
 
 	if err := json.Unmarshal(body, &status); err != nil {
-		log.Fatal("Failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
 	}
-	return status, nil
+
+	return &status, nil
 }
 
 // Image operations

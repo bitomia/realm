@@ -18,11 +18,12 @@ func GetNodes() map[string]config.Node {
 	if config.Get() == nil {
 		log.Fatal("Config error: %s", config.GetError())
 	}
-	for _, node := range config.Get().Nodes {
+	for name, node := range config.Get().Nodes {
 		if existingName, exists := seenUrls[node.Url]; exists {
 			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
 			delete(nodes, existingName)
 		}
+		node.Name = name
 		nodes[node.Name] = node
 		seenUrls[node.Url] = node.Name
 	}

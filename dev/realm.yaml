@@ -4,4 +4,8 @@ daemon:
   listen_address: 0.0.0.0
 
 nodes:
-  - http://localhost:9000
+  lab1:
+    url: http://192.168.105.2:9000
+  lab2:
+    url: http://192.168.105.3:9000
+

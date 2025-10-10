@@ -26,29 +26,33 @@ var nodeStates = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		client := internal.NewClient()
 
-		for _, node := range internal.GetNodes() {
+		for id, node := range internal.GetNodes() {
+			fmt.Printf("Node: %s\n", color.CyanString(id))
+			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
+			if node.MAC != nil {
+				fmt.Printf(" MAC: %s\n", color.CyanString(*node.MAC))
+			}
 			status, err := client.GetNodeState(node.Url)
-			if err == nil {
-				color.Blue("Node: %s\n", color.CyanString(node.Name))
-				color.Blue("URL: %s\n", color.CyanString(node.Url))
+			if err != nil {
+				log.Info(" Node not available: %s", err.Error())
+			} else {
+				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
+				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))
+				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", status.UserCPU)))
+				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", status.SystemCPU)))
+				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", status.IdleCPU)))
+				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", status.TotalCPU)))
 
-				log.Info("CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
-				log.Info("CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))
-				log.Info("User CPU: %s", color.CyanString(fmt.Sprintf("%d", status.UserCPU)))
-				log.Info("System CPU: %s", color.CyanString(fmt.Sprintf("%d", status.SystemCPU)))
-				log.Info("Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", status.IdleCPU)))
-				log.Info("Total CPU: %s", color.CyanString(fmt.Sprintf("%d", status.TotalCPU)))
+				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(status.UsedMem)/float64(status.TotalMem)*100)))
+				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.FreeMemPercent)))
+				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.TotalMem)/(1024.0*1024.0))))
+				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.UsedMem)/(1024.0*1024.0))))
+				log.Info(" Available Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.AvailableMem)/(1024.0*1024.0))))
+				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.FreeMem)/(1024.0*1024.0))))
+				log.Info(" Cached Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.CachedMem)/(1024.0*1024.0))))
+				log.Info(" Inactive Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.InactiveMem)/(1024.0*1024.0))))
 
-				log.Info("Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(status.UsedMem)/float64(status.TotalMem)*100)))
-				log.Info("Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.FreeMemPercent)))
-				log.Info("Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.TotalMem)/(1024.0*1024.0))))
-				log.Info("Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.UsedMem)/(1024.0*1024.0))))
-				log.Info("Available Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.AvailableMem)/(1024.0*1024.0))))
-				log.Info("Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.FreeMem)/(1024.0*1024.0))))
-				log.Info("Cached Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.CachedMem)/(1024.0*1024.0))))
-				log.Info("Inactive Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.InactiveMem)/(1024.0*1024.0))))
-
-				log.Info("Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.FreeStorage)/(1024.0*1024.0))))
+				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", float64(status.FreeStorage)/(1024.0*1024.0))))
 
 				if len(status.Containers) > 0 {
 					log.Info("Containers (%d):", len(status.Containers))
@@ -65,8 +69,6 @@ var nodeStates = &cobra.Command{
 				}
 
 				fmt.Println()
-			} else {
-				log.Error("Error retrieving node state %v: %v", node, err)
 			}
 		}
 	},

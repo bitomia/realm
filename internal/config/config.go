@@ -30,8 +30,9 @@ type DaemonConfig struct {
 }
 
 type Node struct {
-	Name string `mapstructure:"name"`
-	Url  string `mapstructure:"url"`
+	Name string
+	Url  string  `mapstructure:"url"`
+	MAC  *string `mapstructure:"mac"`
 }
 
 type DiscoveryConfig struct {
@@ -40,7 +41,7 @@ type DiscoveryConfig struct {
 
 type Config struct {
 	// Client config
-	Nodes     []Node          `mapstructure:"nodes"`
+	Nodes     map[string]Node `mapstructure:"nodes"`
 	Discovery DiscoveryConfig `mapstructure:"discovery"`
 
 	// Daemon config
