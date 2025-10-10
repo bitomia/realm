@@ -27,8 +27,5 @@
     - name: Setup ZFS
       import_tasks: tasks/setup/zfs.yml
 
-    - name: Setup etcd
-      import_tasks: tasks/setup/etcd.yml
-
     - name: Setup Realm
       import_tasks: tasks/setup/realm.yml

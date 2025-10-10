@@ -8,8 +8,8 @@ inventory.ini file:
 
 ```toml
 [targets]
-lab1 ansible_host=192.168.105.2 ansible_user=ansible ansible_ssh_private_key_file=./lab install_etcd=true
-lab2 ansible_host=192.168.105.3 ansible_user=ansible ansible_ssh_private_key_file=./lab install_etcd=false
+lab1 ansible_host=192.168.105.2 ansible_user=ansible ansible_ssh_private_key_file=./lab etcd_server=true
+lab2 ansible_host=192.168.105.3 ansible_user=ansible ansible_ssh_private_key_file=./lab etcd_server=false
 ```
 
 Now launch ansible as follows:
