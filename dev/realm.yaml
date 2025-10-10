@@ -5,7 +5,37 @@ daemon:
 
 nodes:
   lab1:
-    url: http://192.168.105.2:9000
+    url: http://192.168.1.54:9000
   lab2:
-    url: http://192.168.105.3:9000
+    url: http://192.168.1.55:9000
+  lab3:
+    url: http://192.168.1.65:9000
+    tags: gpu
 
+jobs:
+  containers:
+    agent:
+      tags: gpu
+      image: docker.io/llama
+
+load:
+  include:
+    - load1.yaml
+
+  containers:
+    web:
+      node: lab1
+      image: docker.io/nginx
+      depends_on:
+        - netcat
+
+    web2:
+      node: lab2
+      image: docker.io/nginx
+      depends_on:
+        - netcat
+
+  processes:
+    netcat:
+      start_cmd: nc -l 12345
+      stop_signal: SIGHUP
