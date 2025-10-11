@@ -1,15 +1,15 @@
 package config
 
 type ProcessDriver struct {
-	startCmd   string
-	stopSignal string
+	StartCmd   string `json:"start_cmd"`
+	StopSignal string `json:"stop_signal"`
 }
 
 func NewProcessDriverFromConfig(config ProcessConfig) *ProcessDriver {
 	return &ProcessDriver{
-		startCmd: config.StartCmd,
+		StartCmd: config.StartCmd,
 		// TODO convert StopSignal to os.Signal
-		stopSignal: config.StopSignal,
+		StopSignal: config.StopSignal,
 	}
 }
 

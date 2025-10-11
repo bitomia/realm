@@ -1,7 +1,7 @@
 package config
 
 type ContainerDriver struct {
-	Image string
+	Image string `json:"image"`
 }
 
 func NewContainerDriverFromConfig(config ContainerConfig) *ContainerDriver {

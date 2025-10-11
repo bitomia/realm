@@ -52,6 +52,12 @@ var (
 	once   sync.Once
 )
 
+func resetConfig() {
+	config = nil
+	err = nil
+	once = sync.Once{}
+}
+
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	for nodeName := range values {
 		if _, exists := nodes[nodeName]; exists {
@@ -64,9 +70,9 @@ func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 func detectCycle(node *Load, visited map[*Load]bool, recStack map[*Load]bool, path []string) error {
 	visited[node] = true
 	recStack[node] = true
-	path = append(path, node.name)
+	path = append(path, node.Name)
 
-	for _, dep := range node.dependsOn {
+	for _, dep := range node.DependsOn {
 		if !visited[dep] {
 			if err := detectCycle(dep, visited, recStack, path); err != nil {
 				return err
@@ -75,12 +81,12 @@ func detectCycle(node *Load, visited map[*Load]bool, recStack map[*Load]bool, pa
 			// Found a cycle
 			cycleStart := -1
 			for i, name := range path {
-				if name == dep.name {
+				if name == dep.Name {
 					cycleStart = i
 					break
 				}
 			}
-			cyclePath := append(path[cycleStart:], dep.name)
+			cyclePath := append(path[cycleStart:], dep.Name)
 			return fmt.Errorf("cycle detected in dependencies: %s", strings.Join(cyclePath, " -> "))
 		}
 	}
@@ -89,11 +95,11 @@ func detectCycle(node *Load, visited map[*Load]bool, recStack map[*Load]bool, pa
 	return nil
 }
 
-func checkForCycles(loadNodes map[string]*Load) error {
+func checkForCycles(loads map[string]*Load) error {
 	visited := make(map[*Load]bool)
 	recStack := make(map[*Load]bool)
 
-	for _, node := range loadNodes {
+	for _, node := range loads {
 		if !visited[node] {
 			if err := detectCycle(node, visited, recStack, []string{}); err != nil {
 				return err
@@ -118,19 +124,24 @@ func readConfig(unmarshall func() (*Config, error)) error {
 		return err
 	}
 
-	// Check load node uniqueness
-	loadNodes := make(map[string]bool)
-	getUniqueValues(loadNodes, config.Loads.Containers)
-	getUniqueValues(loadNodes, config.Loads.Processes)
+	// Populate node names from map keys
+	for nodeName, node := range config.Nodes {
+		node.Name = nodeName
+	}
 
-	// Create all load nodes
+	// Check load uniqueness
+	loads := make(map[string]bool)
+	getUniqueValues(loads, config.Loads.Containers)
+	getUniqueValues(loads, config.Loads.Processes)
+
+	// Create all loads
 	allDeps := make(map[string][]string)
 	for containerName, containerConfig := range config.Loads.Containers {
 		node, exists := config.Nodes[containerConfig.Node]
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", containerConfig.Node, containerName)
 		}
-		config.Loads.newLoadNode(containerName, node, NewContainerDriverFromConfig(containerConfig))
+		config.Loads.newLoad(containerName, node, NewContainerDriverFromConfig(containerConfig))
 		allDeps[containerName] = containerConfig.DependsOn
 	}
 	for procesName, processConfig := range config.Loads.Processes {
@@ -138,18 +149,18 @@ func readConfig(unmarshall func() (*Config, error)) error {
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", processConfig.Node, procesName)
 		}
-		config.Loads.newLoadNode(procesName, node, NewProcessDriverFromConfig(processConfig))
+		config.Loads.newLoad(procesName, node, NewProcessDriverFromConfig(processConfig))
 		allDeps[procesName] = processConfig.DependsOn
 	}
 
-	// Traverse all load nodes and build a DAG
-	for loadNodeName, loadNode := range config.Loads.loads {
-		for _, depLoadNode := range allDeps[loadNodeName] {
-			loadNodes, exist := config.Loads.loads[depLoadNode]
+	// Traverse all loads and build a DAG
+	for loadName, load := range config.Loads.loads {
+		for _, depLoad := range allDeps[loadName] {
+			loads, exist := config.Loads.loads[depLoad]
 			if !exist {
-				log.Fatal(fmt.Sprintf("dependency node '%s' not exists", depLoadNode))
+				log.Fatal(fmt.Sprintf("dependency node '%s' not exists", depLoad))
 			}
-			loadNode.dependsOn = append(loadNode.dependsOn, loadNodes)
+			load.DependsOn = append(load.DependsOn, loads)
 		}
 	}
 

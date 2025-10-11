@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -38,7 +39,7 @@ loads:
       depends_on:
         - web
 `
-
+	resetConfig()
 	err := readConfigFromReader(strings.NewReader(yamlConfig))
 
 	assert.NoError(t, err)
@@ -46,9 +47,9 @@ loads:
 	assert.Len(t, config.Loads.loads, 3)
 
 	assert.NotNil(t, config.Loads.loads["web"])
-	assert.Equal(t, config.Loads.loads["web"].name, "web")
-	assert.Equal(t, config.Loads.loads["web"].driver.GetDriverType(), ContainerDriverType)
-	assert.Equal(t, config.Loads.loads["web"].driver.(*ContainerDriver).Image, "docker.io/nginx")
+	assert.Equal(t, config.Loads.loads["web"].Name, "web")
+	assert.Equal(t, config.Loads.loads["web"].Driver.GetDriverType(), ContainerDriverType)
+	assert.Equal(t, config.Loads.loads["web"].Driver.(*ContainerDriver).Image, "docker.io/nginx")
 }
 
 func TestConfigCycleError(t *testing.T) {
@@ -84,6 +85,38 @@ loads:
       depends_on:
         - web
 `
+	resetConfig()
 	err := readConfigFromReader(strings.NewReader(yamlConfig))
 	assert.Error(t, err)
+}
+
+func TestConfigHash(t *testing.T) {
+	yamlConfig := `
+nodes:
+  lab1:
+    url: http://192.168.1.54:9000
+loads:
+  containers:
+    web:
+      node: lab1
+      image: docker.io/nginx
+    web2:
+      node: lab1
+      image: docker.io/nginx2
+      depends_on:
+        - netcat
+  processes:
+    netcat:
+      node: lab1
+      start_cmd: nc -l 12345
+      stop_signal: SIGHUP
+      depends_on:
+        - web
+`
+
+	resetConfig()
+	err := readConfigFromReader(strings.NewReader(yamlConfig))
+	assert.NoError(t, err)
+
+	fmt.Printf("%v\n", config.Loads.Hash())
 }

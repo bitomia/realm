@@ -3,8 +3,6 @@ package config
 import (
 	"crypto/sha256"
 	"fmt"
-
-	"gopkg.in/yaml.v3"
 )
 
 type ContainerConfig struct {
@@ -29,7 +27,7 @@ type LoadsConfig struct {
 	loads map[string]*Load
 }
 
-func (l *LoadsConfig) newLoadNode(name string, node *Node, driver LoadDriver) (*Load, error) {
+func (l *LoadsConfig) newLoad(name string, node *Node, driver LoadDriver) (*Load, error) {
 	if l.loads == nil {
 		l.loads = make(map[string]*Load)
 	}
@@ -38,15 +36,16 @@ func (l *LoadsConfig) newLoadNode(name string, node *Node, driver LoadDriver) (*
 		return nil, fmt.Errorf("Node name not unique")
 	}
 
-	l.loads[name] = &Load{name: name, node: node, driver: driver}
+	l.loads[name] = &Load{Name: name, Node: node, Driver: driver}
 
 	return l.loads[name], nil
 }
 
 func (l *LoadsConfig) Hash() [32]byte {
 	var hashes [][32]byte
-	for _, n := range l.loads {
-		hashes = append(hashes, n.Hash())
+	for n, l := range l.loads {
+		fmt.Printf("%s %v\n", n, l.Hash())
+		hashes = append(hashes, l.Hash())
 	}
 
 	var combined []byte
@@ -55,9 +54,4 @@ func (l *LoadsConfig) Hash() [32]byte {
 	}
 
 	return sha256.Sum256(combined)
-}
-
-func (l *LoadsConfig) UnmarshalYAML(value *yaml.Node) error {
-	fmt.Println("TEST!")
-	return nil
 }
