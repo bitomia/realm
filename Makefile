@@ -32,6 +32,10 @@ verify-lint-cmd:
 verify-lint-daemon:
 	$(GO) run $(GOLANGCI_LINT_PACKAGE) run daemon
 
-.PHONY:
+.PHONY: verify-fmt
 verify-fmt:
 	$(GO) fmt ./...
+
+.PHONY: test
+test:
+	$(GO) test -v ./...

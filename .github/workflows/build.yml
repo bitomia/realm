@@ -18,8 +18,20 @@ jobs:
     - name: Verify formatting
       run: make verify-fmt
 
-  build:
+  test:
     needs: verify-format
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version-file: go.mod
+    - name: Run tests
+      run: make test
+
+  build:
+    needs: test
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
