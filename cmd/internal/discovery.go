@@ -11,8 +11,8 @@ import (
 	"github.com/bitomia/realm/cmd/log"
 )
 
-func GetNodes() map[string]config.Node {
-	nodes := make(map[string]config.Node)
+func GetNodes() map[string]*config.Node {
+	nodes := make(map[string]*config.Node)
 	seenUrls := make(map[string]string)
 
 	if config.Get() == nil {
@@ -52,7 +52,7 @@ func GetNodes() map[string]config.Node {
 				delete(nodes, existingName)
 			}
 
-			nodes[name] = config.Node{Name: name, Url: url}
+			nodes[name] = &config.Node{Name: name, Url: url}
 			seenUrls[url] = name
 		}
 	}
@@ -60,7 +60,7 @@ func GetNodes() map[string]config.Node {
 	return nodes
 }
 
-func GetNode(nodeName string) config.Node {
+func GetNode(nodeName string) *config.Node {
 	nodes := GetNodes()
 	node, exists := nodes[nodeName]
 	if !exists {

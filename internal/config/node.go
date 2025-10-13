@@ -7,8 +7,9 @@ import (
 
 // Physical node inside the cluster
 type Node struct {
-	Name string `mapstructure:"name"`
-	Url  string `mapstructure:"url"`
+	Name string  `mapstructure:"name"`
+	Url  string  `mapstructure:"url"`
+	MAC  *string `mapstructure:"mac"`
 }
 
 func (n *Node) Hash() [32]byte {
