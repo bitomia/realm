@@ -41,6 +41,14 @@ func (l *LoadsConfig) newLoad(name string, node *Node, driver LoadDriver) (*Load
 	return l.loads[name], nil
 }
 
+func (l *LoadsConfig) GetLoads() []*Load {
+	var loads []*Load
+	for _, load := range l.loads {
+		loads = append(loads, load)
+	}
+	return loads
+}
+
 func (l *LoadsConfig) Hash() [32]byte {
 	var hashes [][32]byte
 	for n, l := range l.loads {

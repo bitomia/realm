@@ -3,6 +3,7 @@ module github.com/bitomia/realm
 go 1.24.1
 
 require (
+	github.com/awalterschulze/gographviz v2.0.3+incompatible
 	github.com/bitomia/go-libzfs v0.0.0-20250710160127-d34e0b5376f7
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.28
