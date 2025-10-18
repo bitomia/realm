@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -117,6 +116,4 @@ loads:
 	resetConfig()
 	err := readConfigFromReader(strings.NewReader(yamlConfig))
 	assert.NoError(t, err)
-
-	fmt.Printf("%v\n", config.Loads.Hash())
 }
