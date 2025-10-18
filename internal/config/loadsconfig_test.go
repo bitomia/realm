@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/bitomia/realm/internal/loads/drivers"
 )
 
 func TestConfig(t *testing.T) {
@@ -47,8 +49,8 @@ loads:
 
 	assert.NotNil(t, config.Loads.loads["web"])
 	assert.Equal(t, config.Loads.loads["web"].Name, "web")
-	assert.Equal(t, config.Loads.loads["web"].Driver.GetDriverType(), ContainerDriverType)
-	assert.Equal(t, config.Loads.loads["web"].Driver.(*ContainerDriver).Image, "docker.io/nginx")
+	assert.Equal(t, config.Loads.loads["web"].Driver.GetDriverType(), drivers.ContainerDriverType)
+	assert.Equal(t, config.Loads.loads["web"].Driver.(*drivers.ContainerDriver).Image, "docker.io/nginx")
 }
 
 func TestConfigCycleError(t *testing.T) {
