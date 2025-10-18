@@ -1,4 +1,4 @@
-package config
+package drivers
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ type ProcessDriver struct {
 	StopSignal os.Signal
 }
 
-func NewProcessDriverFromConfig(config ProcessConfig) (internal.LoadDriver, error) {
+func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
 	stopSignal, ok := internal.StringToSignal(config.StopSignal)
 	if !ok {
 		return nil, fmt.Errorf("Invalid StopSignal")
@@ -52,8 +52,8 @@ func NewProcessDriverFromConfig(config ProcessConfig) (internal.LoadDriver, erro
 	return driver, nil
 }
 
-func (p *ProcessDriver) GetDriverType() internal.LoadDriverType {
-	return internal.ProcessDriverType
+func (p *ProcessDriver) GetDriverType() LoadDriverType {
+	return ProcessDriverType
 }
 
 func (p *ProcessDriver) MarshalJSON() ([]byte, error) {

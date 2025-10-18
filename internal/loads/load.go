@@ -1,4 +1,4 @@
-package config
+package loads
 
 import (
 	"crypto/sha256"
@@ -6,13 +6,14 @@ import (
 	"fmt"
 
 	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/loads/drivers"
 )
 
 type Load struct {
 	Name      string
-	Driver    internal.LoadDriver
+	Driver    drivers.LoadDriver
 	DependsOn []*Load
-	Node      *Node
+	Node      *internal.Node
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {
@@ -25,11 +26,11 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 		dependsOn[i] = dep.Name
 	}
 	return json.Marshal(&struct {
-		Name       string              `json:"name"`
-		DriverType string              `json:"driver_type"`
-		Driver     internal.LoadDriver `json:"driver"`
-		DependsOn  []string            `json:"depends_on"`
-		Node       string              `json:"node"`
+		Name       string             `json:"name"`
+		DriverType string             `json:"driver_type"`
+		Driver     drivers.LoadDriver `json:"driver"`
+		DependsOn  []string           `json:"depends_on"`
+		Node       string             `json:"node"`
 	}{
 		Name:       l.Name,
 		DriverType: l.Driver.GetDriverType().String(),
@@ -53,16 +54,16 @@ func (l *Load) UnmarshalJSON(data []byte) error {
 
 	l.Name = aux.Name
 
-	var driver internal.LoadDriver
+	var driver drivers.LoadDriver
 	switch aux.DriverType {
-	case internal.ProcessDriverTypeStr:
-		d := &ProcessDriver{}
+	case drivers.ProcessDriverTypeStr:
+		d := &drivers.ProcessDriver{}
 		if err := json.Unmarshal(aux.Driver, d); err != nil {
 			return err
 		}
 		driver = d
-	case internal.ContainerDriverTypeStr:
-		d := &ContainerDriver{}
+	case drivers.ContainerDriverTypeStr:
+		d := &drivers.ContainerDriver{}
 		if err := json.Unmarshal(aux.Driver, d); err != nil {
 			return err
 		}

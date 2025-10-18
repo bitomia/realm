@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/requests"
 )
 
@@ -980,7 +980,7 @@ func (c *Client) RollbackRecipe(node string, recipeId string) error {
 	return nil
 }
 
-func (c *Client) VerifyLoad(load *config.Load) error {
+func (c *Client) VerifyLoad(load *loads.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}

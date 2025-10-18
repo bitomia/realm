@@ -5,29 +5,31 @@ import (
 	"fmt"
 
 	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/internal/loads/drivers"
 )
 
 type LoadsConfig struct {
-	Containers map[string]ContainerConfig `mapstructure:"containers"`
-	Processes  map[string]ProcessConfig   `mapstructure:"processes"`
+	Containers map[string]drivers.ContainerConfig `mapstructure:"containers"`
+	Processes  map[string]drivers.ProcessConfig   `mapstructure:"processes"`
 
-	loads map[string]*Load
+	loads map[string]*loads.Load
 }
 
-func (l *LoadsConfig) newLoad(name string, node *Node, driver internal.LoadDriver) (*Load, error) {
+func (l *LoadsConfig) newLoad(name string, node *internal.Node, driver drivers.LoadDriver) (*loads.Load, error) {
 	if l.loads == nil {
-		l.loads = make(map[string]*Load)
+		l.loads = make(map[string]*loads.Load)
 	}
 
 	if _, exists := l.loads[name]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}
-	l.loads[name] = &Load{Name: name, Node: node, Driver: driver}
+	l.loads[name] = &loads.Load{Name: name, Node: node, Driver: driver}
 	return l.loads[name], nil
 }
 
-func (l *LoadsConfig) GetLoads() []*Load {
-	var loads []*Load
+func (l *LoadsConfig) GetLoads() []*loads.Load {
+	var loads []*loads.Load
 	for _, load := range l.loads {
 		loads = append(loads, load)
 	}

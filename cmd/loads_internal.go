@@ -8,8 +8,8 @@ import (
 
 	"github.com/awalterschulze/gographviz"
 
-	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/loads/drivers"
 )
 
 func generateSVG(loads config.LoadsConfig, outputFile string) error {
@@ -40,7 +40,7 @@ func generateSVG(loads config.LoadsConfig, outputFile string) error {
 		attrs["shape"] = "\"box\""
 		attrs["style"] = "\"rounded,filled\""
 
-		if load.Driver.GetDriverType() == internal.ProcessDriverType {
+		if load.Driver.GetDriverType() == drivers.ProcessDriverType {
 			attrs["fillcolor"] = "\"#50C878\""
 			attrs["color"] = "\"#2E7D4E\""
 		} else {

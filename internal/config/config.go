@@ -8,6 +8,10 @@ import (
 	"sync"
 
 	"github.com/spf13/viper"
+
+	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/internal/loads/drivers"
 )
 
 var BuildGitCommit string
@@ -38,8 +42,8 @@ type DiscoveryConfig struct {
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*Node `mapstructure:"nodes"`
-	Discovery DiscoveryConfig  `mapstructure:"discovery"`
+	Nodes     map[string]*internal.Node `mapstructure:"nodes"`
+	Discovery DiscoveryConfig           `mapstructure:"discovery"`
 
 	// Daemon config
 	Daemon DaemonConfig `mapstructure:"daemon"`
@@ -67,7 +71,7 @@ func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	}
 }
 
-func detectCycle(node *Load, visited map[*Load]bool, recStack map[*Load]bool, path []string) error {
+func detectCycle(node *loads.Load, visited map[*loads.Load]bool, recStack map[*loads.Load]bool, path []string) error {
 	visited[node] = true
 	recStack[node] = true
 	path = append(path, node.Name)
@@ -95,11 +99,11 @@ func detectCycle(node *Load, visited map[*Load]bool, recStack map[*Load]bool, pa
 	return nil
 }
 
-func checkForCycles(loads map[string]*Load) error {
-	visited := make(map[*Load]bool)
-	recStack := make(map[*Load]bool)
+func checkForCycles(l map[string]*loads.Load) error {
+	visited := make(map[*loads.Load]bool)
+	recStack := make(map[*loads.Load]bool)
 
-	for _, node := range loads {
+	for _, node := range l {
 		if !visited[node] {
 			if err := detectCycle(node, visited, recStack, []string{}); err != nil {
 				return err
@@ -142,7 +146,7 @@ func readConfig(unmarshall func() (*Config, error)) error {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", containerConfig.Node, containerName)
 		}
 
-		driver, err := NewContainerDriverFromConfig(containerConfig)
+		driver, err := drivers.NewContainerDriverFromConfig(containerConfig)
 		if err != nil {
 			return err
 		}
@@ -156,7 +160,7 @@ func readConfig(unmarshall func() (*Config, error)) error {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", processConfig.Node, procesName)
 		}
 
-		driver, err := NewProcessDriverFromConfig(processConfig)
+		driver, err := drivers.NewProcessDriverFromConfig(processConfig)
 		if err != nil {
 			return err
 		}

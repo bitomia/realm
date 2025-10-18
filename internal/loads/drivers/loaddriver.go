@@ -1,4 +1,4 @@
-package internal
+package drivers
 
 type LoadDriverType int
 

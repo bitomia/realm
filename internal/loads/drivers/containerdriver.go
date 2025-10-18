@@ -1,9 +1,7 @@
-package config
+package drivers
 
 import (
 	"encoding/json"
-
-	"github.com/bitomia/realm/internal"
 )
 
 type ContainerConfig struct {
@@ -17,7 +15,7 @@ type ContainerDriver struct {
 	Image string `json:"image"`
 }
 
-func NewContainerDriverFromConfig(config ContainerConfig) (internal.LoadDriver, error) {
+func NewContainerDriverFromConfig(config ContainerConfig) (LoadDriver, error) {
 	driver := &ContainerDriver{
 		Image: config.Image,
 	}
@@ -27,8 +25,8 @@ func NewContainerDriverFromConfig(config ContainerConfig) (internal.LoadDriver, 
 	return driver, nil
 }
 
-func (c *ContainerDriver) GetDriverType() internal.LoadDriverType {
-	return internal.ContainerDriverType
+func (c *ContainerDriver) GetDriverType() LoadDriverType {
+	return ContainerDriverType
 }
 
 func (p *ContainerDriver) MarshalJSON() ([]byte, error) {
