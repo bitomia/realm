@@ -6,11 +6,33 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/awalterschulze/gographviz"
+	"github.com/dominikbraun/graph"
+	"github.com/dominikbraun/graph/draw"
 
 	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/loads/drivers"
 )
+
+func NewGraph(loads config.LoadsConfig) (graph.Graph[string, string], error) {
+	g := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic())
+	allLoads := loads.GetLoads()
+
+	for _, load := range allLoads {
+		if err := g.AddVertex(load.Name); err != nil {
+			return nil, fmt.Errorf("failed to add node %s: %s", load.Name, err.Error())
+		}
+	}
+
+	for _, load := range allLoads {
+		for _, dep := range load.DependsOn {
+			if err := g.AddEdge(load.Name, dep.Name); err != nil {
+				return nil, fmt.Errorf("failed to add edge %s -> %s: %s", dep.Name, load.Name, err.Error())
+			}
+		}
+	}
+
+	return g, nil
+}
 
 func generateSVG(loads config.LoadsConfig, outputFile string) error {
 	allLoads := loads.GetLoads()
@@ -19,68 +41,55 @@ func generateSVG(loads config.LoadsConfig, outputFile string) error {
 		return fmt.Errorf("No loads found")
 	}
 
-	graph := gographviz.NewGraph()
-	if err := graph.SetName("LoadsDependencyGraph"); err != nil {
-		return fmt.Errorf("failed to set graph name: %w", err)
-	}
-	if err := graph.SetDir(true); err != nil {
-		return fmt.Errorf("failed to set graph direction: %w", err)
-	}
-
-	graph.AddAttr("LoadsDependencyGraph", "rankdir", "LR")
-	graph.AddAttr("LoadsDependencyGraph", "bgcolor", "white")
-	graph.AddAttr("LoadsDependencyGraph", "nodesep", "0.5")
-	graph.AddAttr("LoadsDependencyGraph", "ranksep", "1.0")
+	g := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic())
 
 	for _, load := range allLoads {
-		nodeName := fmt.Sprintf(`"%s"`, load.Name)
-
 		// Determine node attributes based on driver type
-		attrs := make(map[string]string)
-		attrs["shape"] = "\"box\""
-		attrs["style"] = "\"rounded,filled\""
-
+		var fillcolor, color string
 		if load.Driver.GetDriverType() == drivers.ProcessDriverType {
-			attrs["fillcolor"] = "\"#50C878\""
-			attrs["color"] = "\"#2E7D4E\""
+			fillcolor = "#50C878"
+			color = "#2E7D4E"
 		} else {
-			attrs["fillcolor"] = "\"#4A90E2\""
-			attrs["color"] = "\"#2E5C8A\""
+			fillcolor = "#4A90E2"
+			color = "#2E5C8A"
 		}
-
-		attrs["fontcolor"] = "\"white\""
-		attrs["fontsize"] = "12"
 
 		// Create node label with load name and node name
 		label := load.Name
 		if load.Node != nil {
 			label = fmt.Sprintf("%s\\n(%s)", load.Name, load.Node.Name)
 		}
-		attrs["label"] = fmt.Sprintf(`"%s"`, label)
 
-		if err := graph.AddNode("LoadsDependencyGraph", nodeName, attrs); err != nil {
+		if err := g.AddVertex(load.Name,
+			graph.VertexAttribute("shape", "box"),
+			graph.VertexAttribute("style", "rounded,filled"),
+			graph.VertexAttribute("fillcolor", fillcolor),
+			graph.VertexAttribute("color", color),
+			graph.VertexAttribute("fontcolor", "white"),
+			graph.VertexAttribute("fontsize", "12"),
+			graph.VertexAttribute("label", label),
+		); err != nil {
 			return fmt.Errorf("failed to add node %s: %w", load.Name, err)
 		}
 	}
 
 	for _, load := range allLoads {
 		for _, dep := range load.DependsOn {
-			fromNode := fmt.Sprintf(`"%s"`, load.Name)
-			toNode := fmt.Sprintf(`"%s"`, dep.Name)
-
-			edgeAttrs := make(map[string]string)
-			edgeAttrs["color"] = "\"#666666\""
-			edgeAttrs["penwidth"] = "2"
-
-			if err := graph.AddEdge(fromNode, toNode, true, edgeAttrs); err != nil {
-				return fmt.Errorf("failed to add edge from %s to %s: %w", load.Name, dep.Name, err)
+			if err := g.AddEdge(load.Name, dep.Name,
+				graph.EdgeAttribute("color", "#666666"),
+				graph.EdgeAttribute("penwidth", "2"),
+			); err != nil {
+				return fmt.Errorf("failed to add edge %s -> %s: %s", dep.Name, load.Name, err.Error())
 			}
 		}
 	}
 
-	dotString := graph.String()
+	var buf bytes.Buffer
+	if err := draw.DOT(g, &buf); err != nil {
+		return fmt.Errorf("failed to generate DOT: %w", err)
+	}
 
-	err := convertDotToSVG(dotString, outputFile)
+	err := convertDotToSVG(buf.String(), outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to convert DOT to SVG: %w", err)
 	}

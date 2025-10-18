@@ -43,4 +43,5 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/recipes/{recipeId}", auth.WithAuth(handlers.RollbackHandler)).Methods("DELETE")
 
 	router.Handle("/loads/verify", auth.WithAuth(handlers.VerifyLoadHandler)).Methods("POST")
+	router.Handle("/loads", auth.WithAuth(handlers.StartLoadHandler)).Methods("POST")
 }

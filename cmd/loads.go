@@ -3,12 +3,23 @@ package main
 import (
 	"fmt"
 
+	"github.com/dominikbraun/graph"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/bitomia/realm/cmd/internal"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/internal/config"
 )
+
+func doVerifyLoads(cfg *config.Config, client *internal.Client) error {
+	for _, load := range cfg.Loads.GetLoads() {
+		if err := client.VerifyLoad(load); err != nil {
+			return fmt.Errorf("Error verifying load: %s", err.Error())
+		}
+	}
+	return nil
+}
 
 var loadsCmd = &cobra.Command{
 	Use:                   "loads",
@@ -20,9 +31,9 @@ var loadsCmd = &cobra.Command{
 	},
 }
 
-var renderLoadsGraph = &cobra.Command{
-	Use:                   "graph [output_file]",
-	Short:                 "Render SVG graph of loads and their dependencies",
+var drawLoadsGraph = &cobra.Command{
+	Use:                   "draw [output_file]",
+	Short:                 "Create a SVG of the graph loads",
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -40,11 +51,11 @@ var renderLoadsGraph = &cobra.Command{
 			return
 		}
 
-		log.Info("Successfully generated dependency graph: %s\n", outputFile)
+		log.Info("Successfully generated SVG of the dependency graph: %s", outputFile)
 	},
 }
 
-var prepareLoads = &cobra.Command{
+var verifyLoads = &cobra.Command{
 	Use:   "verify",
 	Short: "Verify loads and nodes to verify correctness",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -55,17 +66,69 @@ var prepareLoads = &cobra.Command{
 		}
 
 		client := internal.NewClient()
-		for _, load := range cfg.Loads.GetLoads() {
-			if err := client.VerifyLoad(load); err != nil {
-				log.Fatal("Error verifying load: %s", err.Error())
+		if err := doVerifyLoads(cfg, &client); err != nil {
+			log.Fatal("Error verifying load: %s", err.Error())
+		}
+		log.Info("Successfully verified loads on cluster")
+	},
+}
+
+var runLoads = &cobra.Command{
+	Use:   "start",
+	Short: "Start all the loads into the cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Get()
+		if cfg == nil {
+			log.Error("Failed to load configuration\n")
+			return
+		}
+
+		client := internal.NewClient()
+
+		// Verify all loads first
+		if err := doVerifyLoads(cfg, &client); err != nil {
+			log.Fatal("Error verifying load: %s", err.Error())
+		}
+
+		// Start loads
+		g, err := NewGraph(cfg.Loads)
+		if err != nil {
+			log.Fatal("Error building graph: %s", err.Error())
+		}
+
+		log.Info("Starting loads")
+		loads := cfg.Loads.GetLoads()
+		loaded := make(map[string]bool)
+
+		for _, l := range loads {
+			var pendingLoads []string
+
+			graph.DFS(g, l.Name, func(value string) bool {
+				pendingLoads = append(pendingLoads, l.Name)
+				return true
+			})
+
+			for i := len(pendingLoads) - 1; i >= 0; i-- {
+				load := pendingLoads[i]
+
+				if _, exists := loaded[load]; !exists {
+					loaded[load] = true
+					loadRun := loads[load]
+
+					log.Info(" -> Running load %s", color.CyanString(loadRun.Name))
+					if err := client.StartLoad(loadRun); err != nil {
+						log.Fatal("Starting load failed: %s", err.Error())
+					}
+				}
 			}
 		}
 	},
 }
 
 func init() {
-	loadsCmd.AddCommand(renderLoadsGraph)
-	loadsCmd.AddCommand(prepareLoads)
+	loadsCmd.AddCommand(drawLoadsGraph)
+	loadsCmd.AddCommand(verifyLoads)
+	loadsCmd.AddCommand(runLoads)
 	loadsCmd.DisableFlagsInUseLine = true
 	rootCmd.AddCommand(loadsCmd)
 }

@@ -28,10 +28,10 @@ func (l *LoadsConfig) newLoad(name string, node *internal.Node, driver drivers.L
 	return l.loads[name], nil
 }
 
-func (l *LoadsConfig) GetLoads() []*loads.Load {
-	var loads []*loads.Load
+func (l *LoadsConfig) GetLoads() map[string]*loads.Load {
+	loads := make(map[string]*loads.Load)
 	for _, load := range l.loads {
-		loads = append(loads, load)
+		loads[load.Name] = load
 	}
 	return loads
 }

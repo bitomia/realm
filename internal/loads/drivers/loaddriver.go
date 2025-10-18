@@ -27,4 +27,5 @@ type LoadDriver interface {
 	VerifyDaemon() error
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
+	StartOnDaemon() error
 }

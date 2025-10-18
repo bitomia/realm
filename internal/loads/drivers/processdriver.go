@@ -3,6 +3,7 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -102,5 +103,32 @@ func (p *ProcessDriver) VerifyDaemon() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (p *ProcessDriver) StartOnDaemon() error {
+	var args []string
+	if p.StartArgs != nil {
+		args = strings.Fields(*p.StartArgs)
+	}
+
+	cmd := exec.Command(p.StartCmd, args...)
+
+	if p.WorkingDir != nil {
+		cmd.Dir = *p.WorkingDir
+	}
+
+	cmd.Env = os.Environ()
+	// TODO redirect stdout and stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start process: %w", err)
+	}
+
+	//pid := cmd.Process.Pid
+	// TODO write PID to database
+
 	return nil
 }

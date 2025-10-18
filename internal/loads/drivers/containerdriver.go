@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 type ContainerConfig struct {
@@ -54,4 +55,9 @@ func (p *ContainerDriver) Verify() error {
 
 func (p *ContainerDriver) VerifyDaemon() error {
 	return nil
+}
+
+func (p *ContainerDriver) StartOnDaemon() error {
+	// TODO
+	return fmt.Errorf("To be implemneted")
 }
