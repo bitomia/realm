@@ -3,75 +3,60 @@ package internal
 import (
 	"fmt"
 	"os"
-	"syscall"
 )
 
-func StringToSignal(s string) (os.Signal, bool) {
-	signals := map[string]os.Signal{
-		"SIGABRT":   syscall.SIGABRT,
-		"SIGALRM":   syscall.SIGALRM,
-		"SIGBUS":    syscall.SIGBUS,
-		"SIGCHLD":   syscall.SIGCHLD,
-		"SIGCONT":   syscall.SIGCONT,
-		"SIGFPE":    syscall.SIGFPE,
-		"SIGHUP":    syscall.SIGHUP,
-		"SIGILL":    syscall.SIGILL,
-		"SIGINT":    syscall.SIGINT,
-		"SIGKILL":   syscall.SIGKILL,
-		"SIGPIPE":   syscall.SIGPIPE,
-		"SIGQUIT":   syscall.SIGQUIT,
-		"SIGSEGV":   syscall.SIGSEGV,
-		"SIGSTOP":   syscall.SIGSTOP,
-		"SIGTERM":   syscall.SIGTERM,
-		"SIGTRAP":   syscall.SIGTRAP,
-		"SIGTSTP":   syscall.SIGTSTP,
-		"SIGTTIN":   syscall.SIGTTIN,
-		"SIGTTOU":   syscall.SIGTTOU,
-		"SIGUSR1":   syscall.SIGUSR1,
-		"SIGUSR2":   syscall.SIGUSR2,
-		"SIGPROF":   syscall.SIGPROF,
-		"SIGSYS":    syscall.SIGSYS,
-		"SIGURG":    syscall.SIGURG,
-		"SIGVTALRM": syscall.SIGVTALRM,
-		"SIGWINCH":  syscall.SIGWINCH,
-		"SIGXCPU":   syscall.SIGXCPU,
-		"SIGXFSZ":   syscall.SIGXFSZ,
+const (
+	SIGABRT = 0x6
+	SIGALRM = 0xe
+	SIGHUP  = 0x1
+	SIGILL  = 0x4
+	SIGINT  = 0x2
+	SIGKILL = 0x9
+	SIGPWR  = 0x1e
+	SIGQUIT = 0x3
+	SIGSTOP = 0x13
+	SIGTERM = 0xf
+	SIGTRAP = 0x5
+	SIGUSR1 = 0xa
+	SIGUSR2 = 0xc
+)
+
+func StringToSignal(s string) (int, bool) {
+	signals := map[string]int{
+		"SIGABRT": SIGABRT,
+		"SIGALRM": SIGALRM,
+		"SIGHUP":  SIGHUP,
+		"SIGILL":  SIGILL,
+		"SIGINT":  SIGINT,
+		"SIGKILL": SIGKILL,
+		"SIGPWR":  SIGPWR,
+		"SIGQUIT": SIGQUIT,
+		"SIGSTOP": SIGSTOP,
+		"SIGTERM": SIGTERM,
+		"SIGTRAP": SIGTRAP,
+		"SIGUSR1": SIGUSR1,
+		"SIGUSR2": SIGUSR2,
 	}
 
 	sig, ok := signals[s]
 	return sig, ok
 }
 
-func SignalToString(sig os.Signal) string {
-	signals := map[os.Signal]string{
-		syscall.SIGABRT:   "SIGABRT",
-		syscall.SIGALRM:   "SIGALRM",
-		syscall.SIGBUS:    "SIGBUS",
-		syscall.SIGCHLD:   "SIGCHLD",
-		syscall.SIGCONT:   "SIGCONT",
-		syscall.SIGFPE:    "SIGFPE",
-		syscall.SIGHUP:    "SIGHUP",
-		syscall.SIGILL:    "SIGILL",
-		syscall.SIGINT:    "SIGINT",
-		syscall.SIGKILL:   "SIGKILL",
-		syscall.SIGPIPE:   "SIGPIPE",
-		syscall.SIGQUIT:   "SIGQUIT",
-		syscall.SIGSEGV:   "SIGSEGV",
-		syscall.SIGSTOP:   "SIGSTOP",
-		syscall.SIGTERM:   "SIGTERM",
-		syscall.SIGTRAP:   "SIGTRAP",
-		syscall.SIGTSTP:   "SIGTSTP",
-		syscall.SIGTTIN:   "SIGTTIN",
-		syscall.SIGTTOU:   "SIGTTOU",
-		syscall.SIGUSR1:   "SIGUSR1",
-		syscall.SIGUSR2:   "SIGUSR2",
-		syscall.SIGPROF:   "SIGPROF",
-		syscall.SIGSYS:    "SIGSYS",
-		syscall.SIGURG:    "SIGURG",
-		syscall.SIGVTALRM: "SIGVTALRM",
-		syscall.SIGWINCH:  "SIGWINCH",
-		syscall.SIGXCPU:   "SIGXCPU",
-		syscall.SIGXFSZ:   "SIGXFSZ",
+func SignalToString(sig int) string {
+	signals := map[int]string{
+		SIGABRT: "SIGABRT",
+		SIGALRM: "SIGALRM",
+		SIGHUP:  "SIGHUP",
+		SIGILL:  "SIGILL",
+		SIGINT:  "SIGINT",
+		SIGKILL: "SIGKILL",
+		SIGPWR:  "SIGPWR",
+		SIGQUIT: "SIGQUIT",
+		SIGSTOP: "SIGSTOP",
+		SIGTERM: "SIGTERM",
+		SIGTRAP: "SIGTRAP",
+		SIGUSR1: "SIGUSR1",
+		SIGUSR2: "SIGUSR2",
 	}
 
 	if s, ok := signals[sig]; ok {

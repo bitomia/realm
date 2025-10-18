@@ -3,7 +3,6 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -31,7 +30,7 @@ type ProcessDriver struct {
 	StartCmd   string
 	StartArgs  *string
 	WorkingDir *string
-	StopSignal os.Signal
+	StopSignal int
 }
 
 func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
