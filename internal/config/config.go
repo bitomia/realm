@@ -61,7 +61,7 @@ func resetConfig() {
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	for nodeName := range values {
 		if _, exists := nodes[nodeName]; exists {
-			log.Fatal(fmt.Sprintf("duplicated node name: %s", nodeName))
+			log.Fatalf("duplicated node name: %s", nodeName)
 		}
 		nodes[nodeName] = true
 	}
@@ -141,7 +141,13 @@ func readConfig(unmarshall func() (*Config, error)) error {
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", containerConfig.Node, containerName)
 		}
-		config.Loads.newLoad(containerName, node, NewContainerDriverFromConfig(containerConfig))
+
+		driver, err := NewContainerDriverFromConfig(containerConfig)
+		if err != nil {
+			return err
+		}
+
+		config.Loads.newLoad(containerName, node, driver)
 		allDeps[containerName] = containerConfig.DependsOn
 	}
 	for procesName, processConfig := range config.Loads.Processes {
@@ -149,7 +155,13 @@ func readConfig(unmarshall func() (*Config, error)) error {
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", processConfig.Node, procesName)
 		}
-		config.Loads.newLoad(procesName, node, NewProcessDriverFromConfig(processConfig))
+
+		driver, err := NewProcessDriverFromConfig(processConfig)
+		if err != nil {
+			return err
+		}
+
+		config.Loads.newLoad(procesName, node, driver)
 		allDeps[procesName] = processConfig.DependsOn
 	}
 
@@ -158,7 +170,7 @@ func readConfig(unmarshall func() (*Config, error)) error {
 		for _, depLoad := range allDeps[loadName] {
 			loads, exist := config.Loads.loads[depLoad]
 			if !exist {
-				log.Fatal(fmt.Sprintf("dependency node '%s' not exists", depLoad))
+				log.Fatalf("dependency node '%s' not exists", depLoad)
 			}
 			load.DependsOn = append(load.DependsOn, loads)
 		}

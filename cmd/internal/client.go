@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/requests"
 )
 
@@ -973,6 +974,42 @@ func (c *Client) RollbackRecipe(node string, recipeId string) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to rollback recipe: %s", string(body))
+	}
+
+	fmt.Println(string(body))
+	return nil
+}
+
+func (c *Client) VerifyLoad(load *config.Load) error {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/loads/verify", load.Node.Url)
+
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(load)
+
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed verifying load: %s", string(body))
 	}
 
 	fmt.Println(string(body))

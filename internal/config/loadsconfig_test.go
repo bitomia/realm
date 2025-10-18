@@ -33,7 +33,7 @@ loads:
   processes:
     netcat:
       node: lab1
-      start_cmd: nc -l 12345
+      start_cmd: nc
       stop_signal: SIGHUP
       depends_on:
         - web
@@ -79,7 +79,7 @@ loads:
   processes:
     netcat:
       node: lab1
-      start_cmd: nc -l 12345
+      start_cmd: nc
       stop_signal: SIGHUP
       depends_on:
         - web
@@ -107,7 +107,7 @@ loads:
   processes:
     netcat:
       node: lab1
-      start_cmd: nc -l 12345
+      start_cmd: nc
       stop_signal: SIGHUP
       depends_on:
         - web
@@ -116,4 +116,64 @@ loads:
 	resetConfig()
 	err := readConfigFromReader(strings.NewReader(yamlConfig))
 	assert.NoError(t, err)
+}
+
+func TestProcessDriverInvalidCmd(t *testing.T) {
+	yamlConfig := `
+nodes:
+  lab1:
+    url: http://192.168.1.54:9000
+
+loads:
+  processes:
+    netcat:
+      node: lab1
+      start_cmd: cmd invalid
+`
+	resetConfig()
+	err := readConfigFromReader(strings.NewReader(yamlConfig))
+
+	assert.Error(t, err)
+	assert.Len(t, config.Loads.loads, 0)
+}
+
+func TestProcessDriverValidCmd(t *testing.T) {
+	yamlConfig := `
+nodes:
+  lab1:
+    url: http://192.168.1.54:9000
+
+loads:
+  processes:
+    netcat:
+      node: lab1
+      start_cmd: cmd
+      stop_signal: SIGHUP
+`
+	resetConfig()
+	err := readConfigFromReader(strings.NewReader(yamlConfig))
+
+	assert.NoError(t, err)
+	assert.NotNil(t, config.Loads)
+	assert.Len(t, config.Loads.loads, 1)
+}
+
+func TestProcessDriverInvalidStopSignal(t *testing.T) {
+	yamlConfig := `
+nodes:
+  lab1:
+    url: http://192.168.1.54:9000
+
+loads:
+  processes:
+    netcat:
+      node: lab1
+      start_cmd: cmd
+      stop_signal: INVALID
+`
+	resetConfig()
+	err := readConfigFromReader(strings.NewReader(yamlConfig))
+
+	assert.Error(t, err)
+	assert.Len(t, config.Loads.loads, 0)
 }

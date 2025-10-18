@@ -3,22 +3,9 @@ package config
 import (
 	"crypto/sha256"
 	"fmt"
+
+	"github.com/bitomia/realm/internal"
 )
-
-type ContainerConfig struct {
-	Name      string
-	Node      string   `mapstructure:"node"`
-	DependsOn []string `mapstructure:"depends_on"`
-	Image     string   `mapstructure:"image"`
-}
-
-type ProcessConfig struct {
-	Name       string
-	Node       string   `mapstructure:"node"`
-	DependsOn  []string `mapstructure:"depends_on"`
-	StartCmd   string   `mapstructure:"start_cmd"`
-	StopSignal string   `mapstructure:"stop_signal"`
-}
 
 type LoadsConfig struct {
 	Containers map[string]ContainerConfig `mapstructure:"containers"`
@@ -27,7 +14,7 @@ type LoadsConfig struct {
 	loads map[string]*Load
 }
 
-func (l *LoadsConfig) newLoad(name string, node *Node, driver LoadDriver) (*Load, error) {
+func (l *LoadsConfig) newLoad(name string, node *Node, driver internal.LoadDriver) (*Load, error) {
 	if l.loads == nil {
 		l.loads = make(map[string]*Load)
 	}
@@ -35,9 +22,7 @@ func (l *LoadsConfig) newLoad(name string, node *Node, driver LoadDriver) (*Load
 	if _, exists := l.loads[name]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}
-
 	l.loads[name] = &Load{Name: name, Node: node, Driver: driver}
-
 	return l.loads[name], nil
 }
 
