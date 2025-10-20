@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"syscall"
 
@@ -14,13 +13,11 @@ import (
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
-	"github.com/bitomia/realm/daemon/utils"
 	"github.com/bitomia/realm/daemon/volumes"
 	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/requests"
@@ -154,36 +151,6 @@ func startContainer(containerName string) error {
 	return nil
 }
 
-func killContainer(containerName string, w http.ResponseWriter, signal syscall.Signal) error {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return err
-	}
-	defer client.Close()
-
-	container, err := client.LoadContainer(ctx, containerName)
-	if err != nil {
-		utils.HttpError(w, http.StatusBadRequest, "Failed to retrieve container %s on kill: %s", containerName, err.Error())
-		return err
-	}
-	task, err := container.Task(ctx, nil)
-	if err != nil {
-		utils.HttpError(w, http.StatusInternalServerError, "Failed to create new task for container %s on kill: %s", containerName, err.Error())
-		return err
-	}
-	err = stopContainer(containerName, syscall.SIGTERM)
-	if err != nil {
-		utils.HttpError(w, http.StatusInternalServerError, "Failed to stop container for container %s on kill: %s", containerName, err.Error())
-		return err
-	}
-	if err := task.Kill(ctx, signal); err != nil {
-		utils.HttpError(w, http.StatusInternalServerError, "Failed to kill task for container %s on kill: %s", containerName, err.Error())
-		return err
-	}
-	return nil
-}
-
 func tryDeleteContainerTask(ctx context.Context, container containerd.Container, signal syscall.Signal) error {
 	task, _ := container.Task(ctx, nil)
 	if task != nil {
@@ -285,7 +252,7 @@ func CreateContainer(containerName string, opts requests.CreateContainerOpts, ex
 			},
 		}
 		specOpts = append(specOpts, oci.WithMounts(mountOptions))
-		slog.Info("mountOptions", mountOptions[0].Options)
+		slog.Info("CreateContainer", "mountOptions", mountOptions[0].Options)
 
 	} else if opts.VolumeMountPoint != "" {
 		if volumes.IsVolume(containerName) {
@@ -308,7 +275,7 @@ func CreateContainer(containerName string, opts requests.CreateContainerOpts, ex
 			if err := volumes.SetVolumeQuota(containerName, *opts.Quotas.VolumeSize); err != nil {
 				return fmt.Errorf("Failed to enable volume quota for container %s: %s", containerName, err.Error())
 			}
-			slog.Info("container", containerName, "volumeSize", *opts.Quotas.VolumeSize)
+			slog.Info("CreateContainer", "container", containerName, "volumeSize", *opts.Quotas.VolumeSize)
 		}
 
 		if len(mountPoint) == 0 {
@@ -331,7 +298,7 @@ func CreateContainer(containerName string, opts requests.CreateContainerOpts, ex
 	}
 	if opts.Quotas.MemLimit != nil {
 		memLimit := *opts.Quotas.MemLimit * 1024 * 1024
-		slog.Info("container", containerName, "memLimit", memLimit)
+		slog.Info("CreateContainer", "container", containerName, "memLimit", memLimit)
 		specOpts = append(specOpts, oci.WithMemoryLimit(memLimit))
 	}
 	if opts.Quotas.CpuShares != nil {
@@ -416,45 +383,6 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 	return nil
 }
 
-func RunProcess(containerName string, processSpec *specs.Process) error {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	container, err := client.LoadContainer(ctx, containerName)
-	if err != nil {
-		return err
-	}
-
-	task, err := container.Task(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	processId := uuid.New()
-	process, err := task.Exec(ctx, processId.String(), processSpec, cio.NewCreator(cio.WithStdio))
-	if err != nil {
-		return err
-	}
-
-	err = process.Start(ctx)
-	if err != nil {
-		return err
-	}
-
-	statusC, err := process.Wait(ctx)
-	if err != nil {
-		return err
-	}
-	status := <-statusC
-	if status.ExitCode() != 0 && status.Error() != nil {
-		return status.Error()
-	}
-	return nil
-}
-
 type UpdateContainerOpts struct {
 	State string `json:"state"`
 }
@@ -471,7 +399,6 @@ func UpdateContainerState(containerName string, opts UpdateContainerOpts) error 
 			status := "start"
 			db.UpdateContainerStatus(containerName, status)
 		}
-
 	case "stop":
 		db := db.GetDB()
 
@@ -482,7 +409,6 @@ func UpdateContainerState(containerName string, opts UpdateContainerOpts) error 
 			status := "stop"
 			db.UpdateContainerStatus(containerName, status)
 		}
-
 	default:
 		return fmt.Errorf("Unknown container state: %s", containerName)
 	}
