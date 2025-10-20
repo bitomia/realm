@@ -3,6 +3,8 @@ package drivers
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/bitomia/realm/internal"
 )
 
 type ContainerConfig struct {
@@ -57,7 +59,7 @@ func (p *ContainerDriver) VerifyDaemon() error {
 	return nil
 }
 
-func (p *ContainerDriver) StartOnDaemon() error {
+func (p *ContainerDriver) StartOnDaemon(logsPath internal.LogsPath, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemneted")
 }

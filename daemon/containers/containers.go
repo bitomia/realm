@@ -111,8 +111,8 @@ func RepairContainer(c db.Container) error {
 }
 
 func createTask(ctx context.Context, container containerd.Container, containerName string) (containerd.Task, error) {
-	var log_path = fmt.Sprintf("/var/log/realm/%s.log", containerName)
-	task, err := container.NewTask(ctx, cio.LogFile(log_path))
+	var logPath = fmt.Sprintf("/var/log/realm/containers/%s.log", containerName)
+	task, err := container.NewTask(ctx, cio.LogFile(logPath))
 	if err != nil {
 		slog.Error("Failed to create new task for container on restart", "container", containerName, "error", err.Error())
 		return nil, err

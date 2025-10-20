@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/loads/drivers"
+	"github.com/bitomia/realm/internal/node"
 )
 
 type LoadsConfig struct {
@@ -16,7 +16,7 @@ type LoadsConfig struct {
 	loads map[string]*loads.Load
 }
 
-func (l *LoadsConfig) newLoad(name string, node *internal.Node, driver drivers.LoadDriver) (*loads.Load, error) {
+func (l *LoadsConfig) newLoad(name string, node *node.Node, driver drivers.LoadDriver) (*loads.Load, error) {
 	if l.loads == nil {
 		l.loads = make(map[string]*loads.Load)
 	}
@@ -38,8 +38,7 @@ func (l *LoadsConfig) GetLoads() map[string]*loads.Load {
 
 func (l *LoadsConfig) Hash() [32]byte {
 	var hashes [][32]byte
-	for n, l := range l.loads {
-		fmt.Printf("%s %v\n", n, l.Hash())
+	for _, l := range l.loads {
 		hashes = append(hashes, l.Hash())
 	}
 

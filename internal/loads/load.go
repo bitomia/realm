@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/loads/drivers"
+	"github.com/bitomia/realm/internal/node"
 )
 
 type Load struct {
 	Name      string
 	Driver    drivers.LoadDriver
 	DependsOn []*Load
-	Node      *internal.Node
+	Node      *node.Node
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {
@@ -82,7 +82,6 @@ func (l *Load) UnmarshalJSON(data []byte) error {
 
 func (l *Load) Hash() [32]byte {
 	data, err := json.Marshal(l)
-	fmt.Printf("%s\n", data)
 	if err != nil {
 		panic(err)
 	}

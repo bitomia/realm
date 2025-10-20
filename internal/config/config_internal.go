@@ -22,6 +22,7 @@ func setDefaults() {
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
 	viper.SetDefault("daemon.listen_address", "127.0.0.1")
 	viper.SetDefault("daemon.listen_port", "9000")
+	viper.SetDefault("daemon.logs_path", "/var/log/realm")
 	viper.SetDefault("daemon.local_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.master_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.containerd_sock", "/run/containerd/containerd.sock")
@@ -33,4 +34,5 @@ func setDefaults() {
 	viper.SetDefault("daemon.etcd_listen_peer_url", "http://127.0.0.1:2380")
 	viper.SetDefault("daemon.etcd_initial_cluster", "")
 	viper.SetDefault("daemon.etcd_cluster_state", "new")
+
 }

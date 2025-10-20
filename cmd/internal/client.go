@@ -1012,7 +1012,6 @@ func (c *Client) VerifyLoad(load *loads.Load) error {
 		return fmt.Errorf("failed verifying load: %s", string(body))
 	}
 
-	fmt.Println(string(body))
 	return nil
 }
 
@@ -1048,6 +1047,5 @@ func (c *Client) StartLoad(load *loads.Load) error {
 		return fmt.Errorf("%s", string(body))
 	}
 
-	fmt.Println(string(body))
 	return nil
 }

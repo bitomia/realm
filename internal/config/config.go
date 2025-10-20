@@ -12,28 +12,30 @@ import (
 	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/loads/drivers"
+	"github.com/bitomia/realm/internal/node"
 )
 
 var BuildGitCommit string
 
 type DaemonConfig struct {
-	CniPath             string `mapstructure:"cni_path"`
-	VolumesPool         string `mapstructure:"volumes_pool"`
-	ListenAddress       string `mapstructure:"listen_address"`
-	ListenPort          int    `mapstructure:"listen_port"`
-	ContainersLogPath   string `mapstructure:"containers_log_path"`
-	LocalCaddyUrl       string `mapstructure:"local_caddy_url"`
-	MasterCaddyUrl      string `mapstructure:"master_caddy_url"`
-	GitHubRegistryToken string `mapstructure:"github_registry_token"`
-	HerdMcastAddress    string `mapstructure:"herd_mcast_address"`
-	ContainerdSock      string `mapstructure:"containerd_sock"`
-	ContainerdNamespace string `mapstructure:"containerd_namespace"`
-	EtcdDataDir         string `mapstructure:"etcd_data_dir"`
-	EtcdName            string `mapstructure:"etcd_name"`
-	EtcdListenClientUrl string `mapstructure:"etcd_listen_client_url"`
-	EtcdListenPeerUrl   string `mapstructure:"etcd_listen_peer_url"`
-	EtcdInitialCluster  string `mapstructure:"etcd_initial_cluster"`
-	EtcdClusterState    string `mapstructure:"etcd_cluster_state"`
+	CniPath             string            `mapstructure:"cni_path"`
+	VolumesPool         string            `mapstructure:"volumes_pool"`
+	ListenAddress       string            `mapstructure:"listen_address"`
+	ListenPort          int               `mapstructure:"listen_port"`
+	LogsPath            internal.LogsPath `mapstructure:"logs_path"`
+	ContainersLogPath   string            `mapstructure:"containers_log_path"`
+	LocalCaddyUrl       string            `mapstructure:"local_caddy_url"`
+	MasterCaddyUrl      string            `mapstructure:"master_caddy_url"`
+	GitHubRegistryToken string            `mapstructure:"github_registry_token"`
+	HerdMcastAddress    string            `mapstructure:"herd_mcast_address"`
+	ContainerdSock      string            `mapstructure:"containerd_sock"`
+	ContainerdNamespace string            `mapstructure:"containerd_namespace"`
+	EtcdDataDir         string            `mapstructure:"etcd_data_dir"`
+	EtcdName            string            `mapstructure:"etcd_name"`
+	EtcdListenClientUrl string            `mapstructure:"etcd_listen_client_url"`
+	EtcdListenPeerUrl   string            `mapstructure:"etcd_listen_peer_url"`
+	EtcdInitialCluster  string            `mapstructure:"etcd_initial_cluster"`
+	EtcdClusterState    string            `mapstructure:"etcd_cluster_state"`
 }
 
 type DiscoveryConfig struct {
@@ -42,8 +44,8 @@ type DiscoveryConfig struct {
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*internal.Node `mapstructure:"nodes"`
-	Discovery DiscoveryConfig           `mapstructure:"discovery"`
+	Nodes     map[string]*node.Node `mapstructure:"nodes"`
+	Discovery DiscoveryConfig       `mapstructure:"discovery"`
 
 	// Daemon config
 	Daemon DaemonConfig `mapstructure:"daemon"`
@@ -71,12 +73,12 @@ func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	}
 }
 
-func detectCycle(node *loads.Load, visited map[*loads.Load]bool, recStack map[*loads.Load]bool, path []string) error {
-	visited[node] = true
-	recStack[node] = true
-	path = append(path, node.Name)
+func detectCycle(load *loads.Load, visited map[*loads.Load]bool, recStack map[*loads.Load]bool, path []string) error {
+	visited[load] = true
+	recStack[load] = true
+	path = append(path, load.Name)
 
-	for _, dep := range node.DependsOn {
+	for _, dep := range load.DependsOn {
 		if !visited[dep] {
 			if err := detectCycle(dep, visited, recStack, path); err != nil {
 				return err
@@ -95,7 +97,7 @@ func detectCycle(node *loads.Load, visited map[*loads.Load]bool, recStack map[*l
 		}
 	}
 
-	recStack[node] = false
+	recStack[load] = false
 	return nil
 }
 

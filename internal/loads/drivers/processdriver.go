@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/fs"
+	"github.com/bitomia/realm/internal/signals"
 )
 
 type ProcessConfig struct {
@@ -32,10 +34,11 @@ type ProcessDriver struct {
 	StartArgs  *string
 	WorkingDir *string
 	StopSignal int
+	LogsPath   internal.LogsPath
 }
 
 func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
-	stopSignal, ok := internal.StringToSignal(config.StopSignal)
+	stopSignal, ok := signals.StringToSignal(config.StopSignal)
 	if !ok {
 		return nil, fmt.Errorf("Invalid StopSignal")
 	}
@@ -46,6 +49,7 @@ func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
 		WorkingDir: config.WorkingDir,
 		StopSignal: stopSignal,
 	}
+
 	if err := driver.Verify(); err != nil {
 		return nil, err
 	}
@@ -61,7 +65,7 @@ func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
 		StartCmd:   p.StartCmd,
 		StartArgs:  p.StartArgs,
 		WorkingDir: p.WorkingDir,
-		StopSignal: internal.SignalToString(p.StopSignal),
+		StopSignal: signals.SignalToString(p.StopSignal),
 	})
 }
 
@@ -74,7 +78,7 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 	p.StartArgs = aux.StartArgs
 	p.WorkingDir = aux.WorkingDir
 
-	stopSignal, ok := internal.StringToSignal(aux.StopSignal)
+	stopSignal, ok := signals.StringToSignal(aux.StopSignal)
 	if !ok {
 		return fmt.Errorf("invalid stop signal: %s", aux.StopSignal)
 	}
@@ -95,18 +99,17 @@ func (p *ProcessDriver) VerifyDaemon() error {
 	if _, err := exec.LookPath(p.StartCmd); err != nil {
 		return fmt.Errorf("Executable %q not found in PATH\n", p.StartCmd)
 	}
+
 	// Check WorkingDir exists
 	if p.WorkingDir != nil {
-		err := internal.DirExists(*p.WorkingDir)
-		fmt.Printf("%v\n", err)
-		if err := internal.DirExists(*p.WorkingDir); err != nil {
+		if err := fs.DirExists(*p.WorkingDir); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *ProcessDriver) StartOnDaemon() error {
+func (p *ProcessDriver) StartOnDaemon(logsPath internal.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -118,11 +121,23 @@ func (p *ProcessDriver) StartOnDaemon() error {
 		cmd.Dir = *p.WorkingDir
 	}
 
-	cmd.Env = os.Environ()
-	// TODO redirect stdout and stderr
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	outfile, err := internal.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
+	if err != nil {
+		return fmt.Errorf("Failed to create output log file: %v", err)
+	}
 
+	errfile, err := internal.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
+	if err != nil {
+		return fmt.Errorf("Failed to create error log file: %v", err)
+	}
+
+	cmd.Env = os.Environ()
+	cmd.Stdout = outfile
+	cmd.Stderr = errfile
+
+	if p.WorkingDir != nil {
+		cmd.Dir = *p.WorkingDir
+	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start process: %w", err)
 	}

@@ -7,12 +7,13 @@ import (
 
 	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/node"
 
 	"github.com/bitomia/realm/cmd/log"
 )
 
-func GetNodes() map[string]*internal.Node {
-	nodes := make(map[string]*internal.Node)
+func GetNodes() map[string]*node.Node {
+	nodes := make(map[string]*node.Node)
 	seenUrls := make(map[string]string)
 
 	if config.Get() == nil {
@@ -52,7 +53,7 @@ func GetNodes() map[string]*internal.Node {
 				delete(nodes, existingName)
 			}
 
-			nodes[name] = &internal.Node{Name: name, Url: url}
+			nodes[name] = &node.Node{Name: name, Url: url}
 			seenUrls[url] = name
 		}
 	}
@@ -60,7 +61,7 @@ func GetNodes() map[string]*internal.Node {
 	return nodes
 }
 
-func GetNode(nodeName string) *internal.Node {
+func GetNode(nodeName string) *node.Node {
 	nodes := GetNodes()
 	node, exists := nodes[nodeName]
 	if !exists {

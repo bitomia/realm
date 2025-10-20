@@ -1,5 +1,7 @@
 package drivers
 
+import "github.com/bitomia/realm/internal"
+
 type LoadDriverType int
 
 const (
@@ -27,5 +29,5 @@ type LoadDriver interface {
 	VerifyDaemon() error
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
-	StartOnDaemon() error
+	StartOnDaemon(logsPath internal.LogsPath, loadName string) error
 }

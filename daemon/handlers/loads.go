@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/loads"
 )
 
@@ -36,8 +37,15 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	config := config.Get()
+	if config == nil {
+		http.Error(w, "Cannot open configuration", http.StatusBadGateway)
+		return
+	}
+
 	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver)
-	if err := load.Driver.StartOnDaemon(); err != nil {
+
+	if err := load.Driver.StartOnDaemon(config.Daemon.LogsPath, load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		w.WriteHeader(http.StatusOK)
