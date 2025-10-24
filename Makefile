@@ -1,12 +1,27 @@
 GO ?= go
 GOLANGCI_LINT_PACKAGE ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
 
-ROOT:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-BIN_DIR := $(ROOT)/bin
-REALM_OUT := $(BIN_DIR)/realm
-REALM_LIB := librealm.a
+ROOT:=$(realpath .)
 
-GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
+ifeq ($(OS),Windows_NT)
+	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>nul || echo Unknown)
+	RM = del
+  MKDIR = if not exist "$(1)" mkdir "$(1)"
+  SEP = \\
+	BIN_DIR := $(ROOT)$(SEP)bin
+	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
+	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
+else
+	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
+	RM = rm -rf
+	MKDIR = mkdir -p $(1)
+  SEP = /
+	BIN_DIR := $(ROOT)$(SEP)bin
+	REALM_OUT := $(BIN_DIR)$(SEP)realm
+	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
+endif
+
+
 COMMIT_FLAG := -X 'github.com/bitomia/realm/internal/config.BuildGitCommit=$(GIT_COMMIT)'
 MAKEFLAGS += --no-print-directory
 
@@ -20,9 +35,12 @@ all:
 lib:
 	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
 
+$(BIN_DIR):
+	$(call MKDIR,$(BIN_DIR))
+
 .PHONY: clean
 clean:
-	rm -f $(REALM_OUT)
+	-$(RM) "$(REALM_OUT)"
 
 .PHONY: verify-lint-cmd
 verify-lint-cmd:
