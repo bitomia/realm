@@ -6,8 +6,8 @@ ROOT:=$(realpath .)
 ifeq ($(OS),Windows_NT)
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>nul || echo Unknown)
 	RM = del
-  MKDIR = if not exist "$(1)" mkdir "$(1)"
-  SEP = \\
+	MKDIR = if not exist "$(1)" mkdir "$(1)"
+	SEP = \\
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
 	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
@@ -15,7 +15,7 @@ else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	RM = rm -rf
 	MKDIR = mkdir -p $(1)
-  SEP = /
+	SEP = /
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
 	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
