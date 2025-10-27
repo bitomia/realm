@@ -9,15 +9,12 @@ package volumes
 import "C"
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
 
 	zfs "github.com/bitomia/go-libzfs"
-
-	"github.com/bitomia/realm/internal/config"
 )
 
 func MountVolume(volume string) (string, error) {
@@ -33,7 +30,7 @@ func MountVolume(volume string) (string, error) {
 
 	mounted, mountPoint := ds.IsMounted()
 	if mounted == true {
-		log.Printf("Volume already mounted at %s", mountPoint)
+		slog.Info("Volume already mounted", "path", mountPoint)
 		return mountPoint, nil
 	} else {
 		err = ds.Mount("", 0) // "" means default mountpoint, 0 means no special flags
