@@ -20,10 +20,7 @@ type NodeState struct {
 
 	TotalMem       uint64  `json:"mem_total"`
 	UsedMem        uint64  `json:"mem_used"`
-	InactiveMem    uint64  `json:"mem_inactive"`
-	CachedMem      uint64  `json:"mem_cached"`
 	FreeMem        uint64  `json:"mem_free"`
-	AvailableMem   uint64  `json:"mem_available"`
 	FreeMemPercent float64 `json:"mem_free_percentage"` // Important
 
 	FreeStorage uint64 `json:"free_storage"`

@@ -22,3 +22,9 @@ func CreateLogFile(logsPath LogsPath, filename string, perm os.FileMode) (*os.Fi
 
 	return file, nil
 }
+
+const bytesToMB = 1024.0 * 1024.0
+
+func ToMB(bytes float64) float64 {
+	return bytes / bytesToMB
+}

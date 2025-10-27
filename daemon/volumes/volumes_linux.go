@@ -11,7 +11,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"runtime/debug"
 
@@ -19,23 +19,6 @@ import (
 
 	"github.com/bitomia/realm/internal/config"
 )
-
-func GetVolumesPath() (string, error) {
-	volumesPath := config.Get().Daemon.VolumesPool
-	if volumesPath == "" {
-		return "", errors.New("REALM_VOLUMES_POOL not found")
-	}
-	return volumesPath, nil
-}
-
-func GetPathForVolume(volume string) (string, error) {
-	volumesPath, err := GetVolumesPath()
-	if err != nil {
-		log.Fatalf("GetPathForVolume failed: %v\n", err)
-		return "", err
-	}
-	return fmt.Sprintf("%s/%s", volumesPath, volume), nil
-}
 
 func MountVolume(volume string) (string, error) {
 	volumePath, err := GetPathForVolume(volume)
@@ -60,9 +43,9 @@ func MountVolume(volume string) (string, error) {
 		mounted, mountPoint = ds.IsMounted()
 	}
 	if mounted {
-		log.Printf("Volume mounted at %s", mountPoint)
+		slog.Info("Volume mounted", "path", mountPoint)
 		if err := os.Chown(mountPoint, 1001, 1001); err != nil {
-			log.Printf("Failed to set permissions: %v", err)
+			slog.Error("Failed to set permissions", "path", mountPoint, "error", err)
 		}
 		return mountPoint, nil
 	} else {
@@ -93,13 +76,15 @@ func CreateVolume(volume string) error {
 		zfs.DatasetPropCanmount: zfs.Property{Value: "on"},
 		//		zfs.DatasetPropCompression: "lz4",
 	}
-	fmt.Print(volumePath)
+
 	d, err := zfs.DatasetCreate(volumePath, zfs.DatasetTypeFilesystem, props)
 	if err != nil {
 		debug.PrintStack()
 		return err
 	}
 	defer d.Close()
+
+	slog.Info("Volume created", "path", volumePath)
 	return nil
 }
 
@@ -124,6 +109,8 @@ func DeleteVolume(volume string, deferred bool) error {
 	if err != nil {
 		return err
 	}
+
+	slog.Info("Volume deleted", "path", volumePath)
 	return nil
 }
 
