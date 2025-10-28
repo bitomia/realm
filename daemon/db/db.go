@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bitomia/realm/internal/types"
 	"go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
@@ -99,9 +100,9 @@ func (db *DaemonDB) Close() {
 }
 
 type Container struct {
-	ContainerName string `json:"container_name"`
-	Image         string `json:"image"`
-	LastStatus    string `json:"last_status"`
+	ContainerName string                `json:"container_name"`
+	Image         string                `json:"image"`
+	LastState     types.ContainerState `json:"last_state"`
 }
 
 func (db *DaemonDB) GetAllContainers() ([]Container, error) {
@@ -142,11 +143,11 @@ func (db *DaemonDB) GetContainer(containerName string) (Container, error) {
 	return container, nil
 }
 
-func (db *DaemonDB) CreateContainer(containerName string, image string, owner string, status string) (Container, error) {
+func (db *DaemonDB) CreateContainer(containerName string, image string, owner string, state types.ContainerState) (Container, error) {
 	container := Container{
 		ContainerName: containerName,
 		Image:         image,
-		LastStatus:    status,
+		LastState:     state,
 	}
 
 	value, err := json.Marshal(container)
@@ -164,8 +165,8 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, owner st
 	return container, nil
 }
 
-func (db *DaemonDB) UpdateContainerStatus(containerName string, status string) (string, error) {
-	slog.Info("db.UpdateContainerStatus", "container", containerName, "status", status)
+func (db *DaemonDB) UpdateContainerState(containerName string, state types.ContainerState) (types.ContainerState, error) {
+	slog.Info("db.UpdateContainerState", "container", containerName, "state", state)
 
 	// Get existing container
 	container, err := db.GetContainer(containerName)
@@ -173,8 +174,8 @@ func (db *DaemonDB) UpdateContainerStatus(containerName string, status string) (
 		return "", err
 	}
 
-	// Update status
-	container.LastStatus = status
+	// Update state
+	container.LastState = state
 
 	// Save back to etcd
 	value, err := json.Marshal(container)
@@ -185,11 +186,11 @@ func (db *DaemonDB) UpdateContainerStatus(containerName string, status string) (
 
 	err = db.put(db.containerKey(containerName), string(value))
 	if err != nil {
-		slog.Error("Error on UpdateContainerStatus", "error", err.Error())
+		slog.Error("Error on UpdateContainerState", "error", err.Error())
 		return "", err
 	}
 
-	return status, nil
+	return state, nil
 }
 
 func (db *DaemonDB) UpdateContainerImage(containerName string, image string) (string, error) {

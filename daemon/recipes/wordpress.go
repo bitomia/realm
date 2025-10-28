@@ -18,6 +18,7 @@ import (
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/utils"
 	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/types"
 )
 
 type WordpressRecipeOpts struct {
@@ -167,7 +168,7 @@ func LaunchWordpress(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Wordp
 	}
 
 	updateStateOpts := containers.UpdateContainerOpts{
-		State: "start",
+		State: types.StateStart,
 	}
 	if err := containers.UpdateContainerState(mariadbContainerName, updateStateOpts); err != nil {
 		slog.Info("UpdateContainerState failed on wordpress_starter recipe", "error", err.Error())

@@ -22,10 +22,11 @@ import (
 	"github.com/bitomia/realm/daemon/volumes"
 	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/types"
 )
 
 type DBContainerEntry struct {
-	LastStatus string `json:"last_status"`
+	LastState types.ContainerState `json:"last_state"`
 }
 
 type ContainerInfo struct {
@@ -58,8 +59,8 @@ func RepairContainer(c db.Container) error {
 	// Check first if the container is in the expected state:
 	// 1. containers.last_status == containerd status
 
-	db := db.GetDB()
-	containerRow, err := db.GetContainer(c.ContainerName)
+	database := db.GetDB()
+	containerRow, err := database.GetContainer(c.ContainerName)
 	if err != nil {
 		return err
 	}
@@ -83,8 +84,8 @@ func RepairContainer(c db.Container) error {
 		status, _ = task.Status(ctx)
 	}
 
-	shall_restart := (containerRow.LastStatus == "start" || containerRow.LastStatus == "start_failed") && status.Status != containerd.Running
-	shall_stop := (containerRow.LastStatus == "stop" || containerRow.LastStatus == "stop_failed") && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
+	shall_restart := (containerRow.LastState == types.StateStart || containerRow.LastState == types.StateStartFailed) && status.Status != containerd.Running
+	shall_stop := (containerRow.LastState == types.StateStop || containerRow.LastState == types.StateStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
 
 	if shall_restart {
 		slog.Info("Restarting container", "container", c.ContainerName)
@@ -347,8 +348,8 @@ func CreateContainer(containerName string, opts requests.CreateContainerOpts, ex
 		return errors.New("Unexpected condition container not existant")
 	}
 
-	db := db.GetDB()
-	db.CreateContainer(containerName, opts.Image, opts.Owner, "")
+	database := db.GetDB()
+	database.CreateContainer(containerName, opts.Image, opts.Owner, "")
 	return nil
 }
 
@@ -399,8 +400,8 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 	}
 
 	if shallRemoveDBEntry {
-		db := db.GetDB()
-		if err = db.DeleteContainer(containerName); err != nil {
+		database := db.GetDB()
+		if err = database.DeleteContainer(containerName); err != nil {
 			slog.Error("Error while trying to delete container from DB", "container", container, "error", err.Error())
 		}
 	}
@@ -408,32 +409,28 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 }
 
 type UpdateContainerOpts struct {
-	State string `json:"state"`
+	State types.ContainerState `json:"state"`
 }
 
 func UpdateContainerState(containerName string, opts UpdateContainerOpts) error {
 	switch opts.State {
-	case "start":
-		db := db.GetDB()
+	case types.StateStart:
+		database := db.GetDB()
 		if err := startContainer(containerName); err != nil {
-			status := "start_failed"
-			db.UpdateContainerStatus(containerName, status)
+			database.UpdateContainerState(containerName, types.StateStartFailed)
 			return err
 		} else {
-			status := "start"
-			db.UpdateContainerStatus(containerName, status)
+			database.UpdateContainerState(containerName, types.StateStart)
 		}
-	case "stop":
-		db := db.GetDB()
+	case types.StateStop:
+		database := db.GetDB()
 		if err := stopContainer(containerName, syscall.SIGTERM); err != nil {
-			status := "stop_failed"
-			db.UpdateContainerStatus(containerName, status)
+			database.UpdateContainerState(containerName, types.StateStopFailed)
 		} else {
-			status := "stop"
-			db.UpdateContainerStatus(containerName, status)
+			database.UpdateContainerState(containerName, types.StateStop)
 		}
 	default:
-		return fmt.Errorf("Unknown container state: %s", containerName)
+		return fmt.Errorf("Unknown container state: %s", opts.State)
 	}
 	return nil
 }

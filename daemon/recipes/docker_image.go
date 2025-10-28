@@ -14,6 +14,7 @@ import (
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/types"
 )
 
 type RecipeDockerImageRet struct {
@@ -65,7 +66,7 @@ func LaunchDockerImage(w http.ResponseWriter, recipeId uuid.UUID, recipeOpts Doc
 		flusher.Flush()
 
 		updateStateOpts := containers.UpdateContainerOpts{
-			State: "start",
+			State: types.StateStart,
 		}
 		if err := containers.UpdateContainerState(containerName, updateStateOpts); err != nil {
 			opts := containers.DeleteContainerOpts{}
@@ -125,7 +126,7 @@ func RollbackDockerImage(recipeId string) error {
 	slog.Info("RollbackDockerImage", "recipeID", recipeId)
 
 	containerName := fmt.Sprintf("%s_%s", "di", recipeId)
-	containers.UpdateContainerState(containerName, containers.UpdateContainerOpts{State: "stop"})
+	containers.UpdateContainerState(containerName, containers.UpdateContainerOpts{State: types.StateStop})
 	err := containers.DeleteContainer(containerName, containers.DeleteContainerOpts{RemoveVolume: false}, syscall.SIGTERM, true, true)
 	if err != nil {
 		if err.Code == 1 {

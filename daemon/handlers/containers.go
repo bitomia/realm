@@ -71,7 +71,7 @@ func ListContainersHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		entry.DBEntry.LastStatus = dbContainerEntry.LastStatus
+		entry.DBEntry.LastState = dbContainerEntry.LastState
 
 		ctr, err := client.LoadContainer(ctx, c.ID)
 		if err != nil {
