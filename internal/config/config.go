@@ -24,6 +24,7 @@ type DaemonConfig struct {
 	ListenPort          int               `mapstructure:"listen_port"`
 	LogsPath            internal.LogsPath `mapstructure:"logs_path"`
 	ContainersLogPath   string            `mapstructure:"containers_log_path"`
+	ProxyEnabled        bool              `mapstructure:"proxy_enabled"`
 	LocalCaddyUrl       string            `mapstructure:"local_caddy_url"`
 	MasterCaddyUrl      string            `mapstructure:"master_caddy_url"`
 	GitHubRegistryToken string            `mapstructure:"github_registry_token"`

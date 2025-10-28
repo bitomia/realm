@@ -23,6 +23,7 @@ func setDefaults() {
 	viper.SetDefault("daemon.listen_address", "127.0.0.1")
 	viper.SetDefault("daemon.listen_port", "9000")
 	viper.SetDefault("daemon.logs_path", "/var/log/realm")
+	viper.SetDefault("daemon.proxy_enabled", false)
 	viper.SetDefault("daemon.local_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.master_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.containerd_sock", "/run/containerd/containerd.sock")

@@ -47,7 +47,11 @@ func Start() {
 	}
 
 	dns.Initialize()
-	proxy.Initialize()
+	if cfg.Daemon.ProxyEnabled {
+		proxy.Initialize()
+	} else {
+		slog.Info("Proxy is disabled, skipping initialization")
+	}
 	containers.RestoreContainers(db)
 
 	healthPublisher := health.GetHealthPublisher()
