@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/containerd"
@@ -111,14 +112,37 @@ func RepairContainer(c db.Container) error {
 }
 
 func createTask(ctx context.Context, container containerd.Container, containerName string) (containerd.Task, error) {
-	var logPath = fmt.Sprintf("/var/log/realm/containers/%s.log", containerName)
-	task, err := container.NewTask(ctx, cio.LogFile(logPath))
+	// Get the containers log path from config
+	containersLogPath := config.Get().Daemon.ContainersLogPath
+
+	if err := os.MkdirAll(containersLogPath, 0755); err != nil {
+		slog.Error("Failed to create containers log directory", "path", containersLogPath, "error", err.Error())
+		return nil, fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	logPath := filepath.Join(containersLogPath, fmt.Sprintf("%s.log", containerName))
+	logFile, err := os.Create(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout log file: %w", err)
+	}
+	defer logFile.Close()
+
+	errorLogPath := filepath.Join(containersLogPath, fmt.Sprintf("%s_error.log", containerName))
+	errorLogFile, err := os.Create(errorLogPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr log file: %w", err)
+	}
+	defer errorLogFile.Close()
+
+	task, err := container.NewTask(ctx, cio.NewCreator(
+		cio.WithStreams(nil, logFile, errorLogFile),
+	))
 	if err != nil {
 		slog.Error("Failed to create new task for container on restart", "container", containerName, "error", err.Error())
 		return nil, err
 	}
 
-	slog.Info("Task create for container", "taskPID", task.Pid(), "container", containerName)
+	slog.Info("Task create for container", "taskPID", task.Pid(), "container", containerName, "logPath", logPath, "errorLogPath", errorLogPath)
 	return task, err
 }
 
@@ -401,7 +425,6 @@ func UpdateContainerState(containerName string, opts UpdateContainerOpts) error 
 		}
 	case "stop":
 		db := db.GetDB()
-
 		if err := stopContainer(containerName, syscall.SIGTERM); err != nil {
 			status := "stop_failed"
 			db.UpdateContainerStatus(containerName, status)

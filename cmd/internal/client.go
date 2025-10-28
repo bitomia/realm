@@ -61,7 +61,7 @@ func checkStatus(rep *http.Response) error {
 	case 400:
 		return errors.New("Bad request")
 	default:
-		return fmt.Errorf("Request failed: %d", rep.StatusCode)
+		return fmt.Errorf("Request failed: %d %s", rep.StatusCode, rep.Body)
 	}
 }
 
@@ -439,13 +439,13 @@ func (c *Client) GetNodeState(node string) (*requests.NodeState, error) {
 	}
 	defer resp.Body.Close()
 
-	if err := checkStatus(resp); err != nil {
-		return &status, err
-	}
-
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read response body: %v", err)
+	}
+
+	if err := checkStatus(resp); err != nil {
+		return &status, errors.New(string(body))
 	}
 
 	if err := json.Unmarshal(body, &status); err != nil {
