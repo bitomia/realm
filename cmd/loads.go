@@ -13,7 +13,11 @@ import (
 )
 
 func doVerifyLoads(cfg *config.Config, client *internal.Client) error {
-	for _, load := range cfg.Loads.GetLoads() {
+	loads := cfg.Loads.GetLoads()
+	if len(loads) == 0 {
+		return fmt.Errorf("No loads present in config file")
+	}
+	for _, load := range loads {
 		if err := client.VerifyLoad(load); err != nil {
 			return fmt.Errorf("Error verifying load: %s", err.Error())
 		}

@@ -100,8 +100,8 @@ func (db *DaemonDB) Close() {
 }
 
 type Container struct {
-	ContainerName string                `json:"container_name"`
-	Image         string                `json:"image"`
+	ContainerName string               `json:"container_name"`
+	Image         string               `json:"image"`
 	LastState     types.ContainerState `json:"last_state"`
 }
 
