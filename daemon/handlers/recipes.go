@@ -199,23 +199,24 @@ func LaunchRecipeHandler(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("recipes.LaunchHandler", "recipeID", recipeId, "recipe", opts.Recipe)
 
-	if opts.Recipe == "add_static_domain" {
+	switch opts.Recipe {
+	case "add_static_domain":
 		launchAddStaticDomain(w, opts)
-	} else if opts.Recipe == "delete_static_domain" {
+	case "delete_static_domain":
 		launchRemoveStaticDomain(w, opts)
-	} else if opts.Recipe == "create_static_project" {
+	case "create_static_project":
 		launchCreateStaticProject(w, opts)
-	} else if opts.Recipe == "delete_static_project" {
+	case "delete_static_project":
 		launchDeleteStaticProject(w, opts)
-	} else if opts.Recipe == "wordpress_starter" {
+	case "wordpress_starter":
 		launchWordpressHandler(w, recipeId, opts, WordpressStarter)
-	} else if opts.Recipe == "wordpress_pro" {
+	case "wordpress_pro":
 		launchWordpressHandler(w, recipeId, opts, WordpressPro)
-	} else if opts.Recipe == "wordpress_business" {
+	case "wordpress_business":
 		launchWordpressHandler(w, recipeId, opts, WordpressBusiness)
-	} else if opts.Recipe == "docker_image" {
+	case "docker_image":
 		launchDockerImageHandler(w, recipeId, opts)
-	} else {
+	default:
 		utils.HttpError(w, http.StatusBadRequest, "Unknown recipe")
 	}
 }
@@ -231,7 +232,8 @@ func RollbackHandler(w http.ResponseWriter, r *http.Request) {
 	var opts RollbackRecipeOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	if opts.Recipe == "wordpress_starter" || opts.Recipe == "wordpress_pro" || opts.Recipe == "wordpress_business" {
+	switch opts.Recipe {
+	case "wordpress_starter", "wordpress_pro", "wordpress_business":
 		err := recipes.RollbackWordpress(recipeId)
 		if err != nil {
 			utils.HttpError(w, http.StatusBadRequest, "wordpress_starter recipe failed %s: %v", recipeId, err)
@@ -239,7 +241,7 @@ func RollbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(recipeId)
 		return
-	} else if opts.Recipe == "docker_image" {
+	case "docker_image":
 		err := recipes.RollbackDockerImage(recipeId)
 		if err != nil {
 			utils.HttpError(w, http.StatusBadRequest, "docker_image recipe failed %s: %v", recipeId, err)
@@ -247,7 +249,7 @@ func RollbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(recipeId)
 		return
-	} else {
+	default:
 		utils.HttpError(w, http.StatusBadRequest, "Unknown recipe")
 		return
 	}

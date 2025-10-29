@@ -350,6 +350,7 @@ func CreateContainer(containerName string, opts requests.CreateContainerOpts, ex
 
 	database := db.GetDB()
 	database.CreateContainer(containerName, opts.Image, opts.Owner, "")
+
 	return nil
 }
 

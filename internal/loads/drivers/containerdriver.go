@@ -61,5 +61,5 @@ func (p *ContainerDriver) VerifyDaemon() error {
 
 func (p *ContainerDriver) StartOnDaemon(logsPath internal.LogsPath, loadName string) error {
 	// TODO
-	return fmt.Errorf("To be implemneted")
+	return fmt.Errorf("To be implemented")
 }

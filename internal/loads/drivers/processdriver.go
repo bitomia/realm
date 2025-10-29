@@ -143,6 +143,9 @@ func (p *ProcessDriver) StartOnDaemon(logsPath internal.LogsPath, loadName strin
 	}
 
 	//pid := cmd.Process.Pid
+	//database := db.GetDB()
+	//database.CreateProcess()
+
 	// TODO write PID to database
 
 	return nil
