@@ -6,7 +6,28 @@ Managing the cluster can be commanded from command-line interface or using the R
 
 ## Development setup
 
-Recommended setup is Debian 12 with Go >=1.24 installed. To build realm you will need also to install some ZFS dependencyes from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
+Recommended setup is Debian 12 or Windows 11 Pro with Go >=1.24 installed. 
+
+### Windows 11 Pro setup
+
+Install containerd:
+
+```powershell
+Enable-WindowsOptionalFeature -Online -FeatureName containers -All
+mkdir "c:\Program Files\containerd"
+cd "c:\Program Files\containerd"
+curl.exe -L https://github.com/containerd/containerd/releases/download/v2.2.1/containerd-2.2.1-windows-amd64.tar.gz -o containerd-windows-amd64.tar.gz
+tar.exe xvf .\containerd-windows-amd64.tar.gz -C "c:\Program Files\containerd"
+$Path = [Environment]::GetEnvironmentVariable("PATH", "Machine") + [IO.Path]::PathSeparator + "$Env:ProgramFiles\containerd\bin"
+[Environment]::SetEnvironmentVariable("Path", $Path, "Machine")
+containerd.exe config default | Out-File "c:\Program Files\containerd\config.toml" -Encoding ascii
+containerd --register-service
+net start containerd
+```
+
+### Debian 12 setup
+
+To build realm you will need also to install some ZFS dependencyes from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
 
 Install backports as follows:
 
@@ -105,7 +126,7 @@ iptables -A INPUT -p udp --dport 2019 -j DROP
 curl -X POST http://localhost:2019/config --data '{"admin":{"listen":":2019"},"apps":{"http":{"servers":{"master":{"listen":[":80",":443"],"routes":[],"tls_connection_policies":[{}]}}}},"logging":{"logs":{"default":{"encoder":{"format":"json"},"level":"INFO","writer":{"filename":"/var/log/caddy/access.log","output":"file"}}}}}' -H "Content-Type: application/json"
 ```
 
-IN ORDER TO RESTART CADDY:
+#### Restarting Caddy ####
 
 Save first current config just in case auto save didn't work:
 ```
