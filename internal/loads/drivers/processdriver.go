@@ -109,7 +109,7 @@ func (p *ProcessDriver) VerifyDaemon() error {
 	return nil
 }
 
-func (p *ProcessDriver) StartOnDaemon(logsPath internal.LogsPath, loadName string) error {
+func (p *ProcessDriver) StartOnDaemon(db DBLoads, logsPath internal.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -142,11 +142,13 @@ func (p *ProcessDriver) StartOnDaemon(logsPath internal.LogsPath, loadName strin
 		return fmt.Errorf("failed to start process: %w", err)
 	}
 
-	//pid := cmd.Process.Pid
-	//database := db.GetDB()
-	//database.CreateProcess()
-
-	// TODO write PID to database
+	pid := cmd.Process.Pid
+	db.CreateLoadEntry(loadName, pid, p)
 
 	return nil
+}
+
+func (p *ProcessDriver) StopOnDaemon(db DBLoads, loadName string) error {
+	// TODO
+	return fmt.Errorf("To be implemented")
 }

@@ -1,5 +1,5 @@
-//go:build windows
-// +build windows
+//go:build darwin
+// +build darwin
 
 package volumes
 
@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"golang.org/x/sys/windows"
+	"golang.org/x/sys/unix"
 )
 
 func GetVolumeInfo(volume string) (*VolumeInfo, error) {
@@ -36,14 +36,9 @@ func GetVolumeInfo(volume string) (*VolumeInfo, error) {
 		return nil, fmt.Errorf("failed to calculate volume size: %v", err)
 	}
 
-	// Get free space on the volume
-	var freeBytesAvailable, totalBytes, totalFreeBytes uint64
-	pathPtr, err := windows.UTF16PtrFromString(volumePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert path: %v", err)
-	}
-
-	err = windows.GetDiskFreeSpaceEx(pathPtr, &freeBytesAvailable, &totalBytes, &totalFreeBytes)
+	// Get free space on the volume using statfs
+	var stat unix.Statfs_t
+	err = unix.Statfs(volumePath, &stat)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get disk space: %v", err)
 	}

@@ -29,5 +29,6 @@ type LoadDriver interface {
 	VerifyDaemon() error
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
-	StartOnDaemon(logsPath internal.LogsPath, loadName string) error
+	StartOnDaemon(db DBLoads, logsPath internal.LogsPath, loadName string) error
+	StopOnDaemon(db DBLoads, loadName string) error
 }

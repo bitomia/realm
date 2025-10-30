@@ -31,7 +31,6 @@ func GetMemLimit() float64 {
 
 	ret, _, _ := globalMemoryStatusEx.Call(uintptr(unsafe.Pointer(&memStatus)))
 	if ret == 0 {
-		// Return max uint64 on error
 		return float64(^uint64(0))
 	}
 

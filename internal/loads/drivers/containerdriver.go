@@ -59,7 +59,12 @@ func (p *ContainerDriver) VerifyDaemon() error {
 	return nil
 }
 
-func (p *ContainerDriver) StartOnDaemon(logsPath internal.LogsPath, loadName string) error {
+func (p *ContainerDriver) StartOnDaemon(db DBLoads, logsPath internal.LogsPath, loadName string) error {
+	// TODO
+	return fmt.Errorf("To be implemented")
+}
+
+func (p *ContainerDriver) StopOnDaemon(db DBLoads, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }

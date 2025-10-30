@@ -8,6 +8,12 @@ import (
 	"github.com/bitomia/realm/internal/config"
 )
 
+type VolumeInfo struct {
+	Name  string
+	Quota string
+	Used  string
+}
+
 func GetVolumesPath() (string, error) {
 	volumesPath := config.Get().Daemon.VolumesPool
 	if volumesPath == "" {

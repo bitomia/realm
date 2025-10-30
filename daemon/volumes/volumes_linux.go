@@ -144,12 +144,6 @@ func DisableVolumeQuota(volume string) error {
 	return nil
 }
 
-type VolumeInfo struct {
-	Name  string
-	Quota string
-	Used  string
-}
-
 func GetVolumeInfo(volume string) (*VolumeInfo, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {

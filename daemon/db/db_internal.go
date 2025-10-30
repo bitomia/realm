@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 
 	"github.com/bitomia/realm/daemon/id"
@@ -22,6 +22,7 @@ const (
 	userPrefix      = "/users/"
 	dnsPrefix       = "/dns/"
 	healthPrefix    = "/health/"
+	loadsPrefix     = "/loads/"
 )
 
 func getEtcdDataDir() string {
@@ -106,6 +107,10 @@ func (db *DaemonDB) dnsKey(dnsName string) string {
 
 func (db *DaemonDB) healthKey(nodeId string) string {
 	return id.GetDaemonId() + healthPrefix + nodeId
+}
+
+func (db *DaemonDB) loadsKey(name string) string {
+	return id.GetDaemonId() + loadsPrefix + name
 }
 
 // Generic put operation
