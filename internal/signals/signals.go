@@ -1,5 +1,7 @@
 package signals
 
+import "syscall"
+
 const (
 	SIGABRT = 0x6
 	SIGALRM = 0xe
@@ -58,4 +60,8 @@ func SignalToString(sig int) string {
 		return s
 	}
 	return ""
+}
+
+func IntToSyscallSignal(sig int) syscall.Signal {
+	return syscall.Signal(sig)
 }

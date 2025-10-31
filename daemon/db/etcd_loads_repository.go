@@ -8,6 +8,30 @@ import (
 	"github.com/bitomia/realm/internal/loads"
 )
 
+type EtcdLoadsRepository struct {
+	db *DaemonDB
+}
+
+func (r *EtcdLoadsRepository) CreateLoad(loadName string, pid int, driver loads.LoadDriver) error {
+	value, err := json.Marshal(driver)
+	if err != nil {
+		slog.Error("Error marshaling load", "error", err.Error())
+		return err
+	}
+
+	err = r.db.put(r.db.loadsKey(loadName), string(value))
+	if err != nil {
+		slog.Error("Error on CreateLoad", "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (r *EtcdLoadsRepository) DeleteLoad(loadName string) error {
+	return r.db.delete(r.db.loadsKey(loadName))
+}
+
 // GetActiveLoad retrieves the an active load record from the database.
 //
 // Behavior:
@@ -18,8 +42,8 @@ import (
 // Returns:
 //   - *loads.Load: Pointer to the active load data, or nil if no data exists.
 //   - error: Non-nil if any error occurs during retrieval or unmarshaling.
-func (db *DaemonDB) GetActiveLoad(loadName string) (*loads.Load, error) {
-	data, err := db.getKey(db.loadsKey(loadName))
+func (r *EtcdLoadsRepository) GetLoad(loadName string) (*loads.Load, error) {
+	data, err := r.db.getKey(r.db.loadsKey(loadName))
 	if err != nil {
 		slog.Error("Error on GetActiveLoad", "error", err.Error())
 		return nil, err

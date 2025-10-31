@@ -22,7 +22,7 @@ func VerifyLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	database := db.GetDB()
-	if _, err := database.GetActiveLoad(load.Name); err != nil {
+	if _, err := database.LoadsRepository.GetLoad(load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -46,7 +46,7 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	database := db.GetDB()
-	activeLoad, err := database.GetActiveLoad(load.Name)
+	activeLoad, err := database.LoadsRepository.GetLoad(load.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -63,7 +63,7 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver)
-	if err := load.Driver.StartOnDaemon(db.GetDB(), config.Daemon.LogsPath, load.Name); err != nil {
+	if err := load.Driver.StartOnDaemon(db.GetDB().LoadsRepository, config.Daemon.LogsPath, load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		w.WriteHeader(http.StatusOK)
@@ -75,7 +75,7 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("loads.StopLoadHandler", "loadKey", loadKey)
 
 	database := db.GetDB()
-	activeLoad, err := database.GetActiveLoad(loadKey)
+	activeLoad, err := database.LoadsRepository.GetLoad(loadKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -86,7 +86,7 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("loads.StopLoadHandler", "loadKey", loadKey, "driver", activeLoad.Driver)
-	if err := activeLoad.Driver.StopOnDaemon(db.GetDB(), activeLoad.Name); err != nil {
+	if err := activeLoad.Driver.StopOnDaemon(db.GetDB().LoadsRepository, activeLoad.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		w.WriteHeader(http.StatusOK)

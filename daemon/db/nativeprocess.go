@@ -46,23 +46,3 @@ func (db *DaemonDB) GetNativeProcess(processName string) (drivers.ProcessConfig,
 	}
 	return process, nil
 }
-
-func (db *DaemonDB) CreateLoadEntry(processName string, pid int, driver drivers.LoadDriver) error {
-	value, err := json.Marshal(driver)
-	if err != nil {
-		slog.Error("Error marshaling native process", "error", err.Error())
-		return err
-	}
-
-	err = db.put(db.loadsKey(processName), string(value))
-	if err != nil {
-		slog.Error("Error on CreateNativeProcess", "error", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (db *DaemonDB) DeleteNativeProcess(processName string) error {
-	return db.delete(db.loadsKey(processName))
-}

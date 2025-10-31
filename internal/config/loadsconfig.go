@@ -16,7 +16,7 @@ type LoadsConfig struct {
 	loads map[string]*loads.Load
 }
 
-func (l *LoadsConfig) newLoad(name string, node *node.Node, driver drivers.LoadDriver) (*loads.Load, error) {
+func (l *LoadsConfig) newLoad(name string, node *node.Node, driver loads.LoadDriver) (*loads.Load, error) {
 	if l.loads == nil {
 		l.loads = make(map[string]*loads.Load)
 	}

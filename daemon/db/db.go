@@ -10,12 +10,15 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/bitomia/realm/internal/loads"
 )
 
 type DaemonDB struct {
-	client *clientv3.Client
-	server *embed.Etcd
-	ctx    context.Context
+	client          *clientv3.Client
+	server          *embed.Etcd
+	ctx             context.Context
+	LoadsRepository loads.LoadsRepository
 }
 
 var (
@@ -80,6 +83,8 @@ func GetDB() *DaemonDB {
 			server: e,
 			ctx:    ctx,
 		}
+		instance.LoadsRepository = &EtcdLoadsRepository{instance}
+
 		slog.Info("Database initialized with embedded etcd")
 	})
 

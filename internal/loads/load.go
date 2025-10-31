@@ -3,17 +3,23 @@ package loads
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 
-	"github.com/bitomia/realm/internal/loads/drivers"
 	"github.com/bitomia/realm/internal/node"
 )
 
 type Load struct {
 	Name      string
-	Driver    drivers.LoadDriver
+	Driver    LoadDriver
 	DependsOn []*Load
 	Node      *node.Node
+}
+
+type LoadData struct {
+	Name       string          `json:"name"`
+	DriverType LoadDriverType  `json:"driver_type"`
+	Driver     json.RawMessage `json:"driver"`
+	DependsOn  []string        `json:"depends_on"`
+	Node       string          `json:"node"`
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {
@@ -25,52 +31,30 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 	for i, dep := range l.DependsOn {
 		dependsOn[i] = dep.Name
 	}
-	return json.Marshal(&struct {
-		Name       string             `json:"name"`
-		DriverType string             `json:"driver_type"`
-		Driver     drivers.LoadDriver `json:"driver"`
-		DependsOn  []string           `json:"depends_on"`
-		Node       string             `json:"node"`
-	}{
+	jsonDriver, err := json.Marshal(l.Driver)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(&LoadData{
 		Name:       l.Name,
-		DriverType: l.Driver.GetDriverType().String(),
-		Driver:     l.Driver,
+		DriverType: l.Driver.GetDriverType(),
+		Driver:     jsonDriver,
 		DependsOn:  dependsOn,
 		Node:       nodeName,
 	})
 }
 
 func (l *Load) UnmarshalJSON(data []byte) error {
-	aux := &struct {
-		Name       string          `json:"name"`
-		DriverType string          `json:"driver_type"`
-		Driver     json.RawMessage `json:"driver"`
-		DependsOn  []string        `json:"depends_on"`
-		Node       string          `json:"node"`
-	}{}
+	aux := LoadData{}
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
 
-	l.Name = aux.Name
-
-	var driver drivers.LoadDriver
-	switch aux.DriverType {
-	case drivers.ProcessDriverTypeStr:
-		d := &drivers.ProcessDriver{}
-		if err := json.Unmarshal(aux.Driver, d); err != nil {
-			return err
-		}
-		driver = d
-	case drivers.ContainerDriverTypeStr:
-		d := &drivers.ContainerDriver{}
-		if err := json.Unmarshal(aux.Driver, d); err != nil {
-			return err
-		}
-		driver = d
-	default:
-		return fmt.Errorf("unknown driver type: %s", aux.DriverType)
+	driver, err := BuildLoadDriver(aux)
+	if err != nil {
+		return err
 	}
+	l.Name = aux.Name
 	l.Driver = driver
 
 	// TODO

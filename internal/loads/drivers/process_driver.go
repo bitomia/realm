@@ -9,8 +9,11 @@ import (
 
 	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/fs"
+	"github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/signals"
 )
+
+const ProcessDriverType loads.LoadDriverType = "process"
 
 type ProcessConfig struct {
 	Name       string
@@ -27,6 +30,7 @@ type ProcessRequest struct {
 	StartArgs  *string `json:"start_args,omitempty"`
 	WorkingDir *string `json:"working_dir,omitempty"`
 	StopSignal string  `json:"stop_signal"`
+	PID        int     `json:"pid"`
 }
 
 type ProcessDriver struct {
@@ -35,9 +39,10 @@ type ProcessDriver struct {
 	WorkingDir *string
 	StopSignal int
 	LogsPath   internal.LogsPath
+	PID        int
 }
 
-func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
+func NewProcessDriverFromConfig(config ProcessConfig) (loads.LoadDriver, error) {
 	stopSignal, ok := signals.StringToSignal(config.StopSignal)
 	if !ok {
 		return nil, fmt.Errorf("Invalid StopSignal")
@@ -56,7 +61,7 @@ func NewProcessDriverFromConfig(config ProcessConfig) (LoadDriver, error) {
 	return driver, nil
 }
 
-func (p *ProcessDriver) GetDriverType() LoadDriverType {
+func (p *ProcessDriver) GetDriverType() loads.LoadDriverType {
 	return ProcessDriverType
 }
 
@@ -66,6 +71,7 @@ func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
 		StartArgs:  p.StartArgs,
 		WorkingDir: p.WorkingDir,
 		StopSignal: signals.SignalToString(p.StopSignal),
+		PID:        p.PID,
 	})
 }
 
@@ -77,6 +83,7 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 	p.StartCmd = aux.StartCmd
 	p.StartArgs = aux.StartArgs
 	p.WorkingDir = aux.WorkingDir
+	p.PID = aux.PID
 
 	stopSignal, ok := signals.StringToSignal(aux.StopSignal)
 	if !ok {
@@ -109,7 +116,7 @@ func (p *ProcessDriver) VerifyDaemon() error {
 	return nil
 }
 
-func (p *ProcessDriver) StartOnDaemon(db DBLoads, logsPath internal.LogsPath, loadName string) error {
+func (p *ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -142,13 +149,43 @@ func (p *ProcessDriver) StartOnDaemon(db DBLoads, logsPath internal.LogsPath, lo
 		return fmt.Errorf("failed to start process: %w", err)
 	}
 
-	pid := cmd.Process.Pid
-	db.CreateLoadEntry(loadName, pid, p)
+	p.PID = cmd.Process.Pid
+	repository.CreateLoad(loadName, p.PID, p)
 
 	return nil
 }
 
-func (p *ProcessDriver) StopOnDaemon(db DBLoads, loadName string) error {
-	// TODO
-	return fmt.Errorf("To be implemented")
+func (p *ProcessDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
+	load, err := repository.GetLoad(loadName)
+	if err != nil {
+		return fmt.Errorf("failed to get load: %w", err)
+	}
+	if load == nil {
+		return fmt.Errorf("load %q not found", loadName)
+	}
+
+	processDriver, ok := load.Driver.(*ProcessDriver)
+	if !ok {
+		return fmt.Errorf("driver is not a ProcessDriver")
+	}
+
+	if processDriver.PID == 0 {
+		return fmt.Errorf("PID not found for load %q", loadName)
+	}
+
+	process, err := os.FindProcess(processDriver.PID)
+	if err != nil {
+		return fmt.Errorf("failed to find process with PID %d: %w", processDriver.PID, err)
+	}
+
+	signal := signals.IntToSyscallSignal(processDriver.StopSignal)
+	if err := process.Signal(signal); err != nil {
+		return fmt.Errorf("failed to send signal to process with PID %d: %w", processDriver.PID, err)
+	}
+
+	if err := repository.DeleteLoad(loadName); err != nil {
+		return fmt.Errorf("failed to delete load from repository: %w", err)
+	}
+
+	return nil
 }

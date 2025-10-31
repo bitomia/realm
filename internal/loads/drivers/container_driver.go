@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/internal/loads"
 )
+
+const ContainerDriverType loads.LoadDriverType = "container"
 
 type ContainerConfig struct {
 	Name      string
@@ -18,7 +21,7 @@ type ContainerDriver struct {
 	Image string `json:"image"`
 }
 
-func NewContainerDriverFromConfig(config ContainerConfig) (LoadDriver, error) {
+func NewContainerDriverFromConfig(config ContainerConfig) (loads.LoadDriver, error) {
 	driver := &ContainerDriver{
 		Image: config.Image,
 	}
@@ -28,7 +31,7 @@ func NewContainerDriverFromConfig(config ContainerConfig) (LoadDriver, error) {
 	return driver, nil
 }
 
-func (c *ContainerDriver) GetDriverType() LoadDriverType {
+func (c *ContainerDriver) GetDriverType() loads.LoadDriverType {
 	return ContainerDriverType
 }
 
@@ -59,12 +62,12 @@ func (p *ContainerDriver) VerifyDaemon() error {
 	return nil
 }
 
-func (p *ContainerDriver) StartOnDaemon(db DBLoads, logsPath internal.LogsPath, loadName string) error {
+func (p *ContainerDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }
 
-func (p *ContainerDriver) StopOnDaemon(db DBLoads, loadName string) error {
+func (p *ContainerDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }
