@@ -45,7 +45,12 @@ func getEtcdConfig() *embed.Config {
 	if daemonCfg.EtcdName != "" {
 		cfg.Name = daemonCfg.EtcdName
 	} else {
-		cfg.Name = id.GetDaemonId()
+		daemonId, err := id.GetDaemonId()
+		if err != nil {
+			slog.Error("Error getting daemon ID", "error", err.Error())
+			daemonId = "default-daemon"
+		}
+		cfg.Name = daemonId
 	}
 
 	// Parse and set client URL
@@ -85,32 +90,60 @@ func getEtcdConfig() *embed.Config {
 }
 
 // Helper functions to build etcd keys
-func (db *DaemonDB) containerKey(name string) string {
-	return id.GetDaemonId() + containerPrefix + name
+func (db *DaemonDB) containerKey(name string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + containerPrefix + name, nil
 }
 
-func (db *DaemonDB) networkKey(container string) string {
-	return id.GetDaemonId() + networkPrefix + container
+func (db *DaemonDB) networkKey(container string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + networkPrefix + container, nil
 }
 
-func (db *DaemonDB) subnetKey(network string) string {
-	return id.GetDaemonId() + subnetPrefix + network
+func (db *DaemonDB) subnetKey(network string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + subnetPrefix + network, nil
 }
 
-func (db *DaemonDB) userKey(username string) string {
-	return id.GetDaemonId() + userPrefix + username
+func (db *DaemonDB) userKey(username string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + userPrefix + username, nil
 }
 
-func (db *DaemonDB) dnsKey(dnsName string) string {
-	return id.GetDaemonId() + dnsPrefix + dnsName
+func (db *DaemonDB) dnsKey(dnsName string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + dnsPrefix + dnsName, nil
 }
 
-func (db *DaemonDB) healthKey(nodeId string) string {
-	return id.GetDaemonId() + healthPrefix + nodeId
+func (db *DaemonDB) healthKey(nodeId string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + healthPrefix + nodeId, nil
 }
 
-func (db *DaemonDB) loadsKey(name string) string {
-	return id.GetDaemonId() + loadsPrefix + name
+func (db *DaemonDB) loadsKey(name string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return daemonId + loadsPrefix + name, nil
 }
 
 // Generic put operation
@@ -180,7 +213,10 @@ func (db *DaemonDB) getNextSubnet(network string) (int32, error) {
 	defer cancel()
 
 	// Try to get existing subnet for the network
-	subnetKey := db.subnetKey(network)
+	subnetKey, err := db.subnetKey(network)
+	if err != nil {
+		return 0, err
+	}
 	resp, err := db.client.Get(ctx, subnetKey)
 	if err != nil {
 		return 0, err

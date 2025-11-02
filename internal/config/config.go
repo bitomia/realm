@@ -18,6 +18,7 @@ import (
 var BuildGitCommit string
 
 type DaemonConfig struct {
+	IdPath              string            `mapstructure:"id_path"`
 	CniPath             string            `mapstructure:"cni_path"`
 	VolumesPool         string            `mapstructure:"volumes_pool"`
 	ListenAddress       string            `mapstructure:"listen_address"`
@@ -120,11 +121,17 @@ func readConfig(unmarshall func() (*Config, error)) error {
 	setDefaults()
 
 	viper.AutomaticEnv()
-	viper.AddConfigPath(getExeDir())
-	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("realm")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-	viper.SetConfigName("realm")
+
+	// Check if REALM_CONFIG_FILE environment variable is set
+	if configFile := viper.GetString("config_file"); configFile != "" {
+		viper.SetConfigFile(configFile)
+	} else {
+		viper.AddConfigPath(getExeDir())
+		viper.SetConfigType("yaml")
+		viper.SetConfigName("realm")
+	}
 
 	config, err := unmarshall()
 	if err != nil {

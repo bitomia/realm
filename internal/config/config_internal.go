@@ -20,7 +20,7 @@ func getExeDir() string {
 
 func setDefaults() {
 	// Set platform-specific default paths
-	var logsPath, containersLogPath, etcdDataDir, containerdSock, cniPath string
+	var logsPath, containersLogPath, etcdDataDir, containerdSock, cniPath, idPath string
 	if runtime.GOOS == "windows" {
 		// Windows default paths
 		programData := os.Getenv("ProgramData")
@@ -32,6 +32,7 @@ func setDefaults() {
 		etcdDataDir = filepath.Join(programData, "realm", "etcd")
 		containerdSock = "npipe://./pipe/containerd-containerd"
 		cniPath = filepath.Join(programData, "realm", "cni")
+		idPath = filepath.Join(programData, "realm", "realm.id")
 	} else {
 		// Linux/Unix default paths
 		logsPath = "/var/log/realm"
@@ -39,8 +40,10 @@ func setDefaults() {
 		etcdDataDir = "/var/lib/realm/etcd"
 		containerdSock = "/run/containerd/containerd.sock"
 		cniPath = "/opt/cni"
+		idPath = "/var/lib/realm/realm.id"
 	}
 
+	viper.SetDefault("daemon.id_path", idPath)
 	viper.SetDefault("daemon.cni_path", cniPath)
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
 	viper.SetDefault("daemon.listen_address", "127.0.0.1")

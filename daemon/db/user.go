@@ -15,7 +15,13 @@ type User struct {
 
 func (db *DaemonDB) GetVerifiedUser(username string, password string) (int32, error) {
 	slog.Info("Login request", "username", username)
-	value, err := db.get(db.userKey(username))
+	userKey, err := db.userKey(username)
+	if err != nil {
+		slog.Error("Error getting user key", "error", err.Error())
+		return -1, err
+	}
+
+	value, err := db.get(userKey)
 	if err != nil {
 		slog.Error("Error on GetVerifiedUser", "error", err.Error())
 		return -1, nil // User not found
@@ -52,5 +58,11 @@ func (db *DaemonDB) CreateUser(username string, password string, role int32) err
 		return err
 	}
 
-	return db.put(db.userKey(username), string(value))
+	userKey, err := db.userKey(username)
+	if err != nil {
+		slog.Error("Error getting user key", "error", err.Error())
+		return err
+	}
+
+	return db.put(userKey, string(value))
 }

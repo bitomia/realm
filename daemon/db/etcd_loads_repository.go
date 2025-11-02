@@ -19,7 +19,13 @@ func (r *EtcdLoadsRepository) CreateLoad(loadName string, pid int, driver loads.
 		return err
 	}
 
-	err = r.db.put(r.db.loadsKey(loadName), string(value))
+	loadsKey, err := r.db.loadsKey(loadName)
+	if err != nil {
+		slog.Error("Error getting loads key", "error", err.Error())
+		return err
+	}
+
+	err = r.db.put(loadsKey, string(value))
 	if err != nil {
 		slog.Error("Error on CreateLoad", "error", err.Error())
 		return err
@@ -29,7 +35,11 @@ func (r *EtcdLoadsRepository) CreateLoad(loadName string, pid int, driver loads.
 }
 
 func (r *EtcdLoadsRepository) DeleteLoad(loadName string) error {
-	return r.db.delete(r.db.loadsKey(loadName))
+	loadsKey, err := r.db.loadsKey(loadName)
+	if err != nil {
+		return err
+	}
+	return r.db.delete(loadsKey)
 }
 
 // GetActiveLoad retrieves the an active load record from the database.
@@ -43,7 +53,13 @@ func (r *EtcdLoadsRepository) DeleteLoad(loadName string) error {
 //   - *loads.Load: Pointer to the active load data, or nil if no data exists.
 //   - error: Non-nil if any error occurs during retrieval or unmarshaling.
 func (r *EtcdLoadsRepository) GetLoad(loadName string) (*loads.Load, error) {
-	data, err := r.db.getKey(r.db.loadsKey(loadName))
+	loadsKey, err := r.db.loadsKey(loadName)
+	if err != nil {
+		slog.Error("Error getting loads key", "error", err.Error())
+		return nil, err
+	}
+
+	data, err := r.db.getKey(loadsKey)
 	if err != nil {
 		slog.Error("Error on GetActiveLoad", "error", err.Error())
 		return nil, err

@@ -23,13 +23,19 @@ import (
 )
 
 func Start() {
-	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", id.GetDaemonId())
-
 	cfg := config.Get()
 	if err := config.GetError(); err != nil {
 		slog.Error("Error loading config", "error", err)
 		os.Exit(1)
 	}
+
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		slog.Error("Error getting daemon ID", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", daemonId)
 	slog.Debug("Daemon configuration", "config", *cfg)
 
 	volumesPath, err := volumes.GetVolumesPath()

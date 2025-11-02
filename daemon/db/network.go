@@ -46,7 +46,12 @@ func (db *DaemonDB) AddNetConfig(network string, container string, config []byte
 
 	// Use container as key since each container can have multiple network configs
 	// We'll store them as container/network_name for uniqueness
-	key := fmt.Sprintf("%s%s", db.networkKey(container), network)
+	networkKey, err := db.networkKey(container)
+	if err != nil {
+		slog.Error("Error getting network key", "error", err.Error())
+		return err
+	}
+	key := fmt.Sprintf("%s%s", networkKey, network)
 	err = db.put(key, string(value))
 	if err != nil {
 		slog.Error("Error on AddNetConfig", "error", err.Error())
@@ -77,7 +82,11 @@ func (db *DaemonDB) IsHostIfaceUsedExceptForContainer(hostIface string, containe
 
 func (db *DaemonDB) GetNetConfigs(container string) ([]NetConfig, error) {
 	// Get all network configs for this container
-	containerNetPrefix := db.networkKey(container)
+	containerNetPrefix, err := db.networkKey(container)
+	if err != nil {
+		slog.Error("Error getting network key", "error", err.Error())
+		return nil, err
+	}
 	data, err := db.getKey(containerNetPrefix)
 	if err != nil {
 		slog.Error("Error on GetNetConfigs", "error", err.Error())
@@ -105,7 +114,11 @@ func (db *DaemonDB) GetNetConfigs(container string) ([]NetConfig, error) {
 
 // Delete all network configs for a container
 func (db *DaemonDB) DeleteAllNetConfigs(container string) error {
-	containerNetPrefix := db.networkKey(container)
+	containerNetPrefix, err := db.networkKey(container)
+	if err != nil {
+		slog.Error("Error getting network key", "error", err.Error())
+		return err
+	}
 	data, err := db.getKey(containerNetPrefix)
 	if err != nil {
 		return err
@@ -121,13 +134,25 @@ func (db *DaemonDB) DeleteAllNetConfigs(container string) error {
 }
 
 func (db *DaemonDB) SetDNSRecord(key, ip string) error {
-	return db.put(db.dnsKey(key), ip)
+	dnsKey, err := db.dnsKey(key)
+	if err != nil {
+		return err
+	}
+	return db.put(dnsKey, ip)
 }
 
 func (db *DaemonDB) GetDNSRecord(key string) (string, error) {
-	return db.get(db.dnsKey(key))
+	dnsKey, err := db.dnsKey(key)
+	if err != nil {
+		return "", err
+	}
+	return db.get(dnsKey)
 }
 
 func (db *DaemonDB) DeleteDNSRecord(key string) error {
-	return db.delete(db.dnsKey(key))
+	dnsKey, err := db.dnsKey(key)
+	if err != nil {
+		return err
+	}
+	return db.delete(dnsKey)
 }

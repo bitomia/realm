@@ -39,7 +39,13 @@ func (db *DaemonDB) GetContainer(containerName string) (Container, error) {
 		return Container{}, errors.New("container name cannot be empty")
 	}
 
-	value, err := db.get(db.containerKey(containerName))
+	containerKey, err := db.containerKey(containerName)
+	if err != nil {
+		slog.Error("Error getting container key", "error", err.Error())
+		return Container{}, err
+	}
+
+	value, err := db.get(containerKey)
 	if err != nil {
 		slog.Error("Error on GetContainer", "error", err.Error())
 		return Container{}, fmt.Errorf("Container %s not found", containerName)
@@ -66,7 +72,13 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, owner st
 		return Container{}, err
 	}
 
-	err = db.put(db.containerKey(containerName), string(value))
+	containerKey, err := db.containerKey(containerName)
+	if err != nil {
+		slog.Error("Error getting container key", "error", err.Error())
+		return Container{}, err
+	}
+
+	err = db.put(containerKey, string(value))
 	if err != nil {
 		slog.Error("Error on CreateContainer", "error", err.Error())
 		return Container{}, err
@@ -94,7 +106,13 @@ func (db *DaemonDB) UpdateContainerState(containerName string, state types.Conta
 		return "", err
 	}
 
-	err = db.put(db.containerKey(containerName), string(value))
+	containerKey, err := db.containerKey(containerName)
+	if err != nil {
+		slog.Error("Error getting container key", "error", err.Error())
+		return "", err
+	}
+
+	err = db.put(containerKey, string(value))
 	if err != nil {
 		slog.Error("Error on UpdateContainerState", "error", err.Error())
 		return "", err
@@ -122,7 +140,13 @@ func (db *DaemonDB) UpdateContainerImage(containerName string, image string) (st
 		return "", err
 	}
 
-	err = db.put(db.containerKey(containerName), string(value))
+	containerKey, err := db.containerKey(containerName)
+	if err != nil {
+		slog.Error("Error getting container key", "error", err.Error())
+		return "", err
+	}
+
+	err = db.put(containerKey, string(value))
 	if err != nil {
 		slog.Error("Error on UpdateContainerImage", "error", err.Error())
 		return "", err
@@ -132,5 +156,9 @@ func (db *DaemonDB) UpdateContainerImage(containerName string, image string) (st
 }
 
 func (db *DaemonDB) DeleteContainer(containerName string) error {
-	return db.delete(db.containerKey(containerName))
+	containerKey, err := db.containerKey(containerName)
+	if err != nil {
+		return err
+	}
+	return db.delete(containerKey)
 }

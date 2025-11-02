@@ -33,7 +33,13 @@ func (db *DaemonDB) GetNativeProcess(processName string) (drivers.ProcessConfig,
 		return drivers.ProcessConfig{}, errors.New("native process name cannot be empty")
 	}
 
-	value, err := db.get(db.loadsKey(processName))
+	loadsKey, err := db.loadsKey(processName)
+	if err != nil {
+		slog.Error("Error getting loads key", "error", err.Error())
+		return drivers.ProcessConfig{}, err
+	}
+
+	value, err := db.get(loadsKey)
 	if err != nil {
 		slog.Error("Error on GetProcess", "error", err.Error())
 		return drivers.ProcessConfig{}, fmt.Errorf("Container %s not found", processName)

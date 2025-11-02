@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
@@ -46,66 +47,14 @@ func ListContainersHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	ctx, client, err := cruntime.CreateClient()
+	// Use the new API layer
+	containersState, err := api.ListContainers()
 	if err != nil {
+		slog.Error("Failed to list containers", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer client.Close()
 
-	containersList, err := client.ContainerService().List(ctx)
-	if err != nil {
-		slog.Error("Failed to list containers", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	db := db.GetDB()
-	containersState := make(map[string]containers.ContainerInfo)
-
-	for _, c := range containersList {
-		var entry containers.ContainerInfo
-		dbContainerEntry, err := db.GetContainer(c.ID)
-		if err != nil {
-			slog.Info("DB query for container failed", "containerID", c.ID, "error", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		entry.DBEntry.LastState = dbContainerEntry.LastState
-
-		ctr, err := client.LoadContainer(ctx, c.ID)
-		if err != nil {
-			slog.Info("Error loading container", "containerID", c.ID, "error", err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		if volumeInfo, err := volumes.GetVolumeInfo(c.ID); err != nil {
-			slog.Info("Error retrieving volume info", "containerID", c.ID, "error", err.Error())
-		} else {
-			entry.VolumeInfo = *volumeInfo
-		}
-
-		task, err := ctr.Task(ctx, nil)
-		if err != nil {
-			entry.Container = c
-			entry.Status = "not running"
-			containersState[c.ID] = entry
-			continue
-		}
-
-		status, err := task.Status(ctx)
-		if err != nil {
-			slog.Info("Error loading container", "containerID", c.ID, "error", err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		entry.Container = c
-		entry.Status = string(status.Status)
-		containersState[c.ID] = entry
-
-	}
 	json.NewEncoder(w).Encode(containersState)
 }
 
@@ -116,7 +65,8 @@ func CreateContainerHandler(w http.ResponseWriter, r *http.Request) {
 	var opts requests.CreateContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	if err := containers.CreateContainer(containerName, opts, nil); err != nil {
+	// Use the new API layer
+	if err := api.CreateContainer(containerName, opts); err != nil {
 		slog.Error("CreateContainer error", "container", containerName, "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -215,7 +165,8 @@ func UpdateContainerStateHandler(w http.ResponseWriter, r *http.Request) {
 	var opts containers.UpdateContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	if err := containers.UpdateContainerState(containerName, opts); err != nil {
+	// Use the new API layer
+	if err := api.UpdateContainerState(containerName, opts); err != nil {
 		slog.Error("UpdateContainerState", "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -229,7 +180,8 @@ func RemoveContainerHandler(w http.ResponseWriter, r *http.Request) {
 	var opts containers.DeleteContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	if err := containers.DeleteContainer(containerName, opts, syscall.SIGTERM, true, true); err != nil {
+	// Use the new API layer
+	if err := api.RemoveContainer(containerName, opts); err != nil {
 		slog.Error("DeleteContainer", "container", containerName, "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

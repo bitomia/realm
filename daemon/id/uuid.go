@@ -1,31 +1,36 @@
 package id
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"runtime/debug"
 	"strings"
 
-	"github.com/bitomia/realm/internal/fs"
 	"github.com/google/uuid"
+
+	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/fs"
 )
 
-func GetDaemonId() string {
-	idFilePath := filepath.Join(fs.BinDir(), "realm.id")
+func GetDaemonId() (string, error) {
+	idPath := config.Get().Daemon.IdPath
+	if idPath == "" {
+		return "", fmt.Errorf("Invalid ID file path")
+	}
 
-	if fs.FileExists(idFilePath) {
-		data, err := os.ReadFile(idFilePath)
+	if fs.FileExists(idPath) {
+		data, err := os.ReadFile(idPath)
 		if err != nil {
 			slog.Error("Error reading daemon ID", "error", err)
 			debug.PrintStack()
 			os.Exit(1)
 		}
-		return strings.TrimSpace(string(data))
+		return strings.TrimSpace(string(data)), nil
 	}
 
 	newUUID := uuid.New().String()
-	err := os.WriteFile(idFilePath, []byte(newUUID), 0644)
+	err := os.WriteFile(idPath, []byte(newUUID), 0644)
 	if err != nil {
 		slog.Error("Error writing daemon ID", "error", err)
 		debug.PrintStack()
@@ -38,5 +43,5 @@ func GetDaemonId() string {
 		os.Exit(1)
 	}
 
-	return newUUID
+	return newUUID, nil
 }

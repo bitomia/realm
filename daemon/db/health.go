@@ -29,11 +29,22 @@ func (db *DaemonDB) PublishHealthStatus(nodeId string, leaseId clientv3.LeaseID,
 		return err
 	}
 
-	return db.PutWithLease(db.healthKey(nodeId), string(value), leaseId)
+	healthKey, err := db.healthKey(nodeId)
+	if err != nil {
+		slog.Error("Error getting health key", "error", err.Error())
+		return err
+	}
+
+	return db.PutWithLease(healthKey, string(value), leaseId)
 }
 
 func (db *DaemonDB) GetHealthStatus(nodeId string) (HealthStatus, error) {
-	value, err := db.get(db.healthKey(nodeId))
+	healthKey, err := db.healthKey(nodeId)
+	if err != nil {
+		return HealthStatus{}, err
+	}
+
+	value, err := db.get(healthKey)
 	if err != nil {
 		return HealthStatus{}, err
 	}
@@ -66,5 +77,9 @@ func (db *DaemonDB) GetAllHealthStatuses() ([]HealthStatus, error) {
 }
 
 func (db *DaemonDB) DeleteHealthStatus(nodeId string) error {
-	return db.delete(db.healthKey(nodeId))
+	healthKey, err := db.healthKey(nodeId)
+	if err != nil {
+		return err
+	}
+	return db.delete(healthKey)
 }

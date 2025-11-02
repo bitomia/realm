@@ -1,4 +1,6 @@
 daemon:
+  id_path: /home/juan/realm_data/realm.id
+  etcd_data_dir: /home/juan/realm_data/etcd
   cni_path: /opt/cni/bin
   volumes_pool: realmpool
   listen_address: 0.0.0.0
