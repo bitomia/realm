@@ -10,7 +10,8 @@ ifeq ($(OS),Windows_NT)
 	SEP = \\
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
-	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
+	REALM_LIB := $(BIN_DIR)$(SEP)librealm.dll
+	REALM_HEADER := $(BIN_DIR)$(SEP)librealm.h
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	RM = rm -rf
@@ -18,12 +19,24 @@ else
 	SEP = /
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
-	REALM_LIB := $(BIN_DIR)$(SEP)librealm.a
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Darwin)
+		REALM_LIB := $(BIN_DIR)$(SEP)librealm.dylib
+	else
+		REALM_LIB := $(BIN_DIR)$(SEP)librealm.so
+	endif
+	REALM_HEADER := $(BIN_DIR)$(SEP)librealm.h
 endif
 
 
 COMMIT_FLAG := -X 'github.com/bitomia/realm/internal/config.BuildGitCommit=$(GIT_COMMIT)'
 MAKEFLAGS += --no-print-directory
+
+# Installation directories
+PREFIX ?= /usr/local
+INSTALL_LIB_DIR := $(PREFIX)/lib
+INSTALL_INCLUDE_DIR := $(PREFIX)/include
+INSTALL_CMAKE_DIR := $(PREFIX)/lib/cmake/Realm
 
 .PHONY: all
 all:
@@ -32,8 +45,26 @@ all:
 	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)"
 
 .PHONY: lib
-lib:
-	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
+lib: $(BIN_DIR)
+	@echo "Building C shared library..."
+	CGO_ENABLED=1 $(GO) build -o $(REALM_LIB) -buildmode=c-shared lib/main.go
+	@echo "Generated: $(REALM_LIB)"
+	@echo "Generated: $(REALM_HEADER)"
+
+.PHONY: install
+install: lib
+	@echo "Installing Realm library to $(PREFIX)..."
+	@install -d $(INSTALL_LIB_DIR)
+	@install -d $(INSTALL_INCLUDE_DIR)
+	@install -d $(INSTALL_CMAKE_DIR)
+	@install -m 755 $(REALM_LIB) $(INSTALL_LIB_DIR)/
+	@install -m 644 $(REALM_HEADER) $(INSTALL_INCLUDE_DIR)/realm.h
+	@install -m 644 cmake/RealmConfig.cmake $(INSTALL_CMAKE_DIR)/
+	@install -m 644 cmake/RealmConfigVersion.cmake $(INSTALL_CMAKE_DIR)/
+	@echo "Installation complete!"
+	@echo "  Library: $(INSTALL_LIB_DIR)/$(notdir $(REALM_LIB))"
+	@echo "  Header: $(INSTALL_INCLUDE_DIR)/realm.h"
+	@echo "  CMake config: $(INSTALL_CMAKE_DIR)/"
 
 $(BIN_DIR):
 	$(call MKDIR,$(BIN_DIR))
@@ -41,6 +72,8 @@ $(BIN_DIR):
 .PHONY: clean
 clean:
 	-$(RM) "$(REALM_OUT)"
+	-$(RM) "$(REALM_LIB)"
+	-$(RM) "$(REALM_HEADER)"
 
 .PHONY: verify-lint-cmd
 verify-lint-cmd:

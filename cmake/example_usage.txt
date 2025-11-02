@@ -1,0 +1,21 @@
+# Example CMakeLists.txt for using the Realm library
+
+cmake_minimum_required(VERSION 3.10)
+project(MyProject C CXX)
+
+# Find the Realm package
+find_package(Realm REQUIRED)
+
+# Create your executable
+add_executable(my_app main.c)
+
+# Link against the Realm library
+target_link_libraries(my_app PRIVATE Realm::Realm)
+
+# Example main.c:
+# #include <realm.h>
+#
+# int main() {
+#     StartDaemon();
+#     return 0;
+# }
