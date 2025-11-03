@@ -78,7 +78,7 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, owner st
 		return Container{}, err
 	}
 
-	err = db.put(containerKey, string(value))
+	err = db.createIfNotExists(containerKey, string(value))
 	if err != nil {
 		slog.Error("Error on CreateContainer", "error", err.Error())
 		return Container{}, err
@@ -90,31 +90,30 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, owner st
 func (db *DaemonDB) UpdateContainerState(containerName string, state types.ContainerState) (types.ContainerState, error) {
 	slog.Info("db.UpdateContainerState", "container", containerName, "state", state)
 
-	// Get existing container
-	container, err := db.GetContainer(containerName)
-	if err != nil {
-		return "", err
-	}
-
-	// Update state
-	container.LastState = state
-
-	// Save back to etcd
-	value, err := json.Marshal(container)
-	if err != nil {
-		slog.Error("Error marshaling container", "error", err.Error())
-		return "", err
-	}
-
 	containerKey, err := db.containerKey(containerName)
 	if err != nil {
 		slog.Error("Error getting container key", "error", err.Error())
 		return "", err
 	}
 
-	err = db.put(containerKey, string(value))
+	err = db.OptimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
+		var container Container
+		if err := json.Unmarshal(currentValue, &container); err != nil {
+			slog.Error("Error unmarshaling container", "error", err.Error())
+			return nil, err
+		}
+
+		container.LastState = state
+
+		value, err := json.Marshal(container)
+		if err != nil {
+			slog.Error("Error marshaling container", "error", err.Error())
+			return nil, err
+		}
+		return value, nil
+	})
+
 	if err != nil {
-		slog.Error("Error on UpdateContainerState", "error", err.Error())
 		return "", err
 	}
 
@@ -124,31 +123,30 @@ func (db *DaemonDB) UpdateContainerState(containerName string, state types.Conta
 func (db *DaemonDB) UpdateContainerImage(containerName string, image string) (string, error) {
 	slog.Info("db.UpdateContainerImage", "container", containerName, "image", image)
 
-	// Get existing container
-	container, err := db.GetContainer(containerName)
-	if err != nil {
-		return "", err
-	}
-
-	// Update image
-	container.Image = image
-
-	// Save back to etcd
-	value, err := json.Marshal(container)
-	if err != nil {
-		slog.Error("Error marshaling container", "error", err.Error())
-		return "", err
-	}
-
 	containerKey, err := db.containerKey(containerName)
 	if err != nil {
 		slog.Error("Error getting container key", "error", err.Error())
 		return "", err
 	}
 
-	err = db.put(containerKey, string(value))
+	err = db.OptimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
+		var container Container
+		if err := json.Unmarshal(currentValue, &container); err != nil {
+			slog.Error("Error unmarshaling container", "error", err.Error())
+			return nil, err
+		}
+
+		container.Image = image
+
+		value, err := json.Marshal(container)
+		if err != nil {
+			slog.Error("Error marshaling container", "error", err.Error())
+			return nil, err
+		}
+		return value, nil
+	})
+
 	if err != nil {
-		slog.Error("Error on UpdateContainerImage", "error", err.Error())
 		return "", err
 	}
 
