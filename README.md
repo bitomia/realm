@@ -44,6 +44,47 @@ apt update
 apt install zfsutils-linux libzfslinux-dev ansible -y
 ```
 
+## Configuration
+
+Realm can be configured using a YAML configuration file (`realm.yaml`) or environment variables.
+
+### Daemon Configuration
+
+The daemon section configures the realm daemon behavior. All fields are optional and have default values:
+
+```yaml
+daemon:
+  id_path: /var/lib/realm/realm.id          # Path to store daemon unique ID (default: platform-specific)
+  cni_path: /opt/cni                        # Path to CNI plugins (default: /opt/cni on Linux)
+  volumes_pool: realm_volumes               # Name of ZFS pool for volumes (default: realm_volumes)
+  listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
+  listen_port: 9000                         # Port to bind the daemon API (default: 9000)
+  logs_path: /var/log/realm                 # Path to store daemon logs (default: /var/log/realm on Linux)
+  log_format: text                          # Log format: "text" or "json" (default: text)
+  containers_log_path: /var/log/realm/containers  # Path to store container logs (default: platform-specific)
+  proxy_enabled: false                      # Enable/disable the proxy (default: false)
+  local_caddy_url: localhost:2019           # Local Caddy admin URL (default: localhost:2019)
+  master_caddy_url: localhost:2019          # Master Caddy admin URL (default: localhost:2019)
+  github_registry_token: ""                 # Token for GitHub registry (default: empty)
+  containerd_sock: /run/containerd/containerd.sock  # Containerd socket path (default: platform-specific)
+  containerd_namespace: realm               # Containerd namespace (default: realm)
+  etcd_data_dir: /var/lib/realm/etcd        # etcd data directory (default: /var/lib/realm/etcd on Linux)
+  etcd_name: ""                             # etcd member name (default: empty)
+  etcd_listen_client_url: http://127.0.0.1:2379   # etcd client URL (default: http://127.0.0.1:2379)
+  etcd_listen_peer_url: http://127.0.0.1:2380     # etcd peer URL (default: http://127.0.0.1:2380)
+  etcd_initial_cluster: ""                  # etcd initial cluster configuration (default: empty)
+  etcd_cluster_state: new                   # etcd cluster state: "new" or "existing" (default: new)
+```
+
+#### Environment Variables
+
+Configuration values can be overridden using environment variables with the `REALM_` prefix and underscores for nested values:
+
+```bash
+REALM_DAEMON_LOG_FORMAT=json
+REALM_DAEMON_LISTEN_PORT=9001
+```
+
 ## Production setup
 
 ### Disable ipv6 in realm nodes
