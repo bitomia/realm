@@ -29,6 +29,19 @@ func Start() {
 		os.Exit(1)
 	}
 
+	// Configure slog handler based on log format
+	var handler slog.Handler
+	switch cfg.Daemon.LogFormat {
+	case "json":
+		handler = slog.NewJSONHandler(os.Stdout, nil)
+	case "text":
+		handler = slog.NewTextHandler(os.Stdout, nil)
+	default:
+		slog.Warn("Invalid log format, defaulting to text", "format", cfg.Daemon.LogFormat)
+		handler = slog.NewTextHandler(os.Stdout, nil)
+	}
+	slog.SetDefault(slog.New(handler))
+
 	daemonId, err := id.GetDaemonId()
 	if err != nil {
 		slog.Error("Error getting daemon ID", "error", err)
