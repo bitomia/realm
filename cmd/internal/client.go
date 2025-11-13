@@ -980,12 +980,12 @@ func (c *Client) RollbackRecipe(node string, recipeId string) error {
 	return nil
 }
 
-func (c *Client) VerifyLoad(load *loads.Load) error {
+func (c *Client) PlanLoad(load *loads.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/verify", load.Node.Url)
+	url := fmt.Sprintf("%s/loads/plan", load.Node.Url)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(load)
@@ -1009,7 +1009,7 @@ func (c *Client) VerifyLoad(load *loads.Load) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed verifying load: %s", string(body))
+		return fmt.Errorf("failed planning load: %s", string(body))
 	}
 
 	return nil

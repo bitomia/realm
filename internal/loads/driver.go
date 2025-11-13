@@ -8,8 +8,8 @@ type LoadDriverType string
 
 type LoadDriver interface {
 	GetDriverType() LoadDriverType
-	Verify() error
-	VerifyDaemon() error
+	Plan() error
+	PlanDaemon() error
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
 	StartOnDaemon(repository LoadsRepository, logsPath internal.LogsPath, loadName string) error

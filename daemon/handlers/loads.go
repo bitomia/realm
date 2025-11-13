@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func VerifyLoadHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("loads.VerifyLoadHandler")
+func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("loads.PlanLoadHandler")
 
 	var load loads.Load
 	err := json.NewDecoder(r.Body).Decode(&load)
@@ -27,8 +27,8 @@ func VerifyLoadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("loads.VerifyLoadHandler", "load", load.Name, "driver", load.Driver)
-	if err := load.Driver.VerifyDaemon(); err != nil {
+	slog.Info("loads.PlanLoadHandler", "load", load.Name, "driver", load.Driver)
+	if err := load.Driver.PlanDaemon(); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		w.WriteHeader(http.StatusOK)

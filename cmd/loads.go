@@ -12,14 +12,14 @@ import (
 	"github.com/bitomia/realm/internal/config"
 )
 
-func doVerifyLoads(cfg *config.Config, client *internal.Client) error {
+func doPlanLoads(cfg *config.Config, client *internal.Client) error {
 	loads := cfg.Loads.GetLoads()
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads present in config file")
 	}
 	for _, load := range loads {
-		if err := client.VerifyLoad(load); err != nil {
-			return fmt.Errorf("Error verifying load: %s", err.Error())
+		if err := client.PlanLoad(load); err != nil {
+			return fmt.Errorf("Error planning load: %s", err.Error())
 		}
 	}
 	return nil
@@ -59,9 +59,9 @@ var drawLoadsGraph = &cobra.Command{
 	},
 }
 
-var verifyLoads = &cobra.Command{
-	Use:   "verify",
-	Short: "Verify loads and nodes to verify correctness",
+var planLoads = &cobra.Command{
+	Use:   "plan",
+	Short: "Plan loads on nodes",
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := config.Get()
 		if cfg == nil {
@@ -70,8 +70,8 @@ var verifyLoads = &cobra.Command{
 		}
 
 		client := internal.NewClient()
-		if err := doVerifyLoads(cfg, &client); err != nil {
-			log.Fatal("Error verifying load: %s", err.Error())
+		if err := doPlanLoads(cfg, &client); err != nil {
+			log.Fatal("Error planning load: %s", err.Error())
 		}
 		log.Info("Successfully verified loads on cluster")
 	},
@@ -89,9 +89,9 @@ var runLoads = &cobra.Command{
 
 		client := internal.NewClient()
 
-		// Verify all loads first
-		if err := doVerifyLoads(cfg, &client); err != nil {
-			log.Fatal("Error verifying load: %s", err.Error())
+		// Plan all loads first
+		if err := doPlanLoads(cfg, &client); err != nil {
+			log.Fatal("Error planning load: %s", err.Error())
 		}
 
 		// Start loads
@@ -131,7 +131,7 @@ var runLoads = &cobra.Command{
 
 func init() {
 	loadsCmd.AddCommand(drawLoadsGraph)
-	loadsCmd.AddCommand(verifyLoads)
+	loadsCmd.AddCommand(planLoads)
 	loadsCmd.AddCommand(runLoads)
 	loadsCmd.DisableFlagsInUseLine = true
 	rootCmd.AddCommand(loadsCmd)

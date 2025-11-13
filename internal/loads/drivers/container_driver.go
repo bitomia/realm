@@ -25,7 +25,7 @@ func NewContainerDriverFromConfig(config ContainerConfig) (loads.LoadDriver, err
 	driver := &ContainerDriver{
 		Image: config.Image,
 	}
-	if err := driver.Verify(); err != nil {
+	if err := driver.Plan(); err != nil {
 		return nil, err
 	}
 	return driver, nil
@@ -54,11 +54,11 @@ func (p *ContainerDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *ContainerDriver) Verify() error {
+func (p *ContainerDriver) Plan() error {
 	return nil
 }
 
-func (p *ContainerDriver) VerifyDaemon() error {
+func (p *ContainerDriver) PlanDaemon() error {
 	return nil
 }
 

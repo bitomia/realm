@@ -55,7 +55,7 @@ func NewProcessDriverFromConfig(config ProcessConfig) (loads.LoadDriver, error) 
 		StopSignal: stopSignal,
 	}
 
-	if err := driver.Verify(); err != nil {
+	if err := driver.Plan(); err != nil {
 		return nil, err
 	}
 	return driver, nil
@@ -94,14 +94,14 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *ProcessDriver) Verify() error {
+func (p *ProcessDriver) Plan() error {
 	if strings.Contains(p.StartCmd, " ") {
 		return fmt.Errorf("StartCmd must be one string")
 	}
 	return nil
 }
 
-func (p *ProcessDriver) VerifyDaemon() error {
+func (p *ProcessDriver) PlanDaemon() error {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.StartCmd); err != nil {
 		return fmt.Errorf("Executable %q not found in PATH\n", p.StartCmd)

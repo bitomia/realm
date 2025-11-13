@@ -25,7 +25,7 @@ func MountVolume(volume string) (string, error) {
 		return "", fmt.Errorf("failed to stat volume path: %v", err)
 	}
 
-	// Verify it's a directory
+	// Check it is a directory
 	if !info.IsDir() {
 		return "", fmt.Errorf("volume path is not a directory: %s", volumePath)
 	}
