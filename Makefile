@@ -47,7 +47,7 @@ all:
 .PHONY: lib
 lib: $(BIN_DIR)
 	@echo "Building C shared library..."
-	CGO_ENABLED=1 $(GO) build -o $(REALM_LIB) -buildmode=c-shared lib/main.go
+	$(GO) build -o $(REALM_LIB) -buildmode=c-shared lib/main.go
 	@echo "Generated: $(REALM_LIB)"
 	@echo "Generated: $(REALM_HEADER)"
 
