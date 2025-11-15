@@ -10,8 +10,8 @@ ifeq ($(OS),Windows_NT)
 	SEP = \\
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
-	REALM_LIB := $(BIN_DIR)$(SEP)librealm.dll
-	REALM_HEADER := $(BIN_DIR)$(SEP)librealm.h
+	REALM_LIB := $(BIN_DIR)$(SEP)realm.lib
+	REALM_HEADER := $(BIN_DIR)$(SEP)realm.h
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	RM = rm -rf
@@ -20,12 +20,8 @@ else
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
 	UNAME_S := $(shell uname -s)
-	ifeq ($(UNAME_S),Darwin)
-		REALM_LIB := $(BIN_DIR)$(SEP)librealm.dylib
-	else
-		REALM_LIB := $(BIN_DIR)$(SEP)librealm.so
-	endif
-	REALM_HEADER := $(BIN_DIR)$(SEP)librealm.h
+	REALM_LIB := $(BIN_DIR)$(SEP)realm.a
+	REALM_HEADER := $(BIN_DIR)$(SEP)realm.h
 endif
 
 
@@ -47,7 +43,7 @@ all:
 .PHONY: lib
 lib: $(BIN_DIR)
 	@echo "Building C shared library..."
-	$(GO) build -o $(REALM_LIB) -buildmode=c-shared lib/main.go
+	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
 	@echo "Generated: $(REALM_LIB)"
 	@echo "Generated: $(REALM_HEADER)"
 
