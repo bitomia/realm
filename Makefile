@@ -42,7 +42,7 @@ all:
 
 .PHONY: lib
 lib: $(BIN_DIR)
-	@echo "Building C shared library..."
+	@echo "Building C static library..."
 	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
 	@echo "Generated: $(REALM_LIB)"
 	@echo "Generated: $(REALM_HEADER)"
