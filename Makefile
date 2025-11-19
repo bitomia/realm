@@ -44,6 +44,10 @@ all:
 lib: $(BIN_DIR)
 	@echo "Building C static library..."
 	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
+	@echo "Namespacing extern functions..."
+	@sed -i '/extern "C" {/a namespace realm {' $(REALM_HEADER)
+	@sed -i '/^#ifdef __cplusplus$$/{ N; /\n}$$/{s/}/} \/\/ namespace realm\n}/;} }' $(REALM_HEADER)
+	@objcopy --remove-section .pdata $(REALM_LIB)
 	@echo "Generated: $(REALM_LIB)"
 	@echo "Generated: $(REALM_HEADER)"
 
