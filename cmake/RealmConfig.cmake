@@ -6,6 +6,7 @@ find_package(Threads REQUIRED)
 # Determine shared library extension based on platform
 if(WIN32)
     set(REALM_LIB_NAME "librealm.dll")
+    set(REALM_IMPLIB_NAME "librealm.lib")
     set(REALM_HEADER_NAME "realm.h")
 else()
     set(REALM_LIB_NAME "librealm.so")
@@ -14,14 +15,22 @@ endif()
 
 # Define the imported library target
 if(NOT TARGET Realm)
-    add_library(Realm SHARED IMPORTED)
-
-    # Set the library location
-    set_target_properties(Realm PROPERTIES
-        IMPORTED_LOCATION "${REALM_PREFIX}/bin/${REALM_LIB_NAME}"
-        INTERFACE_INCLUDE_DIRECTORIES "${REALM_PREFIX}/bin"
-        INTERFACE_LINK_LIBRARIES "Threads::Threads;${CMAKE_DL_LIBS}"
-    )
+    if(WIN32)
+        add_library(Realm SHARED IMPORTED)
+        set_target_properties(Realm PROPERTIES
+            IMPORTED_LOCATION "${REALM_PREFIX}/bin/${REALM_LIB_NAME}"
+            IMPORTED_IMPLIB "${REALM_PREFIX}/bin/${REALM_IMPLIB_NAME}"
+            INTERFACE_INCLUDE_DIRECTORIES "${REALM_PREFIX}/bin"
+            INTERFACE_LINK_LIBRARIES "Threads::Threads;${CMAKE_DL_LIBS}"
+        )
+    else()
+        add_library(Realm SHARED IMPORTED)
+        set_target_properties(Realm PROPERTIES
+            IMPORTED_LOCATION "${REALM_PREFIX}/bin/${REALM_LIB_NAME}"
+            INTERFACE_INCLUDE_DIRECTORIES "${REALM_PREFIX}/bin"
+            INTERFACE_LINK_LIBRARIES "Threads::Threads;${CMAKE_DL_LIBS}"
+        )
+    endif()
 
     # Add platform-specific libraries that Go C archives typically need
     if(UNIX AND NOT APPLE)
