@@ -52,6 +52,8 @@ lib: $(BIN_DIR)
 	@echo "Namespacing extern functions..."
 	@sed -i '/extern "C" {/i namespace realm {' $(REALM_HEADER)
 	@sed -i '/^#ifdef __cplusplus$$/{ N; /\n}$$/{s/}/}\n} \/\/ namespace realm/;} }' $(REALM_HEADER)
+	@echo "Adding _CRT_USE_C_COMPLEX_H define..."
+	@sed -i '/#include <complex.h>/i #define _CRT_USE_C_COMPLEX_H' $(REALM_HEADER)
 ifeq ($(OS),Windows_NT)
 	@echo "Generating import library..."
 	@cd $(BIN_DIR) && gendef librealm.dll
