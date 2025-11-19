@@ -5,14 +5,16 @@ find_package(Threads REQUIRED)
 
 # Determine shared library extension based on platform
 if(WIN32)
-    set(REALM_LIB_NAME "realm.lib")
+    set(REALM_LIB_NAME "librealm.dll")
+    set(REALM_HEADER_NAME "realm.h")
 else()
-    set(REALM_LIB_NAME "realm.a")
+    set(REALM_LIB_NAME "librealm.so")
+    set(REALM_HEADER_NAME "realm.h")
 endif()
 
 # Define the imported library target
 if(NOT TARGET Realm)
-    add_library(Realm STATIC IMPORTED)
+    add_library(Realm SHARED IMPORTED)
 
     # Set the library location
     set_target_properties(Realm PROPERTIES
@@ -44,6 +46,6 @@ set(Realm_INCLUDE_DIRS "${REALM_PREFIX}/bin")
 if(NOT EXISTS "${REALM_PREFIX}/bin/${REALM_LIB_NAME}")
     message(FATAL_ERROR "Realm library not found at ${REALM_PREFIX}/bin/${REALM_LIB_NAME}")
 endif()
-if(NOT EXISTS "${REALM_PREFIX}/bin/realm.h")
-    message(FATAL_ERROR "Realm header not found at ${REALM_PREFIX}/bin/realm.h")
+if(NOT EXISTS "${REALM_PREFIX}/bin/${REALM_HEADER_NAME}")
+    message(FATAL_ERROR "Realm header not found at ${REALM_PREFIX}/bin/${REALM_HEADER_NAME}")
 endif()

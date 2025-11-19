@@ -11,7 +11,7 @@ ifeq ($(OS),Windows_NT)
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
 	REALM_LIB := $(BIN_DIR)$(SEP)realm.lib
-	REALM_HEADER := $(BIN_DIR)$(SEP)realm.h
+	REALM_SHARED_LIB := $(BIN_DIR)$(SEP)librealm.dll
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	RM = rm -rf
@@ -19,10 +19,12 @@ else
 	SEP = /
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
-	UNAME_S := $(shell uname -s)
 	REALM_LIB := $(BIN_DIR)$(SEP)realm.a
-	REALM_HEADER := $(BIN_DIR)$(SEP)realm.h
+	REALM_SHARED_LIB := $(BIN_DIR)$(SEP)librealm.so
 endif
+
+REALM_SHARED_HEADER := $(BIN_DIR)$(SEP)librealm.h
+REALM_HEADER := $(BIN_DIR)$(SEP)realm.h
 
 
 COMMIT_FLAG := -X 'github.com/bitomia/realm/internal/config.BuildGitCommit=$(GIT_COMMIT)'
@@ -43,13 +45,25 @@ all:
 .PHONY: lib
 lib: $(BIN_DIR)
 	@echo "Building C static library..."
-	$(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
+	CGO_ENABLED=1 CGO_CFLAGS="-fPIC" CGO_LDFLAGS="-fPIC" $(GO) build -o $(REALM_LIB) -buildmode=c-archive lib/main.go
 	@echo "Namespacing extern functions..."
 	@sed -i '/extern "C" {/a namespace realm {' $(REALM_HEADER)
 	@sed -i '/^#ifdef __cplusplus$$/{ N; /\n}$$/{s/}/} \/\/ namespace realm\n}/;} }' $(REALM_HEADER)
 	@objcopy --remove-section .pdata $(REALM_LIB)
 	@echo "Generated: $(REALM_LIB)"
 	@echo "Generated: $(REALM_HEADER)"
+
+.PHONY: shared
+shared: $(BIN_DIR)
+	@echo "Building C shared library..."
+	CGO_ENABLED=1 $(GO) build -o $(REALM_SHARED_LIB) -buildmode=c-shared lib/main.go
+	@mv $(REALM_SHARED_HEADER) $(REALM_HEADER)
+	@echo "Namespacing extern functions..."
+	@sed -i '/extern "C" {/a namespace realm {' $(REALM_HEADER)
+	@sed -i '/^#ifdef __cplusplus$$/{ N; /\n}$$/{s/}/} \/\/ namespace realm\n}/;} }' $(REALM_HEADER)
+	@echo "Generated: $(REALM_SHARED_LIB)"
+	@echo "Generated: $(REALM_HEADER)"
+
 
 .PHONY: install
 install: lib
@@ -58,11 +72,13 @@ install: lib
 	@install -d $(INSTALL_INCLUDE_DIR)
 	@install -d $(INSTALL_CMAKE_DIR)
 	@install -m 755 $(REALM_LIB) $(INSTALL_LIB_DIR)/
+	@install -m 755 $(REALM_SHARED_LIB) $(INSTALL_LIB_DIR)/
 	@install -m 644 $(REALM_HEADER) $(INSTALL_INCLUDE_DIR)/realm.h
 	@install -m 644 cmake/RealmConfig.cmake $(INSTALL_CMAKE_DIR)/
 	@install -m 644 cmake/RealmConfigVersion.cmake $(INSTALL_CMAKE_DIR)/
 	@echo "Installation complete!"
 	@echo "  Library: $(INSTALL_LIB_DIR)/$(notdir $(REALM_LIB))"
+	@echo "  Library: $(INSTALL_LIB_DIR)/$(notdir $(REALM_SHARED_LIB))"
 	@echo "  Header: $(INSTALL_INCLUDE_DIR)/realm.h"
 	@echo "  CMake config: $(INSTALL_CMAKE_DIR)/"
 
