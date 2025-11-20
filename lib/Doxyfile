@@ -1,0 +1,45 @@
+# Doxyfile for Realm C API Documentation
+
+# Project settings
+PROJECT_NAME           = "Realm C API"
+PROJECT_BRIEF          = "C API for Realm daemon and client libraries"
+OUTPUT_DIRECTORY       = ../docs
+STRIP_FROM_PATH        = ../bin
+
+# Input settings
+INPUT                  = ../bin/realm-daemon.h
+FILE_PATTERNS          = *.h
+RECURSIVE              = NO
+EXCLUDE_PATTERNS       = */test/*
+
+# Output settings
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+HTML_OUTPUT            = html
+
+# Extraction settings
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+
+# Documentation settings
+JAVADOC_AUTOBRIEF      = YES
+OPTIMIZE_OUTPUT_FOR_C  = YES
+TYPEDEF_HIDES_STRUCT   = YES
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+SKIP_FUNCTION_MACROS   = YES
+
+# Warnings
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = NO
+
+# Source browsing
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+
+# Alphabetical index
+ALPHABETICAL_INDEX     = YES
+
+# Graph generation (requires graphviz)
+HAVE_DOT               = NO

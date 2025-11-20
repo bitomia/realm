@@ -149,6 +149,7 @@ ifeq ($(OS),Windows_NT)
 	-$(RM) "$(DAEMON_IMPORT_LIB)"
 	-$(RM) "$(CLIENT_IMPORT_LIB)"
 endif
+	-$(RM) "docs"
 
 .PHONY: verify-lint-cmd
 verify-lint-cmd:
@@ -166,3 +167,9 @@ verify-fmt:
 test:
 	$(GO) test -v ./internal/...
 	$(GO) test -v ./daemon/db/...
+
+.PHONY: doc
+doc: lib-daemon
+	@echo "Generating doxygen documentation..."
+	@cd lib && doxygen Doxyfile
+	@echo "Documentation generated in docs/html/"
