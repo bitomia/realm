@@ -10,6 +10,16 @@ Recommended setup is Debian 12 or Windows 11 Pro with Go >=1.24 installed.
 
 ### Windows 11 Pro setup
 
+We recommend to use only Powershell and check that you don't use msys2 or have another unix shell installed, **make** can conflicts with these shells.
+
+Install building dependencies (required for CGO):
+
+```powershell
+choco install mingw
+```
+
+Install golang: https://go.dev/doc/install
+
 Install containerd:
 
 ```powershell

@@ -75,7 +75,7 @@ ifeq ($(OS),Windows_NT)
 	@echo "Generating import library..."
 	@cd $(BIN_DIR) && gendef $(DAEMON_SHARED_LIB)
 	@cd $(BIN_DIR) && dlltool -d $(DAEMON_IMPORT_DEF) -l $(DAEMON_IMPORT_LIB) -D $(DAEMON_SHARED_LIB)
-	@del "$(DAEMON_IMPORT_DEF)"
+	@$(RM) "$(DAEMON_IMPORT_DEF)"
 endif
 	@echo "Generated: $(DAEMON_SHARED_LIB)"
 	@echo "Generated: $(BIN_DIR)$(SEP)realm-daemon.h"
@@ -100,7 +100,7 @@ ifeq ($(OS),Windows_NT)
 	@echo "Generating import library..."
 	@cd $(BIN_DIR) && gendef $(CLIENT_SHARED_LIB)
 	@cd $(BIN_DIR) && dlltool -d $(CLIENT_IMPORT_DEF) -l $(CLIENT_IMPORT_LIB) -D $(CLIENT_SHARED_LIB)
-	@del "$(CLIENT_IMPORT_DEF)"
+	@$(RM) "$(CLIENT_IMPORT_DEF)"
 endif
 	@echo "Generated: $(CLIENT_SHARED_LIB)"
 	@echo "Generated: $(BIN_DIR)$(SEP)realm-client.h"
