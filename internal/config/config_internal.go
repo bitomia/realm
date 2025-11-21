@@ -30,7 +30,7 @@ func setDefaults() {
 		logsPath = filepath.Join(programData, "realm", "logs")
 		containersLogPath = filepath.Join(programData, "realm", "logs", "containers")
 		etcdDataDir = filepath.Join(programData, "realm", "etcd")
-		containerdSock = "npipe://./pipe/containerd-containerd"
+		containerdSock = "npipe:////./pipe/containerd-containerd"
 		cniPath = filepath.Join(programData, "realm", "cni")
 		idPath = filepath.Join(programData, "realm", "realm.id")
 	} else {
