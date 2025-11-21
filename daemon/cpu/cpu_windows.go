@@ -4,6 +4,7 @@
 package cpu
 
 import (
+	"log/slog"
 	"path/filepath"
 	"runtime"
 
@@ -28,20 +29,20 @@ func GetNodeState() (*requests.NodeState, error) {
 	}
 	defer client.Close()
 
-	cpuStat, cpuUsage, containersState, err := GetContainersState(ctx, client)
-	if err != nil {
-		return nil, err
-	}
-
 	var nodeState requests.NodeState
-	nodeState.Containers = containersState
 	nodeState.NumCPU = runtime.NumCPU()
-	nodeState.UserCPU = cpuStat.User
-	nodeState.IdleCPU = cpuStat.Idle
-	nodeState.SystemCPU = cpuStat.System
-	nodeState.TotalCPU = cpuStat.Total
-	nodeState.UsageCPUPercent = cpuUsage
 
+	cpuStat, cpuUsage, containersState, err := GetContainersState(ctx, client)
+	if err == nil {
+		nodeState.Containers = containersState
+		nodeState.UserCPU = cpuStat.User
+		nodeState.IdleCPU = cpuStat.Idle
+		nodeState.SystemCPU = cpuStat.System
+		nodeState.TotalCPU = cpuStat.Total
+		nodeState.UsageCPUPercent = cpuUsage
+	} else {
+		slog.Error("Error on GetContainerState", "error", err)
+	}
 	memStat, err := memory.Get()
 	if err != nil {
 		return nil, err
