@@ -22,7 +22,11 @@ import (
 	"github.com/bitomia/realm/internal/config"
 )
 
-func Start(configFile string) {
+func Start() {
+	StartWithConfigFile("")
+}
+
+func StartWithConfigFile(configFile string) {
 	cfg := config.Get(configFile)
 	if err := config.GetError(); err != nil {
 		slog.Error("Error loading config", "error", err)

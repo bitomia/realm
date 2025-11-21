@@ -23,12 +23,16 @@ var startDaemon = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		configFile, _ := cmd.Flags().GetString("config")
-		daemon.Start(configFile)
+		if configFile == "" {
+			daemon.Start()
+		} else {
+			daemon.StartWithConfigFile(configFile)
+		}
 	},
 }
 
 func init() {
-	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (default: realm.yaml in executable directory)")
+	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: realm.yaml in executable directory)")
 	daemonCmd.AddCommand(startDaemon)
 	rootCmd.AddCommand(daemonCmd)
 }

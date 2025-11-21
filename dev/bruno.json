@@ -322,46 +322,6 @@
         },
         {
           "type": "http",
-          "name": "Launch recipe",
-          "filename": "Launch recipe.bru",
-          "seq": 15,
-          "settings": {
-            "encodeUrl": true
-          },
-          "tags": [],
-          "request": {
-            "url": "{{base_url}}/recipes",
-            "method": "POST",
-            "headers": [
-              {
-                "name": "Content-Type",
-                "value": "application/json",
-                "enabled": true
-              }
-            ],
-            "params": [],
-            "body": {
-              "mode": "json",
-              "json": "{\n  \"recipe\": \"wordpress_starter\",\n  \"args\": {\n    \"title\": \"Mi wordpress\",\n    \"admin_user\": \"juan\",\n    \"admin_email\": \"juan@bitomia.com\",\n    \"locale\": \"es_ES\",\n    \"hosts\":[\"test.wp.sitecloud.local\"]\n  }\n}\n",
-              "formUrlEncoded": [],
-              "multipartForm": [],
-              "file": []
-            },
-            "script": {},
-            "vars": {},
-            "assertions": [],
-            "tests": "",
-            "docs": "",
-            "auth": {
-              "mode": "bearer",
-              "bearer": {
-                "token": "{{token}}"
-              }
-            }
-          }
-        },
-        {
-          "type": "http",
           "name": "Link container to network",
           "filename": "Link container to network.bru",
           "seq": 9,
@@ -602,46 +562,6 @@
             "body": {
               "mode": "json",
               "json": "",
-              "formUrlEncoded": [],
-              "multipartForm": [],
-              "file": []
-            },
-            "script": {},
-            "vars": {},
-            "assertions": [],
-            "tests": "",
-            "docs": "",
-            "auth": {
-              "mode": "bearer",
-              "bearer": {
-                "token": "{{token}}"
-              }
-            }
-          }
-        },
-        {
-          "type": "http",
-          "name": "Rollback recipe",
-          "filename": "Rollback recipe.bru",
-          "seq": 16,
-          "settings": {
-            "encodeUrl": true
-          },
-          "tags": [],
-          "request": {
-            "url": "{{base_url}}/recipes/0b2e9d49-aa59-4b5c-9036-0a7cdfb97c6f",
-            "method": "DELETE",
-            "headers": [
-              {
-                "name": "Content-Type",
-                "value": "application/json",
-                "enabled": true
-              }
-            ],
-            "params": [],
-            "body": {
-              "mode": "json",
-              "json": "{\n  \"recipe\": \"wordpress_starter\"\n}",
               "formUrlEncoded": [],
               "multipartForm": [],
               "file": []

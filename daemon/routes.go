@@ -9,7 +9,7 @@ import (
 
 func createRoutes(router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
-	router.Handle("/health", auth.WithAuth(handlers.HealthStatusHandler)).Methods("GET")
+	router.Handle("/node", auth.WithAuth(handlers.GetNodeStatusHandler)).Methods("GET")
 
 	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
 	router.Handle("/images", auth.WithAuth(handlers.PullImageHandler)).Methods("POST")
@@ -35,7 +35,6 @@ func createRoutes(router *mux.Router) {
 
 	router.Handle("/network", auth.WithAuth(handlers.ListNetworksHandler)).Methods("GET")
 	router.Handle("/network", auth.WithAuth(handlers.PurgeNetworksHandler)).Methods("POST")
-	router.Handle("/node", auth.WithAuth(handlers.GetNodeStatusHandler)).Methods("GET")
 	router.Handle("/network/{container}/repair", auth.WithAuth(handlers.RepairNetworkHandler)).Methods("POST")
 
 	router.Handle("/loads/plan", auth.WithAuth(handlers.PlanLoadHandler)).Methods("POST")
