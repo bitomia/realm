@@ -22,11 +22,13 @@ var startDaemon = &cobra.Command{
 	Short:                 "Start a daemon",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		daemon.Start()
+		configFile, _ := cmd.Flags().GetString("config")
+		daemon.Start(configFile)
 	},
 }
 
 func init() {
+	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (default: realm.yaml in executable directory)")
 	daemonCmd.AddCommand(startDaemon)
 	rootCmd.AddCommand(daemonCmd)
 }

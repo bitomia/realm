@@ -183,15 +183,17 @@ func checkForCycles(l map[string]*loads.Load) error {
 	return nil
 }
 
-func readConfig(unmarshall func() (*Config, error)) error {
+func readConfig(unmarshall func() (*Config, error), configFilePath string) error {
 	setDefaults()
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("realm")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	// Check if REALM_CONFIG_FILE environment variable is set
-	if configFile := viper.GetString("config_file"); configFile != "" {
+	// Priority: command-line flag > environment variable > default
+	if configFilePath != "" {
+		viper.SetConfigFile(configFilePath)
+	} else if configFile := viper.GetString("config_file"); configFile != "" {
 		viper.SetConfigFile(configFile)
 	} else {
 		viper.AddConfigPath(getExeDir())
@@ -264,13 +266,13 @@ func readConfig(unmarshall func() (*Config, error)) error {
 	return nil
 }
 
-func readInConfig() error {
+func readInConfig(configFilePath string) error {
 	return readConfig(func() (*Config, error) {
 		if err = viper.ReadInConfig(); err == nil {
 			err = viper.Unmarshal(&config)
 		}
 		return config, err
-	})
+	}, configFilePath)
 }
 
 func readConfigFromReader(in io.Reader) error {
@@ -279,13 +281,18 @@ func readConfigFromReader(in io.Reader) error {
 			err = viper.Unmarshal(&config)
 		}
 		return config, err
-	})
+	}, "")
 }
 
 // Get reads configuration once from file or environment variables.
-func Get() *Config {
+// If configFilePath is provided, it will be used instead of the default locations.
+func Get(configFilePath ...string) *Config {
 	once.Do(func() {
-		err := readInConfig()
+		var path string
+		if len(configFilePath) > 0 {
+			path = configFilePath[0]
+		}
+		err := readInConfig(path)
 		if err != nil {
 			log.Fatal(err.Error())
 		}

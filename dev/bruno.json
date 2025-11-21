@@ -4,8 +4,8 @@
   "items": [
     {
       "type": "folder",
-      "name": "Ship API",
-      "filename": "Ship API",
+      "name": "Realm API",
+      "filename": "Realm API",
       "items": [
         {
           "type": "http",
@@ -852,7 +852,7 @@
       "variables": [
         {
           "name": "base_url",
-          "value": "http://172.16.123.135:9000",
+          "value": "http://localhost:9000",
           "enabled": true,
           "secret": false,
           "type": "text"
@@ -865,7 +865,7 @@
           "type": "text"
         }
       ],
-      "name": "Ship Dev"
+      "name": "Realm Dev"
     }
   ],
   "brunoConfig": {
