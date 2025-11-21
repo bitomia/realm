@@ -54,6 +54,23 @@ func NewError(code int, format string, a ...any) *ContainerError {
 	return &ContainerError{code, fmt.Sprintf(format, a...)}
 }
 
+// GetContainerdVersion verifies that containerd version is accessible.
+// Returns the version information if successful, or nil if connection fails.
+func GetContainerdVersion() (*containerd.Version, error) {
+	ctx, client, err := cruntime.CreateClient()
+	if err != nil {
+		slog.Error("Failed to create containerd client", "error", err.Error())
+		return nil, err
+	}
+	defer client.Close()
+
+	version, err := client.Version(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &version, nil
+}
+
 func RepairContainer(c db.Container) error {
 	// Plan:
 	// Check first if the container is in the expected state:

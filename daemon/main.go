@@ -55,13 +55,20 @@ func StartWithConfigFile(configFile string) {
 	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", daemonId)
 	slog.Debug("Daemon configuration", "config", *cfg)
 
+	slog.Info("Checking containerd version")
+	containerdVersion, err := containers.GetContainerdVersion()
+	if err != nil {
+		slog.Error("Cannot get volumes path", "error", err.Error())
+		os.Exit(1)
+	}
+	slog.Info("Containerd version", "version", containerdVersion)
+
 	volumesPath, err := volumes.GetVolumesPath()
 	if err != nil {
 		slog.Error("Cannot get volumes path", "error", err.Error())
 		os.Exit(1)
-	} else {
-		slog.Info("Volumes ready", "path", volumesPath)
 	}
+	slog.Info("Volumes ready", "path", volumesPath)
 
 	db := db.GetDB()
 	if db == nil {
