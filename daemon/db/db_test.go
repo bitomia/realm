@@ -7,9 +7,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +19,25 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 )
+
+const testConfig = `
+daemon:
+  id_path: ./realm.id
+
+nodes:
+  lab1:
+    url: http://localhost:9000
+
+loads:
+  containers:
+    web:
+      node: lab1
+      image: docker.io/nginx
+`
+
+func init() {
+	config.InitFromReader(strings.NewReader(testConfig))
+}
 
 // getFreePort returns a free port on localhost
 func getFreePort() (int, error) {

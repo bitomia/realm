@@ -23,15 +23,7 @@ import (
 )
 
 func Start() {
-	StartWithConfigFile("")
-}
-
-func StartWithConfigFile(configFile string) {
-	cfg := config.Get(configFile)
-	if err := config.GetError(); err != nil {
-		slog.Error("Error loading config", "error", err)
-		os.Exit(1)
-	}
+	cfg := config.Get()
 
 	// Configure slog handler based on log format
 	var handler slog.Handler

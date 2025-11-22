@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"strings"
-	"sync"
 
 	"github.com/spf13/viper"
 
@@ -123,13 +122,10 @@ type Config struct {
 var (
 	config *Config = nil
 	err    error   = nil
-	once   sync.Once
 )
 
 func resetConfig() {
 	config = nil
-	err = nil
-	once = sync.Once{}
 }
 
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
@@ -284,19 +280,10 @@ func readConfigFromReader(in io.Reader) error {
 	}, "")
 }
 
-// Get reads configuration once from file or environment variables.
-// If configFilePath is provided, it will be used instead of the default locations.
-func Get(configFilePath ...string) *Config {
-	once.Do(func() {
-		var path string
-		if len(configFilePath) > 0 {
-			path = configFilePath[0]
-		}
-		err := readInConfig(path)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	})
+func Get() *Config {
+	if config == nil {
+		log.Fatal("Configuration not initialized with config.Init()")
+	}
 	return config
 }
 
@@ -306,4 +293,33 @@ func GetError() error {
 
 func GetVersion() string {
 	return BuildGitCommit
+}
+
+func InitFromReader(in io.Reader) {
+	if config != nil {
+		log.Fatal("Configuration already initialized")
+	}
+
+	err := readConfigFromReader(in)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+}
+
+// Init reads configuration from file or environment variables.
+// If configFilePath is provided, it will be used instead of the default locations.
+func Init(configFilePath *string) {
+	if config != nil {
+		log.Fatal("Configuration already initialized")
+	}
+
+	var path string
+	if configFilePath != nil {
+		path = *configFilePath
+	}
+
+	err := readInConfig(path)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }

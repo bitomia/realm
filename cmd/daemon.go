@@ -22,12 +22,7 @@ var startDaemon = &cobra.Command{
 	Short:                 "Start a daemon",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		configFile, _ := cmd.Flags().GetString("config")
-		if configFile == "" {
-			daemon.Start()
-		} else {
-			daemon.StartWithConfigFile(configFile)
-		}
+		daemon.Start()
 	},
 }
 
