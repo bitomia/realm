@@ -109,6 +109,8 @@ type DiscoveryConfig struct {
 	MdnsEnabled bool `mapstructure:"mdns"`
 }
 
+type LoadsConfig map[string]loads.LoadConfig
+
 type Config struct {
 	// Client config
 	Nodes     map[string]*node.Node `mapstructure:"nodes"`
@@ -208,45 +210,30 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	}
 
 	// Check load uniqueness
-	loads := make(map[string]bool)
-	getUniqueValues(loads, config.Loads.Containers)
-	getUniqueValues(loads, config.Loads.Processes)
+	l := make(map[string]bool)
+	getUniqueValues(l, config.Loads)
 
 	// Create all loads
 	allDeps := make(map[string][]string)
-	for containerName, containerConfig := range config.Loads.Containers {
-		node, exists := config.Nodes[containerConfig.Node]
-		if !exists {
-			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", containerConfig.Node, containerName)
-		}
+	for loadName, loadConfig := range config.Loads {
 
-		driver, err := drivers.NewContainerDriverFromConfig(containerConfig)
+		node, exists := config.Nodes[loadConfig.Node]
+		if !exists {
+			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", loadConfig.Node, loadName)
+		}
+		driver, err := loads.BuildLoadDriver(loadConfig)
 		if err != nil {
 			return err
 		}
 
-		config.Loads.newLoad(containerName, node, driver)
-		allDeps[containerName] = containerConfig.DependsOn
-	}
-	for procesName, processConfig := range config.Loads.Processes {
-		node, exists := config.Nodes[processConfig.Node]
-		if !exists {
-			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", processConfig.Node, procesName)
-		}
-
-		driver, err := drivers.NewProcessDriverFromConfig(processConfig)
-		if err != nil {
-			return err
-		}
-
-		config.Loads.newLoad(procesName, node, driver)
-		allDeps[procesName] = processConfig.DependsOn
+		newLoad(loadName, node, driver)
+		allDeps[loadName] = loadConfig.DependsOn
 	}
 
 	// Traverse all loads and build a DAG
-	for loadName, load := range config.Loads.loads {
+	for loadName, load := range loadsRepository {
 		for _, depLoad := range allDeps[loadName] {
-			loads, exist := config.Loads.loads[depLoad]
+			loads, exist := loadsRepository[depLoad]
 			if !exist {
 				log.Fatalf("dependency node '%s' not exists", depLoad)
 			}
@@ -255,7 +242,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	}
 
 	// Check for cycles in the dependency graph
-	if err := checkForCycles(config.Loads.loads); err != nil {
+	if err := checkForCycles(loadsRepository); err != nil {
 		return err
 	}
 
@@ -322,4 +309,6 @@ func Init(configFilePath *string) {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+
+	loads.RegisterLoadDriver(drivers.ContainerDriver{})
 }

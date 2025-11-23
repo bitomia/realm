@@ -4,10 +4,16 @@ import (
 	"github.com/bitomia/realm/internal"
 )
 
-type LoadDriverType string
+type LoadDriverID string
+
+type LoadDriverInfo struct {
+	ID  LoadDriverID
+	New func(config map[string]interface{}) (LoadDriver, error)
+}
 
 type LoadDriver interface {
-	GetDriverType() LoadDriverType
+	GetLoadDriverID() LoadDriverID
+	DriverInfo() LoadDriverInfo
 	Plan() error
 	PlanDaemon() error
 	MarshalJSON() ([]byte, error)

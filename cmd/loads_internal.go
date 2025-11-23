@@ -15,7 +15,7 @@ import (
 
 func NewGraph(loads config.LoadsConfig) (graph.Graph[string, string], error) {
 	g := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic())
-	allLoads := loads.GetLoads()
+	allLoads := config.GetLoads()
 
 	for _, load := range allLoads {
 		if err := g.AddVertex(load.Name); err != nil {
@@ -35,7 +35,7 @@ func NewGraph(loads config.LoadsConfig) (graph.Graph[string, string], error) {
 }
 
 func generateSVG(loads config.LoadsConfig, outputFile string) error {
-	allLoads := loads.GetLoads()
+	allLoads := config.GetLoads()
 
 	if len(allLoads) == 0 {
 		return fmt.Errorf("No loads found")
@@ -46,7 +46,7 @@ func generateSVG(loads config.LoadsConfig, outputFile string) error {
 	for _, load := range allLoads {
 		// Determine node attributes based on driver type
 		var fillcolor, color string
-		if load.Driver.GetDriverType() == drivers.ProcessDriverType {
+		if load.Driver.GetLoadDriverID() == drivers.ProcessDriverID {
 			fillcolor = "#50C878"
 			color = "#2E7D4E"
 		} else {

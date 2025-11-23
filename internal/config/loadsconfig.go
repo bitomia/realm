@@ -4,41 +4,33 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/bitomia/realm/internal/loads"
-	"github.com/bitomia/realm/internal/loads/drivers"
+	internalLoads "github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/node"
 )
 
-type LoadsConfig struct {
-	Containers map[string]drivers.ContainerConfig `mapstructure:"containers"`
-	Processes  map[string]drivers.ProcessConfig   `mapstructure:"processes"`
+var (
+	loadsRepository map[string]*internalLoads.Load = make(map[string]*internalLoads.Load)
+)
 
-	loads map[string]*loads.Load
-}
-
-func (l *LoadsConfig) newLoad(name string, node *node.Node, driver loads.LoadDriver) (*loads.Load, error) {
-	if l.loads == nil {
-		l.loads = make(map[string]*loads.Load)
-	}
-
-	if _, exists := l.loads[name]; exists {
+func newLoad(name string, node *node.Node, driver internalLoads.LoadDriver) (*internalLoads.Load, error) {
+	if _, exists := loadsRepository[name]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}
-	l.loads[name] = &loads.Load{Name: name, Node: node, Driver: driver}
-	return l.loads[name], nil
+	loadsRepository[name] = &internalLoads.Load{Name: name, Node: node, Driver: driver}
+	return loadsRepository[name], nil
 }
 
-func (l *LoadsConfig) GetLoads() map[string]*loads.Load {
-	loads := make(map[string]*loads.Load)
-	for _, load := range l.loads {
+func GetLoads() map[string]*internalLoads.Load {
+	loads := make(map[string]*internalLoads.Load)
+	for _, load := range loadsRepository {
 		loads[load.Name] = load
 	}
 	return loads
 }
 
-func (l *LoadsConfig) Hash() [32]byte {
+func GetLoadsHash() [32]byte {
 	var hashes [][32]byte
-	for _, l := range l.loads {
+	for _, l := range loadsRepository {
 		hashes = append(hashes, l.Hash())
 	}
 

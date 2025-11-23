@@ -11,13 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/drivers"
+	"github.com/bitomia/realm/internal/types"
 )
 
 const testConfig = `
@@ -29,13 +31,15 @@ nodes:
     url: http://localhost:9000
 
 loads:
-  containers:
-    web:
-      node: lab1
+  web:
+    node: lab1
+    driver: container
+    driver_config:
       image: docker.io/nginx
 `
 
 func init() {
+	drivers.RegisterStdDrivers()
 	config.InitFromReader(strings.NewReader(testConfig))
 }
 

@@ -7,13 +7,15 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
+
 	"github.com/bitomia/realm/internal"
 	"github.com/bitomia/realm/internal/fs"
 	"github.com/bitomia/realm/internal/loads"
 	"github.com/bitomia/realm/internal/signals"
 )
 
-const ProcessDriverType loads.LoadDriverType = "process"
+const ProcessDriverID loads.LoadDriverID = "process"
 
 type ProcessConfig struct {
 	Name       string
@@ -42,7 +44,12 @@ type ProcessDriver struct {
 	PID        int
 }
 
-func NewProcessDriverFromConfig(config ProcessConfig) (loads.LoadDriver, error) {
+func NewProcessDriverFromConfig(c map[string]interface{}) (loads.LoadDriver, error) {
+	var config ProcessConfig
+	if err := mapstructure.Decode(c, &config); err != nil {
+		return nil, err
+	}
+
 	stopSignal, ok := signals.StringToSignal(config.StopSignal)
 	if !ok {
 		return nil, fmt.Errorf("Invalid StopSignal")
@@ -61,11 +68,18 @@ func NewProcessDriverFromConfig(config ProcessConfig) (loads.LoadDriver, error) 
 	return driver, nil
 }
 
-func (p *ProcessDriver) GetDriverType() loads.LoadDriverType {
-	return ProcessDriverType
+func (c ProcessDriver) DriverInfo() loads.LoadDriverInfo {
+	return loads.LoadDriverInfo{
+		ID:  ProcessDriverID,
+		New: NewProcessDriverFromConfig,
+	}
 }
 
-func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
+func (c ProcessDriver) GetLoadDriverID() loads.LoadDriverID {
+	return ProcessDriverID
+}
+
+func (p ProcessDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&ProcessRequest{
 		StartCmd:   p.StartCmd,
 		StartArgs:  p.StartArgs,
@@ -75,7 +89,7 @@ func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
+func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 	aux := &ProcessRequest{}
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
@@ -94,14 +108,14 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *ProcessDriver) Plan() error {
+func (p ProcessDriver) Plan() error {
 	if strings.Contains(p.StartCmd, " ") {
 		return fmt.Errorf("StartCmd must be one string")
 	}
 	return nil
 }
 
-func (p *ProcessDriver) PlanDaemon() error {
+func (p ProcessDriver) PlanDaemon() error {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.StartCmd); err != nil {
 		return fmt.Errorf("Executable %q not found in PATH\n", p.StartCmd)
@@ -116,7 +130,7 @@ func (p *ProcessDriver) PlanDaemon() error {
 	return nil
 }
 
-func (p *ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
+func (p ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -155,7 +169,7 @@ func (p *ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath
 	return nil
 }
 
-func (p *ProcessDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
+func (p ProcessDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
 	load, err := repository.GetLoad(loadName)
 	if err != nil {
 		return fmt.Errorf("failed to get load: %w", err)

@@ -7,11 +7,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/drivers"
 )
 
 var rootCmd = &cobra.Command{}
 
 func main() {
+	drivers.RegisterStdDrivers()
+
 	rootCmd.Use = "realm"
 	rootCmd.Short = "Realm command-line interface"
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

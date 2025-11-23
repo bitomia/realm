@@ -7,19 +7,19 @@ import (
 	"github.com/bitomia/realm/internal/node"
 )
 
+type LoadConfig struct {
+	Name         string
+	Node         string                 `mapstructure:"node"`
+	DependsOn    []string               `mapstructure:"depends_on"`
+	Driver       LoadDriverID           `mapstructure:"driver"`
+	DriverConfig map[string]interface{} `mapstructure:"driver_config"`
+}
+
 type Load struct {
 	Name      string
 	Driver    LoadDriver
 	DependsOn []*Load
 	Node      *node.Node
-}
-
-type LoadData struct {
-	Name       string          `json:"name"`
-	DriverType LoadDriverType  `json:"driver_type"`
-	Driver     json.RawMessage `json:"driver"`
-	DependsOn  []string        `json:"depends_on"`
-	Node       string          `json:"node"`
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {
@@ -31,22 +31,30 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 	for i, dep := range l.DependsOn {
 		dependsOn[i] = dep.Name
 	}
-	jsonDriver, err := json.Marshal(l.Driver)
-	if err != nil {
-		return nil, err
+
+	var driverConfig map[string]interface{}
+	{
+		driverConfigJson, err := json.Marshal(l.Driver)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(driverConfigJson, &driverConfig); err != nil {
+			return nil, err
+		}
 	}
-	return json.Marshal(&LoadData{
-		Name:       l.Name,
-		DriverType: l.Driver.GetDriverType(),
-		Driver:     jsonDriver,
-		DependsOn:  dependsOn,
-		Node:       nodeName,
+
+	return json.Marshal(&LoadConfig{
+		Name:         l.Name,
+		Driver:       l.Driver.GetLoadDriverID(),
+		DriverConfig: driverConfig,
+		DependsOn:    dependsOn,
+		Node:         nodeName,
 	})
 }
 
 func (l *Load) UnmarshalJSON(data []byte) error {
-	aux := LoadData{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	aux := LoadConfig{}
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 

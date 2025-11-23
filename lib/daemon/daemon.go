@@ -8,6 +8,7 @@ import (
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/internal/drivers"
 	"github.com/bitomia/realm/internal/requests"
 )
 
@@ -16,6 +17,7 @@ import (
  */
 //export StartDaemon
 func StartDaemon() {
+	drivers.RegisterStdDrivers()
 	daemon.Start()
 }
 

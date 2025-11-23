@@ -1,39 +1,34 @@
 package loads
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
-type LoadDriverBuilder func() (l LoadDriver, err error)
+var loadDrivers = make(map[LoadDriverID]LoadDriverInfo)
 
-var loadDrivers = make(map[LoadDriverType]LoadDriverBuilder)
-
-func RegisterLoadDriver(t LoadDriverType, b LoadDriverBuilder) error {
-	if _, exists := loadDrivers[t]; exists {
-		return fmt.Errorf("LoadDriverType '%s' already registered", t)
+func RegisterLoadDriver(d LoadDriver) error {
+	info := d.DriverInfo()
+	if _, exists := loadDrivers[info.ID]; exists {
+		return fmt.Errorf("LoadDriverID '%s' already registered", info.ID)
 	}
-	loadDrivers[t] = b
+	loadDrivers[info.ID] = info
 	return nil
 }
 
-func UnregisterLoadDriver(t LoadDriverType, b LoadDriverBuilder) error {
-	if _, exists := loadDrivers[t]; !exists {
-		return fmt.Errorf("LoadDriverType '%s' not registered", t)
+func UnregisterLoadDriver(id LoadDriverID) error {
+	if _, exists := loadDrivers[id]; !exists {
+		return fmt.Errorf("LoadDriverID '%s' not registered", id)
 	}
-	delete(loadDrivers, t)
+	delete(loadDrivers, id)
 	return nil
 }
 
-func BuildLoadDriver(d LoadData) (LoadDriver, error) {
-	if _, exists := loadDrivers[d.DriverType]; !exists {
-		return nil, fmt.Errorf("LoadDriverType '%s' not registered", d.DriverType)
+func BuildLoadDriver(d LoadConfig) (LoadDriver, error) {
+	if _, exists := loadDrivers[d.Driver]; !exists {
+		return nil, fmt.Errorf("LoadDriverID '%s' not registered", d.Driver)
 	}
-	driver, err := loadDrivers[d.DriverType]()
+	driver, err := loadDrivers[d.Driver].New(d.DriverConfig)
 	if err != nil {
-		return nil, err
-	}
-	if err = json.Unmarshal(d.Driver, driver); err != nil {
 		return nil, err
 	}
 	return driver, nil

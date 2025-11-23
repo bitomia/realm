@@ -13,7 +13,7 @@ import (
 )
 
 func doPlanLoads(cfg *config.Config, client *internal.Client) error {
-	loads := cfg.Loads.GetLoads()
+	loads := config.GetLoads()
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads present in config file")
 	}
@@ -101,7 +101,7 @@ var runLoads = &cobra.Command{
 		}
 
 		log.Info("Starting loads")
-		loads := cfg.Loads.GetLoads()
+		loads := config.GetLoads()
 		loaded := make(map[string]bool)
 
 		for _, l := range loads {

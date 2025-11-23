@@ -1,6 +1,6 @@
 daemon:
-  id_path: /home/juan/realm_data/realm.id
-  etcd_data_dir: /home/juan/realm_data/etcd
+  id_path: /opt/realm_data/realm.id
+  etcd_data_dir: /opt/realm_data/etcd
   cni_path: /opt/cni/bin
   volumes_pool: realmpool
   listen_address: 0.0.0.0
@@ -12,32 +12,29 @@ nodes:
     url: http://192.168.1.55:9000
   lab3:
     url: http://192.168.1.65:9000
-    tags: gpu
 
-jobs:
-  containers:
-    agent:
-      tags: gpu
-      image: docker.io/llama
-
-load:
-  include:
-    - load1.yaml
-
-  containers:
-    web:
-      node: lab1
+loads:
+  web:
+    node: lab1
+    driver: container
+    driver_config:
       image: docker.io/nginx
-      depends_on:
-        - netcat
+    depends_on:
+      - web2
 
-    web2:
-      node: lab2
+  web2:
+    node: lab1
+    driver: container
+    driver_config:
       image: docker.io/nginx
-      depends_on:
-        - netcat
+    depends_on:
+      - netcat
 
-  processes:
-    netcat:
-      start_cmd: nc -l 12345
+  netcat:
+    node: lab1
+    driver: process
+    driver_config:
+      start_cmd: nc
       stop_signal: SIGHUP
+      depends_on:
+        - web
