@@ -1,8 +1,13 @@
 package main
 
+/*
+#include <stdlib.h>
+*/
+import "C"
+
 import (
-	"C"
 	"encoding/json"
+	"unsafe"
 
 	"github.com/bitomia/realm/daemon"
 	"github.com/bitomia/realm/daemon/api"
@@ -11,7 +16,6 @@ import (
 	"github.com/bitomia/realm/internal/drivers"
 	"github.com/bitomia/realm/internal/requests"
 )
-
 /**
  * Start a daemon instance using the realm YAML config file found in the working dir
  */
@@ -28,6 +32,16 @@ func StartDaemon() {
 //export GetVersion
 func GetVersion() *C.char {
 	return C.CString(config.GetVersion())
+}
+
+/**
+ * free allocated C string
+ */
+//export Realm_Free
+func Realm_Free(p *C.char) {
+	if p != nil {
+		C.free(unsafe.Pointer(p))
+	}
 }
 
 /**
