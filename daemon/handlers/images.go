@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/containerd/containerd"
@@ -11,6 +11,8 @@ import (
 )
 
 func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("ListImagesHandler")
+
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx, client, err := cruntime.CreateClient()
@@ -22,7 +24,7 @@ func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 
 	images, err := client.ImageService().List(ctx)
 	if err != nil {
-		log.Printf("Failed to list images: %v", err)
+		slog.Error("ListImagesHandler", "msg", "failed to list images", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -31,6 +33,8 @@ func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PullImageHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("PullImageHandler")
+
 	type PullImage struct {
 		Image string `json:"image"`
 	}
@@ -39,6 +43,7 @@ func PullImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
+		slog.Error("PullImageHandler", "msg", "cannot create cruntime client", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -46,6 +51,7 @@ func PullImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	image, err := client.Pull(ctx, pullImage.Image, containerd.WithPullUnpack)
 	if err != nil {
+		slog.Error("PullImageHandler", "msg", "cannot pull image", "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
