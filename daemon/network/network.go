@@ -58,7 +58,7 @@ func getSubnet(network string) string {
 	return fmt.Sprintf("%s/24", subnetAddr.String())
 }
 
-func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.PortmapOpts) string {
+func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.Portmap) string {
 	var ipMaskStr string
 	if ipMask {
 		ipMaskStr = "true"

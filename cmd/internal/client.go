@@ -322,7 +322,7 @@ func (c *Client) CreateNetwork(node string, container string) error {
 		Timeout: 10 * time.Second,
 	}
 
-	portMaps := []dto.PortmapOpts{{
+	portMaps := []dto.Portmap{{
 		HostPort:      12000,
 		ContainerPort: 80,
 		Protocol:      "tcp",
