@@ -21,7 +21,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
 
 func RepairContainerHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +62,7 @@ func CreateContainerHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
 	slog.Info("CreateContainerHandler", "container", containerName)
 
-	var opts requests.CreateContainerOpts
+	var opts dto.CreateContainerRequest
 	json.NewDecoder(r.Body).Decode(&opts)
 
 	// Use the new API layer
@@ -100,7 +100,7 @@ func UpdateContainerQuotasHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("UpdateContainerQuotasHandler", "container", containerName)
 
 	type UpdateContainerQuotas struct {
-		Quotas requests.Quotas `json:"quotas"`
+		Quotas dto.Quotas `json:"quotas"`
 	}
 	var updateContainerQuotas UpdateContainerQuotas
 	json.NewDecoder(r.Body).Decode(&updateContainerQuotas)

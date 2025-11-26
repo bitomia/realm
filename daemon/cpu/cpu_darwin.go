@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/bitomia/realm/daemon/cruntime"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
 
 func GetCPUStat(s *cpu.Stats) (float64, float64) {
@@ -20,7 +20,7 @@ func GetCPUStat(s *cpu.Stats) (float64, float64) {
 	return float64(active), float64(total)
 }
 
-func GetNodeState() (*requests.NodeState, error) {
+func GetNodeState() (*dto.NodeState, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func GetNodeState() (*requests.NodeState, error) {
 	if err != nil {
 		return nil, err
 	}
-	var nodeState requests.NodeState
+	var nodeState dto.NodeState
 	nodeState.Containers = containersState
 	nodeState.NumCPU = runtime.NumCPU()
 	nodeState.UserCPU = cpuStat.User

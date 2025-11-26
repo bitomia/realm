@@ -1,6 +1,8 @@
-package requests
+package dto
 
-type ContainerState struct {
+type ContainerStatesResponse map[string]ContainerStateResponse
+
+type ContainerStateResponse struct {
 	ContainerID   string  `json:"container_id"`
 	CPUUsage      float64 `json:"cpu_usage"` // Important (percentage)
 	CPUSystem     float64 `json:"cpu_system"`
@@ -10,7 +12,7 @@ type ContainerState struct {
 	MemoryPercent float64 `json:"mem_percentage"` // Important (percentage)
 }
 
-type NodeState struct {
+type NodeStateResponse struct {
 	NumCPU          int     `json:"ncpu"`
 	UserCPU         uint64  `json:"cpu_user"`
 	IdleCPU         uint64  `json:"cpu_idle"`
@@ -25,5 +27,5 @@ type NodeState struct {
 
 	FreeStorage uint64 `json:"free_storage"`
 
-	Containers []ContainerState `json:"containers"`
+	Containers []ContainerStateResponse `json:"containers"`
 }

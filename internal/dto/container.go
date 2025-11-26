@@ -1,4 +1,4 @@
-package requests
+package dto
 
 type CpuCFS struct {
 	CpuQuota  int64  `json:"quota"`
@@ -17,24 +17,11 @@ type MountVolume struct {
 	Target string `json:"target"`
 }
 
-type CreateContainerOpts struct {
+type CreateContainerRequest struct {
 	Image            string      `json:"image"`
 	Owner            string      `json:"owner"`
 	VolumeMountPoint string      `json:"volume_mount_point,omitempty"`
 	MountVolume      MountVolume `json:"mount_volume,omitempty"`
 	Env              []string    `json:"env,omitempty"`
 	Quotas           Quotas      `json:"quotas,omitempty"`
-}
-
-type PortmapOpts struct {
-	HostPort      uint16 `json:"host_port"`
-	ContainerPort uint16 `json:"container_port"`
-	Protocol      string `json:"protocol"`
-}
-
-type StartNetworkOpts struct {
-	Network string        `json:"network"`
-	IPMasq  bool          `json:"ip_masq,omitempty"`
-	DNS     bool          `json:"dns,omitempty"`
-	PortMap []PortmapOpts `json:"portmap,omitempty"`
 }

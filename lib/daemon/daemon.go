@@ -14,8 +14,9 @@ import (
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/drivers"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
+
 /**
  * Start a daemon instance using the realm YAML config file found in the working dir
  */
@@ -94,7 +95,7 @@ func CreateContainer(containerName *C.char, optsJSON *C.char) *C.char {
 	goContainerName := C.GoString(containerName)
 	goOptsJSON := C.GoString(optsJSON)
 
-	var opts requests.CreateContainerOpts
+	var opts dto.CreateContainerRequest
 	if err := json.Unmarshal([]byte(goOptsJSON), &opts); err != nil {
 		return C.CString(api.ResponseToJSON(false, nil, "invalid JSON options: "+err.Error()))
 	}

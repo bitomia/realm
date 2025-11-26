@@ -21,7 +21,7 @@ import (
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
 	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 	"github.com/bitomia/realm/internal/types"
 )
 
@@ -232,7 +232,7 @@ func stopContainer(containerName string, signal syscall.Signal) error {
 	return nil
 }
 
-func CreateContainer(containerName string, opts requests.CreateContainerOpts, extraSpecOpts []oci.SpecOpts) error {
+func CreateContainer(containerName string, opts dto.CreateContainerRequest, extraSpecOpts []oci.SpecOpts) error {
 	if opts.VolumeMountPoint != "" && (opts.MountVolume.Volume != "" || opts.MountVolume.Target != "") {
 		return errors.New("volume_mount_point and mount_volume cannot be set at the same time")
 	}

@@ -9,30 +9,30 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/mackerelio/go-osstat/cpu"
 
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
 
-func GetCgroupMemLimit(memLimit float64) float64 {
+func getCgroupMemLimit(memLimit float64) float64 {
 	if memLimit == float64(^uint64(0)) {
 		return GetMemLimit()
 	}
 	return memLimit
 }
 
-func GetMemUsage(memStat *cgroupstats.MemoryStat) float64 {
+func getMemUsage(memStat *cgroupstats.MemoryStat) float64 {
 	if v := memStat.InactiveFile; v < memStat.Usage {
 		return float64(memStat.Usage - v)
 	}
 	return float64(memStat.Usage)
 }
 
-func GetContainerState(ctx context.Context, client *containerd.Client) (map[string]requests.ContainerState, error) {
+func getContainersState(ctx context.Context, client *containerd.Client) (dto.ContainerStatesResponse, error) {
 	containers, err := client.Containers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var stats = make(map[string]requests.ContainerState)
+	var stats = make(dto.ContainerStatesResponse)
 	for _, container := range containers {
 		id := container.ID()
 		task, err := container.Task(ctx, nil)
@@ -52,11 +52,11 @@ func GetContainerState(ctx context.Context, client *containerd.Client) (map[stri
 		if err := statsMetrics.Unmarshal(metrics.Data.Value); err != nil {
 			return nil, err
 		}
-		memUsage := GetMemUsage(statsMetrics.Memory)
-		memLimit := GetCgroupMemLimit(float64(statsMetrics.Memory.UsageLimit))
+		memUsage := getMemUsage(statsMetrics.Memory)
+		memLimit := getCgroupMemLimit(float64(statsMetrics.Memory.UsageLimit))
 		memPercent := memUsage / memLimit * 100
 
-		stats[id] = requests.ContainerState{
+		stats[id] = dto.ContainerStateResponse{
 			ContainerID:   id,
 			CPUUsage:      float64(statsMetrics.CPU.UsageUsec),
 			CPUSystem:     float64(statsMetrics.CPU.SystemUsec),
@@ -70,9 +70,26 @@ func GetContainerState(ctx context.Context, client *containerd.Client) (map[stri
 	return stats, nil
 }
 
-func GetContainersState(ctx context.Context, client *containerd.Client) (*cpu.Stats, float64, []requests.ContainerState, error) {
+// CollectNodeState collects and calculates resource usage statistics for all containers and the host node.
+// It takes two snapshots of container and CPU metrics separated by an interval, then calculates
+// the delta between them to determine accurate CPU usage percentages.
+//
+// Parameters:
+//   - ctx: Go context
+//   - client: Containerd client used to query container information
+//
+// Returns:
+//   - *cpu.Stats: The final CPU statistics snapshot from the host system
+//   - float64: The overall node CPU usage percentage during the measurement interval
+//   - []dto.ContainerStateResponse: Slice containing resource usage stats for each container, including:
+//   - CPU usage (total, system, and user percentages)
+//   - Memory usage, limit, and percentage
+//   - error: Any error encountered during metric collection, nil on success
+//
+// Note: Memory statistics are point-in-time values from the second snapshot, not deltas.
+func CollectNodeState(ctx context.Context, client *containerd.Client) (*cpu.Stats, float64, []dto.ContainerStateResponse, error) {
 	statsATime := time.Now()
-	statsA, err := GetContainerState(ctx, client)
+	statsA, err := getContainersState(ctx, client)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -84,7 +101,7 @@ func GetContainersState(ctx context.Context, client *containerd.Client) (*cpu.St
 	time.Sleep(500 * time.Millisecond)
 	timeDelta := time.Since(statsATime)
 
-	statsB, err := GetContainerState(ctx, client)
+	statsB, err := getContainersState(ctx, client)
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -93,14 +110,14 @@ func GetContainersState(ctx context.Context, client *containerd.Client) (*cpu.St
 		return nil, 0, nil, err
 	}
 
-	var containers []requests.ContainerState
+	var containers []dto.ContainerStateResponse
 	for container, statB := range statsB {
 		statA := statsA[container]
 		cpuUsage := (statB.CPUUsage*1000 - statA.CPUUsage*1000) / float64(timeDelta.Nanoseconds()) * 100
 		cpuSystem := (statB.CPUSystem*1000 - statA.CPUSystem*1000) / float64(timeDelta.Nanoseconds()) * 100
 		cpuUser := (statB.CPUUser*1000 - statA.CPUUser*1000) / float64(timeDelta.Nanoseconds()) * 100
 
-		stat := requests.ContainerState{
+		stat := dto.ContainerStateResponse{
 			ContainerID:   container,
 			CPUUsage:      cpuUsage,
 			CPUSystem:     cpuSystem,

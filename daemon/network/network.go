@@ -24,7 +24,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
 	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
 
 const MIN_SUBNET = 167772160 // 10.0.0.0
@@ -58,7 +58,7 @@ func getSubnet(network string) string {
 	return fmt.Sprintf("%s/24", subnetAddr.String())
 }
 
-func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []requests.PortmapOpts) string {
+func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.PortmapOpts) string {
 	var ipMaskStr string
 	if ipMask {
 		ipMaskStr = "true"
@@ -168,7 +168,7 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 	return nil
 }
 
-func StartNetwork(containerName string, opts requests.StartNetworkOpts) (error, map[string][]interface{}, net.IP, net.IP) {
+func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, map[string][]interface{}, net.IP, net.IP) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error()), nil, nil, nil

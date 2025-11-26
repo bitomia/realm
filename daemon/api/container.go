@@ -8,7 +8,7 @@ import (
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/internal/requests"
+	"github.com/bitomia/realm/internal/dto"
 )
 
 // ListContainers returns a list of all containers with their status
@@ -69,7 +69,7 @@ func ListContainers() (map[string]containers.ContainerInfo, error) {
 }
 
 // CreateContainer creates a new container with the given name and options
-func CreateContainer(containerName string, opts requests.CreateContainerOpts) error {
+func CreateContainer(containerName string, opts dto.CreateContainerRequest) error {
 	if err := containers.CreateContainer(containerName, opts, nil); err != nil {
 		return fmt.Errorf("failed to create container %s: %w", containerName, err)
 	}

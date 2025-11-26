@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/internal/dto"
 	"github.com/bitomia/realm/internal/loads"
-	"github.com/bitomia/realm/internal/requests"
 )
 
 type Image struct {
@@ -190,7 +190,7 @@ func (c *Client) CreateContainer(node string, name string, image string) error {
 	}
 	url := fmt.Sprintf("%s/containers/%s", node, name)
 
-	request := requests.CreateContainerOpts{Image: image}
+	request := dto.CreateContainerRequest{Image: image}
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 
@@ -322,12 +322,12 @@ func (c *Client) CreateNetwork(node string, container string) error {
 		Timeout: 10 * time.Second,
 	}
 
-	portMaps := []requests.PortmapOpts{{
+	portMaps := []dto.PortmapOpts{{
 		HostPort:      12000,
 		ContainerPort: 80,
 		Protocol:      "tcp",
 	}}
-	request := requests.StartNetworkOpts{Network: container, IPMasq: true, DNS: false, PortMap: portMaps}
+	request := dto.StartNetworkRequest{Network: container, IPMasq: true, DNS: false, PortMap: portMaps}
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 
@@ -419,8 +419,8 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-func (c *Client) GetNodeState(node string) (*requests.NodeState, error) {
-	var status requests.NodeState
+func (c *Client) GetNodeState(node string) (*dto.NodeStateResponse, error) {
+	var status dto.NodeStateResponse
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
