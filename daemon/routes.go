@@ -15,7 +15,6 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/images", auth.WithAuth(handlers.PullImageHandler)).Methods("POST")
 
 	router.Handle("/containers", auth.WithAuth(handlers.ListContainersHandler)).Methods("GET")
-
 	router.Handle("/containers/{container}", auth.WithAuth(handlers.CreateContainerHandler)).Methods("POST")
 	router.Handle("/containers/{container}/state", auth.WithAuth(handlers.UpdateContainerStateHandler)).Methods("PUT")
 	router.Handle("/containers/{container}/quotas", auth.WithAuth(handlers.UpdateContainerQuotasHandler)).Methods("PUT")
@@ -23,12 +22,9 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/containers/{container}/repair", auth.WithAuth(handlers.RepairContainerHandler)).Methods("POST")
 	router.Handle("/containers/{container}/signal", auth.WithAuth(handlers.SendContainerSignalHandler)).Methods("POST")
 	router.Handle("/containers/{container}/migrate", auth.WithAuth(handlers.MigrateContainerHandler)).Methods("POST")
-
 	router.Handle("/containers/{container}/logs", auth.WithAuth(handlers.ReadContainerLogsHandler)).Methods("GET")
-
 	router.Handle("/containers/{container}/network", auth.WithAuth(handlers.LinkContainerToNetworkHandler)).Methods("POST")
 	router.Handle("/containers/{container}/network", auth.WithAuth(handlers.UnlinkContainerFromNetworkHandler)).Methods("DELETE")
-
 	router.Handle("/containers/{id}/server", auth.WithAuth(handlers.GetProxyConfigHandler)).Methods("GET")
 	router.Handle("/containers/{container}/proxy", auth.WithAuth(handlers.SetProxyHandler)).Methods("POST")
 	router.Handle("/containers/{container}/proxy", auth.WithAuth(handlers.DeleteProxyHandler)).Methods("DELETE")
