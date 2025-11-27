@@ -27,5 +27,4 @@ func Realm_Free(p *C.char) {
 	}
 }
 
-
 func main() {}

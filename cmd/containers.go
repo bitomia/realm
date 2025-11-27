@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/cmd/internal"
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 )
 
@@ -25,7 +25,7 @@ var listContainers = &cobra.Command{
 	Short:                 "List all available containers",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		containersPerNode, err := client.GetAllContainers()
 		if err != nil {
 			log.Error("Error %v\n", err)
@@ -46,8 +46,8 @@ var createContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Creating container %s on %s with image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
 		if err := client.CreateContainer(node.Url, args[1], args[2]); err != nil {
@@ -64,8 +64,8 @@ var startContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Starting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.StartContainer(node.Url, args[1]); err != nil {
@@ -82,8 +82,8 @@ var stopContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Stopping container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.StopContainer(node.Url, args[1]); err != nil {
@@ -100,8 +100,8 @@ var deleteContainer = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Deleting container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteContainer(node.Url, args[1]); err != nil {
@@ -118,8 +118,8 @@ var updateQuotas = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		cpuQuota, _ := cmd.Flags().GetInt64("cpu")
 		memoryLimit, _ := cmd.Flags().GetInt64("memory")
@@ -140,8 +140,8 @@ var repairContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Repairing container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.RepairContainer(node.Url, args[1]); err != nil {
@@ -158,8 +158,8 @@ var sendSignal = &cobra.Command{
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Sending signal %s to container %s on %s\n", color.CyanString(args[2]), color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.SendContainerSignal(node.Url, args[1], args[2]); err != nil {
@@ -176,8 +176,8 @@ var migrateContainer = &cobra.Command{
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Migrating container %s on %s to image %s\n", color.CyanString(args[1]), color.CyanString(args[0]), color.CyanString(args[2]))
 		if err := client.MigrateContainer(node.Url, args[1], args[2]); err != nil {
@@ -194,8 +194,8 @@ var getLogs = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Getting logs for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetContainerLogs(node.Url, args[1]); err != nil {

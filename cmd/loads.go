@@ -7,12 +7,12 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/cmd/internal"
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/internal/config"
 )
 
-func doPlanLoads(cfg *config.Config, client *internal.Client) error {
+func doPlanLoads(cfg *config.Config, client *clientPkg.Client) error {
 	loads := config.GetLoads()
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads present in config file")
@@ -69,7 +69,7 @@ var planLoads = &cobra.Command{
 			return
 		}
 
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		if err := doPlanLoads(cfg, &client); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}
@@ -87,7 +87,7 @@ var runLoads = &cobra.Command{
 			return
 		}
 
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 
 		// Plan all loads first
 		if err := doPlanLoads(cfg, &client); err != nil {

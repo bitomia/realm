@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	cmdInternal "github.com/bitomia/realm/cmd/internal"
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/internal"
 )
@@ -25,9 +25,9 @@ var nodeStates = &cobra.Command{
 	Short:                 "List and retrieve all node states",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := cmdInternal.NewClient()
+		client := clientPkg.NewClient()
 
-		for id, node := range cmdInternal.GetNodes() {
+		for id, node := range clientPkg.GetNodes() {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
 			if node.MAC != nil {

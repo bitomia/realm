@@ -22,17 +22,17 @@ func GetCPUStat(s *cpu.Stats) (float64, float64) {
 	return float64(active), float64(total)
 }
 
-func GetNodeState() (*dto.NodeState, error) {
+func GetNodeState() (*dto.NodeStateResponse, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return nil, err
 	}
 	defer client.Close()
 
-	var nodeState dto.NodeState
+	var nodeState dto.NodeStateResponse
 	nodeState.NumCPU = runtime.NumCPU()
 
-	cpuStat, cpuUsage, containersState, err := GetContainersState(ctx, client)
+	cpuStat, cpuUsage, containersState, err := CollectNodeState(ctx, client)
 	if err == nil {
 		nodeState.Containers = containersState
 		nodeState.UserCPU = cpuStat.User
