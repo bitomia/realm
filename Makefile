@@ -56,13 +56,13 @@ all:
 	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)"
 
 .PHONY: lib
-lib: lib-daemon lib-client
+lib: lib-client lib-daemon
 
 .PHONY: lib-daemon
 lib-daemon: export CGO_ENABLED=1
 lib-daemon: $(BIN_DIR)
 	@echo "Building C shared library for daemon..."
-	$(GO) build -o $(DAEMON_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" lib/daemon/daemon.go
+	$(GO) build -o $(DAEMON_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./lib/daemon
 ifneq ($(OS),Windows_NT)
 	@mv $(DAEMON_SHARED_HEADER) $(BIN_DIR)$(SEP)realm-daemon.h
 endif
@@ -87,7 +87,7 @@ endif
 lib-client: export CGO_ENABLED=1
 lib-client: $(BIN_DIR)
 	@echo "Building C shared library for client..."
-	$(GO) build -o $(CLIENT_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" lib/client/client.go
+	$(GO) build -o $(CLIENT_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./lib/client
 ifneq ($(OS),Windows_NT)
 	@mv $(CLIENT_SHARED_HEADER) $(BIN_DIR)$(SEP)realm-client.h
 endif

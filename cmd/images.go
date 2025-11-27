@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/cmd/internal"
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 )
 
@@ -23,7 +23,7 @@ var listImages = &cobra.Command{
 	Use:   "ls",
 	Short: "List all available images",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		imagesPerNode, err := client.GetAllImages()
 		if err != nil {
 			color.Red("Error %v\n", err)
@@ -44,7 +44,7 @@ var pullImage = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		color.Blue("Pulling image %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.PullImage(args[0], args[1]); err != nil {
 			color.Red("Error pulling image: %v\n", err)

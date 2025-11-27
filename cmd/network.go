@@ -6,7 +6,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/cmd/internal"
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 )
 
@@ -25,7 +25,7 @@ var listNetworks = &cobra.Command{
 	Short:                 "List all available network",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		color.Blue("Listing networks...\n")
 		networksPerHost, err := client.ListNetworks()
 
@@ -46,8 +46,8 @@ var createNetwork = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Creating network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.CreateNetwork(node.Url, args[1]); err != nil {
@@ -64,8 +64,8 @@ var deleteNetwork = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Deleting network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteNetwork(node.Url, args[1]); err != nil {
@@ -82,8 +82,8 @@ var repairNetwork = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
-		node := internal.GetNode(args[0])
+		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
 
 		color.Blue("Repairing network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.RepairNetwork(node.Url, args[1]); err != nil {

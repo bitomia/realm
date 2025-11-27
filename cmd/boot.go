@@ -63,7 +63,7 @@ package main
 // 	Args:                  cobra.NoArgs,
 // 	DisableFlagsInUseLine: true,
 // 	Run: func(cmd *cobra.Command, args []string) {
-// 		client := internal.NewClient()
+// 		client := clientPkg.NewClient()
 // 		staticOnly, _ := cmd.Flags().GetBool("static")
 // 		all, _ := cmd.Flags().GetBool("all")
 
@@ -85,7 +85,7 @@ package main
 // 				nodes[node.Name] = node
 // 			}
 // 		} else {
-// 			nodes = internal.GetNodes()
+// 			nodes = clientPkg.GetNodes()
 // 		}
 
 // 		nodeType := "all cluster"

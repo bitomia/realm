@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-
-	"github.com/bitomia/realm/cmd/internal"
 )
 
 var proxyCmd = &cobra.Command{
@@ -25,7 +24,7 @@ var getProxyConfig = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		color.Blue("Getting proxy config for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetProxyConfig(args[0], args[1]); err != nil {
 			color.Red("Error getting proxy config: %v\n", err)
@@ -39,7 +38,7 @@ var setProxy = &cobra.Command{
 	Args:                  cobra.ExactArgs(3),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		nodesStr, _ := cmd.Flags().GetString("nodes")
 		httpUpstream, _ := cmd.Flags().GetBool("http")
 		httpsUpstream, _ := cmd.Flags().GetBool("https")
@@ -68,7 +67,7 @@ var deleteProxy = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := internal.NewClient()
+		client := clientPkg.NewClient()
 		color.Blue("Deleting proxy for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.DeleteProxy(args[0], args[1]); err != nil {
 			color.Red("Error deleting proxy: %v\n", err)
