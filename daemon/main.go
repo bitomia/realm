@@ -19,7 +19,7 @@ import (
 	"github.com/bitomia/realm/daemon/mdns"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/config"
 )
 
 func Start() {

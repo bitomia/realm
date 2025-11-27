@@ -8,6 +8,7 @@ import (
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
+
 	"github.com/bitomia/realm/internal"
 )
 

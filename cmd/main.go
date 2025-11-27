@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/drivers"
+	"github.com/bitomia/realm/drivers"
+	"github.com/bitomia/realm/config"
 )
 
 var rootCmd = &cobra.Command{}

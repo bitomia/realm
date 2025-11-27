@@ -9,8 +9,8 @@ package main
 // 	"github.com/fatih/color"
 // 	"github.com/spf13/cobra"
 
-// 	"github.com/bitomia/realm/internal"
-// 	"github.com/bitomia/realm/internal/config"
+// 	"github.com/bitomia/realm"
+// 	"github.com/bitomia/realm/config"
 // )
 
 // var bootCmd = &cobra.Command{

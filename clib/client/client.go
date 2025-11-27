@@ -7,8 +7,8 @@ typedef const char cchar_t;
 import "C"
 
 import (
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/drivers"
+	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/drivers"
 )
 
 /**

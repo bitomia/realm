@@ -16,9 +16,9 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/drivers"
-	"github.com/bitomia/realm/internal/types"
+	"github.com/bitomia/realm/drivers"
+	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/types"
 )
 
 const testConfig = `

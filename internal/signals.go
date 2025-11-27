@@ -1,4 +1,4 @@
-package signals
+package internal
 
 import "syscall"
 

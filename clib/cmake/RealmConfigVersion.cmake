@@ -1,7 +1,7 @@
 # RealmConfigVersion.cmake
 # Version information for the Realm library
 
-set(PACKAGE_VERSION "1.0.0")
+set(PACKAGE_VERSION "0.1.0")
 
 # Check whether the requested version is compatible
 if("${PACKAGE_VERSION}" VERSION_LESS "${PACKAGE_FIND_VERSION}")

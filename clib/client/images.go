@@ -6,8 +6,8 @@ package main
 */
 import "C"
 import (
+	"github.com/bitomia/realm/clib/common"
 	clientPkg "github.com/bitomia/realm/cmd/client"
-	"github.com/bitomia/realm/lib/common"
 )
 
 //export GetNodeImagesMap

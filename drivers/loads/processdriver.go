@@ -1,4 +1,4 @@
-package drivers
+package loads
 
 import (
 	"encoding/json"
@@ -9,13 +9,12 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 
+	"github.com/bitomia/realm/config/logs"
+
 	"github.com/bitomia/realm/internal"
-	"github.com/bitomia/realm/internal/fs"
-	"github.com/bitomia/realm/internal/loads"
-	"github.com/bitomia/realm/internal/signals"
 )
 
-const ProcessDriverID loads.LoadDriverID = "process"
+const ProcessDriverID LoadDriverID = "process"
 
 type ProcessConfig struct {
 	Name       string
@@ -40,17 +39,17 @@ type ProcessDriver struct {
 	StartArgs  *string
 	WorkingDir *string
 	StopSignal int
-	LogsPath   internal.LogsPath
+	LogsPath   logs.LogsPath
 	PID        int
 }
 
-func NewProcessDriverFromConfig(c map[string]interface{}) (loads.LoadDriver, error) {
+func NewProcessDriverFromConfig(c map[string]interface{}) (LoadDriver, error) {
 	var config ProcessConfig
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
 	}
 
-	stopSignal, ok := signals.StringToSignal(config.StopSignal)
+	stopSignal, ok := internal.StringToSignal(config.StopSignal)
 	if !ok {
 		return nil, fmt.Errorf("Invalid StopSignal")
 	}
@@ -68,14 +67,14 @@ func NewProcessDriverFromConfig(c map[string]interface{}) (loads.LoadDriver, err
 	return driver, nil
 }
 
-func (c ProcessDriver) DriverInfo() loads.LoadDriverInfo {
-	return loads.LoadDriverInfo{
+func (c ProcessDriver) DriverInfo() LoadDriverInfo {
+	return LoadDriverInfo{
 		ID:  ProcessDriverID,
 		New: NewProcessDriverFromConfig,
 	}
 }
 
-func (c ProcessDriver) GetLoadDriverID() loads.LoadDriverID {
+func (c ProcessDriver) GetLoadDriverID() LoadDriverID {
 	return ProcessDriverID
 }
 
@@ -84,7 +83,7 @@ func (p ProcessDriver) MarshalJSON() ([]byte, error) {
 		StartCmd:   p.StartCmd,
 		StartArgs:  p.StartArgs,
 		WorkingDir: p.WorkingDir,
-		StopSignal: signals.SignalToString(p.StopSignal),
+		StopSignal: internal.SignalToString(p.StopSignal),
 		PID:        p.PID,
 	})
 }
@@ -99,7 +98,7 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 	p.WorkingDir = aux.WorkingDir
 	p.PID = aux.PID
 
-	stopSignal, ok := signals.StringToSignal(aux.StopSignal)
+	stopSignal, ok := internal.StringToSignal(aux.StopSignal)
 	if !ok {
 		return fmt.Errorf("invalid stop signal: %s", aux.StopSignal)
 	}
@@ -123,14 +122,14 @@ func (p ProcessDriver) PlanDaemon() error {
 
 	// Check WorkingDir exists
 	if p.WorkingDir != nil {
-		if err := fs.DirExists(*p.WorkingDir); err != nil {
+		if err := internal.DirExists(*p.WorkingDir); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
+func (p ProcessDriver) StartOnDaemon(repository LoadsRepository, logsPath logs.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -142,12 +141,12 @@ func (p ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath 
 		cmd.Dir = *p.WorkingDir
 	}
 
-	outfile, err := internal.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
+	outfile, err := logs.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create output log file: %v", err)
 	}
 
-	errfile, err := internal.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
+	errfile, err := logs.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create error log file: %v", err)
 	}
@@ -169,7 +168,7 @@ func (p ProcessDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath 
 	return nil
 }
 
-func (p ProcessDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
+func (p ProcessDriver) StopOnDaemon(repository LoadsRepository, loadName string) error {
 	load, err := repository.GetLoad(loadName)
 	if err != nil {
 		return fmt.Errorf("failed to get load: %w", err)
@@ -192,7 +191,7 @@ func (p ProcessDriver) StopOnDaemon(repository loads.LoadsRepository, loadName s
 		return fmt.Errorf("failed to find process with PID %d: %w", processDriver.PID, err)
 	}
 
-	signal := signals.IntToSyscallSignal(processDriver.StopSignal)
+	signal := internal.IntToSyscallSignal(processDriver.StopSignal)
 	if err := process.Signal(signal); err != nil {
 		return fmt.Errorf("failed to send signal to process with PID %d: %w", processDriver.PID, err)
 	}

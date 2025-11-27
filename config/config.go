@@ -1,17 +1,14 @@
 package config
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"strings"
 
-	"github.com/spf13/viper"
+	loadsDriver "github.com/bitomia/realm/drivers/loads"
+
+	"github.com/bitomia/realm/config/logs"
 
 	"github.com/bitomia/realm/internal"
-	"github.com/bitomia/realm/internal/loads"
-	"github.com/bitomia/realm/internal/loads/drivers"
-	"github.com/bitomia/realm/internal/node"
 )
 
 var BuildGitCommit string
@@ -41,7 +38,7 @@ type DaemonConfig struct {
 
 	// Path to store daemon logs.
 	// Default: /var/log/realm (Linux) or %ProgramData%\realm\logs (Windows)
-	LogsPath internal.LogsPath `mapstructure:"logs_path"`
+	LogsPath logs.LogsPath `mapstructure:"logs_path"`
 
 	// Log output format.
 	// Valid values: "text", "json"
@@ -109,162 +106,16 @@ type DiscoveryConfig struct {
 	MdnsEnabled bool `mapstructure:"mdns"`
 }
 
-type LoadsConfig map[string]loads.LoadConfig
+type LoadsConfig map[string]loadsDriver.LoadConfig
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*node.Node `mapstructure:"nodes"`
-	Discovery DiscoveryConfig       `mapstructure:"discovery"`
+	Nodes     map[string]*internal.Node `mapstructure:"nodes"`
+	Discovery DiscoveryConfig           `mapstructure:"discovery"`
 
 	// Daemon config
 	Daemon DaemonConfig `mapstructure:"daemon"`
 	Loads  LoadsConfig  `mapstructure:"loads"`
-}
-
-var (
-	config *Config = nil
-	err    error   = nil
-)
-
-func resetConfig() {
-	config = nil
-}
-
-func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
-	for nodeName := range values {
-		if _, exists := nodes[nodeName]; exists {
-			log.Fatalf("duplicated node name: %s", nodeName)
-		}
-		nodes[nodeName] = true
-	}
-}
-
-func detectCycle(load *loads.Load, visited map[*loads.Load]bool, recStack map[*loads.Load]bool, path []string) error {
-	visited[load] = true
-	recStack[load] = true
-	path = append(path, load.Name)
-
-	for _, dep := range load.DependsOn {
-		if !visited[dep] {
-			if err := detectCycle(dep, visited, recStack, path); err != nil {
-				return err
-			}
-		} else if recStack[dep] {
-			// Found a cycle
-			cycleStart := -1
-			for i, name := range path {
-				if name == dep.Name {
-					cycleStart = i
-					break
-				}
-			}
-			cyclePath := append(path[cycleStart:], dep.Name)
-			return fmt.Errorf("cycle detected in dependencies: %s", strings.Join(cyclePath, " -> "))
-		}
-	}
-
-	recStack[load] = false
-	return nil
-}
-
-func checkForCycles(l map[string]*loads.Load) error {
-	visited := make(map[*loads.Load]bool)
-	recStack := make(map[*loads.Load]bool)
-
-	for _, node := range l {
-		if !visited[node] {
-			if err := detectCycle(node, visited, recStack, []string{}); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func readConfig(unmarshall func() (*Config, error), configFilePath string) error {
-	setDefaults()
-
-	viper.AutomaticEnv()
-	viper.SetEnvPrefix("realm")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// Priority: command-line flag > environment variable > default
-	if configFilePath != "" {
-		viper.SetConfigFile(configFilePath)
-	} else if configFile := viper.GetString("config_file"); configFile != "" {
-		viper.SetConfigFile(configFile)
-	} else {
-		viper.AddConfigPath(getExeDir())
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("realm")
-	}
-
-	config, err := unmarshall()
-	if err != nil {
-		return err
-	}
-
-	// Populate node names from map keys
-	for nodeName, node := range config.Nodes {
-		node.Name = nodeName
-	}
-
-	// Check load uniqueness
-	l := make(map[string]bool)
-	getUniqueValues(l, config.Loads)
-
-	// Create all loads
-	allDeps := make(map[string][]string)
-	for loadName, loadConfig := range config.Loads {
-
-		node, exists := config.Nodes[loadConfig.Node]
-		if !exists {
-			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", loadConfig.Node, loadName)
-		}
-		driver, err := loads.BuildLoadDriver(loadConfig)
-		if err != nil {
-			return err
-		}
-
-		newLoad(loadName, node, driver)
-		allDeps[loadName] = loadConfig.DependsOn
-	}
-
-	// Traverse all loads and build a DAG
-	for loadName, load := range loadsRepository {
-		for _, depLoad := range allDeps[loadName] {
-			loads, exist := loadsRepository[depLoad]
-			if !exist {
-				log.Fatalf("dependency node '%s' not exists", depLoad)
-			}
-			load.DependsOn = append(load.DependsOn, loads)
-		}
-	}
-
-	// Check for cycles in the dependency graph
-	if err := checkForCycles(loadsRepository); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func readInConfig(configFilePath string) error {
-	return readConfig(func() (*Config, error) {
-		if err = viper.ReadInConfig(); err == nil {
-			err = viper.Unmarshal(&config)
-		}
-		return config, err
-	}, configFilePath)
-}
-
-func readConfigFromReader(in io.Reader) error {
-	return readConfig(func() (*Config, error) {
-		if err = viper.ReadConfig(in); err == nil {
-			err = viper.Unmarshal(&config)
-		}
-		return config, err
-	}, "")
 }
 
 func Get() *Config {
@@ -310,6 +161,4 @@ func Init(configFilePath *string) {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	loads.RegisterLoadDriver(drivers.ContainerDriver{})
 }

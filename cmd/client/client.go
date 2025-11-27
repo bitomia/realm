@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/drivers/loads"
 	"github.com/bitomia/realm/internal/dto"
-	"github.com/bitomia/realm/internal/loads"
 )
 
 type Client struct {

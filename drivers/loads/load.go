@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 
-	"github.com/bitomia/realm/internal/node"
+	"github.com/bitomia/realm/internal"
 )
 
 type LoadConfig struct {
@@ -19,7 +19,7 @@ type Load struct {
 	Name      string
 	Driver    LoadDriver
 	DependsOn []*Load
-	Node      *node.Node
+	Node      *internal.Node
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {

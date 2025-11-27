@@ -4,24 +4,25 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	internalLoads "github.com/bitomia/realm/internal/loads"
-	"github.com/bitomia/realm/internal/node"
+	"github.com/bitomia/realm/drivers/loads"
+
+	"github.com/bitomia/realm/internal"
 )
 
 var (
-	loadsRepository map[string]*internalLoads.Load = make(map[string]*internalLoads.Load)
+	loadsRepository map[string]*loads.Load = make(map[string]*loads.Load)
 )
 
-func newLoad(name string, node *node.Node, driver internalLoads.LoadDriver) (*internalLoads.Load, error) {
+func newLoad(name string, node *internal.Node, driver loads.LoadDriver) (*loads.Load, error) {
 	if _, exists := loadsRepository[name]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}
-	loadsRepository[name] = &internalLoads.Load{Name: name, Node: node, Driver: driver}
+	loadsRepository[name] = &loads.Load{Name: name, Node: node, Driver: driver}
 	return loadsRepository[name], nil
 }
 
-func GetLoads() map[string]*internalLoads.Load {
-	loads := make(map[string]*internalLoads.Load)
+func GetLoads() map[string]*loads.Load {
+	loads := make(map[string]*loads.Load)
 	for _, load := range loadsRepository {
 		loads[load.Name] = load
 	}

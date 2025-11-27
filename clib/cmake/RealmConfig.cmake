@@ -1,5 +1,5 @@
 get_filename_component(REALM_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
-get_filename_component(REALM_PREFIX "${REALM_CMAKE_DIR}/.." ABSOLUTE)
+get_filename_component(REALM_PREFIX "${REALM_CMAKE_DIR}/../.." ABSOLUTE)
 
 find_package(Threads REQUIRED)
 

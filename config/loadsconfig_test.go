@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	d "github.com/bitomia/realm/internal/drivers"
-	"github.com/bitomia/realm/internal/loads/drivers"
+	d "github.com/bitomia/realm/drivers"
+	"github.com/bitomia/realm/drivers/loads/drivers"
 )
 
 func init() {

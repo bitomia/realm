@@ -12,7 +12,7 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 
 	"github.com/bitomia/realm/daemon/id"
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/config"
 )
 
 const (

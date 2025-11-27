@@ -9,7 +9,7 @@ import (
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/config"
 )
 
 func doPlanLoads(cfg *config.Config, client *clientPkg.Client) error {

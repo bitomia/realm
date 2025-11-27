@@ -12,7 +12,7 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/drivers/loads"
 )
 
 type DaemonDB struct {

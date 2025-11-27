@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/drivers/loads"
 	"github.com/gorilla/mux"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/config"
 )
 
 func DeleteStaticProject(projectID string) error {

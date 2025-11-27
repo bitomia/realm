@@ -1,7 +1,7 @@
 package loads
 
 import (
-	"github.com/bitomia/realm/internal"
+	"github.com/bitomia/realm/config/logs"
 )
 
 type LoadDriverID string
@@ -18,6 +18,6 @@ type LoadDriver interface {
 	PlanDaemon() error
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON(data []byte) error
-	StartOnDaemon(repository LoadsRepository, logsPath internal.LogsPath, loadName string) error
+	StartOnDaemon(repository LoadsRepository, logsPath logs.LogsPath, loadName string) error
 	StopOnDaemon(repository LoadsRepository, loadName string) error
 }

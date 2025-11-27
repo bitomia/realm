@@ -1,27 +1,9 @@
-package fs
+package internal
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 )
-
-type PathKind int
-
-const (
-	PathNone PathKind = iota
-	PathFile
-	PathDir
-)
-
-func BinDir() string {
-	bin, err := os.Executable()
-	if err != nil {
-		panic(fmt.Sprintf("Could not determine executable path: %v", err))
-	}
-	binDir := filepath.Dir(bin)
-	return binDir
-}
 
 func FileExists(path string) bool {
 	_, err := os.Stat(path)

@@ -1,4 +1,4 @@
-package drivers
+package loads
 
 import (
 	"encoding/json"
@@ -6,17 +6,16 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 
-	"github.com/bitomia/realm/internal"
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/config/logs"
 )
 
-const ContainerDriverID loads.LoadDriverID = "container"
+const ContainerDriverID LoadDriverID = "container"
 
 type ContainerDriver struct {
 	Image string `json:"image"`
 }
 
-func NewContainerDriverFromConfig(c map[string]interface{}) (loads.LoadDriver, error) {
+func NewContainerDriverFromConfig(c map[string]interface{}) (LoadDriver, error) {
 	var config ContainerDriver
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
@@ -32,14 +31,14 @@ func NewContainerDriverFromConfig(c map[string]interface{}) (loads.LoadDriver, e
 	return driver, nil
 }
 
-func (c ContainerDriver) DriverInfo() loads.LoadDriverInfo {
-	return loads.LoadDriverInfo{
+func (c ContainerDriver) DriverInfo() LoadDriverInfo {
+	return LoadDriverInfo{
 		ID:  ContainerDriverID,
 		New: NewContainerDriverFromConfig,
 	}
 }
 
-func (c ContainerDriver) GetLoadDriverID() loads.LoadDriverID {
+func (c ContainerDriver) GetLoadDriverID() LoadDriverID {
 	return ContainerDriverID
 }
 
@@ -71,12 +70,12 @@ func (c ContainerDriver) PlanDaemon() error {
 	return nil
 }
 
-func (c ContainerDriver) StartOnDaemon(repository loads.LoadsRepository, logsPath internal.LogsPath, loadName string) error {
+func (c ContainerDriver) StartOnDaemon(repository LoadsRepository, logsPath logs.LogsPath, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }
 
-func (c ContainerDriver) StopOnDaemon(repository loads.LoadsRepository, loadName string) error {
+func (c ContainerDriver) StopOnDaemon(repository LoadsRepository, loadName string) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }

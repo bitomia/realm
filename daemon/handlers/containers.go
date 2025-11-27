@@ -8,7 +8,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/config"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/remotes/docker"
@@ -21,6 +21,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
+
 	"github.com/bitomia/realm/internal/dto"
 )
 

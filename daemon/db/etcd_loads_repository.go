@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/drivers/loads"
 )
 
 type EtcdLoadsRepository struct {
