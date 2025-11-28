@@ -29,9 +29,10 @@ func GetHealthStatus() (map[string]any, error) {
 	return result, nil
 }
 
-// GetNodeStatus returns the current node status (CPU, memory, etc.) and health status
-func GetNodeStatus() (any, error) {
-	nodeStatus, err := cpu.GetNodeState()
+// TODO fix this to return a dto(e.g. dto.NodeStateResponse)
+// GetNodeState returns the current node status (CPU, memory, etc.) and health status
+func GetNodeState() (any, error) {
+	nodeState, err := cpu.GetNodeState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node status: %w", err)
 	}
@@ -43,7 +44,7 @@ func GetNodeStatus() (any, error) {
 	}
 
 	result := map[string]any{
-		"node_status":     nodeStatus,
+		"node_state":      nodeState,
 		"health_statuses": healthStatuses,
 		"health_count":    len(healthStatuses),
 	}
