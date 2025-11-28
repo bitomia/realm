@@ -7,9 +7,8 @@ import (
 	"github.com/bitomia/realm/daemon/api"
 )
 
-// GetNodeStatusHandler returns node status (refactored to use API)
-func GetNodeStatusHandler(w http.ResponseWriter, r *http.Request) {
-	status, err := api.GetNodeStatus()
+func GetNodeStateHandler(w http.ResponseWriter, r *http.Request) {
+	status, err := api.GetNodeState()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

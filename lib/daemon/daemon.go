@@ -64,7 +64,7 @@ func GetHealthStatus() *C.char {
  */
 //export GetNodeStatus
 func GetNodeStatus() *C.char {
-	status, err := api.GetNodeStatus()
+	status, err := api.GetNodeState()
 	if err != nil {
 		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
 	}
