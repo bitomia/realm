@@ -10,6 +10,7 @@ The Realm daemon handlers have been refactored to support C exports, allowing th
 
 The refactoring follows a layered architecture:
 
+
 ```
 ┌─────────────────────────────────────┐
 │   C Applications / FFI Bindings     │
