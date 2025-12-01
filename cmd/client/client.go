@@ -17,12 +17,6 @@ import (
 	"github.com/bitomia/realm/internal/loads"
 )
 
-type Image struct {
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
 type Client struct {
 	header http.Header
 }
@@ -90,9 +84,9 @@ func NewUnauthClient() Client {
 	}
 }
 
-func (c *Client) GetAllImages() (map[string][]Image, error) {
+func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
 	nodes := GetNodes()
-	imagesPerNode := make(map[string][]Image)
+	var nodeImagesMap dto.NodeImagesMapResponse
 
 	for _, node := range nodes {
 		client := &http.Client{
@@ -101,37 +95,37 @@ func (c *Client) GetAllImages() (map[string][]Image, error) {
 		url := fmt.Sprintf("%s/images", node.Url)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
-			log.Error("Failed to create request: %v", err)
+			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
 		}
 		req.Header = c.header
 
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Error("Failed to make request: %v", err)
+			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
 		}
 		defer resp.Body.Close()
 
 		if err := checkStatus(resp); err != nil {
-			log.Error("Failed requesting image: %s %s", node.Url, err)
+			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Error("Failed to read response body: %v", err)
+			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
 		}
 
-		var images []Image
+		var images dto.ImagesResponse
 		if err := json.Unmarshal(body, &images); err != nil {
-			log.Error("Failed to parse JSON: %v %s", err, body)
+			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
 		}
-		imagesPerNode[node.Name] = images
+		nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Images: images})
 	}
-	return imagesPerNode, nil
+	return nodeImagesMap, nil
 }
 
 type ContainerInfo struct {

@@ -24,15 +24,21 @@ var listImages = &cobra.Command{
 	Short: "List all available images",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := clientPkg.NewClient()
-		imagesPerNode, err := client.GetAllImages()
+
+		nodeImagesMap, err := client.GetAllImages()
 		if err != nil {
 			color.Red("Error %v\n", err)
 			return
 		}
-		for node, images := range imagesPerNode {
-			color.Blue("Images in %s\n", color.CyanString(node))
-			for _, image := range images {
-				log.Info("- %s\n", color.CyanString(image.Name))
+
+		for _, nodeImages := range nodeImagesMap {
+			if nodeImages.Error != "" {
+				color.Red("Error in %s: %s\n", color.CyanString(nodeImages.Node), nodeImages.Error)
+			} else {
+				color.Blue("Images in %s\n", color.CyanString(nodeImages.Node))
+				for _, image := range nodeImages.Images {
+					log.Info("- %s\n", color.CyanString(image.Name))
+				}
 			}
 		}
 	},

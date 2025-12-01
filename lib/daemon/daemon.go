@@ -29,19 +29,18 @@ typedef struct {
     ContainerStateResponse* containers;
     int containers_count;
 } NodeStateResponse;
+
+typedef const char cchar_t;
 */
 import "C"
 
 import (
-	"encoding/json"
 	"unsafe"
 
 	"github.com/bitomia/realm/daemon"
 	"github.com/bitomia/realm/daemon/api"
-	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/drivers"
-	"github.com/bitomia/realm/internal/dto"
 )
 
 /**
@@ -50,7 +49,17 @@ import (
 //export StartDaemon
 func StartDaemon() {
 	drivers.RegisterStdDrivers()
+	config.Init(nil)
 	daemon.Start()
+}
+
+/**
+ * Start a daemon instance using a config buffer
+ */
+//export StartDaemonWithConfig
+func StartDaemonWithConfig(configBuffer *C.cchar_t) {
+	drivers.RegisterStdDrivers()
+	config.InitFromBuffer(C.GoString(configBuffer))
 }
 
 /**
@@ -60,29 +69,6 @@ func StartDaemon() {
 //export GetVersion
 func GetVersion() *C.char {
 	return C.CString(config.GetVersion())
-}
-
-/**
- * free allocated C string
- */
-//export Realm_Free
-func Realm_Free(p *C.char) {
-	if p != nil {
-		C.free(unsafe.Pointer(p))
-	}
-}
-
-/**
- * Get health status of the daemon
- * @return JSON response with health status
- */
-//export GetHealthStatus
-func GetHealthStatus() *C.char {
-	status, err := api.GetHealthStatus()
-	if err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
-	}
-	return C.CString(api.ResponseToJSON(true, status, ""))
 }
 
 /**
@@ -172,85 +158,6 @@ func FreeNodeStateResponse(resp *C.NodeStateResponse) {
 		C.free(unsafe.Pointer(resp.containers))
 	}
 	C.free(unsafe.Pointer(resp))
-}
-
-/**
- * List all containers managed by the daemon
- * @return JSON response with list of containers
- */
-//export ListContainers
-func ListContainers() *C.char {
-	containersList, err := api.ListContainers()
-	if err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
-	}
-	return C.CString(api.ResponseToJSON(true, containersList, ""))
-}
-
-/**
- * Create a new container
- * @param containerName Name of the container to create
- * @param optsJSON JSON string with container creation options
- * @return JSON response with creation result
- */
-//export CreateContainer
-func CreateContainer(containerName *C.char, optsJSON *C.char) *C.char {
-	goContainerName := C.GoString(containerName)
-	goOptsJSON := C.GoString(optsJSON)
-
-	var opts dto.CreateContainerRequest
-	if err := json.Unmarshal([]byte(goOptsJSON), &opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, "invalid JSON options: "+err.Error()))
-	}
-
-	if err := api.CreateContainer(goContainerName, opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
-	}
-	return C.CString(api.ResponseToJSON(true, map[string]string{"container": goContainerName}, ""))
-}
-
-/**
- * Update the state of an existing container
- * @param containerName Name of the container to update
- * @param optsJSON JSON string with container update options
- * @return JSON response with update result
- */
-//export UpdateContainerState
-func UpdateContainerState(containerName *C.char, optsJSON *C.char) *C.char {
-	goContainerName := C.GoString(containerName)
-	goOptsJSON := C.GoString(optsJSON)
-
-	var opts containers.UpdateContainerOpts
-	if err := json.Unmarshal([]byte(goOptsJSON), &opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, "invalid JSON options: "+err.Error()))
-	}
-
-	if err := api.UpdateContainerState(goContainerName, opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
-	}
-	return C.CString(api.ResponseToJSON(true, map[string]string{"container": goContainerName}, ""))
-}
-
-/**
- * Remove an existing container
- * @param containerName Name of the container to remove
- * @param optsJSON JSON string with container deletion options
- * @return JSON response with removal result
- */
-//export RemoveContainer
-func RemoveContainer(containerName *C.char, optsJSON *C.char) *C.char {
-	goContainerName := C.GoString(containerName)
-	goOptsJSON := C.GoString(optsJSON)
-
-	var opts containers.DeleteContainerOpts
-	if err := json.Unmarshal([]byte(goOptsJSON), &opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, "invalid JSON options: "+err.Error()))
-	}
-
-	if err := api.RemoveContainer(goContainerName, opts); err != nil {
-		return C.CString(api.ResponseToJSON(false, nil, err.Error()))
-	}
-	return C.CString(api.ResponseToJSON(true, map[string]string{"container": goContainerName}, ""))
 }
 
 func main() {}
