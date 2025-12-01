@@ -5,10 +5,23 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/containerd/containerd"
-
 	"github.com/bitomia/realm/daemon/cruntime"
+	"github.com/bitomia/realm/internal/dto"
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images"
 )
+
+func toImagesResponse(images []images.Image) dto.ImagesResponse {
+	result := make(dto.ImagesResponse, len(images))
+	for i, img := range images {
+		result[i] = dto.Image{
+			Name:      img.Name,
+			CreatedAt: img.CreatedAt,
+			UpdatedAt: img.UpdatedAt,
+		}
+	}
+	return result
+}
 
 func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("ListImagesHandler")
@@ -29,7 +42,7 @@ func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(images)
+	json.NewEncoder(w).Encode(toImagesResponse(images))
 }
 
 func PullImageHandler(w http.ResponseWriter, r *http.Request) {
