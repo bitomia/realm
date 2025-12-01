@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -40,7 +39,7 @@ loads:
 
 func init() {
 	drivers.RegisterStdDrivers()
-	config.InitFromReader(strings.NewReader(testConfig))
+	config.InitFromBuffer(testConfig)
 }
 
 // getFreePort returns a free port on localhost
