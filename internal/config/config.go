@@ -282,12 +282,13 @@ func GetVersion() string {
 	return BuildGitCommit
 }
 
-func InitFromReader(in io.Reader) {
+func InitFromBuffer(buffer string) {
 	if config != nil {
 		log.Fatal("Configuration already initialized")
 	}
 
-	err := readConfigFromReader(in)
+	reader := strings.NewReader(buffer)
+	err := readConfigFromReader(reader)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
