@@ -97,6 +97,7 @@ func GetNodeStatus() *C.NodeStateResponse {
 	}
 
 	// Allocate NodeStateResponse in C heap
+	// Needs to be freed by C
 	resp := (*C.NodeStateResponse)(C.malloc(C.size_t(C.sizeof_NodeStateResponse)))
 	if resp == nil {
 		return nil
@@ -125,10 +126,16 @@ func GetNodeStatus() *C.NodeStateResponse {
 			return resp // no containers
 		}
 
-		// Turn cArr into a Go slice view
+		// convert to Go int, not same as C.int on all platforms
+		// ie: 32-bit vs 64-bit, realistically should never overflow in this case
+		count_GOint := int(count)
+
+		// Create a Go slice view over the C-allocated array using
+		// the "big array trick". Creates a fake array with a very large size
+		// and then slices it to the actual size we need.
 		containers := (*[1 << 30]C.ContainerStateResponse)(
 			unsafe.Pointer(cArr),
-		)[:count:count]
+		)[:count_GOint:count_GOint]
 
 		for i, c := range state.Containers {
 			containers[i].container_id = C.CString(c.ContainerID)
@@ -152,10 +159,14 @@ func FreeNodeStateResponse(resp *C.NodeStateResponse) {
 		return
 	}
 	if resp.containers != nil && resp.containers_count > 0 {
-		for i := 0; i < int(resp.containers_count); i++ {
-			entry := (*C.ContainerStateResponse)(unsafe.Pointer(uintptr(unsafe.Pointer(resp.containers)) + uintptr(i)*uintptr(C.sizeof_ContainerStateResponse)))
-			if entry.container_id != nil {
-				C.free(unsafe.Pointer(entry.container_id))
+		n := int(resp.containers_count)
+		containers := (*[1 << 30]C.ContainerStateResponse)(
+			unsafe.Pointer(resp.containers),
+		)[:n:n]
+
+		for i := 0; i < n; i++ {
+			if containers[i].container_id != nil {
+				C.free(unsafe.Pointer(containers[i].container_id))
 			}
 		}
 		C.free(unsafe.Pointer(resp.containers))
