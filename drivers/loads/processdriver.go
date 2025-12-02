@@ -9,12 +9,11 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 
-	"github.com/bitomia/realm/config/logs"
-
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/internal"
 )
 
-const ProcessDriverID LoadDriverID = "process"
+const ProcessDriverID common.LoadDriverID = "process"
 
 type ProcessConfig struct {
 	Name       string
@@ -39,11 +38,11 @@ type ProcessDriver struct {
 	StartArgs  *string
 	WorkingDir *string
 	StopSignal int
-	LogsPath   logs.LogsPath
+	LogsPath   common.LogsPath
 	PID        int
 }
 
-func NewProcessDriverFromConfig(c map[string]interface{}) (LoadDriver, error) {
+func NewProcessDriverFromConfig(c map[string]interface{}) (common.LoadDriver, error) {
 	var config ProcessConfig
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
@@ -61,20 +60,20 @@ func NewProcessDriverFromConfig(c map[string]interface{}) (LoadDriver, error) {
 		StopSignal: stopSignal,
 	}
 
-	if err := driver.Plan(); err != nil {
+	if err := driver.Verify(); err != nil {
 		return nil, err
 	}
 	return driver, nil
 }
 
-func (c ProcessDriver) DriverInfo() LoadDriverInfo {
-	return LoadDriverInfo{
+func (c ProcessDriver) DriverInfo() common.LoadDriverInfo {
+	return common.LoadDriverInfo{
 		ID:  ProcessDriverID,
 		New: NewProcessDriverFromConfig,
 	}
 }
 
-func (c ProcessDriver) GetLoadDriverID() LoadDriverID {
+func (c ProcessDriver) GetLoadDriverID() common.LoadDriverID {
 	return ProcessDriverID
 }
 
@@ -107,9 +106,9 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p ProcessDriver) Plan() error {
+func (p ProcessDriver) Verify() error {
 	if strings.Contains(p.StartCmd, " ") {
-		return fmt.Errorf("StartCmd must be one string")
+		return fmt.Errorf("StartCmd not specified")
 	}
 	return nil
 }
@@ -129,7 +128,7 @@ func (p ProcessDriver) PlanDaemon() error {
 	return nil
 }
 
-func (p ProcessDriver) StartOnDaemon(repository LoadsRepository, logsPath logs.LogsPath, loadName string) error {
+func (p ProcessDriver) StartOnDaemon(repository common.LoadsRepository, logsPath common.LogsPath, loadName string) error {
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -141,12 +140,12 @@ func (p ProcessDriver) StartOnDaemon(repository LoadsRepository, logsPath logs.L
 		cmd.Dir = *p.WorkingDir
 	}
 
-	outfile, err := logs.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
+	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create output log file: %v", err)
 	}
 
-	errfile, err := logs.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
+	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create error log file: %v", err)
 	}
@@ -168,7 +167,7 @@ func (p ProcessDriver) StartOnDaemon(repository LoadsRepository, logsPath logs.L
 	return nil
 }
 
-func (p ProcessDriver) StopOnDaemon(repository LoadsRepository, loadName string) error {
+func (p ProcessDriver) StopOnDaemon(repository common.LoadsRepository, loadName string) error {
 	load, err := repository.GetLoad(loadName)
 	if err != nil {
 		return fmt.Errorf("failed to get load: %w", err)

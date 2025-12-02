@@ -9,7 +9,7 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 	loadsDriver "github.com/bitomia/realm/drivers/loads"
 )
 

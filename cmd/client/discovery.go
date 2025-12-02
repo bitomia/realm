@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/bitomia/realm/cmd/log"
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 
 	"github.com/bitomia/realm/internal"
 )
@@ -15,9 +15,6 @@ func GetNodes() map[string]*internal.Node {
 	nodes := make(map[string]*internal.Node)
 	seenUrls := make(map[string]string)
 
-	if config.Get() == nil {
-		log.Fatal("Config error: %s", config.GetError())
-	}
 	for name, node := range config.Get().Nodes {
 		if existingName, exists := seenUrls[node.Url]; exists {
 			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)

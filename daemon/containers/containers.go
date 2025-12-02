@@ -14,7 +14,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"

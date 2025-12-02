@@ -1,4 +1,4 @@
-package loads
+package common
 
 type LoadsRepository interface {
 	CreateLoad(loadName string, pid int, driver LoadDriver) error

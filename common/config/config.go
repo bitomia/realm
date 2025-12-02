@@ -1,13 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
-	loadsDriver "github.com/bitomia/realm/drivers/loads"
-
-	"github.com/bitomia/realm/config/logs"
-
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/internal"
 )
 
@@ -38,7 +36,7 @@ type DaemonConfig struct {
 
 	// Path to store daemon logs.
 	// Default: /var/log/realm (Linux) or %ProgramData%\realm\logs (Windows)
-	LogsPath logs.LogsPath `mapstructure:"logs_path"`
+	LogsPath common.LogsPath `mapstructure:"logs_path"`
 
 	// Log output format.
 	// Valid values: "text", "json"
@@ -106,7 +104,7 @@ type DiscoveryConfig struct {
 	MdnsEnabled bool `mapstructure:"mdns"`
 }
 
-type LoadsConfig map[string]loadsDriver.LoadConfig
+type LoadsConfig map[string]common.LoadConfig
 
 type Config struct {
 	// Client config
@@ -118,6 +116,18 @@ type Config struct {
 	Loads  LoadsConfig  `mapstructure:"loads"`
 }
 
+// Get returns the global configuration instance.
+//
+// This function should be called only after config.Init() or config.InitFromBuffer()
+// have successfully initialized the configuration. If the configuration has not been
+// initialized,  Get will terminate the program with a fatal log message.
+//
+// Returns:
+//   - *Config: the initialized global configuration.
+//
+// Panics/Fatal:
+//   - Logs a fatal error and exits the program if the configuration has not
+//     been initialized before calling Get().
 func Get() *Config {
 	if config == nil {
 		log.Fatal("Configuration not initialized with config.Init()")
@@ -125,31 +135,32 @@ func Get() *Config {
 	return config
 }
 
-func GetError() error {
-	return err
-}
-
 func GetVersion() string {
 	return BuildGitCommit
 }
 
-func InitFromBuffer(buffer string) {
+func ResetConfig() {
+	config = nil
+}
+
+func InitFromBuffer(buffer string) error {
 	if config != nil {
-		log.Fatal("Configuration already initialized")
+		return fmt.Errorf("Configuration already initialized")
 	}
 
 	reader := strings.NewReader(buffer)
 	err := readConfigFromReader(reader)
 	if err != nil {
-		log.Fatal(err.Error())
+		return fmt.Errorf("%s", err.Error())
 	}
+	return nil
 }
 
 // Init reads configuration from file or environment variables.
 // If configFilePath is provided, it will be used instead of the default locations.
-func Init(configFilePath *string) {
+func Init(configFilePath *string) error {
 	if config != nil {
-		log.Fatal("Configuration already initialized")
+		return fmt.Errorf("Configuration already initialized")
 	}
 
 	var path string
@@ -159,6 +170,7 @@ func Init(configFilePath *string) {
 
 	err := readInConfig(path)
 	if err != nil {
-		log.Fatal(err.Error())
+		return fmt.Errorf("%s", err.Error())
 	}
+	return nil
 }

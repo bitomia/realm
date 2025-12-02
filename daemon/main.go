@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/auth"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/db"
@@ -19,7 +20,6 @@ import (
 	"github.com/bitomia/realm/daemon/mdns"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/config"
 )
 
 func Start() {

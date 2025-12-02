@@ -37,7 +37,8 @@ import "C"
 import (
 	"unsafe"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/clib/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/drivers"
@@ -47,19 +48,28 @@ import (
  * Start a daemon instance using the realm YAML config file found in the working dir
  */
 //export StartDaemon
-func StartDaemon() {
+func StartDaemon() *C.char {
 	drivers.RegisterStdDrivers()
-	config.Init(nil)
+	err := config.Init(nil)
+	if err != nil {
+		return MakeCString(common.ToJsonCString(err))
+	}
 	daemon.Start()
+	return nil
 }
 
 /**
  * Start a daemon instance using a config buffer
  */
 //export StartDaemonWithConfig
-func StartDaemonWithConfig(configBuffer *C.cchar_t) {
+func StartDaemonWithConfig(configBuffer *C.cchar_t) *C.char {
 	drivers.RegisterStdDrivers()
-	config.InitFromBuffer(C.GoString(configBuffer))
+	err := config.InitFromBuffer(C.GoString(configBuffer))
+	if err != nil {
+		return MakeCString(common.ToJsonCString(err))
+	}
+	daemon.Start()
+	return nil
 }
 
 /**

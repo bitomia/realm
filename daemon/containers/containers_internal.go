@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cruntime"
 )
 

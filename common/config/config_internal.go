@@ -12,7 +12,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/bitomia/realm/drivers/loads"
+	"github.com/bitomia/realm/common"
 )
 
 func getExeDir() string {
@@ -72,7 +72,8 @@ func setDefaults() {
 
 func readInConfig(configFilePath string) error {
 	return readConfig(func() (*Config, error) {
-		if err = viper.ReadInConfig(); err == nil {
+		err := viper.ReadInConfig()
+		if err == nil {
 			err = viper.Unmarshal(&config)
 		}
 		return config, err
@@ -81,7 +82,8 @@ func readInConfig(configFilePath string) error {
 
 func readConfigFromReader(in io.Reader) error {
 	return readConfig(func() (*Config, error) {
-		if err = viper.ReadConfig(in); err == nil {
+		err := viper.ReadConfig(in)
+		if err == nil {
 			err = viper.Unmarshal(&config)
 		}
 		return config, err
@@ -90,12 +92,7 @@ func readConfigFromReader(in io.Reader) error {
 
 var (
 	config *Config = nil
-	err    error   = nil
 )
-
-func resetConfig() {
-	config = nil
-}
 
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	for nodeName := range values {
@@ -106,7 +103,7 @@ func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	}
 }
 
-func detectCycle(load *loads.Load, visited map[*loads.Load]bool, recStack map[*loads.Load]bool, path []string) error {
+func detectCycle(load *common.Load, visited map[*common.Load]bool, recStack map[*common.Load]bool, path []string) error {
 	visited[load] = true
 	recStack[load] = true
 	path = append(path, load.Name)
@@ -134,9 +131,9 @@ func detectCycle(load *loads.Load, visited map[*loads.Load]bool, recStack map[*l
 	return nil
 }
 
-func checkForCycles(l map[string]*loads.Load) error {
-	visited := make(map[*loads.Load]bool)
-	recStack := make(map[*loads.Load]bool)
+func checkForCycles(l map[string]*common.Load) error {
+	visited := make(map[*common.Load]bool)
+	recStack := make(map[*common.Load]bool)
 
 	for _, node := range l {
 		if !visited[node] {
@@ -188,7 +185,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", loadConfig.Node, loadName)
 		}
-		driver, err := loads.BuildLoadDriver(loadConfig)
+		driver, err := common.BuildLoadDriver(loadConfig)
 		if err != nil {
 			return err
 		}

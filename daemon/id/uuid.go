@@ -9,8 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bitomia/realm/config"
-
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
 )
 

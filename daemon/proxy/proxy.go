@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 )
 
 const BasicCaddyConfig string = `{ "listen": [ ":80", ":443" ], "routes": [], "tls_connection_policies": [] }`

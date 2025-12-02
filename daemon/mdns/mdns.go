@@ -8,7 +8,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 
-	"github.com/bitomia/realm/config"
+	"github.com/bitomia/realm/common/config"
 )
 
 type MDNSService struct {

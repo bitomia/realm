@@ -1,4 +1,4 @@
-package loads
+package common
 
 import (
 	"fmt"

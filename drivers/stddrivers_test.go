@@ -1,18 +1,17 @@
-package config
+package drivers
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	d "github.com/bitomia/realm/drivers"
-	"github.com/bitomia/realm/drivers/loads/drivers"
+	"github.com/bitomia/realm/common/config"
+	loadsPkg "github.com/bitomia/realm/drivers/loads"
 )
 
 func init() {
-	d.RegisterStdDrivers()
+	RegisterStdDrivers()
 }
 
 func TestConfig(t *testing.T) {
@@ -47,20 +46,18 @@ loads:
       depends_on:
         - web
 `
-
-	resetConfig()
-	err := readConfigFromReader(strings.NewReader(yamlConfig))
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := GetLoads()
-
+	loads := config.GetLoads()
 	assert.NotNil(t, loads)
-	assert.Len(t, GetLoads(), 3)
+	assert.Len(t, config.GetLoads(), 3)
 
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")
-	assert.Equal(t, loads["web"].Driver.GetLoadDriverID(), drivers.ContainerDriverID)
-	assert.Equal(t, loads["web"].Driver.(*drivers.ContainerDriver).Image, "docker.io/nginx")
+	assert.Equal(t, loads["web"].Driver.GetLoadDriverID(), loadsPkg.ContainerDriverID)
+	assert.Equal(t, loads["web"].Driver.(*loadsPkg.ContainerDriver).Image, "docker.io/nginx")
 }
 
 func TestConfigCycleError(t *testing.T) {
@@ -97,10 +94,9 @@ loads:
       depends_on:
         - web
 `
-	resetConfig()
-	err := readConfigFromReader(strings.NewReader(yamlConfig))
-	assert.Error(t, err)
-	assert.True(t, strings.HasPrefix(err.Error(), "cycle detected"))
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
+	assert.True(t, strings.Contains(err.Error(), "cycle detected"))
 }
 
 func TestProcessDriverInvalidCmd(t *testing.T) {
@@ -119,9 +115,8 @@ loads:
       depends_on:
         - web
 `
-	resetConfig()
-	err := readConfigFromReader(strings.NewReader(yamlConfig))
-	fmt.Printf("%s", err)
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
 	assert.Error(t, err)
 }
 
