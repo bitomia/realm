@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/internal/dto"
-	"github.com/bitomia/realm/internal/loads"
 )
 
 type Client struct {
@@ -874,7 +874,7 @@ func (c *Client) Login(node string, username string, password string) (string, e
 	return loginResp.Token, nil
 }
 
-func (c *Client) PlanLoad(load *loads.Load) error {
+func (c *Client) PlanLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
@@ -909,7 +909,7 @@ func (c *Client) PlanLoad(load *loads.Load) error {
 	return nil
 }
 
-func (c *Client) StartLoad(load *loads.Load) error {
+func (c *Client) StartLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}

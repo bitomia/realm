@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/internal/config"
 	"github.com/bitomia/realm/internal/dto"
 )
 

@@ -40,7 +40,7 @@ else
 endif
 
 
-COMMIT_FLAG := -X 'github.com/bitomia/realm/internal/config.BuildGitCommit=$(GIT_COMMIT)'
+COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)'
 MAKEFLAGS += --no-print-directory
 
 # Installation directories
@@ -52,8 +52,11 @@ INSTALL_CMAKE_DIR := $(PREFIX)/lib/cmake/Realm
 .PHONY: all
 all:
 	@echo "Building ($(GIT_COMMIT))..."
-	$(GO) mod tidy
 	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)"
+
+.PHONY: tidy
+tidy:
+	$(GO) mod tidy
 
 .PHONY: lib
 lib: lib-client lib-daemon
@@ -62,7 +65,7 @@ lib: lib-client lib-daemon
 lib-daemon: export CGO_ENABLED=1
 lib-daemon: $(BIN_DIR)
 	@echo "Building C shared library for daemon..."
-	$(GO) build -o $(DAEMON_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./lib/daemon
+	$(GO) build -o $(DAEMON_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./clib/daemon
 ifneq ($(OS),Windows_NT)
 	@mv $(DAEMON_SHARED_HEADER) $(BIN_DIR)$(SEP)realm-daemon.h
 endif
@@ -87,7 +90,7 @@ endif
 lib-client: export CGO_ENABLED=1
 lib-client: $(BIN_DIR)
 	@echo "Building C shared library for client..."
-	$(GO) build -o $(CLIENT_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./lib/client
+	$(GO) build -o $(CLIENT_SHARED_LIB) -buildmode=c-shared -buildvcs=false -ldflags="$(COMMIT_FLAG)" ./clib/client
 ifneq ($(OS),Windows_NT)
 	@mv $(CLIENT_SHARED_HEADER) $(BIN_DIR)$(SEP)realm-client.h
 endif
@@ -122,8 +125,8 @@ ifeq ($(OS),Windows_NT)
 endif
 	@install -m 644 $(BIN_DIR)$(SEP)realm-daemon.h $(INSTALL_INCLUDE_DIR)/realm-daemon.h
 	@install -m 644 $(BIN_DIR)$(SEP)realm-client.h $(INSTALL_INCLUDE_DIR)/realm-client.h
-	@install -m 644 cmake/RealmConfig.cmake $(INSTALL_CMAKE_DIR)/
-	@install -m 644 cmake/RealmConfigVersion.cmake $(INSTALL_CMAKE_DIR)/
+	@install -m 644 clib/cmake/RealmConfig.cmake $(INSTALL_CMAKE_DIR)/
+	@install -m 644 clib/cmake/RealmConfigVersion.cmake $(INSTALL_CMAKE_DIR)/
 	@echo "Installation complete!"
 	@echo "  Daemon library: $(INSTALL_LIB_DIR)/$(notdir $(DAEMON_SHARED_LIB))"
 	@echo "  Client library: $(INSTALL_LIB_DIR)/$(notdir $(CLIENT_SHARED_LIB))"
@@ -149,7 +152,6 @@ ifeq ($(OS),Windows_NT)
 	-$(RM) "$(DAEMON_IMPORT_LIB)"
 	-$(RM) "$(CLIENT_IMPORT_LIB)"
 endif
-	-$(RM) "docs"
 
 .PHONY: verify-lint-cmd
 verify-lint-cmd:
@@ -163,9 +165,13 @@ verify-lint-daemon:
 verify-fmt:
 	$(GO) fmt ./...
 
+.PHONY: vet
+vet:
+	$(GO) vet ./...
+
 .PHONY: test
 test:
-	$(GO) test -v ./internal/...
+	$(GO) test -v ./drivers/...
 	$(GO) test -v ./daemon/db/...
 
 .PHONY: doc

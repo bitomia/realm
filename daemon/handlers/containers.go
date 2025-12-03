@@ -8,13 +8,12 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/bitomia/realm/internal/config"
-
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/gorilla/mux"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"

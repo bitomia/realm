@@ -8,7 +8,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/namespaces"
 
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/common/config"
 )
 
 func CreateClient() (ctx context.Context, c *containerd.Client, err error) {

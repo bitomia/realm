@@ -6,27 +6,26 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/internal/config"
+
 	"github.com/bitomia/realm/internal/dto"
-	"github.com/bitomia/realm/internal/types"
+	"github.com/bitomia/realm/internal/runtime"
 )
 
 type DBContainerEntry struct {
-	LastState types.ContainerState `json:"last_state"`
+	LastState runtime.RuntimeState `json:"last_state"`
 }
 
 type ContainerInfo struct {
@@ -101,8 +100,8 @@ func RepairContainer(c db.Container) error {
 		status, _ = task.Status(ctx)
 	}
 
-	shall_restart := (containerRow.LastState == types.StateStart || containerRow.LastState == types.StateStartFailed) && status.Status != containerd.Running
-	shall_stop := (containerRow.LastState == types.StateStop || containerRow.LastState == types.StateStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
+	shall_restart := (containerRow.LastState == runtime.RuntimeStart || containerRow.LastState == runtime.RuntimeStartFailed) && status.Status != containerd.Running
+	shall_stop := (containerRow.LastState == runtime.RuntimeStop || containerRow.LastState == runtime.RuntimeStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
 
 	if shall_restart {
 		slog.Info("Restarting container", "container", c.ContainerName)
@@ -127,109 +126,6 @@ func RepairContainer(c db.Container) error {
 	// 3. network survives reboot?
 	// 4. subnet survives reboot?
 	// 5. caddy config survives reboot?
-}
-
-func createTask(ctx context.Context, container containerd.Container, containerName string) (containerd.Task, error) {
-	// Get the containers log path from config
-	containersLogPath := config.Get().Daemon.ContainersLogPath
-
-	if err := os.MkdirAll(containersLogPath, 0755); err != nil {
-		slog.Error("Failed to create containers log directory", "path", containersLogPath, "error", err.Error())
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-
-	logPath := filepath.Join(containersLogPath, fmt.Sprintf("%s.log", containerName))
-	logFile, err := os.Create(logPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stdout log file: %w", err)
-	}
-	defer logFile.Close()
-
-	errorLogPath := filepath.Join(containersLogPath, fmt.Sprintf("%s_error.log", containerName))
-	errorLogFile, err := os.Create(errorLogPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create stderr log file: %w", err)
-	}
-	defer errorLogFile.Close()
-
-	task, err := container.NewTask(ctx, cio.NewCreator(
-		cio.WithStreams(nil, logFile, errorLogFile),
-	))
-	if err != nil {
-		slog.Error("Failed to create new task for container on restart", "container", containerName, "error", err.Error())
-		return nil, err
-	}
-
-	slog.Info("Task create for container", "taskPID", task.Pid(), "container", containerName, "logPath", logPath, "errorLogPath", errorLogPath)
-	return task, err
-}
-
-func startContainer(containerName string) error {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	container, err := client.LoadContainer(ctx, containerName)
-	if err != nil {
-		slog.Error("Failed to retrieve container on start", "container", containerName, "error", err.Error())
-		return err
-	}
-	task, err := container.Task(ctx, nil)
-	if err != nil {
-		slog.Info("Task doesn't exist for container. Creating task again", "container", containerName)
-		task, err = createTask(ctx, container, containerName)
-	}
-	if err != nil {
-		slog.Error("Impossible to retrieve task for container", "container", containerName)
-		return err
-	}
-	if err := task.Start(ctx); err != nil {
-		slog.Error("Failed to start task for container on start", "container", containerName, "error", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func tryDeleteContainerTask(ctx context.Context, container containerd.Container, signal syscall.Signal) error {
-	task, _ := container.Task(ctx, nil)
-	if task != nil {
-		task.Kill(ctx, signal)
-		statusC, err := task.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		status := <-statusC
-		if status.Error() != nil {
-			return status.Error()
-		}
-		_, err = task.Delete(ctx)
-		return err
-	}
-	return nil
-}
-
-func stopContainer(containerName string, signal syscall.Signal) error {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	container, err := client.LoadContainer(ctx, containerName)
-	if err != nil {
-		slog.Error("Failed to retrieve container on stop", "container", containerName, "error", err.Error())
-		return err
-	}
-
-	err = tryDeleteContainerTask(ctx, container, signal)
-	if err != nil {
-		slog.Error("Failed to delete task for container on stop", "container", containerName, "error", err.Error())
-		return err
-	}
-	return nil
 }
 
 func CreateContainer(containerName string, opts dto.CreateContainerRequest, extraSpecOpts []oci.SpecOpts) error {
@@ -427,25 +323,25 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 }
 
 type UpdateContainerOpts struct {
-	State types.ContainerState `json:"state"`
+	State runtime.RuntimeState `json:"state"`
 }
 
 func UpdateContainerState(containerName string, opts UpdateContainerOpts) error {
 	switch opts.State {
-	case types.StateStart:
+	case runtime.RuntimeStart:
 		database := db.GetDB()
 		if err := startContainer(containerName); err != nil {
-			database.UpdateContainerState(containerName, types.StateStartFailed)
+			database.UpdateContainerState(containerName, runtime.RuntimeStartFailed)
 			return err
 		} else {
-			database.UpdateContainerState(containerName, types.StateStart)
+			database.UpdateContainerState(containerName, runtime.RuntimeStart)
 		}
-	case types.StateStop:
+	case runtime.RuntimeStop:
 		database := db.GetDB()
 		if err := stopContainer(containerName, syscall.SIGTERM); err != nil {
-			database.UpdateContainerState(containerName, types.StateStopFailed)
+			database.UpdateContainerState(containerName, runtime.RuntimeStopFailed)
 		} else {
-			database.UpdateContainerState(containerName, types.StateStop)
+			database.UpdateContainerState(containerName, runtime.RuntimeStop)
 		}
 	default:
 		return fmt.Errorf("Unknown container state: %s", opts.State)

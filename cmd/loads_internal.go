@@ -9,8 +9,8 @@ import (
 	"github.com/dominikbraun/graph"
 	"github.com/dominikbraun/graph/draw"
 
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/loads/drivers"
+	"github.com/bitomia/realm/common/config"
+	loadsDriver "github.com/bitomia/realm/drivers/loads"
 )
 
 func NewGraph(loads config.LoadsConfig) (graph.Graph[string, string], error) {
@@ -46,7 +46,7 @@ func generateSVG(loads config.LoadsConfig, outputFile string) error {
 	for _, load := range allLoads {
 		// Determine node attributes based on driver type
 		var fillcolor, color string
-		if load.Driver.GetLoadDriverID() == drivers.ProcessDriverID {
+		if load.Driver.GetLoadDriverID() == loadsDriver.ProcessDriverID {
 			fillcolor = "#50C878"
 			color = "#2E7D4E"
 		} else {

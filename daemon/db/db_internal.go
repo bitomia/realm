@@ -11,8 +11,8 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/id"
-	"github.com/bitomia/realm/internal/config"
 )
 
 const (

@@ -8,8 +8,8 @@ import (
 
 	"go.etcd.io/etcd/client/v3"
 
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/internal/config"
 )
 
 type HealthPublisher struct {

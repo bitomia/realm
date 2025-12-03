@@ -1,8 +1,8 @@
 # Realm - Simple container orchestration service
 
-Realm is a simple orchestration service for OCI containers based on containerd. It will run as a cluster with different nodes running *realm daemon* instances.
+Realm is a extendable, embeddable and simple orchestration service for different type of loads such as native processes or OCI containers.
 
-Managing the cluster can be commanded from command-line interface or using the REST API that each daemon exposes.
+It's simple because it is just one executable to command the cluster where Realm runs as daemon on each one of the cluster nodes. It's also extendable because it uses a driver systems to extend it with custom loads or node drivers. Managing the cluster can be commanded from command-line interface or using the REST API that each daemon exposes. It's embeddable because Realm provides a C API to interface with clusters.
 
 ## Development setup
 
@@ -37,7 +37,7 @@ net start containerd
 
 ### Debian 12 setup
 
-To build realm you will need also to install some ZFS dependencyes from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
+To build realm you will need also to install some ZFS dependencies from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
 
 Install backports as follows:
 
@@ -95,43 +95,130 @@ REALM_DAEMON_LOG_FORMAT=json
 REALM_DAEMON_LISTEN_PORT=9001
 ```
 
-## Production setup
-
-### Disable ipv6 in realm nodes
-
-Add the following lines to /etc/sysctl.conf:
-
-```
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1
-```
-
-Then run the following command to apply the changes:
-
-```
-sudo sysctl -p
-```
-
-Check if ipv6 is disabled:
-
-```
-ip a | grep inet6
-```
-
-### Enable iptables persistence in master host
-
-```
-sudo apt-get install iptables-persistent
-```
-
-Save the current iptables rules:
-
-```
-sudo netfilter-persistent save
-```
-
 ### Security
 
 All containers shall not have any capabilities. For example we don't set NET_ADMIN (https://man7.org/linux/man-pages/man7/capabilities.7.html) to prevent containers modifying routing tables what could allow them to have access to other containers outside of its internal network.
+
+## Contributing
+
+Please follow the guidelines below to ensure code quality and consistency.
+
+### Code Style and Conventions
+
+This project follows standard Go conventions as outlined in [Effective Go](https://go.dev/doc/effective_go) and the [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments).
+
+#### Naming
+
+- Use **MixedCaps** or **mixedCaps** rather than underscores for multi-word names
+- Acronyms should be all capitals (e.g., `URL`, `HTTP`, `API`)
+- Interfaces with a single method should be named with the method name plus the `-er` suffix (e.g., `Reader`, `Writer`)
+- Package names should be short, concise, lowercase, and without underscores or mixedCaps
+
+#### Comments
+
+- All exported functions, types, constants, and variables must have doc comments
+- Doc comments should be complete sentences starting with the name of the element
+- Package comments should be included above the package declaration
+- Use `//` style comments; avoid `/* */` except for package comments
+
+Example:
+```go
+// LoadDriver manages the lifecycle of container loads.
+// It provides methods to create, start, stop, and remove loads.
+type LoadDriver interface {
+    // Create creates a new load with the given configuration.
+    Create(ctx context.Context, config *LoadConfig) error
+
+    // Start starts the specified load by ID.
+    Start(ctx context.Context, loadID string) error
+}
+```
+
+#### Code Organization
+
+- Organize imports into groups: standard library, third-party, local packages
+- Use `make verify-fmt` to format all code before committing
+- Run `make vet` to catch common mistakes
+
+#### Error Handling
+
+- Always check errors; don't use `_` to discard errors unless you have a good reason
+- Provide context when returning errors using `fmt.Errorf` with `%w` for wrapping
+- Use meaningful error messages that help debugging
+
+Example:
+```go
+if err := daemon.Start(ctx); err != nil {
+    return fmt.Errorf("failed to start daemon: %w", err)
+}
+```
+
+### Project Structure
+
+```
+realm/
+├── cmd/                    # Command-line interface
+│   ├── main.go            # Application entry point
+│   ├── daemon.go          # Daemon commands
+│   ├── containers.go      # Container management commands
+│   ├── images.go          # Image management commands
+│   ├── network.go         # Network commands
+│   ├── nodes.go           # Node management commands
+│   ├── proxy.go           # Proxy commands
+│   └── loads.go           # Load management commands
+├── daemon/                # Daemon implementation
+├── clib/                  # C library bindings
+│   ├── client/            # C client library
+│   └── daemon/            # C daemon library
+├── drivers/               # Standard drivers
+├── internal/              # Private application code
+│   ├── dto/               # Data Transfer Objects
+│   └── runtime/           # Runtime abstractions
+├── config/                # Configuration management
+│   └── logs/              # Logging configuration
+├── dev/                   # Development tools and scripts
+│   └── ansible/           # Ansible playbooks for deployment
+└── docs/                  # Documentation
+```
+
+### Development Workflow
+
+1. **Fork and clone** the repository
+2. **Create a feature branch** from `main`:
+   ```bash
+   git checkout -b feature/my-feature
+   ```
+3. **Make your changes** following the code style guidelines
+4. **Write tests** for new functionality
+5. **Run tests** to ensure everything passes:
+   ```bash
+   make test
+   ```
+6. **Format your code**:
+   ```bash
+   gofmt -w .
+   ```
+7. **Commit your changes** with clear, descriptive commit messages
+8. **Push to your fork** and submit a pull request
+
+### Testing
+
+- Place tests in `*_test.go` files in the same package
+- Run tests before submitting pull requests:
+  ```bash
+  make test
+  ```
+### Documentation
+
+- Add doc comments to all exported types, functions, constants, and variables
+- Keep comments up-to-date when changing code
+- Use examples in doc comments where helpful
+
+### Pull Request Guidelines
+
+- Keep pull requests focused on a single feature or bug fix
+- Reference any related issues in the PR description
+- Ensure all tests pass and code is formatted before submitting
+- Be responsive to review feedback
+- Squash commits if requested before merging
 

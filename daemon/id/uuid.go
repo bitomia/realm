@@ -9,8 +9,8 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/fs"
+	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/internal"
 )
 
 func GetDaemonId() (string, error) {
@@ -19,7 +19,7 @@ func GetDaemonId() (string, error) {
 		return "", fmt.Errorf("Invalid ID file path")
 	}
 
-	if fs.FileExists(idPath) {
+	if internal.FileExists(idPath) {
 		data, err := os.ReadFile(idPath)
 		if err != nil {
 			slog.Error("Error reading daemon ID", "error", err)

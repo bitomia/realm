@@ -12,14 +12,14 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/common"
 )
 
 type DaemonDB struct {
 	client          *clientv3.Client
 	server          *embed.Etcd
 	ctx             context.Context
-	LoadsRepository loads.LoadsRepository
+	LoadsRepository common.LoadsRepository
 }
 
 var (

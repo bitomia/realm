@@ -5,7 +5,7 @@ import (
 	"log"
 	"path/filepath"
 
-	"github.com/bitomia/realm/internal/config"
+	"github.com/bitomia/realm/common/config"
 )
 
 type VolumeInfo struct {

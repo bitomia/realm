@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/internal/loads"
+	"github.com/bitomia/realm/common"
 )
 
 type EtcdLoadsRepository struct {
 	db *DaemonDB
 }
 
-func (r *EtcdLoadsRepository) CreateLoad(loadName string, pid int, driver loads.LoadDriver) error {
+func (r *EtcdLoadsRepository) CreateLoad(loadName string, pid int, driver common.LoadDriver) error {
 	value, err := json.Marshal(driver)
 	if err != nil {
 		slog.Error("Error marshaling load", "error", err.Error())
@@ -52,7 +52,7 @@ func (r *EtcdLoadsRepository) DeleteLoad(loadName string) error {
 // Returns:
 //   - *loads.Load: Pointer to the active load data, or nil if no data exists.
 //   - error: Non-nil if any error occurs during retrieval or unmarshaling.
-func (r *EtcdLoadsRepository) GetLoad(loadName string) (*loads.Load, error) {
+func (r *EtcdLoadsRepository) GetLoad(loadName string) (*common.Load, error) {
 	loadsKey, err := r.db.loadsKey(loadName)
 	if err != nil {
 		slog.Error("Error getting loads key", "error", err.Error())
@@ -73,7 +73,7 @@ func (r *EtcdLoadsRepository) GetLoad(loadName string) (*loads.Load, error) {
 	}
 
 	for _, v := range data {
-		var currentLoad loads.Load
+		var currentLoad common.Load
 		if err := json.Unmarshal([]byte(v), &currentLoad); err != nil {
 			slog.Error("Error unmarshaling load", "error", err.Error())
 			return nil, err

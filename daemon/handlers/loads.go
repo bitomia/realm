@@ -5,16 +5,17 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/internal/config"
-	"github.com/bitomia/realm/internal/loads"
 	"github.com/gorilla/mux"
+
+	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/db"
 )
 
 func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("loads.PlanLoadHandler")
 
-	var load loads.Load
+	var load common.Load
 	err := json.NewDecoder(r.Body).Decode(&load)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -38,7 +39,7 @@ func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
 func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("loads.StartLoadHandler")
 
-	var load loads.Load
+	var load common.Load
 	err := json.NewDecoder(r.Body).Decode(&load)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
