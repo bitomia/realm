@@ -222,3 +222,31 @@ realm/
 - Be responsive to review feedback
 - Squash commits if requested before merging
 
+## License
+
+Realm is **dual-licensed**:
+
+### Open Source License: AGPL-3.0
+
+The open-source version of Realm is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+### Commercial License
+
+If you cannot comply with AGPL-3.0 requirements, we offer **commercial licenses** that allow you to:
+
+- 🔓 Use Realm in proprietary/closed-source applications
+- 🔓 Embed Realm via the C API without open-sourcing your code
+- 🔓 Offer Realm-based services without releasing your source code
+- 🎯 Receive enterprise support and SLA guarantees
+- 🎯 Access professional services and custom development
+
+**Commercial licenses include**:
+- Freedom from AGPL-3.0 requirements
+- Enterprise support with SLA
+- Professional services options
+- Legal indemnification
+
+For commercial licensing options and pricing, contact **licensing@bitomia.com**.
+
+Copyright (C) 2024-2025 Bitomia Software SLU. All rights reserved.
+
