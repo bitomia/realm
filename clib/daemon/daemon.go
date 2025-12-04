@@ -55,17 +55,17 @@ func GetVersion() *C.char {
 	return C.CString(config.GetVersion())
 }
 
-//export GetNodeStatus
-func GetNodeStatus() *C.char {
+//export GetNodeState
+func GetNodeState() *C.char {
 	state, err := api.GetNodeState()
 	if err != nil || state == nil {
 		return nil
 	}
 	b, err := json.Marshal(state)
 	if err != nil {
-		return nil
+		return MakeCString(common.ToJsonCString(err))
 	}
-	return C.CString(string(b))
+	return MakeCString(string(b))
 }
 
 func main() {}

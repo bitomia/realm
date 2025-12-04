@@ -27,5 +27,5 @@ type NodeStateResponse struct {
 
 	FreeStorage uint64 `json:"free_storage"`
 
-	Containers []ContainerStateResponse `json:"containers"`
+	Containers []ContainerStateResponse `json:"containers,omitempty"`
 }
