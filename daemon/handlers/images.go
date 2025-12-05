@@ -62,11 +62,13 @@ func PullImageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer client.Close()
 
+	slog.Info("PullImageHandler", "msg", "pulling image", "image", pullImage.Image)
 	image, err := client.Pull(ctx, pullImage.Image, containerd.WithPullUnpack)
 	if err != nil {
-		slog.Error("PullImageHandler", "msg", "cannot pull image", "error", err)
+		slog.Error("PullImageHandler", "msg", "cannot pull image", "image", pullImage.Image, "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	slog.Info("PullImageHandler", "msg", "image pulled", "image", pullImage.Image)
 	json.NewEncoder(w).Encode(image)
 }

@@ -13,18 +13,26 @@ import (
 	"github.com/bitomia/realm/internal/dto"
 )
 
+type NodeState struct {
+	Name  string                `json:"name"`
+	Url   string                `json:"url"`
+	MAC   *string               `json:"mac,omitempty"`
+	State dto.NodeStateResponse `json:"state"`
+}
+
 //export GetNodesState
 func GetNodesState() *C.char {
 	client := clientPkg.NewClient()
 	nodes := clientPkg.GetNodes()
 
-	states := make([]dto.NodeStateResponse, 0, len(nodes))
+	states := make([]NodeState, 0, len(nodes))
+
 	for _, node := range nodes {
-		status, err := client.GetNodeState(node.Url)
-		if err != nil || status == nil {
+		state, err := client.GetNodeState(node.Url)
+		if err != nil || state == nil {
 			continue
 		}
-		states = append(states, *status)
+		states = append(states, NodeState{Name: node.Name, Url: node.Url, MAC: node.MAC, State: *state})
 	}
 
 	b, err := json.Marshal(states)

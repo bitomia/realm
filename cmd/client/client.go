@@ -489,7 +489,6 @@ func (c *Client) PullImage(node string, image string) error {
 		return fmt.Errorf("failed to pull image: %s", string(body))
 	}
 
-	fmt.Println(string(body))
 	return nil
 }
 

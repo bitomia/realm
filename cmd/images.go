@@ -51,8 +51,13 @@ var pullImage = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := clientPkg.NewClient()
+		node := clientPkg.GetNode(args[0])
+		if node == nil {
+			color.Red("Cannot retrieve node %s\n", args[0])
+		}
+
 		color.Blue("Pulling image %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.PullImage(args[0], args[1]); err != nil {
+		if err := client.PullImage(node.Url, args[1]); err != nil {
 			color.Red("Error pulling image: %v\n", err)
 		} else {
 			color.Green("Successfully pulled image %s\n", color.CyanString(args[1]))
