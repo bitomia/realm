@@ -26,7 +26,7 @@ func logMessage(level LogLevel, format string, args ...any) {
 	case WARN:
 		fmt.Printf("%s\n", color.YellowString(msg))
 	case ERROR:
-		fmt.Printf("%s\n", color.RedString(msg))
+		fmt.Printf("%s\n", color.HiRedString(msg))
 	case DEBUG:
 		fmt.Printf("[debug] %s\n", color.CyanString(msg))
 	case FATAL:

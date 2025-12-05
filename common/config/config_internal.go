@@ -179,12 +179,13 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 	// Create all loads
 	allDeps := make(map[string][]string)
-	for loadName, loadConfig := range config.Loads {
 
+	for loadName, loadConfig := range config.Loads {
 		node, exists := config.Nodes[loadConfig.Node]
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", loadConfig.Node, loadName)
 		}
+
 		driver, err := common.BuildLoadDriver(loadConfig)
 		if err != nil {
 			return err

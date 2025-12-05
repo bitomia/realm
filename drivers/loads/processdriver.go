@@ -107,8 +107,14 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 }
 
 func (p ProcessDriver) Verify() error {
-	if strings.Contains(p.StartCmd, " ") {
+	if p.StartCmd == "" {
 		return fmt.Errorf("StartCmd not specified")
+	}
+	if strings.Contains(p.StartCmd, " ") {
+		return fmt.Errorf("StartCmd shall not have arguments")
+	}
+	if p.StopSignal == 0 {
+		return fmt.Errorf("StopSignal not specified")
 	}
 	return nil
 }

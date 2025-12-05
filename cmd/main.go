@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/drivers"
 )
@@ -25,10 +26,15 @@ func main() {
 		}
 
 		configFile, _ := cmd.Flags().GetString("config")
+		var configError error = nil
 		if configFile == "" {
-			config.Init(nil)
+			configError = config.Init(nil)
 		} else {
-			config.Init(&configFile)
+			configError = config.Init(&configFile)
+		}
+		if configError != nil {
+			log.Error("Config error: %s", configError)
+			os.Exit(1)
 		}
 	}
 	rootCmd.PersistentFlags().String("config", "realm.yaml", "Configuration file")

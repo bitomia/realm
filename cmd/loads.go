@@ -12,7 +12,7 @@ import (
 	"github.com/bitomia/realm/common/config"
 )
 
-func doPlanLoads(cfg *config.Config, client *clientPkg.Client) error {
+func doPlanLoads(client *clientPkg.Client) error {
 	loads := config.GetLoads()
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads present in config file")
@@ -70,7 +70,7 @@ var planLoads = &cobra.Command{
 		}
 
 		client := clientPkg.NewClient()
-		if err := doPlanLoads(cfg, &client); err != nil {
+		if err := doPlanLoads(&client); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}
 		log.Info("Successfully verified loads on cluster")
@@ -90,7 +90,7 @@ var runLoads = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		// Plan all loads first
-		if err := doPlanLoads(cfg, &client); err != nil {
+		if err := doPlanLoads(&client); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}
 
