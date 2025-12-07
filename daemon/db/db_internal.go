@@ -5,24 +5,27 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"path"
 	"strconv"
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/id"
 )
 
 const (
-	containerPrefix = "/containers/"
-	networkPrefix   = "/networks/"
-	subnetPrefix    = "/subnets/"
-	userPrefix      = "/users/"
-	dnsPrefix       = "/dns/"
-	healthPrefix    = "/health/"
-	loadsPrefix     = "/loads/"
+	containerPrefix   = "containers"
+	networkPrefix     = "networks"
+	subnetPrefix      = "subnets"
+	userPrefix        = "users"
+	dnsPrefix         = "dns"
+	healthPrefix      = "health"
+	deploymentsPrefix = "deployments"
+	loadsPrefix       = "loads"
 )
 
 func getEtcdDataDir() string {
@@ -95,7 +98,7 @@ func (db *DaemonDB) containerKey(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + containerPrefix + name, nil
+	return path.Join(daemonId, containerPrefix, name), nil
 }
 
 func (db *DaemonDB) networkKey(container string) (string, error) {
@@ -103,7 +106,7 @@ func (db *DaemonDB) networkKey(container string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + networkPrefix + container, nil
+	return path.Join(daemonId, networkPrefix, container), nil
 }
 
 func (db *DaemonDB) subnetKey(network string) (string, error) {
@@ -111,7 +114,7 @@ func (db *DaemonDB) subnetKey(network string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + subnetPrefix + network, nil
+	return path.Join(daemonId, subnetPrefix, network), nil
 }
 
 func (db *DaemonDB) userKey(username string) (string, error) {
@@ -119,7 +122,7 @@ func (db *DaemonDB) userKey(username string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + userPrefix + username, nil
+	return path.Join(daemonId, userPrefix, username), nil
 }
 
 func (db *DaemonDB) dnsKey(dnsName string) (string, error) {
@@ -127,7 +130,7 @@ func (db *DaemonDB) dnsKey(dnsName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + dnsPrefix + dnsName, nil
+	return path.Join(daemonId, dnsPrefix, dnsName), nil
 }
 
 func (db *DaemonDB) healthKey(nodeId string) (string, error) {
@@ -135,15 +138,48 @@ func (db *DaemonDB) healthKey(nodeId string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return daemonId + healthPrefix + nodeId, nil
+	return path.Join(daemonId, healthPrefix, nodeId), nil
 }
 
-func (db *DaemonDB) loadsKey(name string) (string, error) {
+func (db *DaemonDB) deploymentKey(deploymentId common.DeploymentID) (string, error) {
 	daemonId, err := id.GetDaemonId()
 	if err != nil {
 		return "", err
 	}
-	return daemonId + loadsPrefix + name, nil
+	return path.Join(daemonId, deploymentsPrefix, deploymentId.String()), nil
+}
+
+func (db *DaemonDB) loadDeploymentKey(loadName string, deploymentId common.DeploymentID) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(daemonId, loadsPrefix, loadName, deploymentId.String()), nil
+}
+
+func (db *DaemonDB) loadKey(loadName string) (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(daemonId, loadsPrefix, loadName), nil
+}
+
+func (db *DaemonDB) txn(ops ...clientv3.Op) (*clientv3.TxnResponse, error) {
+	if len(ops) == 0 {
+		return nil, nil
+	}
+
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	txnRes, err := db.client.Txn(ctx).Then(ops...).Commit()
+	if err != nil {
+		slog.Error("Error on transaction:  %v", ops, err.Error())
+		return nil, err
+	}
+
+	return txnRes, nil
 }
 
 // Generic put operation
@@ -153,7 +189,7 @@ func (db *DaemonDB) put(key, value string) error {
 
 	_, err := db.client.Put(ctx, key, value)
 	if err != nil {
-		slog.Error("Error putting key %s: %s", key, err.Error())
+		slog.Error("Error key put %s: %s", key, err.Error())
 	}
 	return err
 }
@@ -203,6 +239,18 @@ func (db *DaemonDB) delete(key string) error {
 	_, err := db.client.Delete(ctx, key)
 	if err != nil {
 		slog.Error("Error deleting key %s: %s", key, err.Error())
+	}
+	return err
+}
+
+// Generic delete with prefix operation
+func (db *DaemonDB) deleteWithPrefix(prefix string) error {
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	_, err := db.client.Delete(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		slog.Error("Error deleting prefix %s: %s", prefix, err.Error())
 	}
 	return err
 }

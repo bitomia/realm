@@ -1,7 +1,30 @@
 package common
 
-type LoadsRepository interface {
-	CreateLoad(loadName string, pid int, driver LoadDriver) error
-	GetLoad(loadName string) (*Load, error)
-	DeleteLoad(loadName string) error
+import "github.com/google/uuid"
+
+type DeploymentID = uuid.UUID
+
+// A deployment is the object create when a load has been loaded
+// in the cluster
+// Notice it doesn't reference Load but contains an immutable copy
+// because a deployment cannot be modified directly, it must be
+// updated from the DeploymentsRepository
+type Deployment struct {
+	ID   DeploymentID
+	Load Load
+}
+
+// Store interface for deployments
+//
+// Notice all data is returned by an immutable copy because
+// this repository might be stored in a distributed database
+// so no memory references must be used
+type DeploymentsRepository interface {
+	Create(loadName string, pid int, driver LoadDriver) (DeploymentID, error)
+
+	GetByLoad(loadName string) ([]Deployment, error)
+	GetDeployment(deploymentID DeploymentID) (*Deployment, error)
+
+	DeleteByLoad(loadName string) error
+	DeleteDeployment(deploymentID uuid.UUID) error
 }

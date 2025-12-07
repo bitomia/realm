@@ -4,7 +4,7 @@ type LoadDriverID string
 
 type LoadDriverInfo struct {
 	ID  LoadDriverID
-	New func(config map[string]interface{}) (LoadDriver, error)
+	New func(config map[string]any) (LoadDriver, error)
 }
 
 type LoadDriver interface {
@@ -29,9 +29,9 @@ type LoadDriver interface {
 
 	// StartOnDaemon starts the load execution within the daemon.
 	// This has no effect when called from the client.
-	StartOnDaemon(repository LoadsRepository, logsPath LogsPath, loadName string) error
+	StartOnDaemon(repository DeploymentsRepository, logsPath LogsPath, loadName string) (DeploymentID, error)
 
 	// StopOnDaemon stops the running load execution within the daemon.
 	// This has no effect when called from the client.
-	StopOnDaemon(repository LoadsRepository, loadName string) error
+	StopOnDaemon(repository DeploymentsRepository, deployment Deployment) error
 }

@@ -33,6 +33,7 @@ type Load struct {
 	Driver    LoadDriver
 	DependsOn []*Load
 	Node      *internal.Node
+	State     LoadState
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {

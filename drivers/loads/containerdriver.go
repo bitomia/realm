@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/google/uuid"
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -98,12 +99,12 @@ func (c ContainerDriver) PlanDaemon() error {
 	return nil
 }
 
-func (c ContainerDriver) StartOnDaemon(repository common.LoadsRepository, logsPath common.LogsPath, loadName string) error {
+func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
 	// TODO
-	return fmt.Errorf("To be implemented")
+	return uuid.Nil, fmt.Errorf("To be implemented")
 }
 
-func (c ContainerDriver) StopOnDaemon(repository common.LoadsRepository, loadName string) error {
+func (c ContainerDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
 }

@@ -3,11 +3,13 @@ package loads
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/google/uuid"
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/internal"
@@ -134,7 +136,16 @@ func (p ProcessDriver) PlanDaemon() error {
 	return nil
 }
 
-func (p ProcessDriver) StartOnDaemon(repository common.LoadsRepository, logsPath common.LogsPath, loadName string) error {
+func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
+	deployments, err := repository.GetByLoad(loadName)
+	if err != nil {
+		slog.Error("ProcessDriver.StartOnDaemon", "msg", "Error on GetByLoad", "error", err.Error())
+		return uuid.Nil, err
+	}
+	if len(deployments) > 0 {
+		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already active: %s", loadName)
+	}
+
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)
@@ -148,12 +159,12 @@ func (p ProcessDriver) StartOnDaemon(repository common.LoadsRepository, logsPath
 
 	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
 	if err != nil {
-		return fmt.Errorf("Failed to create output log file: %v", err)
+		return uuid.Nil, fmt.Errorf("Failed to create output log file: %v", err)
 	}
 
 	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
 	if err != nil {
-		return fmt.Errorf("Failed to create error log file: %v", err)
+		return uuid.Nil, fmt.Errorf("Failed to create error log file: %v", err)
 	}
 
 	cmd.Env = os.Environ()
@@ -164,44 +175,34 @@ func (p ProcessDriver) StartOnDaemon(repository common.LoadsRepository, logsPath
 		cmd.Dir = *p.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start process: %w", err)
+		return uuid.Nil, fmt.Errorf("failed to start process: %w", err)
 	}
 
 	p.PID = cmd.Process.Pid
-	repository.CreateLoad(loadName, p.PID, p)
+	did, err := repository.Create(loadName, p.PID, p)
+	if err != nil {
+		return uuid.Nil, err
+	}
 
-	return nil
+	return did, nil
 }
 
-func (p ProcessDriver) StopOnDaemon(repository common.LoadsRepository, loadName string) error {
-	load, err := repository.GetLoad(loadName)
+func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	if p.PID == 0 {
+		return fmt.Errorf("PID not found for deployment %s load %s", deployment.ID, deployment.Load.Name)
+	}
+
+	process, err := os.FindProcess(p.PID)
 	if err != nil {
-		return fmt.Errorf("failed to get load: %w", err)
-	}
-	if load == nil {
-		return fmt.Errorf("load %q not found", loadName)
+		return fmt.Errorf("failed to find process with PID %d: %w", p.PID, err)
 	}
 
-	processDriver, ok := load.Driver.(*ProcessDriver)
-	if !ok {
-		return fmt.Errorf("driver is not a ProcessDriver")
-	}
-
-	if processDriver.PID == 0 {
-		return fmt.Errorf("PID not found for load %q", loadName)
-	}
-
-	process, err := os.FindProcess(processDriver.PID)
-	if err != nil {
-		return fmt.Errorf("failed to find process with PID %d: %w", processDriver.PID, err)
-	}
-
-	signal := internal.IntToSyscallSignal(processDriver.StopSignal)
+	signal := internal.IntToSyscallSignal(p.StopSignal)
 	if err := process.Signal(signal); err != nil {
-		return fmt.Errorf("failed to send signal to process with PID %d: %w", processDriver.PID, err)
+		return fmt.Errorf("failed to send signal to process with PID %d: %w", p.PID, err)
 	}
 
-	if err := repository.DeleteLoad(loadName); err != nil {
+	if err := repository.DeleteDeployment(deployment.ID); err != nil {
 		return fmt.Errorf("failed to delete load from repository: %w", err)
 	}
 

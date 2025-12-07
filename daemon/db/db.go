@@ -19,7 +19,7 @@ type DaemonDB struct {
 	client          *clientv3.Client
 	server          *embed.Etcd
 	ctx             context.Context
-	LoadsRepository common.LoadsRepository
+	LoadsRepository common.DeploymentsRepository
 }
 
 var (
