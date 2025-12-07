@@ -5,14 +5,13 @@ import (
 	"fmt"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/internal"
 )
 
 var (
 	loadsRepository map[string]*common.Load = make(map[string]*common.Load)
 )
 
-func newLoad(name string, node *internal.Node, driver common.LoadDriver) (*common.Load, error) {
+func newLoad(name string, node *common.Node, driver common.LoadDriver) (*common.Load, error) {
 	if _, exists := loadsRepository[name]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}

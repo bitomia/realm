@@ -29,9 +29,13 @@ type LoadDriver interface {
 
 	// StartOnDaemon starts the load execution within the daemon.
 	// This has no effect when called from the client.
+	//
+	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StartOnDaemon(repository DeploymentsRepository, logsPath LogsPath, loadName string) (DeploymentID, error)
 
 	// StopOnDaemon stops the running load execution within the daemon.
 	// This has no effect when called from the client.
+	//
+	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopOnDaemon(repository DeploymentsRepository, deployment Deployment) error
 }

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/internal"
 )
 
 var BuildGitCommit string
@@ -108,8 +107,8 @@ type LoadsConfig map[string]common.LoadConfig
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*internal.Node `mapstructure:"nodes"`
-	Discovery DiscoveryConfig           `mapstructure:"discovery"`
+	Nodes     map[string]*common.Node `mapstructure:"nodes"`
+	Discovery DiscoveryConfig         `mapstructure:"discovery"`
 
 	// Daemon config
 	Daemon DaemonConfig `mapstructure:"daemon"`

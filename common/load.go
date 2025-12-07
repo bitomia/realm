@@ -3,8 +3,6 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/json"
-
-	"github.com/bitomia/realm/internal"
 )
 
 type LoadState string
@@ -32,7 +30,7 @@ type Load struct {
 	Name      string
 	Driver    LoadDriver
 	DependsOn []*Load
-	Node      *internal.Node
+	Node      *Node
 	State     LoadState
 }
 

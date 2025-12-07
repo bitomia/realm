@@ -6,13 +6,13 @@ import (
 	"strings"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
-
 	"github.com/bitomia/realm/internal"
 )
 
-func GetNodes() map[string]*internal.Node {
-	nodes := make(map[string]*internal.Node)
+func GetNodes() map[string]*common.Node {
+	nodes := make(map[string]*common.Node)
 	seenUrls := make(map[string]string)
 
 	for name, node := range config.Get().Nodes {
@@ -49,7 +49,7 @@ func GetNodes() map[string]*internal.Node {
 				delete(nodes, existingName)
 			}
 
-			nodes[name] = &internal.Node{Name: name, Url: url}
+			nodes[name] = &common.Node{Name: name, Url: url}
 			seenUrls[url] = name
 		}
 	}
@@ -57,7 +57,7 @@ func GetNodes() map[string]*internal.Node {
 	return nodes
 }
 
-func GetNode(nodeName string) *internal.Node {
+func GetNode(nodeName string) *common.Node {
 	nodes := GetNodes()
 	node, exists := nodes[nodeName]
 	if !exists {
