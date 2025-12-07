@@ -181,9 +181,12 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	allDeps := make(map[string][]string)
 
 	for loadName, loadConfig := range config.Loads {
+		if loadConfig.Node == "" {
+			return fmt.Errorf("load '%s' has an empty node field", loadName)
+		}
 		node, exists := config.Nodes[loadConfig.Node]
 		if !exists {
-			return fmt.Errorf("node '%s' referenced by container '%s' does not exist", loadConfig.Node, loadName)
+			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
 		}
 
 		driver, err := common.BuildLoadDriver(loadConfig)

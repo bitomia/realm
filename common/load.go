@@ -7,12 +7,25 @@ import (
 	"github.com/bitomia/realm/internal"
 )
 
+type LoadState string
+
+const (
+	// LoadStart indicates the load should be running
+	LoadStart LoadState = "start"
+	// LoadStartFailed indicates the load failed to start
+	LoadStartFailed LoadState = "start_failed"
+	// LoadStop indicates the load should be stopped
+	LoadStop LoadState = "stop"
+	// LoadStopFailed indicates the load failed to stop
+	LoadStopFailed LoadState = "stop_failed"
+)
+
 type LoadConfig struct {
 	Name         string
-	Node         string                 `mapstructure:"node"`
-	DependsOn    []string               `mapstructure:"depends_on"`
-	Driver       LoadDriverID           `mapstructure:"driver"`
-	DriverConfig map[string]interface{} `mapstructure:"driver_config"`
+	Node         string         `mapstructure:"node"`
+	DependsOn    []string       `mapstructure:"depends_on"`
+	Driver       LoadDriverID   `mapstructure:"driver"`
+	DriverConfig map[string]any `mapstructure:"driver_config"`
 }
 
 type Load struct {
@@ -32,7 +45,7 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 		dependsOn[i] = dep.Name
 	}
 
-	var driverConfig map[string]interface{}
+	var driverConfig map[string]any
 	{
 		driverConfigJson, err := json.Marshal(l.Driver)
 		if err != nil {

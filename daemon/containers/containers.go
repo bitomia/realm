@@ -14,18 +14,17 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-
 	"github.com/bitomia/realm/internal/dto"
-	"github.com/bitomia/realm/internal/runtime"
 )
 
 type DBContainerEntry struct {
-	LastState runtime.RuntimeState `json:"last_state"`
+	LastState common.LoadState `json:"last_state"`
 }
 
 type ContainerInfo struct {
@@ -100,8 +99,8 @@ func RepairContainer(c db.Container) error {
 		status, _ = task.Status(ctx)
 	}
 
-	shall_restart := (containerRow.LastState == runtime.RuntimeStart || containerRow.LastState == runtime.RuntimeStartFailed) && status.Status != containerd.Running
-	shall_stop := (containerRow.LastState == runtime.RuntimeStop || containerRow.LastState == runtime.RuntimeStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
+	shall_restart := (containerRow.LastState == common.LoadStart || containerRow.LastState == common.LoadStartFailed) && status.Status != containerd.Running
+	shall_stop := (containerRow.LastState == common.LoadStop || containerRow.LastState == common.LoadStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
 
 	if shall_restart {
 		slog.Info("Restarting container", "container", c.ContainerName)
@@ -323,25 +322,25 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 }
 
 type UpdateContainerOpts struct {
-	State runtime.RuntimeState `json:"state"`
+	State common.LoadState `json:"state"`
 }
 
 func UpdateContainerState(containerName string, opts UpdateContainerOpts) error {
 	switch opts.State {
-	case runtime.RuntimeStart:
+	case common.LoadStart:
 		database := db.GetDB()
 		if err := startContainer(containerName); err != nil {
-			database.UpdateContainerState(containerName, runtime.RuntimeStartFailed)
+			database.UpdateContainerState(containerName, common.LoadStartFailed)
 			return err
 		} else {
-			database.UpdateContainerState(containerName, runtime.RuntimeStart)
+			database.UpdateContainerState(containerName, common.LoadStart)
 		}
-	case runtime.RuntimeStop:
+	case common.LoadStop:
 		database := db.GetDB()
 		if err := stopContainer(containerName, syscall.SIGTERM); err != nil {
-			database.UpdateContainerState(containerName, runtime.RuntimeStopFailed)
+			database.UpdateContainerState(containerName, common.LoadStopFailed)
 		} else {
-			database.UpdateContainerState(containerName, runtime.RuntimeStop)
+			database.UpdateContainerState(containerName, common.LoadStop)
 		}
 	default:
 		return fmt.Errorf("Unknown container state: %s", opts.State)

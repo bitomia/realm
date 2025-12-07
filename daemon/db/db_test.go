@@ -128,12 +128,12 @@ func TestContainer_CreateAndGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	container, err := db.CreateContainer("test-container", "nginx:latest", "testuser", runtime.RuntimeStart)
+	container, err := db.CreateContainer("test-container", "nginx:latest", "testuser", runtime.LoadStart)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-container", container.ContainerName)
 	assert.Equal(t, "nginx:latest", container.Image)
-	assert.Equal(t, runtime.RuntimeStart, container.LastState)
+	assert.Equal(t, runtime.LoadStart, container.LastState)
 
 	// Retrieve the container
 	retrieved, err := db.GetContainer("test-container")
@@ -170,10 +170,10 @@ func TestContainer_GetAll(t *testing.T) {
 	assert.Len(t, containers, 0)
 
 	// Create multiple containers
-	_, err = db.CreateContainer("container1", "nginx:1", "user1", runtime.RuntimeStart)
+	_, err = db.CreateContainer("container1", "nginx:1", "user1", runtime.LoadStart)
 	assert.NoError(t, err)
 
-	_, err = db.CreateContainer("container2", "nginx:2", "user2", runtime.RuntimeStop)
+	_, err = db.CreateContainer("container2", "nginx:2", "user2", runtime.LoadStop)
 	assert.NoError(t, err)
 
 	containers, err = db.GetAllContainers()
@@ -201,24 +201,24 @@ func TestContainer_UpdateState(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	_, err := db.CreateContainer("test-container", "nginx:latest", "testuser", runtime.RuntimeStart)
+	_, err := db.CreateContainer("test-container", "nginx:latest", "testuser", runtime.LoadStart)
 	assert.NoError(t, err)
 
-	state, err := db.UpdateContainerState("test-container", runtime.RuntimeStop)
+	state, err := db.UpdateContainerState("test-container", runtime.LoadStop)
 	assert.NoError(t, err)
-	assert.Equal(t, runtime.RuntimeStop, state)
+	assert.Equal(t, runtime.LoadStop, state)
 
 	// Verify the update
 	container, err := db.GetContainer("test-container")
 	assert.NoError(t, err)
-	assert.Equal(t, runtime.RuntimeStop, container.LastState)
+	assert.Equal(t, runtime.LoadStop, container.LastState)
 }
 
 func TestContainer_UpdateStateNonExistent(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	_, err := db.UpdateContainerState("nonexistent", runtime.RuntimeStop)
+	_, err := db.UpdateContainerState("nonexistent", runtime.LoadStop)
 	assert.Error(t, err)
 }
 
