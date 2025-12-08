@@ -4,6 +4,11 @@ import (
 	"fmt"
 )
 
+type LoadDriverConfig struct {
+	Driver       LoadDriverID   `mapstructure:"driver"`
+	DriverConfig map[string]any `mapstructure:"driver_config"`
+}
+
 var loadDrivers = make(map[LoadDriverID]LoadDriverInfo)
 
 func RegisterLoadDriver(d LoadDriver) error {
@@ -23,7 +28,7 @@ func UnregisterLoadDriver(id LoadDriverID) error {
 	return nil
 }
 
-func BuildLoadDriver(d LoadConfig) (LoadDriver, error) {
+func BuildLoadDriver(d LoadDriverConfig) (LoadDriver, error) {
 	if _, exists := loadDrivers[d.Driver]; !exists {
 		return nil, fmt.Errorf("LoadDriverID '%s' not registered", d.Driver)
 	}

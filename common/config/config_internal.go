@@ -189,7 +189,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
 		}
 
-		driver, err := common.BuildLoadDriver(loadConfig)
+		driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: loadConfig.Driver, DriverConfig: loadConfig.DriverConfig})
 		if err != nil {
 			return err
 		}

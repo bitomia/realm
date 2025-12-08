@@ -38,4 +38,6 @@ type LoadDriver interface {
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopOnDaemon(repository DeploymentsRepository, deployment Deployment) error
+
+	GetDriverConfig() LoadDriverConfig
 }

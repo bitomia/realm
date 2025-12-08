@@ -84,7 +84,7 @@ func GetDB() *DaemonDB {
 			server: e,
 			ctx:    ctx,
 		}
-		instance.LoadsRepository = &EtcdLoadsRepository{instance}
+		instance.LoadsRepository = &EtcdDeploymentsRepository{instance}
 
 		slog.Info("Database initialized with embedded etcd")
 	})

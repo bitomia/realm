@@ -1,6 +1,8 @@
 package common
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type DeploymentID = uuid.UUID
 
@@ -10,8 +12,9 @@ type DeploymentID = uuid.UUID
 // because a deployment cannot be modified directly, it must be
 // updated from the DeploymentsRepository
 type Deployment struct {
-	ID   DeploymentID
-	Load Load
+	ID         DeploymentID
+	LoadName   string
+	LoadDriver LoadDriver
 }
 
 // Store interface for deployments

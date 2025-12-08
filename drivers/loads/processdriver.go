@@ -27,14 +27,6 @@ type ProcessConfig struct {
 	StopSignal string   `mapstructure:"stop_signal"`
 }
 
-type ProcessRequest struct {
-	StartCmd   string  `json:"start_cmd"`
-	StartArgs  *string `json:"start_args,omitempty"`
-	WorkingDir *string `json:"working_dir,omitempty"`
-	StopSignal string  `json:"stop_signal"`
-	PID        int     `json:"pid"`
-}
-
 type ProcessDriver struct {
 	StartCmd   string
 	StartArgs  *string
@@ -42,9 +34,10 @@ type ProcessDriver struct {
 	StopSignal int
 	LogsPath   common.LogsPath
 	PID        int
+	config     common.LoadDriverConfig
 }
 
-func NewProcessDriverFromConfig(c map[string]interface{}) (common.LoadDriver, error) {
+func NewProcessDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
 	var config ProcessConfig
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
@@ -60,6 +53,7 @@ func NewProcessDriverFromConfig(c map[string]interface{}) (common.LoadDriver, er
 		StartArgs:  config.StartArgs,
 		WorkingDir: config.WorkingDir,
 		StopSignal: stopSignal,
+		config:     common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: c},
 	}
 
 	if err := driver.Verify(); err != nil {
@@ -80,32 +74,21 @@ func (c ProcessDriver) GetLoadDriverID() common.LoadDriverID {
 }
 
 func (p ProcessDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&ProcessRequest{
-		StartCmd:   p.StartCmd,
-		StartArgs:  p.StartArgs,
-		WorkingDir: p.WorkingDir,
-		StopSignal: internal.SignalToString(p.StopSignal),
-		PID:        p.PID,
-	})
+	return json.Marshal(&p.config)
 }
 
 func (p ProcessDriver) UnmarshalJSON(data []byte) error {
-	aux := &ProcessRequest{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
 		return err
 	}
-	p.StartCmd = aux.StartCmd
-	p.StartArgs = aux.StartArgs
-	p.WorkingDir = aux.WorkingDir
-	p.PID = aux.PID
 
-	stopSignal, ok := internal.StringToSignal(aux.StopSignal)
-	if !ok {
-		return fmt.Errorf("invalid stop signal: %s", aux.StopSignal)
+	if loadDriver, err := NewProcessDriverFromConfig(config); err != nil {
+		return err
+	} else {
+		p = loadDriver.(ProcessDriver)
+		return nil
 	}
-	p.StopSignal = stopSignal
-
-	return nil
 }
 
 func (p ProcessDriver) Verify() error {
@@ -189,7 +172,7 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 
 func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	if p.PID == 0 {
-		return fmt.Errorf("PID not found for deployment %s load %s", deployment.ID, deployment.Load.Name)
+		return fmt.Errorf("PID not found for deployment %s load %s", deployment.ID, deployment.LoadName)
 	}
 
 	process, err := os.FindProcess(p.PID)
@@ -207,4 +190,8 @@ func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, dep
 	}
 
 	return nil
+}
+
+func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
+	return p.config
 }

@@ -175,7 +175,7 @@ func (db *DaemonDB) txn(ops ...clientv3.Op) (*clientv3.TxnResponse, error) {
 
 	txnRes, err := db.client.Txn(ctx).Then(ops...).Commit()
 	if err != nil {
-		slog.Error("Error on transaction:  %v", ops, err.Error())
+		slog.Error("Error on transaction", "ops", ops, "error", err.Error())
 		return nil, err
 	}
 

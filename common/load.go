@@ -70,7 +70,7 @@ func (l *Load) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	driver, err := BuildLoadDriver(aux)
+	driver, err := BuildLoadDriver(LoadDriverConfig{Driver: aux.Driver, DriverConfig: aux.DriverConfig})
 	if err != nil {
 		return err
 	}

@@ -17,17 +17,19 @@ import (
 const ContainerDriverID common.LoadDriverID = "container"
 
 type ContainerDriver struct {
-	Image string `json:"image"`
+	Image  string `json:"image"`
+	config common.LoadDriverConfig
 }
 
-func NewContainerDriverFromConfig(c map[string]interface{}) (common.LoadDriver, error) {
+func NewContainerDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
 	var config ContainerDriver
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
 	}
 
 	driver := &ContainerDriver{
-		Image: config.Image,
+		Image:  config.Image,
+		config: common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c},
 	}
 
 	if err := driver.Verify(); err != nil {
@@ -56,15 +58,18 @@ func (c ContainerDriver) MarshalJSON() ([]byte, error) {
 }
 
 func (c ContainerDriver) UnmarshalJSON(data []byte) error {
-	aux := &struct {
-		Image string `json:"image"`
-	}{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
 		return err
 	}
-	c.Image = aux.Image
 
-	return nil
+	if loadDriver, err := NewContainerDriverFromConfig(config); err != nil {
+		return err
+	} else {
+		c = loadDriver.(ContainerDriver)
+		return nil
+	}
+
 }
 
 func (c ContainerDriver) Verify() error {
@@ -107,4 +112,8 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 func (c ContainerDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// TODO
 	return fmt.Errorf("To be implemented")
+}
+
+func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
+	return c.config
 }

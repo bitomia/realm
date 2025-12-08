@@ -77,9 +77,9 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("loads.StopLoadHandler", "loadKey", loadKey, "driverID", deployment.Load.Driver.GetLoadDriverID())
+		slog.Info("loads.StopLoadHandler", "loadKey", loadKey, "driverID", deployment.LoadDriver.GetLoadDriverID())
 
-		if err := deployment.Load.Driver.StopOnDaemon(db.GetDB().LoadsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.StopOnDaemon(db.GetDB().LoadsRepository, deployment); err != nil {
 			http.Error(w, err.Error(), http.StatusNotAcceptable)
 		} else {
 			w.WriteHeader(http.StatusOK)

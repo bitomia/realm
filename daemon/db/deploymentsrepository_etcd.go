@@ -2,53 +2,65 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/common"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
+
+	"github.com/bitomia/realm/common"
 )
 
-type EtcdLoadsRepository struct {
+type EtcdDeploymentsRepository struct {
 	db *DaemonDB
 }
 
-func (r *EtcdLoadsRepository) Create(loadName string, pid int, driver common.LoadDriver) (common.DeploymentID, error) {
-	deploymentID := uuid.New()
+type DeploymentValue struct {
+	ID               common.DeploymentID
+	LoadName         string
+	LoadDriverConfig common.LoadDriverConfig
+}
 
-	slog.Info("EtcdLoadsRepository.Create", "deploymentID", deploymentID, "loadName", loadName)
+func (r *EtcdDeploymentsRepository) Create(loadName string, pid int, driver common.LoadDriver) (common.DeploymentID, error) {
+	deployment := DeploymentValue{
+		ID:               uuid.New(),
+		LoadName:         loadName,
+		LoadDriverConfig: driver.GetDriverConfig(),
+	}
 
-	loadDriverJson, err := json.Marshal(driver)
+	slog.Info("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "loadName", loadName)
+
+	deploymentJson, err := json.Marshal(deployment)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deploymentID, "msg", "Marshalling driver", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "msg", "Marshalling driver", "error", err.Error())
 		return uuid.Nil, err
 	}
 
-	loadKey, err := r.db.loadDeploymentKey(loadName, deploymentID)
+	loadKey, err := r.db.loadDeploymentKey(loadName, deployment.ID)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deploymentID, "msg", "creating load-deployment key", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "msg", "creating load-deployment key", "error", err.Error())
 		return uuid.Nil, err
 	}
-	deploymentKey, err := r.db.deploymentKey(deploymentID)
+	deploymentKey, err := r.db.deploymentKey(deployment.ID)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deploymentID, "msg", "creating deployment key", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "msg", "creating deployment key", "error", err.Error())
 		return uuid.Nil, err
 	}
 
 	ops := []clientv3.Op{
-		clientv3.OpPut(deploymentKey, string(loadDriverJson)),
-		clientv3.OpPut(loadKey, deploymentID.String()),
+		clientv3.OpPut(deploymentKey, string(deploymentJson)),
+		clientv3.OpPut(loadKey, deployment.ID.String()),
 	}
 
 	if _, err := r.db.txn(ops...); err != nil {
-		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deploymentID, "loadName", loadName, "msg", "db put", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "loadName", loadName, "msg", "db put", "error", err.Error())
 		return uuid.Nil, err
 	}
 
-	return deploymentID, nil
+	return deployment.ID, nil
 }
 
-func (r *EtcdLoadsRepository) GetByLoad(loadName string) ([]common.Deployment, error) {
+func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deployment, error) {
 	loadKey, err := r.db.loadKey(loadName)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.GetByLoad", "load", loadName, "msg", "loadKey failed", "error", err.Error())
@@ -73,10 +85,12 @@ func (r *EtcdLoadsRepository) GetByLoad(loadName string) ([]common.Deployment, e
 			slog.Error("EtcdLoadsRepository.GetByLoad", "deploymentID", deploymentID, "msg", "deleting deployment key", "error", err.Error())
 			return nil, err
 		}
-
 		ops = append(ops, clientv3.OpGet(deploymentKey))
 	}
 	txnRes, err := r.db.txn(ops...)
+	if txnRes == nil && err == nil {
+		return nil, nil
+	}
 	if !txnRes.Succeeded {
 		slog.Error("EtcdLoadsRepository.GetByLoad", "loadName", loadName, "msg", "transaction failed", "error", err.Error())
 		return nil, err
@@ -88,19 +102,30 @@ func (r *EtcdLoadsRepository) GetByLoad(loadName string) ([]common.Deployment, e
 		if getResp == nil {
 			continue
 		}
+
 		for _, kv := range getResp.Kvs {
-			var deployment common.Deployment
+			var deployment DeploymentValue
+			fmt.Println(string(kv.Value))
 			if err := json.Unmarshal([]byte(kv.Value), &deployment); err != nil {
-				slog.Error("EtcdLoadsRepository.GetByLoad", "loadName", loadName, "msg", "key", kv.Key, "unmarshallijng deployment", "error", err.Error())
+				slog.Error("EtcdLoadsRepository.GetByLoad", "loadName", loadName, "msg", "unmarshalling deployment", "key", kv.Key, "error", err.Error())
 				return nil, err
 			}
-			deployments = append(deployments, deployment)
+
+			if loadDriver, err := common.BuildLoadDriver(deployment.LoadDriverConfig); err != nil {
+				return nil, err
+			} else {
+				deployments = append(deployments, common.Deployment{
+					ID:         deployment.ID,
+					LoadName:   loadName,
+					LoadDriver: loadDriver,
+				})
+			}
 		}
 	}
 	return deployments, nil
 }
 
-func (r *EtcdLoadsRepository) GetDeployment(deploymentID common.DeploymentID) (*common.Deployment, error) {
+func (r *EtcdDeploymentsRepository) GetDeployment(deploymentID common.DeploymentID) (*common.Deployment, error) {
 	deploymentKey, err := r.db.deploymentKey(deploymentID)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "msg", "deploymentKey failed", "error", err.Error())
@@ -117,7 +142,7 @@ func (r *EtcdLoadsRepository) GetDeployment(deploymentID common.DeploymentID) (*
 	return &deployment, nil
 }
 
-func (r *EtcdLoadsRepository) DeleteByLoad(loadName string) error {
+func (r *EtcdDeploymentsRepository) DeleteByLoad(loadName string) error {
 	loadKey, err := r.db.loadKey(loadName)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.DeleteByLoad", "load", loadName, "msg", "loadKey failed", "error", err.Error())
@@ -154,13 +179,13 @@ func (r *EtcdLoadsRepository) DeleteByLoad(loadName string) error {
 	return nil
 }
 
-func (r *EtcdLoadsRepository) DeleteDeployment(deploymentID uuid.UUID) error {
+func (r *EtcdDeploymentsRepository) DeleteDeployment(deploymentID uuid.UUID) error {
 	deployment, err := r.GetDeployment(deploymentID)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.DeleteDeployment", "deploymentID", deploymentID, "msg", "GetDeployment failed", "error", err.Error())
 		return err
 	}
-	err = r.DeleteByLoad(deployment.Load.Name)
+	err = r.DeleteByLoad(deployment.LoadName)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.DeleteDeployment", "deploymentID", deploymentID, "msg", "DeleteByLoad failed", "error", err.Error())
 		return err
