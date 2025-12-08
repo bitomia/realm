@@ -20,10 +20,10 @@ const (
 
 type LoadConfig struct {
 	Name         string
-	Node         string         `mapstructure:"node"`
-	DependsOn    []string       `mapstructure:"depends_on"`
-	Driver       LoadDriverID   `mapstructure:"driver"`
-	DriverConfig map[string]any `mapstructure:"driver_config"`
+	Node         string       `mapstructure:"node"`
+	DependsOn    []string     `mapstructure:"depends_on"`
+	Driver       LoadDriverID `mapstructure:"driver"`
+	DriverConfig any          `mapstructure:"driver_config"`
 }
 
 type Load struct {

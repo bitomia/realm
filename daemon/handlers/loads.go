@@ -67,12 +67,12 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
-	loadKey := mux.Vars(r)["loadKey"]
-	slog.Info("loads.StopLoadHandler", "loadKey", loadKey)
+func StopAllLoadsDeploymentHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+	slog.Info("loads.StopAllLoadsDeploymentHandler", "loadName", loadName)
 
 	database := db.GetDB()
-	deployments, err := database.DeploymentsRepository.GetByLoad(loadKey)
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -83,7 +83,7 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("loads.StopLoadHandler", "loadKey", loadKey, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		slog.Info("loads.StopAllLoadsDeploymentHandler", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
 
 		if err := deployment.LoadDriver.StopOnDaemon(db.GetDB().DeploymentsRepository, deployment); err != nil {
 			http.Error(w, err.Error(), http.StatusNotAcceptable)

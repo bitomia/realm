@@ -21,7 +21,7 @@ type ContainerDriver struct {
 	config common.LoadDriverConfig
 }
 
-func NewContainerDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
+func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ContainerDriver
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err

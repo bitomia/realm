@@ -35,5 +35,5 @@ func createRoutes(router *mux.Router) {
 
 	router.Handle("/loads/plan", auth.WithAuth(handlers.PlanLoadHandler)).Methods("POST")
 	router.Handle("/loads", auth.WithAuth(handlers.StartLoadHandler)).Methods("POST")
-	router.Handle("/loads/{loadKey}", auth.WithAuth(handlers.StopLoadHandler)).Methods("DELETE")
+	router.Handle("/loads/{loadName}", auth.WithAuth(handlers.StopAllLoadsDeploymentHandler)).Methods("DELETE")
 }

@@ -4,7 +4,7 @@ type LoadDriverID string
 
 type LoadDriverInfo struct {
 	ID  LoadDriverID
-	New func(config map[string]any) (LoadDriver, error)
+	New func(config any) (LoadDriver, error)
 }
 
 type LoadDriver interface {

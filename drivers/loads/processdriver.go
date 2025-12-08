@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
@@ -25,6 +26,7 @@ type ProcessConfig struct {
 	StartArgs  *string  `mapstructure:"start_args,omitempty"`
 	WorkingDir *string  `mapstructure:"working_dir,omitempty"`
 	StopSignal string   `mapstructure:"stop_signal"`
+	ForceKill  bool     `mapstructure:"force_kill"`
 }
 
 type ProcessDriver struct {
@@ -32,12 +34,18 @@ type ProcessDriver struct {
 	StartArgs  *string
 	WorkingDir *string
 	StopSignal int
+	ForceKill  bool
 	LogsPath   common.LogsPath
-	PID        int
 	config     common.LoadDriverConfig
 }
 
-func NewProcessDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
+type ProcInfo struct {
+	Cmd *exec.Cmd
+}
+
+var procStore map[common.DeploymentID]ProcInfo = make(map[common.DeploymentID]ProcInfo)
+
+func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ProcessConfig
 	if err := mapstructure.Decode(c, &config); err != nil {
 		return nil, err
@@ -53,6 +61,7 @@ func NewProcessDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
 		StartArgs:  config.StartArgs,
 		WorkingDir: config.WorkingDir,
 		StopSignal: stopSignal,
+		ForceKill:  config.ForceKill,
 		config:     common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: c},
 	}
 
@@ -162,32 +171,43 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 		return uuid.Nil, fmt.Errorf("failed to start process: %w", err)
 	}
 
-	p.PID = cmd.Process.Pid
-	did, err := repository.Create(loadName, p.PID, p)
+	did, err := repository.Create(loadName, p)
 	if err != nil {
 		return uuid.Nil, err
 	}
+	procStore[did] = ProcInfo{Cmd: cmd}
 
 	return did, nil
 }
 
 func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	if p.PID == 0 {
-		return fmt.Errorf("PID not found for deployment %s load %s", deployment.ID, deployment.LoadName)
-	}
-
-	process, err := os.FindProcess(p.PID)
-	if err != nil {
-		return fmt.Errorf("failed to find process with PID %d: %w", p.PID, err)
-	}
-
 	signal := internal.IntToSyscallSignal(p.StopSignal)
-	if err := process.Signal(signal); err != nil {
-		return fmt.Errorf("failed to send signal to process with PID %d: %w", p.PID, err)
+
+	forceKill := p.ForceKill
+	cmd := procStore[deployment.ID].Cmd
+	if err := cmd.Process.Signal(signal); err != nil {
+		return fmt.Errorf("failed to send signal to process with PID %d: %w", cmd.Process.Pid, err)
 	}
 
-	if err := repository.DeleteDeployment(deployment.ID); err != nil {
-		return fmt.Errorf("failed to delete load from repository: %w", err)
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	select {
+	case <-done:
+		slog.Info("ProcessDriver.StopOnDaemon", "msg", "process exited", "pid", cmd.Process.Pid)
+		if err := repository.DeleteDeployment(deployment.ID); err != nil {
+			return fmt.Errorf("failed to delete load from repository: %w", err)
+		}
+
+	case <-time.After(3 * time.Second):
+		slog.Error("ProcessDriver.StopOnDaemon", "msg", "process exit timeout", "pid", cmd.Process.Pid)
+		if forceKill {
+			slog.Info("ProcessDriver.StopOnDaemon", "msg", "force killing after timeout error", "pid", cmd.Process.Pid)
+			cmd.Process.Kill()
+		}
+		<-done
 	}
 
 	return nil

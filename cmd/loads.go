@@ -97,7 +97,7 @@ var runLoads = &cobra.Command{
 			log.Fatal("Error planning load: %s", err.Error())
 		}
 
-		// Start loads
+		// Start all loads
 		g, err := NewGraph(cfg.Loads)
 		if err != nil {
 			log.Fatal("Error building graph: %s", err.Error())
@@ -132,10 +132,58 @@ var runLoads = &cobra.Command{
 	},
 }
 
+var stopLoads = &cobra.Command{
+	Use:   "stop",
+	Short: "Stop all loads started in the cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		cfg := config.Get()
+		if cfg == nil {
+			log.Error("Failed to load configuration\n")
+			return
+		}
+
+		client := clientPkg.NewClient()
+
+		// Stop all loads
+		g, err := NewGraph(cfg.Loads)
+		if err != nil {
+			log.Fatal("Error building graph: %s", err.Error())
+		}
+
+		log.Info("Stopping loads")
+		loads := config.GetLoads()
+		stopped := make(map[string]bool)
+
+		for _, l := range loads {
+			var pendingLoads []string
+
+			graph.DFS(g, l.Name, func(value string) bool {
+				pendingLoads = append([]string{l.Name}, pendingLoads...)
+				return true
+			})
+
+			for i := len(pendingLoads) - 1; i >= 0; i-- {
+				load := pendingLoads[i]
+
+				if _, exists := stopped[load]; !exists {
+					stopped[load] = true
+					loadStop := loads[load]
+
+					log.Info(" -> Stopping load %s", color.CyanString(loadStop.Name))
+					if err := client.StopLoad(loadStop); err != nil {
+						log.Fatal("Starting load failed: %s", err.Error())
+					}
+				}
+			}
+		}
+	},
+}
+
 func init() {
 	loadsCmd.AddCommand(drawLoadsGraph)
 	loadsCmd.AddCommand(planLoads)
 	loadsCmd.AddCommand(runLoads)
+	loadsCmd.AddCommand(stopLoads)
 	loadsCmd.DisableFlagsInUseLine = true
 	rootCmd.AddCommand(loadsCmd)
 }

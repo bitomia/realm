@@ -20,7 +20,7 @@ type DeploymentValue struct {
 	LoadDriverConfig common.LoadDriverConfig
 }
 
-func (r *EtcdDeploymentsRepository) Create(loadName string, pid int, driver common.LoadDriver) (common.DeploymentID, error) {
+func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver) (common.DeploymentID, error) {
 	deployment := DeploymentValue{
 		ID:               uuid.New(),
 		LoadName:         loadName,
