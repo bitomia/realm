@@ -27,6 +27,7 @@ func main() {
 
 		configFile, _ := cmd.Flags().GetString("config")
 		var configError error = nil
+
 		if configFile == "" {
 			configError = config.Init(nil)
 		} else {

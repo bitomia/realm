@@ -23,7 +23,18 @@ type ContainerDriver struct {
 
 func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ContainerDriver
-	if err := mapstructure.Decode(c, &config); err != nil {
+
+	// Configure mapstructure decoder to use 'json' tags
+	// because it has to work for config files (yaml)
+	// and for remote commands (json)
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  &config,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(c); err != nil {
 		return nil, err
 	}
 

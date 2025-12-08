@@ -5,8 +5,8 @@ import (
 )
 
 type LoadDriverConfig struct {
-	Driver       LoadDriverID `mapstructure:"driver"`
-	DriverConfig any          `mapstructure:"driver_config"`
+	Driver       LoadDriverID `json:"driver"`
+	DriverConfig any          `json:"driver_config"`
 }
 
 var loadDrivers = make(map[LoadDriverID]LoadDriverInfo)

@@ -15,104 +15,104 @@ var BuildGitCommit string
 type DaemonConfig struct {
 	// Path to store daemon unique ID.
 	// Default: /var/lib/realm/realm.id (Linux) or %ProgramData%\realm\realm.id (Windows)
-	IdPath string `mapstructure:"id_path"`
+	IdPath string `json:"id_path"`
 
 	// Path to CNI plugins.
 	// Default: /opt/cni (Linux) or %ProgramData%\realm\cni (Windows)
-	CniPath string `mapstructure:"cni_path"`
+	CniPath string `json:"cni_path"`
 
 	// Name of the ZFS pool for container volumes.
 	// Default: realm_volumes
-	VolumesPool string `mapstructure:"volumes_pool"`
+	VolumesPool string `json:"volumes_pool"`
 
 	// Address to bind the daemon API.
 	// Default: 127.0.0.1
-	ListenAddress string `mapstructure:"listen_address"`
+	ListenAddress string `json:"listen_address"`
 
 	// Port to bind the daemon API.
 	// Default: 9000
-	ListenPort int `mapstructure:"listen_port"`
+	ListenPort int `json:"listen_port"`
 
 	// Path to store daemon logs.
 	// Default: /var/log/realm (Linux) or %ProgramData%\realm\logs (Windows)
-	LogsPath common.LogsPath `mapstructure:"logs_path"`
+	LogsPath common.LogsPath `json:"logs_path"`
 
 	// Log output format.
 	// Valid values: "text", "json"
 	// Default: text
-	LogFormat string `mapstructure:"log_format"`
+	LogFormat string `json:"log_format"`
 
 	// Path to store container logs.
 	// Default: /var/log/realm/containers (Linux) or %ProgramData%\realm\logs\containers (Windows)
-	ContainersLogPath string `mapstructure:"containers_log_path"`
+	ContainersLogPath string `json:"containers_log_path"`
 
 	// Enables or disables the reverse proxy.
 	// Default: false
-	ProxyEnabled bool `mapstructure:"proxy_enabled"`
+	ProxyEnabled bool `json:"proxy_enabled"`
 
 	// Local Caddy proxy URL.
 	// Default: localhost:2019
-	LocalCaddyUrl string `mapstructure:"local_caddy_url"`
+	LocalCaddyUrl string `json:"local_caddy_url"`
 
 	// Master Caddy proxy URL.
 	// Default: localhost:2019
-	MasterCaddyUrl string `mapstructure:"master_caddy_url"`
+	MasterCaddyUrl string `json:"master_caddy_url"`
 
 	// Token for GitHub container registry authentication. Used to pull container images.
 	// Default: empty
-	GitHubRegistryToken string `mapstructure:"github_registry_token"`
+	GitHubRegistryToken string `json:"github_registry_token"`
 
 	// Multicast address for herd communication.
-	HerdMcastAddress string `mapstructure:"herd_mcast_address"`
+	HerdMcastAddress string `json:"herd_mcast_address"`
 
 	// Containerd socket path.
 	// Default: /run/containerd/containerd.sock (Linux) or npipe://./pipe/containerd-containerd (Windows)
-	ContainerdSock string `mapstructure:"containerd_sock"`
+	ContainerdSock string `json:"containerd_sock"`
 
 	// Containerd namespace to use.
 	// Default: realm
-	ContainerdNamespace string `mapstructure:"containerd_namespace"`
+	ContainerdNamespace string `json:"containerd_namespace"`
 
 	// Etcd data directory.
 	// Default: /var/lib/realm/etcd (Linux) or %ProgramData%\realm\etcd (Windows)
-	EtcdDataDir string `mapstructure:"etcd_data_dir"`
+	EtcdDataDir string `json:"etcd_data_dir"`
 
 	// Etcd member name.
 	// Default: empty
-	EtcdName string `mapstructure:"etcd_name"`
+	EtcdName string `json:"etcd_name"`
 
 	// Etcd client URL.
 	// Default: http://127.0.0.1:2379
-	EtcdListenClientUrl string `mapstructure:"etcd_listen_client_url"`
+	EtcdListenClientUrl string `json:"etcd_listen_client_url"`
 
 	// Etcd peer URL.
 	// Default: http://127.0.0.1:2380
-	EtcdListenPeerUrl string `mapstructure:"etcd_listen_peer_url"`
+	EtcdListenPeerUrl string `json:"etcd_listen_peer_url"`
 
 	// Deprecate
 	// Default: empty
-	EtcdInitialCluster string `mapstructure:"etcd_initial_cluster"`
+	EtcdInitialCluster string `json:"etcd_initial_cluster"`
 
 	// Deprecate
 	// Valid values: "new", "existing"
 	// Default: new
-	EtcdClusterState string `mapstructure:"etcd_cluster_state"`
+	EtcdClusterState string `json:"etcd_cluster_state"`
 }
 
 type DiscoveryConfig struct {
-	MdnsEnabled bool `mapstructure:"mdns"`
+	MdnsEnabled bool `json:"mdns"`
 }
 
 type LoadsConfig map[string]common.LoadConfig
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*common.Node `mapstructure:"nodes"`
-	Discovery DiscoveryConfig         `mapstructure:"discovery"`
+	Nodes     map[string]*common.Node `json:"nodes"`
+	Discovery DiscoveryConfig         `json:"discovery"`
 
 	// Daemon config
-	Daemon DaemonConfig `mapstructure:"daemon"`
-	Loads  LoadsConfig  `mapstructure:"loads"`
+	Daemon DaemonConfig `json:"daemon"`
+	Loads  LoadsConfig  `json:"loads"`
 }
 
 // Get returns the global configuration instance.

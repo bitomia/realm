@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 
 	"github.com/bitomia/realm/common"
@@ -74,7 +75,9 @@ func readInConfig(configFilePath string) error {
 	return readConfig(func() (*Config, error) {
 		err := viper.ReadInConfig()
 		if err == nil {
-			err = viper.Unmarshal(&config)
+			err = viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+				c.TagName = "json"
+			})
 		}
 		return config, err
 	}, configFilePath)
@@ -84,7 +87,9 @@ func readConfigFromReader(in io.Reader) error {
 	return readConfig(func() (*Config, error) {
 		err := viper.ReadConfig(in)
 		if err == nil {
-			err = viper.Unmarshal(&config)
+			err = viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+				c.TagName = "json"
+			})
 		}
 		return config, err
 	}, "")

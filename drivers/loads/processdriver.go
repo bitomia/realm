@@ -19,24 +19,19 @@ import (
 const ProcessDriverID common.LoadDriverID = "process"
 
 type ProcessConfig struct {
-	Name       string
-	Node       string   `mapstructure:"node"`
-	DependsOn  []string `mapstructure:"depends_on"`
-	StartCmd   string   `mapstructure:"start_cmd"`
-	StartArgs  *string  `mapstructure:"start_args,omitempty"`
-	WorkingDir *string  `mapstructure:"working_dir,omitempty"`
-	StopSignal string   `mapstructure:"stop_signal"`
-	ForceKill  bool     `mapstructure:"force_kill"`
+	Name       string   `json:"name"`
+	Node       string   `json:"node"`
+	DependsOn  []string `json:"depends_on"`
+	StartCmd   string   `json:"start_cmd"`
+	StartArgs  *string  `json:"start_args,omitempty"`
+	WorkingDir *string  `json:"working_dir,omitempty"`
+	StopSignal string   `json:"stop_signal"`
+	ForceKill  bool     `json:"force_kill"`
 }
 
 type ProcessDriver struct {
-	StartCmd   string
-	StartArgs  *string
-	WorkingDir *string
 	StopSignal int
-	ForceKill  bool
-	LogsPath   common.LogsPath
-	config     common.LoadDriverConfig
+	Config     ProcessConfig
 }
 
 type ProcInfo struct {
@@ -47,7 +42,18 @@ var procStore map[common.DeploymentID]ProcInfo = make(map[common.DeploymentID]Pr
 
 func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ProcessConfig
-	if err := mapstructure.Decode(c, &config); err != nil {
+
+	// Configure mapstructure decoder to use 'json' tags
+	// because it has to work for config files (yaml)
+	// and for remote commands (json)
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName: "json",
+		Result:  &config,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := decoder.Decode(c); err != nil {
 		return nil, err
 	}
 
@@ -57,12 +63,8 @@ func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
 	}
 
 	driver := &ProcessDriver{
-		StartCmd:   config.StartCmd,
-		StartArgs:  config.StartArgs,
-		WorkingDir: config.WorkingDir,
 		StopSignal: stopSignal,
-		ForceKill:  config.ForceKill,
-		config:     common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: c},
+		Config:     config,
 	}
 
 	if err := driver.Verify(); err != nil {
@@ -83,7 +85,7 @@ func (c ProcessDriver) GetLoadDriverID() common.LoadDriverID {
 }
 
 func (p ProcessDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&p.config)
+	return json.Marshal(p.GetDriverConfig())
 }
 
 func (p ProcessDriver) UnmarshalJSON(data []byte) error {
@@ -101,10 +103,10 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 }
 
 func (p ProcessDriver) Verify() error {
-	if p.StartCmd == "" {
+	if p.Config.StartCmd == "" {
 		return fmt.Errorf("StartCmd not specified")
 	}
-	if strings.Contains(p.StartCmd, " ") {
+	if strings.Contains(p.Config.StartCmd, " ") {
 		return fmt.Errorf("StartCmd shall not have arguments")
 	}
 	if p.StopSignal == 0 {
@@ -115,13 +117,13 @@ func (p ProcessDriver) Verify() error {
 
 func (p ProcessDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
 	// Check StartCmd exists and it is executable
-	if _, err := exec.LookPath(p.StartCmd); err != nil {
-		return fmt.Errorf("Executable %q not found in PATH\n", p.StartCmd)
+	if _, err := exec.LookPath(p.Config.StartCmd); err != nil {
+		return fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
 	}
 
 	// Check WorkingDir exists
-	if p.WorkingDir != nil {
-		if err := internal.DirExists(*p.WorkingDir); err != nil {
+	if p.Config.WorkingDir != nil {
+		if err := internal.DirExists(*p.Config.WorkingDir); err != nil {
 			return err
 		}
 	}
@@ -140,14 +142,14 @@ func (p ProcessDriver) PlanDaemon(repository common.DeploymentsRepository, loadN
 
 func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
 	var args []string
-	if p.StartArgs != nil {
-		args = strings.Fields(*p.StartArgs)
+	if p.Config.StartArgs != nil {
+		args = strings.Fields(*p.Config.StartArgs)
 	}
 
-	cmd := exec.Command(p.StartCmd, args...)
+	cmd := exec.Command(p.Config.StartCmd, args...)
 
-	if p.WorkingDir != nil {
-		cmd.Dir = *p.WorkingDir
+	if p.Config.WorkingDir != nil {
+		cmd.Dir = *p.Config.WorkingDir
 	}
 
 	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
@@ -164,8 +166,8 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 	cmd.Stdout = outfile
 	cmd.Stderr = errfile
 
-	if p.WorkingDir != nil {
-		cmd.Dir = *p.WorkingDir
+	if p.Config.WorkingDir != nil {
+		cmd.Dir = *p.Config.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
 		return uuid.Nil, fmt.Errorf("failed to start process: %w", err)
@@ -183,7 +185,7 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
-	forceKill := p.ForceKill
+	forceKill := p.Config.ForceKill
 	cmd := procStore[deployment.ID].Cmd
 	if err := cmd.Process.Signal(signal); err != nil {
 		return fmt.Errorf("failed to send signal to process with PID %d: %w", cmd.Process.Pid, err)
@@ -214,5 +216,5 @@ func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, dep
 }
 
 func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
-	return p.config
+	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
 }
