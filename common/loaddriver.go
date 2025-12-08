@@ -19,7 +19,7 @@ type LoadDriver interface {
 
 	// PlanDaemon prepares the load execution plan from the daemon side.
 	// This is invoked within the daemon and does not affect client behavior.
-	PlanDaemon() error
+	PlanDaemon(repository DeploymentsRepository, loadName string) error
 
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)

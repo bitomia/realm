@@ -18,6 +18,7 @@ func doPlanLoads(client *clientPkg.Client) error {
 		return fmt.Errorf("No loads present in config file")
 	}
 	for _, load := range loads {
+		log.Info(" -> Planning load %s", color.CyanString(load.Name))
 		if err := client.PlanLoad(load); err != nil {
 			return fmt.Errorf("Error planning load: %s", err.Error())
 		}
@@ -90,6 +91,8 @@ var runLoads = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		// Plan all loads first
+		// Daemons already verify plan on load start but only in the
+		// daemon context. we need to verify plan cluster wide
 		if err := doPlanLoads(&client); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}

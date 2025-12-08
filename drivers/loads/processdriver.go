@@ -104,7 +104,7 @@ func (p ProcessDriver) Verify() error {
 	return nil
 }
 
-func (p ProcessDriver) PlanDaemon() error {
+func (p ProcessDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.StartCmd); err != nil {
 		return fmt.Errorf("Executable %q not found in PATH\n", p.StartCmd)
@@ -116,19 +116,20 @@ func (p ProcessDriver) PlanDaemon() error {
 			return err
 		}
 	}
+
+	deployments, err := repository.GetByLoad(loadName)
+	if err != nil {
+		slog.Error("ProcessDriver.PlanDaemon", "msg", "Error on GetByLoad", "error", err.Error())
+		return err
+	}
+	if len(deployments) > 0 {
+		return fmt.Errorf("Load for ProcessDriver already active: %s", loadName)
+	}
+
 	return nil
 }
 
 func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
-	deployments, err := repository.GetByLoad(loadName)
-	if err != nil {
-		slog.Error("ProcessDriver.StartOnDaemon", "msg", "Error on GetByLoad", "error", err.Error())
-		return uuid.Nil, err
-	}
-	if len(deployments) > 0 {
-		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already active: %s", loadName)
-	}
-
 	var args []string
 	if p.StartArgs != nil {
 		args = strings.Fields(*p.StartArgs)

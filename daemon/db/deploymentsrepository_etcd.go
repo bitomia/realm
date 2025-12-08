@@ -2,7 +2,6 @@ package db
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 
 	"github.com/google/uuid"
@@ -105,7 +104,6 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 
 		for _, kv := range getResp.Kvs {
 			var deployment DeploymentValue
-			fmt.Println(string(kv.Value))
 			if err := json.Unmarshal([]byte(kv.Value), &deployment); err != nil {
 				slog.Error("EtcdLoadsRepository.GetByLoad", "loadName", loadName, "msg", "unmarshalling deployment", "key", kv.Key, "error", err.Error())
 				return nil, err

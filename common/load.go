@@ -39,26 +39,16 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 	if l.Node != nil {
 		nodeName = l.Node.Name
 	}
+
 	dependsOn := make([]string, len(l.DependsOn))
 	for i, dep := range l.DependsOn {
 		dependsOn[i] = dep.Name
 	}
 
-	var driverConfig map[string]any
-	{
-		driverConfigJson, err := json.Marshal(l.Driver)
-		if err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal(driverConfigJson, &driverConfig); err != nil {
-			return nil, err
-		}
-	}
-
 	return json.Marshal(&LoadConfig{
 		Name:         l.Name,
 		Driver:       l.Driver.GetLoadDriverID(),
-		DriverConfig: driverConfig,
+		DriverConfig: l.Driver.GetDriverConfig().DriverConfig,
 		DependsOn:    dependsOn,
 		Node:         nodeName,
 	})

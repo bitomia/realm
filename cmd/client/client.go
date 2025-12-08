@@ -882,7 +882,6 @@ func (c *Client) PlanLoad(load *common.Load) error {
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(load)
-
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)

@@ -22,14 +22,10 @@ func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	database := db.GetDB()
-	if _, err := database.LoadsRepository.GetByLoad(load.Name); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	slog.Info("loads.PlanLoadHandler", "load", load.Name, "driver", load.Driver)
-	if err := load.Driver.PlanDaemon(); err != nil {
+	database := db.GetDB()
+
+	if err := load.Driver.PlanDaemon(database.DeploymentsRepository, load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		w.WriteHeader(http.StatusOK)
@@ -53,7 +49,17 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver)
-	if deploymentID, err := load.Driver.StartOnDaemon(db.GetDB().LoadsRepository, config.Daemon.LogsPath, load.Name); err != nil {
+	database := db.GetDB()
+
+	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver, "msg", "start planning")
+	if err := load.Driver.PlanDaemon(database.DeploymentsRepository, load.Name); err != nil {
+		slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver, "msg", "planning error", "error", err)
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		return
+	}
+
+	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver, "msg", "start on daemon")
+	if deploymentID, err := load.Driver.StartOnDaemon(db.GetDB().DeploymentsRepository, config.Daemon.LogsPath, load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		slog.Info("StartLoadHandler", "msg", "load deployed", "deploymentID", deploymentID)
@@ -66,7 +72,7 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("loads.StopLoadHandler", "loadKey", loadKey)
 
 	database := db.GetDB()
-	deployments, err := database.LoadsRepository.GetByLoad(loadKey)
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -79,7 +85,7 @@ func StopLoadHandler(w http.ResponseWriter, r *http.Request) {
 	for _, deployment := range deployments {
 		slog.Info("loads.StopLoadHandler", "loadKey", loadKey, "driverID", deployment.LoadDriver.GetLoadDriverID())
 
-		if err := deployment.LoadDriver.StopOnDaemon(db.GetDB().LoadsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.StopOnDaemon(db.GetDB().DeploymentsRepository, deployment); err != nil {
 			http.Error(w, err.Error(), http.StatusNotAcceptable)
 		} else {
 			w.WriteHeader(http.StatusOK)

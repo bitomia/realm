@@ -16,10 +16,10 @@ import (
 )
 
 type DaemonDB struct {
-	client          *clientv3.Client
-	server          *embed.Etcd
-	ctx             context.Context
-	LoadsRepository common.DeploymentsRepository
+	client                *clientv3.Client
+	server                *embed.Etcd
+	ctx                   context.Context
+	DeploymentsRepository common.DeploymentsRepository
 }
 
 var (
@@ -84,7 +84,7 @@ func GetDB() *DaemonDB {
 			server: e,
 			ctx:    ctx,
 		}
-		instance.LoadsRepository = &EtcdDeploymentsRepository{instance}
+		instance.DeploymentsRepository = &EtcdDeploymentsRepository{instance}
 
 		slog.Info("Database initialized with embedded etcd")
 	})

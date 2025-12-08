@@ -79,7 +79,7 @@ func (c ContainerDriver) Verify() error {
 	return nil
 }
 
-func (c ContainerDriver) PlanDaemon() error {
+func (c ContainerDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		slog.Error("ContainerDriver.PlanDaemon", "error", err)
