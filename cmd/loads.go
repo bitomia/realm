@@ -10,10 +10,11 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/internal"
 )
 
 func doPlanLoads(client *clientPkg.Client) error {
-	loads := config.GetLoads()
+	loads := config.GetLoadsRepository()
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads present in config file")
 	}
@@ -78,7 +79,7 @@ var planLoads = &cobra.Command{
 	},
 }
 
-var runLoads = &cobra.Command{
+var startLoads = &cobra.Command{
 	Use:   "start",
 	Short: "Start all the loads into the cluster",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -98,13 +99,13 @@ var runLoads = &cobra.Command{
 		}
 
 		// Start all loads
-		g, err := NewGraph(cfg.Loads)
+		g, err := internal.NewGraph(cfg.Loads)
 		if err != nil {
 			log.Fatal("Error building graph: %s", err.Error())
 		}
 
 		log.Info("Starting loads")
-		loads := config.GetLoads()
+		loads := config.GetLoadsRepository()
 		loaded := make(map[string]bool)
 
 		for _, l := range loads {
@@ -145,13 +146,13 @@ var stopLoads = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		// Stop all loads
-		g, err := NewGraph(cfg.Loads)
+		g, err := internal.NewGraph(cfg.Loads)
 		if err != nil {
 			log.Fatal("Error building graph: %s", err.Error())
 		}
 
 		log.Info("Stopping loads")
-		loads := config.GetLoads()
+		loads := config.GetLoadsRepository()
 		stopped := make(map[string]bool)
 
 		for _, l := range loads {
@@ -182,7 +183,7 @@ var stopLoads = &cobra.Command{
 func init() {
 	loadsCmd.AddCommand(drawLoadsGraph)
 	loadsCmd.AddCommand(planLoads)
-	loadsCmd.AddCommand(runLoads)
+	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stopLoads)
 	loadsCmd.DisableFlagsInUseLine = true
 	rootCmd.AddCommand(loadsCmd)

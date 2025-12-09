@@ -19,7 +19,7 @@ func newLoad(name string, node *common.Node, driver common.LoadDriver) (*common.
 	return loadsRepository[name], nil
 }
 
-func GetLoads() map[string]*common.Load {
+func GetLoadsRepository() map[string]*common.Load {
 	loads := make(map[string]*common.Load)
 	for _, load := range loadsRepository {
 		loads[load.Name] = load
@@ -27,7 +27,7 @@ func GetLoads() map[string]*common.Load {
 	return loads
 }
 
-func GetLoadsHash() [32]byte {
+func HashLoadsRepository() [32]byte {
 	var hashes [][32]byte
 	for _, l := range loadsRepository {
 		hashes = append(hashes, l.Hash())

@@ -50,9 +50,9 @@ loads:
 	err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := config.GetLoads()
+	loads := config.GetLoadsRepository()
 	assert.NotNil(t, loads)
-	assert.Len(t, config.GetLoads(), 3)
+	assert.Len(t, config.GetLoadsRepository(), 3)
 
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")

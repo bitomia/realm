@@ -35,9 +35,9 @@ func GetNodesState() *C.char {
 		states = append(states, NodeState{Name: node.Name, Url: node.Url, MAC: node.MAC, State: *state})
 	}
 
-	b, err := json.Marshal(states)
+	statesJson, err := json.Marshal(states)
 	if err != nil {
 		return MakeCString(common.ToJsonCString(err))
 	}
-	return MakeCString(string(b))
+	return MakeCString(string(statesJson))
 }
