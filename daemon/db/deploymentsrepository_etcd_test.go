@@ -46,7 +46,7 @@ func (m mockLoadDriver) GetLoadDriverID() common.LoadDriverID {
 func (m mockLoadDriver) DriverInfo() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  MockLoadDriverID,
-		New: func(config map[string]any) (common.LoadDriver, error) { return m, nil },
+		New: func(config any) (common.LoadDriver, error) { return m, nil },
 	}
 }
 
@@ -54,7 +54,7 @@ func (m mockLoadDriver) Verify() error {
 	return nil
 }
 
-func (m mockLoadDriver) PlanDaemon() error {
+func (m mockLoadDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
 	return nil
 }
 
@@ -109,7 +109,7 @@ func TestEtcdDeploymentsRepository_Create(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockLoadDriver("test-driver")
-	deploymentID, err := repo.Create("test-load", 12345, driver)
+	deploymentID, err := repo.Create("test-load", driver)
 
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, deploymentID)
@@ -122,11 +122,11 @@ func TestEtcdDeploymentsRepository_Create_ValidatesDeploymentIDIsUnique(t *testi
 	driver := newMockLoadDriver("test-driver")
 
 	// Create first deployment
-	deploymentID1, err := repo.Create("load1", 111, driver)
+	deploymentID1, err := repo.Create("load1", driver)
 	assert.NoError(t, err)
 
 	// Create second deployment
-	deploymentID2, err := repo.Create("load2", 222, driver)
+	deploymentID2, err := repo.Create("load2", driver)
 	assert.NoError(t, err)
 
 	// IDs should be different
@@ -140,10 +140,10 @@ func TestEtcdDeploymentsRepository_Create_MultipleDeploymentsForSameLoad(t *test
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments for the same load
-	deploymentID1, err := repo.Create("same-load", 111, driver)
+	deploymentID1, err := repo.Create("same-load", driver)
 	assert.NoError(t, err)
 
-	deploymentID2, err := repo.Create("same-load", 222, driver)
+	deploymentID2, err := repo.Create("same-load", driver)
 	assert.NoError(t, err)
 
 	// Both should succeed and have different IDs
@@ -163,7 +163,7 @@ func TestEtcdDeploymentsRepository_GetByLoad(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", 12345, driver)
+	deploymentID, err := repo.Create("test-load", driver)
 	require.NoError(t, err)
 
 	// Retrieve deployments for the load
@@ -181,13 +181,13 @@ func TestEtcdDeploymentsRepository_GetByLoad_MultipleDeployments(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments
-	id1, err := repo.Create("multi-load", 111, driver)
+	id1, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", 222, driver)
+	id2, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
-	id3, err := repo.Create("multi-load", 333, driver)
+	id3, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
 	// Retrieve all deployments
@@ -235,7 +235,7 @@ func TestEtcdDeploymentsRepository_GetDeployment(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", 12345, driver)
+	deploymentID, err := repo.Create("test-load", driver)
 	require.NoError(t, err)
 
 	// Retrieve the specific deployment
@@ -272,7 +272,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", 12345, driver)
+	deploymentID, err := repo.Create("test-load", driver)
 	require.NoError(t, err)
 
 	// Verify it exists
@@ -301,10 +301,10 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_MultipleDeployments(t *testing.T
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments
-	id1, err := repo.Create("multi-load", 111, driver)
+	id1, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", 222, driver)
+	id2, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
 	// Delete all deployments for the load
@@ -339,10 +339,10 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_DoesNotAffectOtherDeployments(t 
 	driver := newMockLoadDriver("test-driver")
 
 	// Create deployments for different loads
-	_, err := repo.Create("load1", 111, driver)
+	_, err := repo.Create("load1", driver)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("load2", 222, driver)
+	id2, err := repo.Create("load2", driver)
 	require.NoError(t, err)
 
 	// Delete deployments for load1
@@ -369,7 +369,7 @@ func TestEtcdDeploymentsRepository_DeleteDeployment(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", 12345, driver)
+	deploymentID, err := repo.Create("test-load", driver)
 	require.NoError(t, err)
 
 	// Delete the specific deployment
@@ -403,13 +403,13 @@ func TestEtcdDeploymentsRepository_DeleteDeployment_OneOfMany(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments for the same load
-	id1, err := repo.Create("multi-load", 111, driver)
+	id1, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", 222, driver)
+	id2, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
-	id3, err := repo.Create("multi-load", 333, driver)
+	id3, err := repo.Create("multi-load", driver)
 	require.NoError(t, err)
 
 	// Delete one deployment
@@ -451,7 +451,7 @@ func TestEtcdDeploymentsRepository_FullLifecycle(t *testing.T) {
 	driver := newMockLoadDriver("lifecycle-driver")
 
 	// Create
-	deploymentID, err := repo.Create("lifecycle-load", 99999, driver)
+	deploymentID, err := repo.Create("lifecycle-load", driver)
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, deploymentID)
 
@@ -488,7 +488,7 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 
 	for i := 0; i < numDeployments; i++ {
 		go func(pid int) {
-			id, err := repo.Create("concurrent-load", pid, driver)
+			id, err := repo.Create("concurrent-load", driver)
 			ids <- id
 			errs <- err
 		}(1000 + i)
