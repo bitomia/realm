@@ -18,7 +18,6 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/drivers"
 )
 
 const testConfig = `
@@ -38,7 +37,6 @@ loads:
 `
 
 func init() {
-	drivers.RegisterStdDrivers()
 	config.InitFromBuffer(testConfig)
 }
 

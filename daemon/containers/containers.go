@@ -11,11 +11,10 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/oci"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
@@ -32,11 +31,6 @@ type ContainerInfo struct {
 	Status     string               `json:"status"`
 	DBEntry    DBContainerEntry     `json:"db_entry"`
 	VolumeInfo volumes.VolumeInfo   `json:"volume_info"`
-}
-
-type DeleteContainerOpts struct {
-	RemoveVolume    bool `json:"remove_volume,omitempty"`
-	RemoveSnapshots bool `json:"remove_snapshots,omitempty"`
 }
 
 type ContainerError struct {
@@ -108,7 +102,7 @@ func RepairContainer(c db.Container) error {
 		if err != nil {
 			return err
 		}
-		err = startContainer(c.ContainerName)
+		_, err = startContainer(c.ContainerName)
 		if err != nil {
 			return err
 		}
@@ -128,111 +122,82 @@ func RepairContainer(c db.Container) error {
 }
 
 func CreateContainer(containerName string, opts dto.CreateContainerRequest, extraSpecOpts []oci.SpecOpts) error {
-	if opts.VolumeMountPoint != "" && (opts.MountVolume.Volume != "" || opts.MountVolume.Target != "") {
-		return errors.New("volume_mount_point and mount_volume cannot be set at the same time")
-	}
-
-	if (opts.MountVolume.Volume != "" && opts.MountVolume.Target == "") ||
-		(opts.MountVolume.Volume == "" && opts.MountVolume.Target != "") {
-		return fmt.Errorf("Invalid mount_volume %v", opts.MountVolume)
-	}
-
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error())
+		return fmt.Errorf("Cannot create cruntime client: %s: %s", containerName, err.Error())
 	}
 	defer client.Close()
 
-	githubToken := config.Get().Daemon.GitHubRegistryToken
-	resolver := docker.NewResolver(docker.ResolverOptions{
-		Hosts: docker.ConfigureDefaultRegistries(docker.WithAuthorizer(docker.NewDockerAuthorizer(
-			docker.WithAuthCreds(func(host string) (string, string, error) {
-				if host == "ghcr.io" {
-					return "USERNAME", githubToken, nil
-				}
-				return "", "", nil
-			}),
-		))),
-	})
-	image, err := client.Pull(ctx, opts.Image, containerd.WithPullUnpack, containerd.WithResolver(resolver))
+	image, err := TryPullAndGetImage(ctx, client, opts.Image)
 	if err != nil {
 		return fmt.Errorf("Failed to pull image %s: %s", opts.Image, err.Error())
 	}
 
 	var container containerd.Container = nil
-	var mountPoint string = ""
+
 	specOpts := []oci.SpecOpts{
 		oci.WithImageConfig(image),
 		oci.WithEnv(opts.Env),
 	}
+
 	if extraSpecOpts != nil {
 		specOpts = append(specOpts, extraSpecOpts...)
 	}
 
-	if opts.MountVolume.Volume != "" && opts.MountVolume.Target != "" {
-		if !volumes.IsVolume(opts.MountVolume.Volume) {
-			return errors.New("Unrecognized mount_volume.volume")
-		}
-		volumePath, err := volumes.GetPathForVolume(opts.MountVolume.Volume)
-		if err != nil {
-			return fmt.Errorf("GetPathForVolume failed for %s", opts.MountVolume.Volume)
-		}
-
-		// HACK: GetPathForVolume doesn't return the absolute path
-		volumePath = fmt.Sprintf("/%s", volumePath)
-
-		mountOptions := []specs.Mount{
-			{
-				Source:      volumePath,
-				Destination: opts.MountVolume.Target,
-				Options:     []string{"rw", "rbind", "mode=755"},
-			},
-		}
-		specOpts = append(specOpts, oci.WithMounts(mountOptions))
-		slog.Info("CreateContainer", "mountOptions", mountOptions[0].Options)
-
-	} else if opts.VolumeMountPoint != "" {
-		if volumes.IsVolume(containerName) {
-			slog.Info("Reusing existent volume for container", "container", containerName)
-			mountPoint, err = volumes.MountVolume(containerName)
-			if err != nil {
-				slog.Error("Error on mounting to reuse volume for container", "container", containerName)
+	if opts.MountVolume != nil {
+		for _, mount := range *opts.MountVolume {
+			if mount.VolumeMountPoint == "" {
+				slog.Warn("CreateContainer", "msg", "Skipping due to mount volume point cannot be empty.")
+				continue
 			}
-		} else {
-			err = volumes.CreateVolume(containerName)
-			if err != nil {
-				return fmt.Errorf("Failed to create volume for container %s: %s", containerName, err.Error())
-			}
-			mountPoint, err = volumes.MountVolume(containerName)
-			if err != nil {
-				return fmt.Errorf("Error on mounting volume for %s\n", containerName)
-			}
-		}
-		if opts.Quotas.VolumeSize != nil {
-			if err := volumes.SetVolumeQuota(containerName, *opts.Quotas.VolumeSize); err != nil {
-				return fmt.Errorf("Failed to enable volume quota for container %s: %s", containerName, err.Error())
-			}
-			slog.Info("CreateContainer", "container", containerName, "volumeSize", *opts.Quotas.VolumeSize)
-		}
 
-		if len(mountPoint) == 0 {
-			return fmt.Errorf("Failed to create volume for container %s: Unexpected condition mountPoint empty", containerName)
+			var mountSource string = ""
+			var volumeName = fmt.Sprintf("%s-%s", containerName, uuid.New())
+
+			if volumes.IsVolume(volumeName) {
+				slog.Info("CreateContainer", "msg", "reusing existent volume", "volume", volumeName)
+				mountSource, err = volumes.MountVolume(volumeName)
+				if err != nil {
+					slog.Error("CreateContainer", "msg", "error on mounting to reuse volume for container", "volume", volumeName, "error", err)
+					return fmt.Errorf("Failed to reuse volume %s: %s", volumeName, err.Error())
+				}
+			} else {
+				err = volumes.CreateVolume(volumeName)
+				if err != nil {
+					return fmt.Errorf("Failed to create volume %s: %s", volumeName, err.Error())
+				}
+
+				mountSource, err = volumes.MountVolume(volumeName)
+				if err != nil {
+					return fmt.Errorf("Error on mounting volume %s: %s", volumeName, err.Error())
+				}
+			}
+
+			// Set volume quota
+			if mount.VolumeSize != nil {
+				if err := volumes.SetVolumeQuota(volumeName, *mount.VolumeSize); err != nil {
+					return fmt.Errorf("Failed to enable volume quota for %s: %s", volumeName, err.Error())
+				}
+
+				slog.Info("CreateContainer", "volume", volumeName, "volumeSize", *mount.VolumeSize)
+			}
+
+			if len(mountSource) == 0 {
+				return fmt.Errorf("Failed to create volume %s: Unexpected condition mountSource empty", volumeName)
+			}
+
+			mountOptions := []specs.Mount{
+				{
+					Type:        "bind",
+					Source:      mountSource,
+					Destination: mount.VolumeMountPoint,
+					Options:     []string{"rw", "rbind", "mode=755"},
+				},
+			}
+			specOpts = append(specOpts, oci.WithMounts(mountOptions))
 		}
-		mountOptions := []specs.Mount{
-			{
-				Type:        "bind",
-				Source:      mountPoint,
-				Destination: opts.VolumeMountPoint,
-				Options:     []string{"rw", "rbind", "mode=755"},
-			},
-			{
-				Source:      "/etc/hosts",
-				Destination: "/etc/hosts",
-				Options:     []string{"ro", "rbind"},
-			},
-		}
-		specOpts = append(specOpts, oci.WithMounts(mountOptions))
 	}
+
 	if opts.Quotas.MemLimit != nil {
 		memLimit := *opts.Quotas.MemLimit * 1024 * 1024
 		slog.Info("CreateContainer", "container", containerName, "memLimit", memLimit)
@@ -249,7 +214,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		ctx,
 		containerName,
 		containerd.WithImage(image),
-		containerd.WithNewSnapshot(containerName+"-snapshot", image),
+		containerd.WithNewSnapshot(containerName, image),
 		containerd.WithNewSpec(specOpts...),
 	)
 
@@ -266,7 +231,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 	return nil
 }
 
-func DeleteContainer(containerName string, opts DeleteContainerOpts, signal syscall.Signal, shallRemoveDBEntry bool, shallRemoveNetwork bool) *ContainerError {
+func DeleteContainer(containerName string, opts dto.DeleteContainerOpts, signal syscall.Signal, shallRemoveDBEntry bool, shallRemoveNetwork bool) *ContainerError {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return NewError(0, "Cannot create cruntime client: %s - %s", containerName, err.Error())
@@ -321,19 +286,16 @@ func DeleteContainer(containerName string, opts DeleteContainerOpts, signal sysc
 	return nil
 }
 
-type UpdateContainerOpts struct {
-	State common.LoadState `json:"state"`
-}
-
-func UpdateContainerState(containerName string, opts UpdateContainerOpts) error {
+func UpdateContainerState(containerName string, opts dto.UpdateContainerOpts) (containerd.Task, error) {
 	switch opts.State {
 	case common.LoadStart:
 		database := db.GetDB()
-		if err := startContainer(containerName); err != nil {
+		if task, err := startContainer(containerName); err != nil {
 			database.UpdateContainerState(containerName, common.LoadStartFailed)
-			return err
+			return nil, err
 		} else {
 			database.UpdateContainerState(containerName, common.LoadStart)
+			return task, nil
 		}
 	case common.LoadStop:
 		database := db.GetDB()
@@ -343,9 +305,9 @@ func UpdateContainerState(containerName string, opts UpdateContainerOpts) error 
 			database.UpdateContainerState(containerName, common.LoadStop)
 		}
 	default:
-		return fmt.Errorf("Unknown container state: %s", opts.State)
+		return nil, fmt.Errorf("Unknown container state: %s", opts.State)
 	}
-	return nil
+	return nil, fmt.Errorf("Unexpected condition on UpdateContainerState")
 }
 
 func SendSignal(containerName string, signal syscall.Signal) error {
@@ -414,4 +376,27 @@ func RestoreContainers(db *db.DaemonDB) {
 			}
 		}
 	}
+}
+
+func TryPullAndGetImage(ctx context.Context, client *containerd.Client, imageName string) (containerd.Image, error) {
+	images, err := client.ImageService().List(ctx, fmt.Sprintf("name==%s", imageName))
+	if err != nil {
+		slog.Error("TryPullAndGetImage", "error", err)
+		return nil, err
+	}
+
+	if len(images) == 0 {
+		slog.Info("TryPullAndGetImage", "msg", "pulling image", "image", imageName)
+
+		image, err := client.Pull(ctx, imageName, containerd.WithPullUnpack)
+		if err != nil {
+			slog.Error("TryPullAndGetImage", "error", err)
+			return nil, err
+		}
+
+		slog.Info("TryPullAndGetImage", "msg", "image pulled", "name", image.Name())
+		return image, nil
+	}
+
+	return client.GetImage(ctx, imageName)
 }

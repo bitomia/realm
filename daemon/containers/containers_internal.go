@@ -16,7 +16,6 @@ import (
 )
 
 func createTask(ctx context.Context, container containerd.Container, containerName string) (containerd.Task, error) {
-	// Get the containers log path from config
 	containersLogPath := config.Get().Daemon.ContainersLogPath
 
 	if err := os.MkdirAll(containersLogPath, 0755); err != nil {
@@ -50,17 +49,17 @@ func createTask(ctx context.Context, container containerd.Container, containerNa
 	return task, err
 }
 
-func startContainer(containerName string) error {
+func startContainer(containerName string) (containerd.Task, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer client.Close()
 
 	container, err := client.LoadContainer(ctx, containerName)
 	if err != nil {
 		slog.Error("Failed to retrieve container on start", "container", containerName, "error", err.Error())
-		return err
+		return nil, err
 	}
 	task, err := container.Task(ctx, nil)
 	if err != nil {
@@ -69,14 +68,14 @@ func startContainer(containerName string) error {
 	}
 	if err != nil {
 		slog.Error("Impossible to retrieve task for container", "container", containerName)
-		return err
+		return nil, err
 	}
 	if err := task.Start(ctx); err != nil {
 		slog.Error("Failed to start task for container on start", "container", containerName, "error", err.Error())
-		return err
+		return nil, err
 	}
 
-	return nil
+	return task, nil
 }
 
 func tryDeleteContainerTask(ctx context.Context, container containerd.Container, signal syscall.Signal) error {

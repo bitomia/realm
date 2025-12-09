@@ -31,7 +31,7 @@ type LoadDriver interface {
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	StartOnDaemon(repository DeploymentsRepository, logsPath LogsPath, loadName string) (DeploymentID, error)
+	StartOnDaemon(repository DeploymentsRepository, loadName string) (DeploymentID, error)
 
 	// StopOnDaemon stops the running load execution within the daemon.
 	// This has no effect when called from the client.
@@ -39,5 +39,6 @@ type LoadDriver interface {
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopOnDaemon(repository DeploymentsRepository, deployment Deployment) error
 
+	// GetDriverConfig returns the configuration for this load driver.
 	GetDriverConfig() LoadDriverConfig
 }

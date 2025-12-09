@@ -78,15 +78,15 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest) erro
 }
 
 // UpdateContainerState updates the state of a container
-func UpdateContainerState(containerName string, opts containers.UpdateContainerOpts) error {
-	if err := containers.UpdateContainerState(containerName, opts); err != nil {
+func UpdateContainerState(containerName string, opts dto.UpdateContainerOpts) error {
+	if _, err := containers.UpdateContainerState(containerName, opts); err != nil {
 		return fmt.Errorf("failed to update container state %s: %w", containerName, err)
 	}
 	return nil
 }
 
 // RemoveContainer removes a container
-func RemoveContainer(containerName string, opts containers.DeleteContainerOpts) error {
+func RemoveContainer(containerName string, opts dto.DeleteContainerOpts) error {
 	if err := containers.DeleteContainer(containerName, opts, 15, true, true); err != nil {
 		return fmt.Errorf("failed to delete container %s: %w", containerName, err)
 	}

@@ -19,7 +19,6 @@ import (
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
-	"github.com/bitomia/realm/daemon/volumes"
 	"github.com/bitomia/realm/internal/dto"
 )
 
@@ -104,15 +103,6 @@ func UpdateContainerQuotasHandler(w http.ResponseWriter, r *http.Request) {
 	var updateContainerQuotas UpdateContainerQuotas
 	json.NewDecoder(r.Body).Decode(&updateContainerQuotas)
 
-	if updateContainerQuotas.Quotas.VolumeSize != nil && volumes.IsVolume(containerName) {
-		if err := volumes.SetVolumeQuota(containerName, *updateContainerQuotas.Quotas.VolumeSize); err != nil {
-			slog.Info("UpdateContainerQuotas: Failed to enable volume quota for container", "container", containerName, "error", err.Error())
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		slog.Info("UpdateContainerQuotas", "container", containerName, "VolumeSize", *updateContainerQuotas.Quotas.VolumeSize)
-	}
-
 	shallUpdateLinuxResources := false
 	linuxResources := specs.LinuxResources{}
 
@@ -161,7 +151,7 @@ func UpdateContainerStateHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
 	slog.Info("UpdateContainerStateHandler", "container", containerName)
 
-	var opts containers.UpdateContainerOpts
+	var opts dto.UpdateContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
 	// Use the new API layer
@@ -176,7 +166,7 @@ func RemoveContainerHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
 	slog.Info("RemoveContainerHandler", "container", containerName)
 
-	var opts containers.DeleteContainerOpts
+	var opts dto.DeleteContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
 	// Use the new API layer
@@ -286,7 +276,7 @@ func MigrateContainerHandler(w http.ResponseWriter, r *http.Request) {
 	if opts.Signal != 0 {
 		signal = syscall.Signal(opts.Signal)
 	}
-	deleteContainerOpts := containers.DeleteContainerOpts{
+	deleteContainerOpts := dto.DeleteContainerOpts{
 		RemoveVolume:    false,
 		RemoveSnapshots: true,
 	}

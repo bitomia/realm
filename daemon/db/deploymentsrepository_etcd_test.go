@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/drivers"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -79,7 +78,7 @@ func (m mockLoadDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (m mockLoadDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
+func (m mockLoadDriver) StartOnDaemon(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	return uuid.New(), nil
 }
 
@@ -92,7 +91,6 @@ func (m mockLoadDriver) GetDriverConfig() common.LoadDriverConfig {
 }
 
 func init() {
-	drivers.RegisterStdDrivers()
 	common.RegisterLoadDriver(mockLoadDriver{})
 }
 

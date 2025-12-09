@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bitomia/realm/common"
+	configPkg "github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
 )
 
@@ -140,7 +141,7 @@ func (p ProcessDriver) PlanDaemon(repository common.DeploymentsRepository, loadN
 	return nil
 }
 
-func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, logsPath common.LogsPath, loadName string) (common.DeploymentID, error) {
+func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -151,6 +152,12 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 	if p.Config.WorkingDir != nil {
 		cmd.Dir = *p.Config.WorkingDir
 	}
+
+	config := configPkg.Get()
+	if config == nil {
+		return uuid.Nil, fmt.Errorf("Cannot retrieve config")
+	}
+	logsPath := config.Daemon.LogsPath
 
 	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
 	if err != nil {

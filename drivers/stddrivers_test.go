@@ -57,7 +57,7 @@ loads:
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")
 	assert.Equal(t, loads["web"].Driver.GetLoadDriverID(), loadsPkg.ContainerDriverID)
-	assert.Equal(t, loads["web"].Driver.(*loadsPkg.ContainerDriver).Image, "docker.io/nginx")
+	assert.Equal(t, loads["web"].Driver.(*loadsPkg.ContainerDriver).Config.Image, "docker.io/nginx")
 }
 
 func TestConfigCycleError(t *testing.T) {

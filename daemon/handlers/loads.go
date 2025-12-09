@@ -59,7 +59,7 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("loads.StartLoadHandler", "load", load.Name, "driver", load.Driver, "msg", "start on daemon")
-	if deploymentID, err := load.Driver.StartOnDaemon(db.GetDB().DeploymentsRepository, config.Daemon.LogsPath, load.Name); err != nil {
+	if deploymentID, err := load.Driver.StartOnDaemon(db.GetDB().DeploymentsRepository, load.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusNotAcceptable)
 	} else {
 		slog.Info("StartLoadHandler", "msg", "load deployed", "deploymentID", deploymentID)
@@ -70,6 +70,12 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 func StopAllLoadsDeploymentHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
 	slog.Info("loads.StopAllLoadsDeploymentHandler", "loadName", loadName)
+
+	config := config.Get()
+	if config == nil {
+		http.Error(w, "Cannot open configuration", http.StatusBadGateway)
+		return
+	}
 
 	database := db.GetDB()
 	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
