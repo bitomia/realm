@@ -22,12 +22,14 @@ var startDaemon = &cobra.Command{
 	Short:                 "Start a daemon",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		daemon.Start()
+		purgeDB, _ := cmd.Flags().GetBool("purge-db")
+		daemon.Start(purgeDB)
 	},
 }
 
 func init() {
 	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: realm.yaml in executable directory)")
+	startDaemon.Flags().Bool("purge-db", false, "Purge all database contents before starting")
 	daemonCmd.AddCommand(startDaemon)
 	rootCmd.AddCommand(daemonCmd)
 }

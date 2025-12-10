@@ -29,7 +29,7 @@ var (
 	globalSignalChannel = make(chan os.Signal, 1)
 )
 
-func Start() {
+func Start(purgeDB bool) {
 	cfg := config.Get()
 
 	// Configure slog handler based on log format
@@ -73,6 +73,14 @@ func Start() {
 	if db == nil {
 		slog.Error("Failed to connect to database")
 		os.Exit(1)
+	}
+
+	if purgeDB {
+		slog.Warn("Purge database flag is set, purging database contents")
+		if err := db.PurgeDB(); err != nil {
+			slog.Error("Failed to purge database", "error", err.Error())
+			os.Exit(1)
+		}
 	}
 
 	dns.Initialize()

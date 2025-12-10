@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/daemon/id"
 )
 
 type DaemonDB struct {
@@ -99,6 +100,43 @@ func (db *DaemonDB) Close() {
 	if db.server != nil {
 		db.server.Close()
 	}
+}
+
+// PurgeDB deletes all data for the current daemon from the database
+func (db *DaemonDB) PurgeDB() error {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		slog.Error("Error getting daemon ID for purge", "error", err.Error())
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	// Get all keys with daemon ID prefix to count them before deletion
+	getAllResp, err := db.client.Get(ctx, daemonId, clientv3.WithPrefix())
+	if err != nil {
+		slog.Error("Error getting keys for purge", "error", err.Error())
+		return err
+	}
+
+	keysCount := len(getAllResp.Kvs)
+	if keysCount == 0 {
+		slog.Info("Database is already empty for this daemon, nothing to purge", "daemon_id", daemonId)
+		return nil
+	}
+
+	slog.Warn("Purging all database contents for daemon", "daemon_id", daemonId)
+
+	// Delete all keys for this daemon
+	resp, err := db.client.Delete(ctx, daemonId, clientv3.WithPrefix())
+	if err != nil {
+		slog.Error("Error purging database", "error", err.Error())
+		return err
+	}
+
+	slog.Info("Database purged successfully", "daemon_id", daemonId, "keys_deleted", resp.Deleted)
+	return nil
 }
 
 func HashPassword(password string) (string, error) {

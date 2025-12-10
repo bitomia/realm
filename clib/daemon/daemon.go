@@ -28,7 +28,7 @@ func StartDaemon() *C.char {
 	if err != nil {
 		return MakeCString(common.ToJsonCString(err))
 	}
-	daemon.Start()
+	daemon.Start(false)
 	return nil
 }
 
@@ -42,7 +42,7 @@ func StartDaemonWithConfig(configBuffer *C.cchar_t) *C.char {
 	if err != nil {
 		return MakeCString(common.ToJsonCString(err))
 	}
-	daemon.Start()
+	daemon.Start(false)
 	return nil
 }
 
