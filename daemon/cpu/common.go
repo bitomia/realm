@@ -7,7 +7,7 @@ import (
 	cgroupstats "github.com/containerd/cgroups/v2/stats"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/mackerelio/go-osstat/cpu"
+	"github.com/shirou/gopsutil/v4/cpu"
 
 	"github.com/bitomia/realm/internal/dto"
 )
@@ -79,7 +79,7 @@ func getContainersState(ctx context.Context, client *containerd.Client) (dto.Con
 //   - client: Containerd client used to query container information
 //
 // Returns:
-//   - *cpu.Stats: The final CPU statistics snapshot from the host system
+//   - cpu.TimesStat: The final CPU statistics snapshot from the host system
 //   - float64: The overall node CPU usage percentage during the measurement interval
 //   - []dto.ContainerStateResponse: Slice containing resource usage stats for each container, including:
 //   - CPU usage (total, system, and user percentages)
@@ -87,28 +87,30 @@ func getContainersState(ctx context.Context, client *containerd.Client) (dto.Con
 //   - error: Any error encountered during metric collection, nil on success
 //
 // Note: Memory statistics are point-in-time values from the second snapshot, not deltas.
-func CollectNodeState(ctx context.Context, client *containerd.Client) (*cpu.Stats, float64, []dto.ContainerStateResponse, error) {
+func CollectNodeState(ctx context.Context, client *containerd.Client) (cpu.TimesStat, float64, []dto.ContainerStateResponse, error) {
 	statsATime := time.Now()
 	statsA, err := getContainersState(ctx, client)
 	if err != nil {
-		return nil, 0, nil, err
+		return cpu.TimesStat{}, 0, nil, err
 	}
-	cpuStatA, err := cpu.Get()
+	cpuStatsA, err := cpu.Times(false)
 	if err != nil {
-		return nil, 0, nil, err
+		return cpu.TimesStat{}, 0, nil, err
 	}
+	cpuStatA := cpuStatsA[0]
 
 	time.Sleep(500 * time.Millisecond)
 	timeDelta := time.Since(statsATime)
 
 	statsB, err := getContainersState(ctx, client)
 	if err != nil {
-		return nil, 0, nil, err
+		return cpu.TimesStat{}, 0, nil, err
 	}
-	cpuStatB, err := cpu.Get()
+	cpuStatsB, err := cpu.Times(false)
 	if err != nil {
-		return nil, 0, nil, err
+		return cpu.TimesStat{}, 0, nil, err
 	}
+	cpuStatB := cpuStatsB[0]
 
 	var containers []dto.ContainerStateResponse
 	for container, statB := range statsB {
@@ -129,8 +131,8 @@ func CollectNodeState(ctx context.Context, client *containerd.Client) (*cpu.Stat
 		containers = append(containers, stat)
 	}
 
-	cpuAActive, cpuATotal := GetCPUStat(cpuStatA)
-	cpuBActive, cpuBTotal := GetCPUStat(cpuStatB)
+	cpuAActive, cpuATotal := GetCPUStat(&cpuStatA)
+	cpuBActive, cpuBTotal := GetCPUStat(&cpuStatB)
 	cpuUsage := ((cpuBActive - cpuAActive) / (cpuBTotal - cpuATotal)) * 100
 
 	return cpuStatB, cpuUsage, containers, nil

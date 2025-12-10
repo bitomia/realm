@@ -47,6 +47,15 @@ func StartDaemonWithConfig(configBuffer *C.cchar_t) *C.char {
 }
 
 /**
+ * Stop the daemon instance
+ */
+//export StopDaemon
+func StopDaemon() *C.char {
+	daemon.Stop()
+	return nil
+}
+
+/**
  * Get daemon build version
  * @return build version
  */

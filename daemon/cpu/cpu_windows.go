@@ -6,10 +6,9 @@ package cpu
 import (
 	"log/slog"
 	"path/filepath"
-	"runtime"
 
-	"github.com/mackerelio/go-osstat/cpu"
-	"github.com/mackerelio/go-osstat/memory"
+	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/mem"
 	"golang.org/x/sys/windows"
 
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -17,10 +16,10 @@ import (
 	"github.com/bitomia/realm/internal/dto"
 )
 
-func GetCPUStat(s *cpu.Stats) (float64, float64) {
+func GetCPUStat(s *cpu.TimesStat) (float64, float64) {
 	active := s.User + s.Nice + s.System
 	total := active + s.Idle
-	return float64(active), float64(total)
+	return active, total
 }
 
 func GetNodeState() (*dto.NodeStateResponse, error) {
@@ -30,21 +29,26 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 	}
 	defer client.Close()
 
+	cpuCount, err := cpu.Counts(true)
+	if err != nil {
+		return nil, err
+	}
+
 	var nodeState dto.NodeStateResponse
-	nodeState.NumCPU = runtime.NumCPU()
+	nodeState.NumCPU = cpuCount
 
 	cpuStat, cpuUsage, containersState, err := CollectNodeState(ctx, client)
 	if err == nil {
 		nodeState.Containers = containersState
-		nodeState.UserCPU = cpuStat.User
-		nodeState.IdleCPU = cpuStat.Idle
-		nodeState.SystemCPU = cpuStat.System
-		nodeState.TotalCPU = cpuStat.Total
+		nodeState.UserCPU = uint64(cpuStat.User)
+		nodeState.IdleCPU = uint64(cpuStat.Idle)
+		nodeState.SystemCPU = uint64(cpuStat.System)
+		nodeState.TotalCPU = uint64(cpuStat.User + cpuStat.System + cpuStat.Nice + cpuStat.Idle)
 		nodeState.UsageCPUPercent = cpuUsage
 	} else {
-		slog.Error("Error on GetContainerState", "error", err)
+		slog.Error("Error on GetNodeState", "error", err)
 	}
-	memStat, err := memory.Get()
+	memStat, err := mem.VirtualMemory()
 	if err != nil {
 		return nil, err
 	}

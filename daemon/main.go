@@ -1,12 +1,15 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -20,6 +23,10 @@ import (
 	"github.com/bitomia/realm/daemon/mdns"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/volumes"
+)
+
+var (
+	globalSignalChannel = make(chan os.Signal, 1)
 )
 
 func Start() {
@@ -93,11 +100,18 @@ func Start() {
 	router := mux.NewRouter()
 	createRoutes(router)
 
+	auth.Initialize()
+
+	serverAddr := fmt.Sprintf("%s:%d", cfg.Daemon.ListenAddress, cfg.Daemon.ListenPort)
+	server := &http.Server{
+		Addr:    serverAddr,
+		Handler: router,
+	}
+
 	go func() {
-		serverAddr := fmt.Sprintf("%s:%d", cfg.Daemon.ListenAddress, cfg.Daemon.ListenPort)
-		auth.Initialize()
 		slog.Info("Daemon running", "addr", serverAddr)
-		http.ListenAndServe(serverAddr, router)
+		server.ListenAndServe()
+		slog.Info("HTTP server stopped", "addr", serverAddr)
 	}()
 
 	err = healthPublisher.PublishHealthy()
@@ -105,12 +119,23 @@ func Start() {
 		slog.Error("Failed to publish healthy status", "error", err.Error())
 	}
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(globalSignalChannel, syscall.SIGINT, syscall.SIGTERM)
+	<-globalSignalChannel
 
-	<-sigChan
 	slog.Info("Received shutdown signal, gracefully stopping daemon")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
 	mdnsService.Stop()
 	healthPublisher.Stop()
 	db.Close()
+}
+
+func Stop() {
+	globalSignalChannel <- syscall.SIGINT
 }
