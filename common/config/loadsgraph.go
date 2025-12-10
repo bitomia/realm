@@ -1,16 +1,14 @@
-package internal
+package config
 
 import (
 	"fmt"
 
 	"github.com/dominikbraun/graph"
-
-	"github.com/bitomia/realm/common/config"
 )
 
-func NewGraph(loads config.LoadsConfig) (graph.Graph[string, string], error) {
+func NewLoadsConfigGraph(loads LoadsConfig) (graph.Graph[string, string], error) {
 	g := graph.New(graph.StringHash, graph.Directed(), graph.Acyclic())
-	allLoads := config.GetLoadsRepository()
+	allLoads := GetLoadsRepository()
 
 	for _, load := range allLoads {
 		if err := g.AddVertex(load.Name); err != nil {

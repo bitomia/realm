@@ -12,7 +12,7 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 type LoadOpResult struct {

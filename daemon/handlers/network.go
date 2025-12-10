@@ -14,7 +14,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 func LinkContainerToNetworkHandler(w http.ResponseWriter, r *http.Request) {

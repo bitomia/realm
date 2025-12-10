@@ -14,7 +14,7 @@ import (
 
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 type Client struct {

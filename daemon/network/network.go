@@ -24,7 +24,7 @@ import (
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 const MIN_SUBNET = 167772160 // 10.0.0.0

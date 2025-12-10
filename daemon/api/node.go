@@ -6,7 +6,7 @@ import (
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 // GetVersion returns the daemon version

@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/shirou/gopsutil/v4/cpu"
 
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 func getCgroupMemLimit(memLimit float64) float64 {

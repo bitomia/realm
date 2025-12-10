@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitomia/realm/daemon/cruntime"
 
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 func GetCPUStat(s *cpu.TimesStat) (float64, float64) {

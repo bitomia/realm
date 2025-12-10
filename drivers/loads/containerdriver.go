@@ -14,7 +14,7 @@ import (
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 const ContainerDriverID common.LoadDriverID = "container"

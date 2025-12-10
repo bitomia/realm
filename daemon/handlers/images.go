@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/bitomia/realm/daemon/cruntime"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 )

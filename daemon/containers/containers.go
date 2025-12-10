@@ -19,7 +19,7 @@ import (
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 type DBContainerEntry struct {

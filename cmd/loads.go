@@ -10,7 +10,6 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/internal"
 )
 
 func doPlanLoads(client *clientPkg.Client) error {
@@ -99,7 +98,7 @@ var startLoads = &cobra.Command{
 		}
 
 		// Start all loads
-		g, err := internal.NewGraph(cfg.Loads)
+		g, err := config.NewLoadsConfigGraph(cfg.Loads)
 		if err != nil {
 			log.Fatal("Error building graph: %s", err.Error())
 		}
@@ -146,7 +145,7 @@ var stopLoads = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		// Stop all loads
-		g, err := internal.NewGraph(cfg.Loads)
+		g, err := config.NewLoadsConfigGraph(cfg.Loads)
 		if err != nil {
 			log.Fatal("Error building graph: %s", err.Error())
 		}

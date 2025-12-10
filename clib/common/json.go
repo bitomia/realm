@@ -4,7 +4,7 @@ import "C"
 import (
 	"encoding/json"
 
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 func toJsonError(e error) string {

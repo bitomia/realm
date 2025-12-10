@@ -10,7 +10,7 @@ import (
 
 	"github.com/bitomia/realm/clib/common"
 	clientPkg "github.com/bitomia/realm/cmd/client"
-	"github.com/bitomia/realm/internal/dto"
+	"github.com/bitomia/realm/common/dto"
 )
 
 type NodeState struct {
