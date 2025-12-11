@@ -15,11 +15,11 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/bitomia/realm/common/dto"
 )
 
 type DBContainerEntry struct {
@@ -198,16 +198,18 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		}
 	}
 
-	if opts.Quotas.MemLimit != nil {
-		memLimit := *opts.Quotas.MemLimit * 1024 * 1024
-		slog.Info("CreateContainer", "container", containerName, "memLimit", memLimit)
-		specOpts = append(specOpts, oci.WithMemoryLimit(memLimit))
-	}
-	if opts.Quotas.CpuShares != nil {
-		specOpts = append(specOpts, oci.WithCPUShares(*opts.Quotas.CpuShares))
-	}
-	if opts.Quotas.CpuCFS != nil {
-		specOpts = append(specOpts, oci.WithCPUCFS(opts.Quotas.CpuCFS.CpuQuota, opts.Quotas.CpuCFS.CpuPeriod))
+	if opts.Quotas != nil {
+		if opts.Quotas.MemLimit != nil {
+			memLimit := *opts.Quotas.MemLimit * 1024 * 1024
+			slog.Info("CreateContainer", "container", containerName, "memLimit", memLimit)
+			specOpts = append(specOpts, oci.WithMemoryLimit(memLimit))
+		}
+		if opts.Quotas.CpuShares != nil {
+			specOpts = append(specOpts, oci.WithCPUShares(*opts.Quotas.CpuShares))
+		}
+		if opts.Quotas.CpuCFS != nil {
+			specOpts = append(specOpts, oci.WithCPUCFS(opts.Quotas.CpuCFS.CpuQuota, opts.Quotas.CpuCFS.CpuPeriod))
+		}
 	}
 
 	container, err = client.NewContainer(
