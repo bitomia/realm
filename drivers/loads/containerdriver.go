@@ -111,6 +111,10 @@ func (c ContainerDriver) PlanDaemon(repository common.DeploymentsRepository, loa
 	return nil
 }
 
+type ContainerEntryMetadata struct {
+	ContainerName string `json:"container_name"`
+}
+
 func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	// Use loadName to create an unique container namey
 	containerName := fmt.Sprintf("%s-%s", loadName, uuid.New())
@@ -150,7 +154,7 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 	slog.Info("ContainerDriver.StartOnDaemon", "msg", "container started", "container", containerName, "taskPID", task.Pid())
 
 	// Create deployment entry in repository
-	did, err := repository.Create(loadName, c)
+	did, err := repository.Create(loadName, c, ContainerEntryMetadata{ContainerName: containerName})
 	if err != nil {
 		slog.Error("ContainerDriver.StartOnDaemon", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
@@ -160,15 +164,27 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 }
 
 func (c ContainerDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	slog.Info("ContainerDriver.StopOnDaemon", "msg", "stopping container", "deployment", deployment.ID)
+
+	fmt.Printf("%v\n", deployment)
+	// Use loadName as the container name
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ContainerDriver.StopOnDaemon", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	containerName := metadata.ContainerName
+	slog.Info("ContainerDriver.StopOnDaemon", "msg", "stopping container successfully retrieved container name", "deployment", deployment.ID, "container", containerName)
+
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		slog.Error("ContainerDriver.StopOnDaemon", "error", err)
 		return err
 	}
 	defer client.Close()
-
-	// Use loadName as the container name
-	containerName := deployment.LoadName
 
 	// Load the container
 	container, err := client.LoadContainer(ctx, containerName)

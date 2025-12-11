@@ -107,7 +107,7 @@ func TestEtcdDeploymentsRepository_Create(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockLoadDriver("test-driver")
-	deploymentID, err := repo.Create("test-load", driver)
+	deploymentID, err := repo.Create("test-load", driver, nil)
 
 	assert.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, deploymentID)
@@ -120,11 +120,11 @@ func TestEtcdDeploymentsRepository_Create_ValidatesDeploymentIDIsUnique(t *testi
 	driver := newMockLoadDriver("test-driver")
 
 	// Create first deployment
-	deploymentID1, err := repo.Create("load1", driver)
+	deploymentID1, err := repo.Create("load1", driver, nil)
 	assert.NoError(t, err)
 
 	// Create second deployment
-	deploymentID2, err := repo.Create("load2", driver)
+	deploymentID2, err := repo.Create("load2", driver, nil)
 	assert.NoError(t, err)
 
 	// IDs should be different
@@ -138,10 +138,10 @@ func TestEtcdDeploymentsRepository_Create_MultipleDeploymentsForSameLoad(t *test
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments for the same load
-	deploymentID1, err := repo.Create("same-load", driver)
+	deploymentID1, err := repo.Create("same-load", driver, nil)
 	assert.NoError(t, err)
 
-	deploymentID2, err := repo.Create("same-load", driver)
+	deploymentID2, err := repo.Create("same-load", driver, nil)
 	assert.NoError(t, err)
 
 	// Both should succeed and have different IDs
@@ -161,7 +161,7 @@ func TestEtcdDeploymentsRepository_GetByLoad(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", driver)
+	deploymentID, err := repo.Create("test-load", driver, nil)
 	require.NoError(t, err)
 
 	// Retrieve deployments for the load
@@ -179,13 +179,13 @@ func TestEtcdDeploymentsRepository_GetByLoad_MultipleDeployments(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments
-	id1, err := repo.Create("multi-load", driver)
+	id1, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", driver)
+	id2, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
-	id3, err := repo.Create("multi-load", driver)
+	id3, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
 	// Retrieve all deployments
@@ -233,7 +233,7 @@ func TestEtcdDeploymentsRepository_GetDeployment(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", driver)
+	deploymentID, err := repo.Create("test-load", driver, nil)
 	require.NoError(t, err)
 
 	// Retrieve the specific deployment
@@ -270,7 +270,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", driver)
+	deploymentID, err := repo.Create("test-load", driver, nil)
 	require.NoError(t, err)
 
 	// Verify it exists
@@ -299,10 +299,10 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_MultipleDeployments(t *testing.T
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments
-	id1, err := repo.Create("multi-load", driver)
+	id1, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", driver)
+	id2, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
 	// Delete all deployments for the load
@@ -337,10 +337,10 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_DoesNotAffectOtherDeployments(t 
 	driver := newMockLoadDriver("test-driver")
 
 	// Create deployments for different loads
-	_, err := repo.Create("load1", driver)
+	_, err := repo.Create("load1", driver, nil)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("load2", driver)
+	id2, err := repo.Create("load2", driver, nil)
 	require.NoError(t, err)
 
 	// Delete deployments for load1
@@ -367,7 +367,7 @@ func TestEtcdDeploymentsRepository_DeleteDeployment(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create a deployment
-	deploymentID, err := repo.Create("test-load", driver)
+	deploymentID, err := repo.Create("test-load", driver, nil)
 	require.NoError(t, err)
 
 	// Delete the specific deployment
@@ -401,13 +401,13 @@ func TestEtcdDeploymentsRepository_DeleteDeployment_OneOfMany(t *testing.T) {
 	driver := newMockLoadDriver("test-driver")
 
 	// Create multiple deployments for the same load
-	id1, err := repo.Create("multi-load", driver)
+	id1, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
-	id2, err := repo.Create("multi-load", driver)
+	id2, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
-	id3, err := repo.Create("multi-load", driver)
+	id3, err := repo.Create("multi-load", driver, nil)
 	require.NoError(t, err)
 
 	// Delete one deployment
@@ -449,7 +449,7 @@ func TestEtcdDeploymentsRepository_FullLifecycle(t *testing.T) {
 	driver := newMockLoadDriver("lifecycle-driver")
 
 	// Create
-	deploymentID, err := repo.Create("lifecycle-load", driver)
+	deploymentID, err := repo.Create("lifecycle-load", driver, nil)
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, deploymentID)
 
@@ -486,7 +486,7 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 
 	for i := 0; i < numDeployments; i++ {
 		go func(pid int) {
-			id, err := repo.Create("concurrent-load", driver)
+			id, err := repo.Create("concurrent-load", driver, nil)
 			ids <- id
 			errs <- err
 		}(1000 + i)
@@ -511,5 +511,152 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 	for _, id := range deploymentIDs {
 		assert.False(t, idSet[id], "Duplicate deployment ID found")
 		idSet[id] = true
+	}
+}
+
+// Tests for Metadata field storage
+func TestEtcdDeploymentsRepository_Create_WithNilMetadata(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+
+	// Create deployment with nil metadata
+	deploymentID, err := repo.Create("test-load", driver, nil)
+	require.NoError(t, err)
+
+	// Retrieve and verify metadata is nil
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.Nil(t, deployment.Metadata)
+}
+
+func TestEtcdDeploymentsRepository_Create_WithStringMetadata(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	metadata := "test-metadata-string"
+
+	// Create deployment with string metadata
+	deploymentID, err := repo.Create("test-load", driver, metadata)
+	require.NoError(t, err)
+
+	// Retrieve and verify metadata is correctly stored
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment.Metadata)
+	assert.Equal(t, metadata, deployment.Metadata)
+}
+
+func TestEtcdDeploymentsRepository_Create_WithMapMetadata(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	metadata := map[string]any{
+		"key1": "value1",
+		"key2": 42,
+		"key3": true,
+		"nested": map[string]any{
+			"inner": "data",
+		},
+	}
+
+	// Create deployment with map metadata
+	deploymentID, err := repo.Create("test-load", driver, metadata)
+	require.NoError(t, err)
+
+	// Retrieve and verify metadata is correctly stored
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment.Metadata)
+
+	// Verify the metadata structure
+	retrievedMetadata, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok, "Metadata should be a map[string]any")
+	assert.Equal(t, "value1", retrievedMetadata["key1"])
+	assert.Equal(t, float64(42), retrievedMetadata["key2"]) // JSON unmarshaling converts numbers to float64
+	assert.Equal(t, true, retrievedMetadata["key3"])
+
+	nested, ok := retrievedMetadata["nested"].(map[string]any)
+	assert.True(t, ok, "Nested field should be a map")
+	assert.Equal(t, "data", nested["inner"])
+}
+
+func TestEtcdDeploymentsRepository_Create_WithStructMetadata(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+
+	type CustomMetadata struct {
+		Field1 string
+		Field2 int
+		Field3 bool
+	}
+
+	metadata := CustomMetadata{
+		Field1: "test-value",
+		Field2: 123,
+		Field3: true,
+	}
+
+	// Create deployment with struct metadata
+	deploymentID, err := repo.Create("test-load", driver, metadata)
+	require.NoError(t, err)
+
+	// Retrieve and verify metadata is correctly stored
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment.Metadata)
+}
+
+func TestEtcdDeploymentsRepository_Create_DifferentMetadataForMultipleDeployments(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+
+	// Create deployments with different metadata
+	metadata1 := map[string]any{"type": "deployment1", "priority": 1}
+	metadata2 := map[string]any{"type": "deployment2", "priority": 2}
+	metadata3 := "simple-string-metadata"
+
+	id1, err := repo.Create("multi-load", driver, metadata1)
+	require.NoError(t, err)
+
+	id2, err := repo.Create("multi-load", driver, metadata2)
+	require.NoError(t, err)
+
+	id3, err := repo.Create("multi-load", driver, metadata3)
+	require.NoError(t, err)
+
+	// Retrieve all deployments and verify each has correct metadata
+	deployment1, err := repo.GetDeployment(id1)
+	assert.NoError(t, err)
+	meta1, ok := deployment1.Metadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "deployment1", meta1["type"])
+	assert.Equal(t, float64(1), meta1["priority"])
+
+	deployment2, err := repo.GetDeployment(id2)
+	assert.NoError(t, err)
+	meta2, ok := deployment2.Metadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "deployment2", meta2["type"])
+	assert.Equal(t, float64(2), meta2["priority"])
+
+	deployment3, err := repo.GetDeployment(id3)
+	assert.NoError(t, err)
+	assert.Equal(t, "simple-string-metadata", deployment3.Metadata)
+
+	// Also verify via GetByLoad that all have their metadata
+	deployments, err := repo.GetByLoad("multi-load")
+	assert.NoError(t, err)
+	assert.Len(t, deployments, 3)
+
+	for _, d := range deployments {
+		assert.NotNil(t, d.Metadata, "All deployments should have metadata")
 	}
 }

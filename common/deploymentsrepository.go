@@ -15,6 +15,7 @@ type Deployment struct {
 	ID         DeploymentID
 	LoadName   string
 	LoadDriver LoadDriver
+	Metadata   any
 }
 
 // Store interface for deployments
@@ -23,7 +24,7 @@ type Deployment struct {
 // this repository might be stored in a distributed database
 // so no memory references must be used
 type DeploymentsRepository interface {
-	Create(loadName string, driver LoadDriver) (DeploymentID, error)
+	Create(loadName string, driver LoadDriver, metadata any) (DeploymentID, error)
 
 	GetByLoad(loadName string) ([]Deployment, error)
 	GetDeployment(deploymentID DeploymentID) (*Deployment, error)

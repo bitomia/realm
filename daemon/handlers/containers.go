@@ -14,12 +14,12 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/network"
-	"github.com/bitomia/realm/common/dto"
 )
 
 func RepairContainerHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,6 @@ func ListContainersHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	// Use the new API layer
 	containersState, err := api.ListContainers()
 	if err != nil {
 		slog.Error("Failed to list containers", "error", err)
@@ -63,7 +62,6 @@ func CreateContainerHandler(w http.ResponseWriter, r *http.Request) {
 	var opts dto.CreateContainerRequest
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	// Use the new API layer
 	if err := api.CreateContainer(containerName, opts); err != nil {
 		slog.Error("CreateContainer error", "container", containerName, "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,7 +152,6 @@ func UpdateContainerStateHandler(w http.ResponseWriter, r *http.Request) {
 	var opts dto.UpdateContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	// Use the new API layer
 	if err := api.UpdateContainerState(containerName, opts); err != nil {
 		slog.Error("UpdateContainerState", "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -169,7 +166,6 @@ func RemoveContainerHandler(w http.ResponseWriter, r *http.Request) {
 	var opts dto.DeleteContainerOpts
 	json.NewDecoder(r.Body).Decode(&opts)
 
-	// Use the new API layer
 	if err := api.RemoveContainer(containerName, opts); err != nil {
 		slog.Error("DeleteContainer", "container", containerName, "error", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)

@@ -180,7 +180,7 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 		return uuid.Nil, fmt.Errorf("failed to start process: %w", err)
 	}
 
-	did, err := repository.Create(loadName, p)
+	did, err := repository.Create(loadName, p, nil)
 	if err != nil {
 		return uuid.Nil, err
 	}

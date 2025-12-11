@@ -18,13 +18,15 @@ type DeploymentValue struct {
 	ID               common.DeploymentID
 	LoadName         string
 	LoadDriverConfig common.LoadDriverConfig
+	Metadata         any
 }
 
-func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver) (common.DeploymentID, error) {
+func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, metadata any) (common.DeploymentID, error) {
 	deployment := DeploymentValue{
 		ID:               uuid.New(),
 		LoadName:         loadName,
 		LoadDriverConfig: driver.GetDriverConfig(),
+		Metadata:         metadata,
 	}
 
 	slog.Info("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "loadName", loadName)
@@ -116,6 +118,7 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 					ID:         deployment.ID,
 					LoadName:   loadName,
 					LoadDriver: loadDriver,
+					Metadata:   deployment.Metadata,
 				})
 			}
 		}
