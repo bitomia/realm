@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/id"
 )
 
@@ -32,62 +33,98 @@ const ETCD_TIMEOUT = 5 * time.Second
 
 func GetDB() *DaemonDB {
 	once.Do(func() {
-		cfg := getEtcdConfig()
-		slog.Info("Initializing embedded etcd",
-			"data_dir", cfg.Dir,
-			"name", cfg.Name,
-			"cluster_state", cfg.ClusterState,
-			"initial_cluster", cfg.InitialCluster)
+		daemonCfg := config.Get().Daemon
+		etcdMode := daemonCfg.EtcdMode
+		if etcdMode == "" {
+			etcdMode = "server"
+		}
 
-		// Start embedded etcd server
-		e, err := embed.StartEtcd(cfg)
-		if err != nil {
-			slog.Error("Error starting embedded etcd", "error", err.Error())
+		var client *clientv3.Client
+		var server *embed.Etcd
+		var err error
+		var endpoints []string
+
+		ctx := context.Background()
+
+		if etcdMode == "server" {
+			// Server mode: start embedded etcd server
+			cfg := getEtcdConfig()
+			slog.Info("Initializing etcd server",
+				"data_dir", cfg.Dir,
+				"name", cfg.Name,
+				"cluster_state", cfg.ClusterState,
+				"initial_cluster", cfg.InitialCluster)
+
+			// Start embedded etcd server
+			server, err = embed.StartEtcd(cfg)
+			if err != nil {
+				slog.Error("Error starting etcd server", "error", err.Error())
+				os.Exit(1)
+			}
+
+			// Wait for etcd to be ready
+			select {
+			case <-server.Server.ReadyNotify():
+				slog.Info("Etcd server is ready")
+			case <-time.After(60 * time.Second):
+				server.Server.Stop()
+				slog.Error("Etcd server took too long to start")
+				os.Exit(1)
+			}
+
+			endpoints = []string{cfg.ListenClientUrls[0].String()}
+		} else if etcdMode == "client" {
+			// Client mode: connect to external etcd
+			endpoints = daemonCfg.EtcdEndpoints
+			if len(endpoints) == 0 {
+				slog.Error("Etcd mode is 'client' but no etcd_endpoints configured")
+				os.Exit(1)
+			}
+			slog.Info("Connecting to external etcd", "endpoints", endpoints)
+		} else {
+			slog.Error("Invalid etcd_mode", "mode", etcdMode)
 			os.Exit(1)
 		}
 
-		// Wait for etcd to be ready
-		select {
-		case <-e.Server.ReadyNotify():
-			slog.Info("Embedded etcd server is ready")
-		case <-time.After(60 * time.Second):
-			e.Server.Stop()
-			slog.Error("Embedded etcd server took too long to start")
-			os.Exit(1)
-		}
-
-		// Create client for the embedded etcd
-		client, err := clientv3.New(clientv3.Config{
-			Endpoints:   []string{cfg.ListenClientUrls[0].String()},
+		// Create etcd client
+		client, err = clientv3.New(clientv3.Config{
+			Endpoints:   endpoints,
 			DialTimeout: ETCD_TIMEOUT,
 		})
 
 		if err != nil {
 			slog.Error("Error creating etcd client", "error", err.Error())
-			e.Close()
+			if server != nil {
+				server.Close()
+			}
 			os.Exit(1)
 		}
 
-		ctx := context.Background()
 		// Test connection
 		ctxTimeout, cancel := context.WithTimeout(ctx, ETCD_TIMEOUT)
 		defer cancel()
-		_, err = client.Status(ctxTimeout, cfg.ListenClientUrls[0].String())
+		_, err = client.Status(ctxTimeout, endpoints[0])
 		if err != nil {
-			slog.Error("Error connecting to embedded etcd", "error", err.Error())
+			slog.Error("Error connecting to etcd", "endpoints", endpoints, "error", err.Error())
 			client.Close()
-			e.Close()
+			if server != nil {
+				server.Close()
+			}
 			os.Exit(1)
 		}
 
 		instance = &DaemonDB{
 			client: client,
-			server: e,
+			server: server,
 			ctx:    ctx,
 		}
 		instance.DeploymentsRepository = &EtcdDeploymentsRepository{instance}
 
-		slog.Info("Database initialized with embedded etcd")
+		if etcdMode == "server" {
+			slog.Info("Database initialized with etcd server")
+		} else {
+			slog.Info("Database initialized with external etcd client")
+		}
 	})
 
 	return instance

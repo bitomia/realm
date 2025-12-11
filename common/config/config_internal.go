@@ -63,6 +63,8 @@ func setDefaults() {
 	viper.SetDefault("daemon.containerd_sock", containerdSock)
 	viper.SetDefault("daemon.containerd_namespace", "realm")
 	viper.SetDefault("daemon.containers_log_path", containersLogPath)
+	viper.SetDefault("daemon.etcd_mode", "server")
+	viper.SetDefault("daemon.etcd_endpoints", []string{})
 	viper.SetDefault("daemon.etcd_data_dir", etcdDataDir)
 	viper.SetDefault("daemon.etcd_name", "")
 	viper.SetDefault("daemon.etcd_listen_client_url", "http://127.0.0.1:2379")

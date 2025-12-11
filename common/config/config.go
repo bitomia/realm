@@ -73,6 +73,16 @@ type DaemonConfig struct {
 	// Default: realm
 	ContainerdNamespace string `json:"containerd_namespace"`
 
+	// Etcd mode: "server" to run embedded etcd server, "client" to connect to external etcd.
+	// Valid values: "server", "client"
+	// Default: server
+	EtcdMode string `json:"etcd_mode"`
+
+	// Etcd endpoints to connect to when mode is "client".
+	// Example: ["http://node1:2379", "http://node2:2379"]
+	// Default: empty (uses EtcdListenClientUrl when in server mode)
+	EtcdEndpoints []string `json:"etcd_endpoints"`
+
 	// Etcd data directory.
 	// Default: /var/lib/realm/etcd (Linux) or %ProgramData%\realm\etcd (Windows)
 	EtcdDataDir string `json:"etcd_data_dir"`

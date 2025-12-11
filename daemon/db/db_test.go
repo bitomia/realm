@@ -86,7 +86,7 @@ func setupTestDB(t *testing.T) (*DaemonDB, func()) {
 	case <-e.Server.ReadyNotify():
 	case <-time.After(10 * time.Second):
 		e.Server.Stop()
-		t.Fatal("Embedded etcd server took too long to start")
+		t.Fatal("Etcd server took too long to start")
 	}
 
 	client, err := clientv3.New(clientv3.Config{
