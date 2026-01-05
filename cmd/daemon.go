@@ -28,7 +28,7 @@ var startDaemon = &cobra.Command{
 }
 
 func init() {
-	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: realm.yaml in executable directory)")
+	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: config.yaml in executable directory)")
 	startDaemon.Flags().Bool("purge-db", false, "Purge all database contents before starting")
 	daemonCmd.AddCommand(startDaemon)
 	rootCmd.AddCommand(daemonCmd)

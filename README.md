@@ -56,7 +56,7 @@ apt install zfsutils-linux libzfslinux-dev ansible -y
 
 ## Configuration
 
-Realm can be configured using a YAML configuration file (`realm.yaml`) or environment variables.
+Realm can be configured using a YAML configuration file (`config.yaml`) or environment variables.
 
 ### Daemon Configuration
 

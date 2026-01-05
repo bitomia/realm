@@ -75,12 +75,18 @@ func setDefaults() {
 
 func readInConfig(configFilePath string) error {
 	return readConfig(func() (*Config, error) {
-		err := viper.ReadInConfig()
-		if err == nil {
-			err = viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
-				c.TagName = "json"
-			})
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+				return config, err
+			} else {
+				log.Println("Config file not found. Continuing using default configuration.")
+			}
 		}
+
+		err := viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+			c.TagName = "json"
+		})
+
 		return config, err
 	}, configFilePath)
 }
@@ -167,7 +173,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	} else {
 		viper.AddConfigPath(getExeDir())
 		viper.SetConfigType("yaml")
-		viper.SetConfigName("realm")
+		viper.SetConfigName("config")
 	}
 
 	config, err := unmarshall()
