@@ -1,6 +1,5 @@
 package dto
 
-import "time"
 
 type ContainerStatesResponse map[string]ContainerStateResponse
 
@@ -28,6 +27,23 @@ type NodeStateResponse struct {
 	FreeMemPercent float64 `json:"mem_free_percentage"` // Important
 
 	FreeStorage uint64 `json:"free_storage"`
+
+	// Swap memory information
+	SwapTotal uint64 `json:"swap_total"` // Total available swap memory in bytes
+	SwapUsed  uint64 `json:"swap_used"`  // Total used swap memory in bytes
+	SwapFree  uint64 `json:"swap_free"`  // Total free swap memory in bytes
+
+	// CPU load average
+	CpuLoadAvg float32 `json:"cpu_load_avg"` // CPU load average (from 0 to 1)
+
+	// Process counts
+	ProcTotalCount    uint32 `json:"proc_total_count"`    // Number of active processes
+	ProcSleepingCount uint32 `json:"proc_sleeping_count"` // Number of sleeping processes
+	ProcRunningCount  uint32 `json:"proc_running_count"`  // Number of running processes
+	ProcZombieCount   uint32 `json:"proc_zombie_count"`   // Number of zombie processes
+	ProcStoppedCount  uint32 `json:"proc_stopped_count"`  // Number of stopped processes
+	ProcIdleCount     uint32 `json:"proc_idle_count"`     // Number of idle processes
+	ProcThreadsCount  uint32 `json:"proc_threads_count"`  // Number of threads
 
 	Containers []ContainerStateResponse `json:"containers,omitempty"`
 }
@@ -85,7 +101,7 @@ type SystemInfo struct {
 	NetPrimaryIpAddr  string    `json:"net_primary_ip_addr"`  // Primary IP address
 	NetMacAddress     string    `json:"net_mac_address"`      // Primary MAC address
 	CpuModel          string    `json:"cpu_model"`            // CPU model string
-	CpuStartTime      time.Time `json:"cpu_start_time"`       // Time when the CPU got powered
+	CpuStartTime      int64     `json:"cpu_start_time"`       // Time when the CPU got powered (Unix timestamp in nanoseconds)
 	CpuTotalCores     uint32    `json:"cpu_total_cores"`      // Number of cores of the CPU
 	CpuCoresPerSocket uint32    `json:"cpu_cores_per_socket"` // Number of cores per socket
 	CpuTotalSockets   uint32    `json:"cpu_total_sockets"`    // Number of sockets

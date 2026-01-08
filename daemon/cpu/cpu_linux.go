@@ -9,11 +9,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/load"
 	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/shirou/gopsutil/v4/process"
 	"golang.org/x/sys/unix"
 
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -66,6 +67,73 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 	unix.Statfs("/", &fsStat)
 	nodeState.FreeStorage = fsStat.Bfree * uint64(fsStat.Bsize)
 
+	// Get swap memory information
+	swapStat, err := mem.SwapMemory()
+	if err == nil {
+		nodeState.SwapTotal = swapStat.Total
+		nodeState.SwapUsed = swapStat.Used
+		nodeState.SwapFree = swapStat.Free
+	}
+
+	// Get CPU load average (1-minute average)
+	loadStat, err := load.Avg()
+	if err == nil {
+		// Normalize load by number of CPUs (load average from 0 to 1)
+		nodeState.CpuLoadAvg = float32(loadStat.Load1 / float64(cpuCount))
+	}
+
+	// Get process counts
+	processes, err := process.Processes()
+	if err == nil {
+		var procCounts struct {
+			total    uint32
+			sleeping uint32
+			running  uint32
+			zombie   uint32
+			stopped  uint32
+			idle     uint32
+			threads  uint32
+		}
+
+		for _, proc := range processes {
+			procCounts.total++
+
+			// Get process status
+			status, err := proc.Status()
+			if err != nil || len(status) == 0 {
+				continue
+			}
+
+			// Count by status (use first status string)
+			switch status[0] {
+			case "S":
+				procCounts.sleeping++
+			case "R":
+				procCounts.running++
+			case "Z":
+				procCounts.zombie++
+			case "T", "t":
+				procCounts.stopped++
+			case "I":
+				procCounts.idle++
+			}
+
+			// Count threads
+			numThreads, err := proc.NumThreads()
+			if err == nil {
+				procCounts.threads += uint32(numThreads)
+			}
+		}
+
+		nodeState.ProcTotalCount = procCounts.total
+		nodeState.ProcSleepingCount = procCounts.sleeping
+		nodeState.ProcRunningCount = procCounts.running
+		nodeState.ProcZombieCount = procCounts.zombie
+		nodeState.ProcStoppedCount = procCounts.stopped
+		nodeState.ProcIdleCount = procCounts.idle
+		nodeState.ProcThreadsCount = procCounts.threads
+	}
+
 	return &nodeState, nil
 }
 
@@ -112,7 +180,7 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 
 	// Get boot time (approximate CPU start time)
 	if info.BootTime > 0 {
-		hostInfo.CpuStartTime = time.Unix(int64(info.BootTime), 0)
+		hostInfo.CpuStartTime = int64(info.BootTime) * 1e9 // Convert seconds to nanoseconds
 	}
 
 	// Calculate cores per socket and total sockets
