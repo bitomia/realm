@@ -419,7 +419,7 @@ func (c *Client) GetNodeState(node string) (*dto.NodeStateResponse, error) {
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/node", node)
+	url := fmt.Sprintf("%s/state", node)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {

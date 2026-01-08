@@ -9,7 +9,7 @@ import (
 
 func createRoutes(router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
-	router.Handle("/node", auth.WithAuth(handlers.GetNodeStateHandler)).Methods("GET")
+	router.Handle("/state", auth.WithAuth(handlers.GetNodeStateHandler)).Methods("GET")
 	router.Handle("/system", auth.WithAuth(handlers.GetSystemInfoHandler)).Methods("GET")
 
 	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
