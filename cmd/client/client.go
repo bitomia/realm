@@ -449,6 +449,42 @@ func (c *Client) GetNodeState(node string) (*dto.NodeStateResponse, error) {
 	return &status, nil
 }
 
+func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
+	var info dto.SystemInfo
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	url := fmt.Sprintf("%s/system", node)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal("Failed to create request: %v", err)
+	}
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to read response body: %v", err)
+	}
+
+	if err := checkStatus(resp); err != nil {
+		return &info, errors.New(string(body))
+	}
+
+	if err := json.Unmarshal(body, &info); err != nil {
+		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
+	}
+
+	return &info, nil
+}
+
 // Image operations
 type PullImageRequest struct {
 	Image string `json:"image"`
