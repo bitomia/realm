@@ -34,27 +34,27 @@ var nodeStates = &cobra.Command{
 			if node.MAC != nil {
 				fmt.Printf(" MAC: %s\n", color.CyanString(*node.MAC))
 			}
-			status, err := client.GetNodeState(node.Url)
+			state, err := client.GetNodeState(node.Url)
 			if err != nil {
 				log.Info(" Node not available: %s", err.Error())
 			} else {
-				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", status.NumCPU)))
-				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.UsageCPUPercent)))
-				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", status.UserCPU)))
-				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", status.SystemCPU)))
-				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", status.IdleCPU)))
-				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", status.TotalCPU)))
+				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", state.NumCPU)))
+				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", state.UsageCPUPercent)))
+				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", state.UserCPU)))
+				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", state.SystemCPU)))
+				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", state.IdleCPU)))
+				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", state.TotalCPU)))
 
-				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(status.UsedMem)/float64(status.TotalMem)*100)))
-				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", status.FreeMemPercent)))
-				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(status.TotalMem)))))
-				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(status.UsedMem)))))
-				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(status.FreeMem)))))
-				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(status.FreeStorage)))))
+				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(state.UsedMem)/float64(state.TotalMem)*100)))
+				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", state.FreeMemPercent)))
+				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.TotalMem)))))
+				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.UsedMem)))))
+				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.FreeMem)))))
+				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.FreeStorage)))))
 
-				if len(status.Containers) > 0 {
-					log.Info("Containers (%d):", len(status.Containers))
-					for _, container := range status.Containers {
+				if len(state.Containers) > 0 {
+					log.Info("Containers (%d):", len(state.Containers))
+					for _, container := range state.Containers {
 						log.Info("  - %s:", color.YellowString(container.ContainerID))
 						log.Info("    CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", container.CPUUsage)))
 						log.Info("    Memory Usage: %s%% (%s MB)",

@@ -4,7 +4,15 @@
 package cpu
 
 import (
+	"net"
+	"os"
+	"runtime"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/shirou/gopsutil/v4/cpu"
+	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"golang.org/x/sys/unix"
 
@@ -59,4 +67,215 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 	nodeState.FreeStorage = fsStat.Bfree * uint64(fsStat.Bsize)
 
 	return &nodeState, nil
+}
+
+// GetSystemInfo returns static system information about the host
+func GetSystemInfo() (*dto.SystemInfo, error) {
+	hostInfo := &dto.SystemInfo{}
+
+	// Get host information
+	info, err := host.Info()
+	if err != nil {
+		return nil, err
+	}
+
+	hostInfo.OsName = info.Platform + " " + info.PlatformVersion
+	hostInfo.OsKind = getOsKind(info.OS)
+	hostInfo.NetHostName = info.Hostname
+
+	// Get CPU info
+	cpuInfo, err := cpu.Info()
+	if err != nil {
+		return nil, err
+	}
+	if len(cpuInfo) > 0 {
+		hostInfo.CpuModel = cpuInfo[0].ModelName
+		hostInfo.CpuVendor = cpuInfo[0].VendorID
+		hostInfo.CpuMhz = uint32(cpuInfo[0].Mhz)
+		hostInfo.CpuTotalCores = uint32(cpuInfo[0].Cores)
+	}
+
+	// Get architecture
+	hostInfo.OsArch = getCpuArch(runtime.GOARCH)
+
+	// Get memory info
+	memInfo, err := mem.VirtualMemory()
+	if err != nil {
+		return nil, err
+	}
+	hostInfo.RamTotal = memInfo.Total
+
+	// Get network information
+	if err := populateNetworkInfo(hostInfo); err != nil {
+		// Don't fail on network info errors, just continue
+	}
+
+	// Get boot time (approximate CPU start time)
+	if info.BootTime > 0 {
+		hostInfo.CpuStartTime = time.Unix(int64(info.BootTime), 0)
+	}
+
+	// Calculate cores per socket and total sockets
+	totalCores := hostInfo.CpuTotalCores
+	if totalCores > 0 {
+		// For simplicity, assume 1 socket unless we can determine otherwise
+		hostInfo.CpuTotalSockets = 1
+		hostInfo.CpuCoresPerSocket = totalCores
+	}
+
+	return hostInfo, nil
+}
+
+// getOsKind converts OS string to OsKind enum
+func getOsKind(osName string) dto.OsKind {
+	osName = strings.ToLower(osName)
+	switch {
+	case strings.Contains(osName, "windows"):
+		return dto.WindowsOs
+	case strings.Contains(osName, "android"):
+		return dto.AndroidOs
+	case strings.Contains(osName, "darwin") || strings.Contains(osName, "ios") || strings.Contains(osName, "tvos"):
+		return dto.AppleOs
+	case strings.Contains(osName, "linux"):
+		return dto.LinuxOs
+	case strings.Contains(osName, "unix"):
+		return dto.UnixOs
+	case strings.Contains(osName, "posix"):
+		return dto.PosixOs
+	default:
+		return dto.OtherOs
+	}
+}
+
+// getCpuArch converts GOARCH string to CpuArch enum
+func getCpuArch(arch string) dto.CpuArch {
+	switch arch {
+	case "386":
+		return dto.X86
+	case "amd64":
+		return dto.X64
+	case "arm":
+		return dto.Arm7 // Default ARM to ARM7
+	case "arm64":
+		return dto.Arm64
+	case "mips", "mipsle", "mips64", "mips64le":
+		return dto.Mips
+	case "ppc64", "ppc64le":
+		return dto.Ppc64
+	case "sparc", "sparc64":
+		return dto.Sparc
+	default:
+		return dto.OtherArch
+	}
+}
+
+// populateNetworkInfo fills in network-related fields
+func populateNetworkInfo(hostInfo *dto.SystemInfo) error {
+	// Get primary interface and its details
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return err
+	}
+
+	for _, iface := range ifaces {
+		// Skip loopback and down interfaces
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					hostInfo.NetPrimaryIpAddr = ipnet.IP.String()
+					hostInfo.NetMacAddress = iface.HardwareAddr.String()
+
+					// Try to get default gateway (simplified approach)
+					if gateway := getDefaultGateway(); gateway != "" {
+						hostInfo.NetDefaultGateway = gateway
+					}
+
+					// Try to get DNS servers
+					if dns := getDNSServers(); len(dns) > 0 {
+						hostInfo.NetPrimaryDns = dns[0]
+						if len(dns) > 1 {
+							hostInfo.NetSecondaryDns = dns[1]
+						}
+					}
+
+					return nil
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// getDefaultGateway attempts to get the default gateway
+func getDefaultGateway() string {
+	// Simple approach: read from /proc/net/route
+	data, err := os.ReadFile("/proc/net/route")
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines[1:] { // Skip header
+		fields := strings.Fields(line)
+		if len(fields) >= 3 && fields[1] == "00000000" { // Default route
+			gatewayHex := fields[2]
+			if gateway := hexToIP(gatewayHex); gateway != "" {
+				return gateway
+			}
+		}
+	}
+
+	return ""
+}
+
+// getDNSServers attempts to read DNS servers from /etc/resolv.conf
+func getDNSServers() []string {
+	data, err := os.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		return nil
+	}
+
+	var dns []string
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "nameserver") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				dns = append(dns, parts[1])
+			}
+		}
+	}
+
+	return dns
+}
+
+// hexToIP converts hex string to IP address
+func hexToIP(hexStr string) string {
+	if len(hexStr) != 8 {
+		return ""
+	}
+
+	var ip []string
+	for i := 6; i >= 0; i -= 2 {
+		hexByte := hexStr[i : i+2]
+		if val, err := strconv.ParseInt(hexByte, 16, 0); err == nil {
+			ip = append(ip, strconv.Itoa(int(val)))
+		}
+	}
+
+	if len(ip) == 4 {
+		return strings.Join(ip, ".")
+	}
+
+	return ""
 }

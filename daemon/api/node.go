@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
-	"github.com/bitomia/realm/common/dto"
 )
 
 // GetVersion returns the daemon version
@@ -37,4 +37,13 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 	return state, nil
+}
+
+// GetSystemInfo returns static system information about the host
+func GetSystemInfo() (*dto.SystemInfo, error) {
+	info, err := cpu.GetSystemInfo()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system info: %w", err)
+	}
+	return info, nil
 }
