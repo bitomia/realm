@@ -3,19 +3,18 @@ package main
 import (
 	"fmt"
 
-	"github.com/dominikbraun/graph"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 )
 
-func doPlanLoads(client *clientPkg.Client) error {
-	loads := config.GetLoadsRepository()
+func doPlanLoads(client *clientPkg.Client, loads map[string]*common.Load) error {
 	if len(loads) == 0 {
-		return fmt.Errorf("No loads present in config file")
+		return fmt.Errorf("No loads")
 	}
 	for _, load := range loads {
 		log.Info(" -> Planning load %s", color.CyanString(load.Name))
@@ -23,6 +22,20 @@ func doPlanLoads(client *clientPkg.Client) error {
 			return fmt.Errorf("Error planning load: %s", err.Error())
 		}
 	}
+	return nil
+}
+
+func validateLoadArgs(cmd *cobra.Command, args []string) error {
+	all, _ := cmd.Flags().GetBool("all")
+
+	if all && len(args) > 0 {
+		return fmt.Errorf("Cannot use --all with load names")
+	}
+
+	if !all && len(args) == 0 {
+		return fmt.Errorf("Must specify --all or at least one load name")
+	}
+
 	return nil
 }
 
@@ -36,94 +49,64 @@ var loadsCmd = &cobra.Command{
 	},
 }
 
-var drawLoadsGraph = &cobra.Command{
-	Use:                   "draw [output_file]",
-	Short:                 "Create a SVG of the graph loads",
-	Args:                  cobra.ExactArgs(1),
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		outputFile := args[0]
-
-		cfg := config.Get()
-		if cfg == nil {
-			log.Error("Failed to load configuration\n")
-			return
-		}
-
-		err := generateSVG(cfg.Loads, outputFile)
-		if err != nil {
-			log.Error("Error generating graph: %v\n", err)
-			return
-		}
-
-		log.Info("Successfully generated SVG of the dependency graph: %s", outputFile)
-	},
-}
-
 var planLoads = &cobra.Command{
-	Use:   "plan",
-	Short: "Plan loads on nodes",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.Get()
-		if cfg == nil {
-			log.Error("Failed to load configuration\n")
-			return
-		}
-
+	Use:                   "plan [--all | load...]",
+	Short:                 "Plan loads on nodes",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
-		if err := doPlanLoads(&client); err != nil {
+		if err := doPlanLoads(&client, loads); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}
 		log.Info("Successfully verified loads on cluster")
 	},
 }
 
-var startLoads = &cobra.Command{
-	Use:   "start",
-	Short: "Start all the loads into the cluster",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.Get()
-		if cfg == nil {
-			log.Error("Failed to load configuration\n")
+var listLoads = &cobra.Command{
+	Use:                   "list [--all | load...]",
+	Aliases:               []string{"ls"},
+	Short:                 "List loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
+		if len(loads) == 0 {
+			log.Error("No loads")
 			return
 		}
+		for _, load := range loads {
+			color.White("%s (node %s)\n", color.CyanString(load.Name), color.YellowString(load.Node.Name))
+			prettyJSON(load, "name", "node")
+		}
+	},
+}
 
+var startLoads = &cobra.Command{
+	Use:                   "start [--all | load...]",
+	Short:                 "Start loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
 
 		// Plan all loads first
 		// Daemons already verify plan on load start but only in the
 		// daemon context. we need to verify plan cluster wide
-		if err := doPlanLoads(&client); err != nil {
+		if err := doPlanLoads(&client, loads); err != nil {
 			log.Fatal("Error planning load: %s", err.Error())
 		}
 
-		// Start all loads
-		g, err := config.NewLoadsConfigGraph(cfg.Loads)
-		if err != nil {
-			log.Fatal("Error building graph: %s", err.Error())
-		}
-
-		log.Info("Starting loads")
-		loads := config.GetLoadsRepository()
 		loaded := make(map[string]bool)
-
 		for _, l := range loads {
-			var pendingLoads []string
-
-			graph.DFS(g, l.Name, func(value string) bool {
-				pendingLoads = append(pendingLoads, l.Name)
-				return true
-			})
-
-			for i := len(pendingLoads) - 1; i >= 0; i-- {
-				load := pendingLoads[i]
-
-				if _, exists := loaded[load]; !exists {
-					loaded[load] = true
-					loadRun := loads[load]
-
-					log.Info(" -> Running load %s", color.CyanString(loadRun.Name))
-					if err := client.StartLoad(loadRun); err != nil {
+			startChain := l.StartChain
+			for _, l := range startChain {
+				if _, exists := loaded[l.Name]; !exists {
+					loaded[l.Name] = true
+					log.Info(" -> Starting load %s [%s]", color.CyanString(l.Name), startChain.Hash())
+					if err := client.StartLoad(l); err != nil {
 						log.Fatal("Starting load failed: %s", err.Error())
 					}
 				}
@@ -133,44 +116,22 @@ var startLoads = &cobra.Command{
 }
 
 var stopLoads = &cobra.Command{
-	Use:   "stop",
-	Short: "Stop all loads started in the cluster",
-	Run: func(cmd *cobra.Command, args []string) {
-		cfg := config.Get()
-		if cfg == nil {
-			log.Error("Failed to load configuration\n")
-			return
-		}
-
+	Use:                   "stop [--all | load...]",
+	Short:                 "Stop loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
-
-		// Stop all loads
-		g, err := config.NewLoadsConfigGraph(cfg.Loads)
-		if err != nil {
-			log.Fatal("Error building graph: %s", err.Error())
-		}
-
-		log.Info("Stopping loads")
-		loads := config.GetLoadsRepository()
 		stopped := make(map[string]bool)
 
 		for _, l := range loads {
-			var pendingLoads []string
-
-			graph.DFS(g, l.Name, func(value string) bool {
-				pendingLoads = append([]string{l.Name}, pendingLoads...)
-				return true
-			})
-
-			for i := len(pendingLoads) - 1; i >= 0; i-- {
-				load := pendingLoads[i]
-
-				if _, exists := stopped[load]; !exists {
-					stopped[load] = true
-					loadStop := loads[load]
-
-					log.Info(" -> Stopping load %s", color.CyanString(loadStop.Name))
-					if err := client.StopLoad(loadStop); err != nil {
+			stopChain := l.StopChain
+			for _, l := range stopChain {
+				if _, exists := stopped[l.Name]; !exists {
+					stopped[l.Name] = true
+					log.Info(" -> Stopping load %s [%s]", color.CyanString(l.Name), stopChain.Hash())
+					if err := client.StopLoad(l); err != nil {
 						log.Fatal("Starting load failed: %s", err.Error())
 					}
 				}
@@ -179,11 +140,40 @@ var stopLoads = &cobra.Command{
 	},
 }
 
+var graphLoads = &cobra.Command{
+	Use:                   "graph",
+	Short:                 "Print the dependency graph",
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		g := config.GetLoadsConfigGraph()
+		adjacencyMap, err := g.AdjacencyMap()
+		if err != nil {
+			log.Fatal("%s", err.Error())
+		}
+
+		for v, adjacencies := range adjacencyMap {
+			if len(adjacencies) == 0 {
+				fmt.Printf("%v\n", v)
+			} else {
+				for a := range adjacencies {
+					fmt.Printf("%v -> %v\n", v, a)
+				}
+			}
+
+		}
+	},
+}
+
 func init() {
-	loadsCmd.AddCommand(drawLoadsGraph)
+	startLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+	planLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+	listLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+	stopLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+
+	loadsCmd.AddCommand(graphLoads)
+	loadsCmd.AddCommand(listLoads)
 	loadsCmd.AddCommand(planLoads)
 	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stopLoads)
-	loadsCmd.DisableFlagsInUseLine = true
 	rootCmd.AddCommand(loadsCmd)
 }
