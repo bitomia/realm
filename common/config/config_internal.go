@@ -207,14 +207,14 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 			return err
 		}
 
-		newLoad(loadName, node, driver)
+		newLoadConfig(loadName, node, driver)
 		allDeps[loadName] = loadConfig.DependsOn
 	}
 
 	// Traverse all loads and build a DAG
-	for loadName, load := range loadsRepository {
+	for loadName, load := range loadsConfig {
 		for _, depLoad := range allDeps[loadName] {
-			loads, exist := loadsRepository[depLoad]
+			loads, exist := loadsConfig[depLoad]
 			if !exist {
 				log.Fatalf("dependency node '%s' not exists", depLoad)
 			}
@@ -223,8 +223,18 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	}
 
 	// Check for cycles in the dependency graph
-	if err := checkForCycles(loadsRepository); err != nil {
+	if err := checkForCycles(loadsConfig); err != nil {
 		return err
+	}
+
+	// Build the loads graph
+	if err = newLoadsConfigGraph(); err != nil {
+		return err
+	}
+
+	// Create chain loads
+	for _, load := range loadsConfig {
+		load.UpdateLoadChains(loadsConfigGraph, loadsConfig)
 	}
 
 	return nil

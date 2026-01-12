@@ -2,10 +2,15 @@ package common
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
+
+	"github.com/dominikbraun/graph"
 )
 
 type LoadState string
+type Hash [32]byte
+type LoadChain []*Load
 
 const (
 	// LoadStart indicates the load should be running
@@ -19,6 +24,16 @@ const (
 )
 
 type LoadConfig struct {
+	Name           string       `json:"name"`
+	Node           string       `json:"node"`
+	DependsOn      []string     `json:"depends_on"`
+	Driver         LoadDriverID `json:"driver"`
+	DriverConfig   any          `json:"driver_config"`
+	StartChainHash string       `json:"start_chain_hash"`
+	StopChainHash  string       `json:"stop_chain_hash"`
+}
+
+type HashableLoadConfig struct {
 	Name         string       `json:"name"`
 	Node         string       `json:"node"`
 	DependsOn    []string     `json:"depends_on"`
@@ -27,11 +42,21 @@ type LoadConfig struct {
 }
 
 type Load struct {
-	Name      string
-	Driver    LoadDriver
-	DependsOn []*Load
-	Node      *Node
-	State     LoadState
+	Name       string
+	Driver     LoadDriver
+	DependsOn  []*Load
+	Node       *Node
+	State      LoadState
+	StartChain LoadChain
+	StopChain  LoadChain
+}
+
+func (l *Load) GetDependencies() []string {
+	dependsOn := make([]string, len(l.DependsOn))
+	for i, dep := range l.DependsOn {
+		dependsOn[i] = dep.Name
+	}
+	return dependsOn
 }
 
 func (l *Load) MarshalJSON() ([]byte, error) {
@@ -40,17 +65,17 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 		nodeName = l.Node.Name
 	}
 
-	dependsOn := make([]string, len(l.DependsOn))
-	for i, dep := range l.DependsOn {
-		dependsOn[i] = dep.Name
-	}
+	startChainHash := l.StartChain.Hash()
+	stopChainHash := l.StopChain.Hash()
 
 	return json.Marshal(&LoadConfig{
-		Name:         l.Name,
-		Driver:       l.Driver.GetLoadDriverID(),
-		DriverConfig: l.Driver.GetDriverConfig().DriverConfig,
-		DependsOn:    dependsOn,
-		Node:         nodeName,
+		Name:           l.Name,
+		Node:           nodeName,
+		Driver:         l.Driver.GetLoadDriverID(),
+		DriverConfig:   l.Driver.GetDriverConfig().DriverConfig,
+		DependsOn:      l.GetDependencies(),
+		StartChainHash: base64.StdEncoding.EncodeToString(startChainHash[:]),
+		StopChainHash:  base64.StdEncoding.EncodeToString(stopChainHash[:]),
 	})
 }
 
@@ -75,9 +100,49 @@ func (l *Load) UnmarshalJSON(data []byte) error {
 }
 
 func (l *Load) Hash() [32]byte {
-	data, err := json.Marshal(l)
+	data, err := json.Marshal(HashableLoadConfig{
+		Name:         l.Name,
+		Node:         l.Node.Name,
+		Driver:       l.Driver.GetLoadDriverID(),
+		DriverConfig: l.Driver.GetDriverConfig().DriverConfig,
+		DependsOn:    l.GetDependencies(),
+	})
 	if err != nil {
 		panic(err)
 	}
 	return sha256.Sum256(data)
+}
+
+func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMap map[string]*Load) {
+	l.StartChain = LoadChain{}
+	graph.DFS(configGraph, l.Name, func(value string) bool {
+		if load, exists := loadsMap[value]; exists {
+			l.StartChain = append(l.StartChain, load)
+		}
+		return false
+	})
+
+	l.StopChain = LoadChain{}
+	graph.DFS(configGraph, l.Name, func(value string) bool {
+		if load, exists := loadsMap[value]; exists {
+			l.StopChain = append([]*Load{load}, l.StopChain...)
+		}
+		return false
+	})
+}
+
+// Hash loads in order
+// Order is important that's why it receives an array of loads
+func (chain LoadChain) Hash() Hash {
+	var hashes [][32]byte
+	for _, l := range chain {
+		hashes = append(hashes, l.Hash())
+	}
+
+	var combined []byte
+	for _, h := range hashes {
+		combined = append(combined, h[:]...)
+	}
+
+	return sha256.Sum256(combined)
 }

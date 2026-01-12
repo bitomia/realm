@@ -18,6 +18,7 @@ type LoadDriver interface {
 	Verify() error
 
 	// PlanDaemon prepares the load execution plan from the daemon side.
+	// It shall check load requirement but it won't check depending loads
 	// This is invoked within the daemon and does not affect client behavior.
 	PlanDaemon(repository DeploymentsRepository, loadName string) error
 
