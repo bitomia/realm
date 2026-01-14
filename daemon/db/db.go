@@ -46,7 +46,8 @@ func GetDB() *DaemonDB {
 
 		ctx := context.Background()
 
-		if etcdMode == "server" {
+		switch etcdMode {
+		case "server":
 			// Server mode: start embedded etcd server
 			cfg := getEtcdConfig()
 			slog.Info("Initializing etcd server",
@@ -73,7 +74,7 @@ func GetDB() *DaemonDB {
 			}
 
 			endpoints = []string{cfg.ListenClientUrls[0].String()}
-		} else if etcdMode == "client" {
+		case "client":
 			// Client mode: connect to external etcd
 			endpoints = daemonCfg.EtcdEndpoints
 			if len(endpoints) == 0 {
@@ -81,7 +82,7 @@ func GetDB() *DaemonDB {
 				os.Exit(1)
 			}
 			slog.Info("Connecting to external etcd", "endpoints", endpoints)
-		} else {
+		default:
 			slog.Error("Invalid etcd_mode", "mode", etcdMode)
 			os.Exit(1)
 		}
@@ -103,7 +104,7 @@ func GetDB() *DaemonDB {
 		// Test connection
 		ctxTimeout, cancel := context.WithTimeout(ctx, ETCD_TIMEOUT)
 		defer cancel()
-		_, err = client.Status(ctxTimeout, endpoints[0])
+		status, err := client.Status(ctxTimeout, endpoints[0])
 		if err != nil {
 			slog.Error("Error connecting to etcd", "endpoints", endpoints, "error", err.Error())
 			client.Close()
@@ -112,6 +113,7 @@ func GetDB() *DaemonDB {
 			}
 			os.Exit(1)
 		}
+		slog.Info("Etcd test connection done", "status", status)
 
 		instance = &DaemonDB{
 			client: client,

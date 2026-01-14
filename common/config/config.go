@@ -87,10 +87,6 @@ type DaemonConfig struct {
 	// Default: /var/lib/realm/etcd (Linux) or %ProgramData%\realm\etcd (Windows)
 	EtcdDataDir string `json:"etcd_data_dir"`
 
-	// Etcd member name.
-	// Default: empty
-	EtcdName string `json:"etcd_name"`
-
 	// Etcd client URL.
 	// Default: http://127.0.0.1:2379
 	EtcdListenClientUrl string `json:"etcd_listen_client_url"`
@@ -99,14 +95,10 @@ type DaemonConfig struct {
 	// Default: http://127.0.0.1:2380
 	EtcdListenPeerUrl string `json:"etcd_listen_peer_url"`
 
-	// Deprecate
+	// Expected members of the cluster, and this is how to reach them via peer URLs.
+	// Left empty for single-node cluster
 	// Default: empty
 	EtcdInitialCluster string `json:"etcd_initial_cluster"`
-
-	// Deprecate
-	// Valid values: "new", "existing"
-	// Default: new
-	EtcdClusterState string `json:"etcd_cluster_state"`
 }
 
 type DiscoveryConfig struct {

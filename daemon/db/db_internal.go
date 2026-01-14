@@ -44,17 +44,13 @@ func getEtcdConfig() *embed.Config {
 	cfg.Dir = getEtcdDataDir()
 	cfg.LogLevel = "error"
 
-	// Set name - use daemon ID if not specified
-	if daemonCfg.EtcdName != "" {
-		cfg.Name = daemonCfg.EtcdName
-	} else {
-		daemonId, err := id.GetDaemonId()
-		if err != nil {
-			slog.Error("Error getting daemon ID", "error", err.Error())
-			daemonId = "default-daemon"
-		}
-		cfg.Name = daemonId
+	// Set name
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		slog.Error("Error getting daemon ID", "error", err.Error())
+		daemonId = "default-daemon"
 	}
+	cfg.Name = daemonId
 
 	// Parse and set client URL
 	clientUrl, err := url.Parse(daemonCfg.EtcdListenClientUrl)
@@ -82,12 +78,7 @@ func getEtcdConfig() *embed.Config {
 		cfg.InitialCluster = fmt.Sprintf("%s=%s", cfg.Name, peerUrl.String())
 	}
 
-	// Set cluster state (new or existing)
-	if daemonCfg.EtcdClusterState != "" {
-		cfg.ClusterState = daemonCfg.EtcdClusterState
-	} else {
-		cfg.ClusterState = embed.ClusterStateFlagNew
-	}
+	cfg.ClusterState = embed.ClusterStateFlagNew
 
 	return cfg
 }

@@ -1,4 +1,4 @@
-# Realm - Simple container orchestration service
+64;2500;0c# Realm - Simple container orchestration service
 
 Realm is a extendable, embeddable and simple orchestration service for different type of loads such as native processes or OCI containers.
 
@@ -57,6 +57,40 @@ apt install zfsutils-linux libzfslinux-dev ansible -y
 ## Configuration
 
 Realm can be configured using a YAML configuration file (`config.yaml`) or environment variables.
+
+### Etcd configuration
+
+Realm always starts a etcd client but it can also start an embedded etcd server. Basically a Realm cluster always expect at least one realm daemon with the embedded etcd server running.
+
+A typical scenario is setting up a single-node cluster as follows:
+
+1. A selected realm daemon shall start as etcd server. For example:
+
+```
+daemon:
+  etcd_listen_client_urL: http://192.168.105.2:2379
+  etcd_listen_peer_url: http://192.168.105.2:2380
+```
+
+In this configuration, embedded etcd will listen for client requests on http://192.168.105.2:2379 and will listen for other etcd cluster peers on http://192.168.105.2:2380. **It's important to notice that these URLs are also the ones advertise to the rest of the cluster**. Have in mind also that another cluster peers can join later to the formation, that's why we need to set `etcd_listen_peer_url` even in a single-node formation.
+
+2. Others realm daemons will be configured as etcd clients. Following the example:
+
+```
+daemon:
+  id_path: ./realm_data/realm.id
+  etcd_mode: client
+  etcd_listen_client_url: http://192.168.105.3:2379
+  etcd_endpoints: ["http://192.168.105.2:2379"]
+```
+
+`etcd_endpoints` is a list of client URLs of etcd members and it works as a bootstrap list.
+
+You can use etcdctl to list the member states. Following the example:
+
+```shell
+etcdctl --write-out=table --endpoints=192.168.105.2:2379 member list
+```
 
 ### Daemon Configuration
 
@@ -167,9 +201,6 @@ realm/
 │   ├── proxy.go           # Proxy commands
 │   └── loads.go           # Load management commands
 ├── daemon/                # Daemon implementation
-├── clib/                  # C library bindings
-│   ├── client/            # C client library
-│   └── daemon/            # C daemon library
 ├── drivers/               # Standard drivers
 ├── internal/              # Private application code
 │   ├── dto/               # Data Transfer Objects

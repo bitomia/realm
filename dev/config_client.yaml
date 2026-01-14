@@ -1,17 +1,8 @@
-daemon:
-  id_path: /opt/realm_data/realm.id
-  etcd_data_dir: /opt/realm_data/etcd
-  cni_path: /opt/cni/bin
-  volumes_pool: realmpool
-  listen_address: 0.0.0.0
-
 nodes:
   lab1:
-    url: http://192.168.1.54:9000
+    url: http://192.168.105.2:9000
   lab2:
-    url: http://192.168.1.55:9000
-  lab3:
-    url: http://192.168.1.65:9000
+    url: http://192.168.105.3:9000
 
 loads:
   web:
@@ -31,7 +22,7 @@ loads:
       - netcat
 
   netcat:
-    node: lab1
+    node: lab2
     driver: process
     driver_config:
       start_cmd: nc

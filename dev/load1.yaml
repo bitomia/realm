@@ -1,4 +1,0 @@
-processes:
-  netcat:
-    start_cmd: nc -l 12345
-    stop_signal: SIGHUP
