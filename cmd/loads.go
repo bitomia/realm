@@ -85,19 +85,14 @@ var listLoads = &cobra.Command{
 
 var startLoads = &cobra.Command{
 	Use:                   "start [--all | load...]",
-	Short:                 "Start loads",
+	Short:                 "Start loads (must be planned first)",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
 
-		// Plan all loads first
-		// Daemons already verify plan on load start but only in the
-		// daemon context. we need to verify plan cluster wide
-		if err := doPlanLoads(&client, loads); err != nil {
-			log.Fatal("Error planning load: %s", err.Error())
-		}
+		// Planning must be done separately with 'plan' command
 
 		loaded := make(map[string]bool)
 		for _, l := range loads {
@@ -105,7 +100,7 @@ var startLoads = &cobra.Command{
 			for _, l := range startChain {
 				if _, exists := loaded[l.Name]; !exists {
 					loaded[l.Name] = true
-					log.Info(" -> Starting load %s [%s]", color.CyanString(l.Name), startChain.Hash())
+					log.Info(" -> Starting load %s", color.CyanString(l.Name))
 					if err := client.StartLoad(l); err != nil {
 						log.Fatal("Starting load failed: %s", err.Error())
 					}
@@ -130,10 +125,32 @@ var stopLoads = &cobra.Command{
 			for _, l := range stopChain {
 				if _, exists := stopped[l.Name]; !exists {
 					stopped[l.Name] = true
-					log.Info(" -> Stopping load %s [%s]", color.CyanString(l.Name), stopChain.Hash())
+					log.Info(" -> Stopping load %s", color.CyanString(l.Name))
 					if err := client.StopLoad(l); err != nil {
-						log.Fatal("Starting load failed: %s", err.Error())
+						log.Fatal("Stopping load failed: %s", err.Error())
 					}
+				}
+			}
+		}
+	},
+}
+
+var unplanLoads = &cobra.Command{
+	Use:                   "unplan [--all | load...]",
+	Short:                 "Remove planned (not started) loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
+		client := clientPkg.NewClient()
+		unplanned := make(map[string]bool)
+
+		for _, l := range loads {
+			if _, exists := unplanned[l.Name]; !exists {
+				unplanned[l.Name] = true
+				log.Info(" -> Unplanning load %s", color.CyanString(l.Name))
+				if err := client.UnplanLoad(l); err != nil {
+					log.Fatal("Unplanning load failed: %s", err.Error())
 				}
 			}
 		}
@@ -169,11 +186,13 @@ func init() {
 	planLoads.Flags().Bool("all", false, "All loads (cluster mode)")
 	listLoads.Flags().Bool("all", false, "All loads (cluster mode)")
 	stopLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+	unplanLoads.Flags().Bool("all", false, "All loads (cluster mode)")
 
 	loadsCmd.AddCommand(graphLoads)
 	loadsCmd.AddCommand(listLoads)
 	loadsCmd.AddCommand(planLoads)
 	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stopLoads)
+	loadsCmd.AddCommand(unplanLoads)
 	rootCmd.AddCommand(loadsCmd)
 }

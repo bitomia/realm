@@ -30,10 +30,6 @@ func (m *MockLoadDriver) Verify() error {
 	return nil
 }
 
-func (m *MockLoadDriver) PlanDaemon(repository DeploymentsRepository, loadName string) error {
-	return nil
-}
-
 func (m *MockLoadDriver) MarshalJSON() ([]byte, error) {
 	return []byte("{}"), nil
 }
@@ -42,11 +38,19 @@ func (m *MockLoadDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *MockLoadDriver) StartOnDaemon(repository DeploymentsRepository, loadName string) (DeploymentID, error) {
+func (m *MockLoadDriver) PlanAndRegister(repository DeploymentsRepository, loadName string) (DeploymentID, error) {
 	return uuid.New(), nil
 }
 
-func (m *MockLoadDriver) StopOnDaemon(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) StartDeployment(repository DeploymentsRepository, deployment Deployment) error {
+	return nil
+}
+
+func (m *MockLoadDriver) StopDeployment(repository DeploymentsRepository, deployment Deployment) error {
+	return nil
+}
+
+func (m *MockLoadDriver) UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 

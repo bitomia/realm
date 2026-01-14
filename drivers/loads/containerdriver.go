@@ -95,30 +95,43 @@ func (c ContainerDriver) Verify() error {
 	return nil
 }
 
-func (c ContainerDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
+func (c ContainerDriver) PlanAndRegister(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		slog.Error("ContainerDriver.PlanDaemon", "error", err)
-		return err
+		slog.Error("ContainerDriver.PlanAndRegister", "error", err)
+		return uuid.Nil, err
 	}
 	defer client.Close()
 
 	_, err = containers.TryPullAndGetImage(ctx, client, c.Config.Image)
 	if err != nil {
-		slog.Error("ContainerDriver.PlanDaemon", "error", err)
+		slog.Error("ContainerDriver.PlanAndRegister", "error", err)
+		return uuid.Nil, err
 	}
 
-	return nil
+	// Create deployment in "planned" state
+	did, err := repository.Create(loadName, c, common.DeploymentStatePlanned, nil)
+	if err != nil {
+		slog.Error("ContainerDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
+		return uuid.Nil, err
+	}
+
+	return did, nil
 }
 
 type ContainerEntryMetadata struct {
 	ContainerName string `json:"container_name"`
 }
 
-func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
-	// Use loadName to create an unique container namey
-	containerName := fmt.Sprintf("%s-%s", loadName, uuid.New())
-	slog.Info("ContainerDriver.StartOnDaemon", "msg", "starting container", "container", containerName)
+func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "planned" state
+	if deployment.State != common.DeploymentStatePlanned {
+		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	}
+
+	// Use loadName to create a unique container name
+	containerName := fmt.Sprintf("%s-%s", deployment.LoadName, uuid.New())
+	slog.Info("ContainerDriver.StartDeployment", "msg", "starting container", "container", containerName)
 
 	createOpts := dto.CreateContainerRequest{
 		Image:  c.Config.Image,
@@ -127,8 +140,8 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 	}
 
 	if err := containers.CreateContainer(containerName, createOpts, nil); err != nil {
-		slog.Error("ContainerDriver.StartOnDaemon", "msg", "create container failed", "error", err)
-		return uuid.Nil, err
+		slog.Error("ContainerDriver.StartDeployment", "msg", "create container failed", "error", err)
+		return err
 	}
 
 	updateOpts := dto.UpdateContainerOpts{
@@ -136,7 +149,7 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 	}
 	task, err := containers.UpdateContainerState(containerName, updateOpts)
 	if err != nil {
-		slog.Error("ContainerDriver.StartOnDaemon", "msg", "update container state failed. rolling back...", "error", err)
+		slog.Error("ContainerDriver.StartDeployment", "msg", "update container state failed. rolling back...", "error", err)
 
 		// Delete container if it failed
 		deleteOpts := dto.DeleteContainerOpts{
@@ -144,44 +157,48 @@ func (c ContainerDriver) StartOnDaemon(repository common.DeploymentsRepository, 
 		}
 		err := containers.DeleteContainer(containerName, deleteOpts, syscall.SIGKILL, true, true)
 		if err != nil {
-			slog.Error("ContainerDriver.StartOnDaemon", "msg", "delete container on rolling back failed", "error", err)
+			slog.Error("ContainerDriver.StartDeployment", "msg", "delete container on rolling back failed", "error", err)
 		}
-		return uuid.Nil, err
+		return err
 	}
 
 	// TODO network options
 
-	slog.Info("ContainerDriver.StartOnDaemon", "msg", "container started", "container", containerName, "taskPID", task.Pid())
+	slog.Info("ContainerDriver.StartDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
 
-	// Create deployment entry in repository
-	did, err := repository.Create(loadName, c, ContainerEntryMetadata{ContainerName: containerName})
-	if err != nil {
-		slog.Error("ContainerDriver.StartOnDaemon", "msg", "failed to create deployment", "error", err)
-		return uuid.Nil, err
+	// Update deployment state to "running" with container name metadata
+	metadata := ContainerEntryMetadata{ContainerName: containerName}
+	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning, metadata); err != nil {
+		slog.Error("ContainerDriver.StartDeployment", "msg", "failed to update deployment state", "error", err)
+		return err
 	}
 
-	return did, nil
+	return nil
 }
 
-func (c ContainerDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	slog.Info("ContainerDriver.StopOnDaemon", "msg", "stopping container", "deployment", deployment.ID)
+func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "running" state
+	if deployment.State != common.DeploymentStateRunning {
+		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
+	}
 
-	fmt.Printf("%v\n", deployment)
+	slog.Info("ContainerDriver.StopDeployment", "msg", "stopping container", "deployment", deployment.ID)
+
 	// Use loadName as the container name
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.StopOnDaemon", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
 		return err
 	} else {
 		json.Unmarshal(tmp, &metadata)
 	}
 
 	containerName := metadata.ContainerName
-	slog.Info("ContainerDriver.StopOnDaemon", "msg", "stopping container successfully retrieved container name", "deployment", deployment.ID, "container", containerName)
+	slog.Info("ContainerDriver.StopDeployment", "msg", "stopping container successfully retrieved container name", "deployment", deployment.ID, "container", containerName)
 
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		slog.Error("ContainerDriver.StopOnDaemon", "error", err)
+		slog.Error("ContainerDriver.StopDeployment", "error", err)
 		return err
 	}
 	defer client.Close()
@@ -189,48 +206,66 @@ func (c ContainerDriver) StopOnDaemon(repository common.DeploymentsRepository, d
 	// Load the container
 	container, err := client.LoadContainer(ctx, containerName)
 	if err != nil {
-		slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to load container", "container", containerName, "error", err)
+		slog.Error("ContainerDriver.StopDeployment", "msg", "failed to load container", "container", containerName, "error", err)
 		return fmt.Errorf("failed to load container %s: %w", containerName, err)
 	}
 
 	// Get the task and stop it
 	task, err := container.Task(ctx, nil)
 	if err != nil {
-		slog.Warn("ContainerDriver.StopOnDaemon", "msg", "no task found for container", "container", containerName)
+		slog.Warn("ContainerDriver.StopDeployment", "msg", "no task found for container", "container", containerName)
 	} else {
 		// Kill the task with SIGTERM
 		if err := task.Kill(ctx, syscall.SIGTERM); err != nil {
-			slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to kill task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.StopDeployment", "msg", "failed to kill task", "container", containerName, "error", err)
 		}
 
 		// Wait for the task to exit
 		statusC, err := task.Wait(ctx)
 		if err != nil {
-			slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to wait for task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.StopDeployment", "msg", "failed to wait for task", "container", containerName, "error", err)
 		} else {
 			status := <-statusC
 			if status.Error() != nil {
-				slog.Error("ContainerDriver.StopOnDaemon", "msg", "task exited with error", "container", containerName, "error", status.Error())
+				slog.Error("ContainerDriver.StopDeployment", "msg", "task exited with error", "container", containerName, "error", status.Error())
 			}
 		}
 
 		// Delete the task
 		if _, err := task.Delete(ctx); err != nil {
-			slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to delete task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.StopDeployment", "msg", "failed to delete task", "container", containerName, "error", err)
 		}
 	}
 
 	// Delete the container
 	if err := container.Delete(ctx, containerd.WithSnapshotCleanup); err != nil {
-		slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to delete container", "container", containerName, "error", err)
+		slog.Error("ContainerDriver.StopDeployment", "msg", "failed to delete container", "container", containerName, "error", err)
 		return fmt.Errorf("failed to delete container %s: %w", containerName, err)
 	}
 
-	slog.Info("ContainerDriver.StopOnDaemon", "msg", "container stopped and deleted", "container", containerName)
+	slog.Info("ContainerDriver.StopDeployment", "msg", "container stopped and deleted", "container", containerName)
 
 	// Delete deployment from repository
 	if err := repository.DeleteDeployment(deployment.ID); err != nil {
-		slog.Error("ContainerDriver.StopOnDaemon", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.StopDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
+		return fmt.Errorf("failed to delete deployment: %w", err)
+	}
+
+	return nil
+}
+
+func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "planned" state
+	if deployment.State != common.DeploymentStatePlanned {
+		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	}
+
+	slog.Info("ContainerDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
+
+	// For containers, there's nothing to clean up at unplan time
+	// (image is pulled but shared, no container created yet)
+	if err := repository.DeleteDeployment(deployment.ID); err != nil {
+		slog.Error("ContainerDriver.UnplanDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
 		return fmt.Errorf("failed to delete deployment: %w", err)
 	}
 

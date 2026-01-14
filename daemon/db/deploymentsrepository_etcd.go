@@ -17,14 +17,16 @@ type EtcdDeploymentsRepository struct {
 type DeploymentValue struct {
 	ID               common.DeploymentID
 	LoadName         string
+	State            common.DeploymentState
 	LoadDriverConfig common.LoadDriverConfig
 	Metadata         any
 }
 
-func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, metadata any) (common.DeploymentID, error) {
+func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, state common.DeploymentState, metadata any) (common.DeploymentID, error) {
 	deployment := DeploymentValue{
 		ID:               uuid.New(),
 		LoadName:         loadName,
+		State:            state,
 		LoadDriverConfig: driver.GetDriverConfig(),
 		Metadata:         metadata,
 	}
@@ -118,6 +120,7 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 					ID:         deployment.ID,
 					LoadName:   loadName,
 					LoadDriver: loadDriver,
+					State:      deployment.State,
 					Metadata:   deployment.Metadata,
 				})
 			}
@@ -192,4 +195,58 @@ func (r *EtcdDeploymentsRepository) DeleteDeployment(deploymentID uuid.UUID) err
 		return err
 	}
 	return nil
+}
+
+func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID, state common.DeploymentState, metadata any) error {
+	deployment, err := r.GetDeployment(deploymentID)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "GetDeployment failed", "error", err.Error())
+		return err
+	}
+
+	deploymentValue := DeploymentValue{
+		ID:               deployment.ID,
+		LoadName:         deployment.LoadName,
+		State:            state,
+		LoadDriverConfig: deployment.LoadDriver.GetDriverConfig(),
+		Metadata:         metadata,
+	}
+
+	deploymentJson, err := json.Marshal(deploymentValue)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "Marshalling deployment", "error", err.Error())
+		return err
+	}
+
+	deploymentKey, err := r.db.deploymentKey(deploymentID)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "creating deployment key", "error", err.Error())
+		return err
+	}
+
+	ops := []clientv3.Op{
+		clientv3.OpPut(deploymentKey, string(deploymentJson)),
+	}
+
+	if _, err := r.db.txn(ops...); err != nil {
+		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "db put", "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (r *EtcdDeploymentsRepository) GetByLoadAndState(loadName string, state common.DeploymentState) ([]common.Deployment, error) {
+	deployments, err := r.GetByLoad(loadName)
+	if err != nil {
+		return nil, err
+	}
+
+	var filtered []common.Deployment
+	for _, d := range deployments {
+		if d.State == state {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered, nil
 }

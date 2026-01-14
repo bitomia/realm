@@ -116,32 +116,45 @@ func (p ProcessDriver) Verify() error {
 	return nil
 }
 
-func (p ProcessDriver) PlanDaemon(repository common.DeploymentsRepository, loadName string) error {
+func (p ProcessDriver) PlanAndRegister(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.Config.StartCmd); err != nil {
-		return fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
+		return uuid.Nil, fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
 	}
 
 	// Check WorkingDir exists
 	if p.Config.WorkingDir != nil {
 		if err := internal.DirExists(*p.Config.WorkingDir); err != nil {
-			return err
+			return uuid.Nil, err
 		}
 	}
 
-	deployments, err := repository.GetByLoad(loadName)
+	// Check for existing running deployments (only running ones should block)
+	deployments, err := repository.GetByLoadAndState(loadName, common.DeploymentStateRunning)
 	if err != nil {
-		slog.Error("ProcessDriver.PlanDaemon", "msg", "Error on GetByLoad", "error", err.Error())
-		return err
+		slog.Error("ProcessDriver.PlanAndRegister", "msg", "Error on GetByLoadAndState", "error", err.Error())
+		return uuid.Nil, err
 	}
 	if len(deployments) > 0 {
-		return fmt.Errorf("Load for ProcessDriver already active: %s", loadName)
+		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already running: %s", loadName)
 	}
 
-	return nil
+	// Create deployment in "planned" state
+	did, err := repository.Create(loadName, p, common.DeploymentStatePlanned, nil)
+	if err != nil {
+		slog.Error("ProcessDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
+		return uuid.Nil, err
+	}
+
+	return did, nil
 }
 
-func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "planned" state
+	if deployment.State != common.DeploymentStatePlanned {
+		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	}
+
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -155,18 +168,18 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 
 	config := configPkg.Get()
 	if config == nil {
-		return uuid.Nil, fmt.Errorf("Cannot retrieve config")
+		return fmt.Errorf("Cannot retrieve config")
 	}
 	logsPath := config.Daemon.LogsPath
 
-	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", loadName), 0755)
+	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", deployment.LoadName), 0755)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Failed to create output log file: %v", err)
+		return fmt.Errorf("Failed to create output log file: %v", err)
 	}
 
-	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", loadName), 0755)
+	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", deployment.LoadName), 0755)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("Failed to create error log file: %v", err)
+		return fmt.Errorf("Failed to create error log file: %v", err)
 	}
 
 	cmd.Env = os.Environ()
@@ -177,19 +190,26 @@ func (p ProcessDriver) StartOnDaemon(repository common.DeploymentsRepository, lo
 		cmd.Dir = *p.Config.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
-		return uuid.Nil, fmt.Errorf("failed to start process: %w", err)
+		return fmt.Errorf("failed to start process: %w", err)
 	}
 
-	did, err := repository.Create(loadName, p, nil)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	procStore[did] = ProcInfo{Cmd: cmd}
+	// Store process info
+	procStore[deployment.ID] = ProcInfo{Cmd: cmd}
 
-	return did, nil
+	// Update deployment state to "running"
+	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning, nil); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "running" state
+	if deployment.State != common.DeploymentStateRunning {
+		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
+	}
+
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
 	forceKill := p.Config.ForceKill
@@ -205,18 +225,39 @@ func (p ProcessDriver) StopOnDaemon(repository common.DeploymentsRepository, dep
 
 	select {
 	case <-done:
-		slog.Info("ProcessDriver.StopOnDaemon", "msg", "process exited", "pid", cmd.Process.Pid)
+		slog.Info("ProcessDriver.StopDeployment", "msg", "process exited", "pid", cmd.Process.Pid)
 		if err := repository.DeleteDeployment(deployment.ID); err != nil {
 			return fmt.Errorf("failed to delete load from repository: %w", err)
 		}
 
 	case <-time.After(3 * time.Second):
-		slog.Error("ProcessDriver.StopOnDaemon", "msg", "process exit timeout", "pid", cmd.Process.Pid)
+		slog.Error("ProcessDriver.StopDeployment", "msg", "process exit timeout", "pid", cmd.Process.Pid)
 		if forceKill {
-			slog.Info("ProcessDriver.StopOnDaemon", "msg", "force killing after timeout error", "pid", cmd.Process.Pid)
+			slog.Info("ProcessDriver.StopDeployment", "msg", "force killing after timeout error", "pid", cmd.Process.Pid)
 			cmd.Process.Kill()
 		}
 		<-done
+	}
+
+	// Clean up procStore
+	delete(procStore, deployment.ID)
+
+	return nil
+}
+
+func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	// Verify deployment is in "planned" state
+	if deployment.State != common.DeploymentStatePlanned {
+		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	}
+
+	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
+
+	// For processes, there's nothing to clean up at unplan time
+	// (no process started yet)
+	if err := repository.DeleteDeployment(deployment.ID); err != nil {
+		slog.Error("ProcessDriver.UnplanDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
+		return fmt.Errorf("failed to delete deployment: %w", err)
 	}
 
 	return nil

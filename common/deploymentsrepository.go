@@ -6,6 +6,13 @@ import (
 
 type DeploymentID = uuid.UUID
 
+type DeploymentState string
+
+const (
+	DeploymentStatePlanned DeploymentState = "planned"
+	DeploymentStateRunning DeploymentState = "running"
+)
+
 // A deployment is the object create when a load has been loaded
 // in the cluster
 // Notice it doesn't reference Load but contains an immutable copy
@@ -15,6 +22,7 @@ type Deployment struct {
 	ID         DeploymentID
 	LoadName   string
 	LoadDriver LoadDriver
+	State      DeploymentState
 	Metadata   any
 }
 
@@ -24,9 +32,11 @@ type Deployment struct {
 // this repository might be stored in a distributed database
 // so no memory references must be used
 type DeploymentsRepository interface {
-	Create(loadName string, driver LoadDriver, metadata any) (DeploymentID, error)
+	Create(loadName string, driver LoadDriver, state DeploymentState, metadata any) (DeploymentID, error)
+	UpdateState(deploymentID DeploymentID, state DeploymentState, metadata any) error
 
 	GetByLoad(loadName string) ([]Deployment, error)
+	GetByLoadAndState(loadName string, state DeploymentState) ([]Deployment, error)
 	GetDeployment(deploymentID DeploymentID) (*Deployment, error)
 
 	DeleteByLoad(loadName string) error
