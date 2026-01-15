@@ -197,7 +197,7 @@ func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, 
 	procStore[deployment.ID] = ProcInfo{Cmd: cmd}
 
 	// Update deployment state to "running"
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning, nil); err != nil {
+	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
 		return err
 	}
 
@@ -226,8 +226,8 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 	select {
 	case <-done:
 		slog.Info("ProcessDriver.StopDeployment", "msg", "process exited", "pid", cmd.Process.Pid)
-		if err := repository.DeleteDeployment(deployment.ID); err != nil {
-			return fmt.Errorf("failed to delete load from repository: %w", err)
+		if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {
+			return fmt.Errorf("failed to update load state: %w", err)
 		}
 
 	case <-time.After(3 * time.Second):

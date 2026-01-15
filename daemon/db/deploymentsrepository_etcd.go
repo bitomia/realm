@@ -129,21 +129,42 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 	return deployments, nil
 }
 
-func (r *EtcdDeploymentsRepository) GetDeployment(deploymentID common.DeploymentID) (*common.Deployment, error) {
+func (r *EtcdDeploymentsRepository) getDeploymentValue(deploymentID common.DeploymentID) (*DeploymentValue, error) {
 	deploymentKey, err := r.db.deploymentKey(deploymentID)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "msg", "deploymentKey failed", "error", err.Error())
 		return nil, err
 	}
 
-	var deployment common.Deployment
+	var deploymentValue DeploymentValue
 	deploymentStr, err := r.db.get(deploymentKey)
-	if err := json.Unmarshal([]byte(deploymentStr), &deployment); err != nil {
+	if err := json.Unmarshal([]byte(deploymentStr), &deploymentValue); err != nil {
 		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "msg", "unmarshalling deployment", "deploymentStr", deploymentStr, "error", err.Error())
 		return nil, err
 	}
 
-	return &deployment, nil
+	return &deploymentValue, nil
+}
+
+func (r *EtcdDeploymentsRepository) GetDeployment(deploymentID common.DeploymentID) (*common.Deployment, error) {
+	deploymentValue, err := r.getDeploymentValue(deploymentID)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "error", err.Error())
+		return nil, err
+	}
+
+	loadDriver, err := common.BuildLoadDriver(deploymentValue.LoadDriverConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.Deployment{
+		ID:         deploymentValue.ID,
+		LoadName:   deploymentValue.LoadName,
+		LoadDriver: loadDriver,
+		State:      deploymentValue.State,
+		Metadata:   deploymentValue.Metadata,
+	}, nil
 }
 
 func (r *EtcdDeploymentsRepository) DeleteByLoad(loadName string) error {
@@ -174,7 +195,7 @@ func (r *EtcdDeploymentsRepository) DeleteByLoad(loadName string) error {
 
 		ops = append(ops, clientv3.OpDelete(deploymentKey))
 	}
-	ops = append(ops, clientv3.OpDelete(loadKey))
+	ops = append(ops, clientv3.OpDelete(loadKey, clientv3.WithPrefix()))
 
 	if _, err := r.db.txn(ops...); err != nil {
 		slog.Error("EtcdLoadsRepository.DeleteByLoad", "loadName", loadName, "msg", "running delete transaction", "error", err.Error())
@@ -197,22 +218,17 @@ func (r *EtcdDeploymentsRepository) DeleteDeployment(deploymentID uuid.UUID) err
 	return nil
 }
 
-func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID, state common.DeploymentState, metadata any) error {
-	deployment, err := r.GetDeployment(deploymentID)
+func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID, state common.DeploymentState) error {
+	deployment, err := r.getDeploymentValue(deploymentID)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "GetDeployment failed", "error", err.Error())
 		return err
 	}
 
-	deploymentValue := DeploymentValue{
-		ID:               deployment.ID,
-		LoadName:         deployment.LoadName,
-		State:            state,
-		LoadDriverConfig: deployment.LoadDriver.GetDriverConfig(),
-		Metadata:         metadata,
-	}
+	// Update state
+	deployment.State = state
 
-	deploymentJson, err := json.Marshal(deploymentValue)
+	deploymentJson, err := json.Marshal(*deployment)
 	if err != nil {
 		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "Marshalling deployment", "error", err.Error())
 		return err
@@ -249,4 +265,43 @@ func (r *EtcdDeploymentsRepository) GetByLoadAndState(loadName string, state com
 		}
 	}
 	return filtered, nil
+}
+
+func (r *EtcdDeploymentsRepository) GetAll() ([]common.Deployment, error) {
+	prefix, err := r.db.deploymentsKeyPrefix()
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.GetAll", "msg", "getting deployments prefix", "error", err.Error())
+		return nil, err
+	}
+
+	kvs, err := r.db.getKey(prefix)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.GetAll", "msg", "retrieving all deployments", "error", err.Error())
+		return nil, err
+	}
+
+	var deployments []common.Deployment
+	for _, value := range kvs {
+		var deployment DeploymentValue
+		if err := json.Unmarshal([]byte(value), &deployment); err != nil {
+			slog.Error("EtcdLoadsRepository.GetAll", "msg", "unmarshalling deployment", "error", err.Error())
+			return nil, err
+		}
+
+		loadDriver, err := common.BuildLoadDriver(deployment.LoadDriverConfig)
+		if err != nil {
+			slog.Error("EtcdLoadsRepository.GetAll", "msg", "building load driver", "error", err.Error())
+			return nil, err
+		}
+
+		deployments = append(deployments, common.Deployment{
+			ID:         deployment.ID,
+			LoadName:   deployment.LoadName,
+			LoadDriver: loadDriver,
+			State:      deployment.State,
+			Metadata:   deployment.Metadata,
+		})
+	}
+
+	return deployments, nil
 }

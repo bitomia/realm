@@ -948,7 +948,7 @@ func (c *Client) StartLoad(load *common.Load) error {
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads", load.Node.Url)
+	url := fmt.Sprintf("%s/loads/start", load.Node.Url)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(load)
@@ -983,9 +983,9 @@ func (c *Client) StopLoad(load *common.Load) error {
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/%s", load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
@@ -1017,7 +1017,7 @@ func (c *Client) UnplanLoad(load *common.Load) error {
 
 	url := fmt.Sprintf("%s/loads/%s/unplan", load.Node.Url, load.Name)
 
-	req, err := http.NewRequest("DELETE", url, nil)
+	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
@@ -1040,4 +1040,47 @@ func (c *Client) UnplanLoad(load *common.Load) error {
 	}
 
 	return nil
+}
+
+type LoadStateResponse struct {
+	LoadName    string `json:"load_name"`
+	State       string `json:"state"`
+	Deployments int    `json:"deployments"`
+}
+
+func (c *Client) GetLoadStates(nodeUrl string) ([]LoadStateResponse, error) {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/loads", nodeUrl)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s", string(body))
+	}
+
+	var states []LoadStateResponse
+	if err := json.Unmarshal(body, &states); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return states, nil
 }

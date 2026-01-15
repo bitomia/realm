@@ -145,3 +145,56 @@ func UnplanLoadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+type LoadStateResponse struct {
+	LoadName    string                 `json:"load_name"`
+	State       common.DeploymentState `json:"state"`
+	Deployments int                    `json:"deployments"`
+}
+
+func GetLoadStatesHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("loads.GetLoadStatesHandler")
+
+	database := db.GetDB()
+
+	allDeployments, err := database.DeploymentsRepository.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	// Group deployments by load name
+	loadDeployments := make(map[string][]common.Deployment)
+	for _, d := range allDeployments {
+		loadDeployments[d.LoadName] = append(loadDeployments[d.LoadName], d)
+	}
+
+	// Build response for each load
+	var response []LoadStateResponse
+	for loadName, deployments := range loadDeployments {
+		var state common.DeploymentState
+		hasRunning := false
+		hasPlanned := false
+		for _, d := range deployments {
+			if d.State == common.DeploymentStateRunning {
+				hasRunning = true
+			} else if d.State == common.DeploymentStatePlanned {
+				hasPlanned = true
+			}
+		}
+		if hasRunning {
+			state = common.DeploymentStateRunning
+		} else if hasPlanned {
+			state = common.DeploymentStatePlanned
+		}
+
+		response = append(response, LoadStateResponse{
+			LoadName:    loadName,
+			State:       state,
+			Deployments: len(deployments),
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

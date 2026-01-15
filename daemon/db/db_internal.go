@@ -156,6 +156,14 @@ func (db *DaemonDB) loadKey(loadName string) (string, error) {
 	return path.Join(daemonId, loadsPrefix, loadName), nil
 }
 
+func (db *DaemonDB) deploymentsKeyPrefix() (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(daemonId, deploymentsPrefix), nil
+}
+
 func (db *DaemonDB) txn(ops ...clientv3.Op) (*clientv3.TxnResponse, error) {
 	if len(ops) == 0 {
 		return nil, nil

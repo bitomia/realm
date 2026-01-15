@@ -166,9 +166,8 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 
 	slog.Info("ContainerDriver.StartDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
 
-	// Update deployment state to "running" with container name metadata
-	metadata := ContainerEntryMetadata{ContainerName: containerName}
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning, metadata); err != nil {
+	// Update deployment state to "running"
+	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
 		slog.Error("ContainerDriver.StartDeployment", "msg", "failed to update deployment state", "error", err)
 		return err
 	}
@@ -246,7 +245,7 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	slog.Info("ContainerDriver.StopDeployment", "msg", "container stopped and deleted", "container", containerName)
 
 	// Delete deployment from repository
-	if err := repository.DeleteDeployment(deployment.ID); err != nil {
+	if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {
 		slog.Error("ContainerDriver.StopDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
 		return fmt.Errorf("failed to delete deployment: %w", err)
 	}

@@ -33,8 +33,9 @@ type Deployment struct {
 // so no memory references must be used
 type DeploymentsRepository interface {
 	Create(loadName string, driver LoadDriver, state DeploymentState, metadata any) (DeploymentID, error)
-	UpdateState(deploymentID DeploymentID, state DeploymentState, metadata any) error
+	UpdateState(deploymentID DeploymentID, state DeploymentState) error
 
+	GetAll() ([]Deployment, error)
 	GetByLoad(loadName string) ([]Deployment, error)
 	GetByLoadAndState(loadName string, state DeploymentState) ([]Deployment, error)
 	GetDeployment(deploymentID DeploymentID) (*Deployment, error)

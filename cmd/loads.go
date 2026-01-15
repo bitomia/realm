@@ -67,7 +67,7 @@ var planLoads = &cobra.Command{
 var listLoads = &cobra.Command{
 	Use:                   "list [--all | load...]",
 	Aliases:               []string{"ls"},
-	Short:                 "List loads",
+	Short:                 "List loads with their current state",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -76,8 +76,38 @@ var listLoads = &cobra.Command{
 			log.Error("No loads")
 			return
 		}
+		client := clientPkg.NewClient()
+
+		// Collect states from all nodes
+		nodeStates := make(map[string]map[string]clientPkg.LoadStateResponse)
 		for _, load := range loads {
-			color.White("%s (node %s)\n", color.CyanString(load.Name), color.YellowString(load.Node.Name))
+			if _, exists := nodeStates[load.Node.Url]; !exists {
+				states, err := client.GetLoadStates(load.Node.Url)
+				if err != nil {
+					nodeStates[load.Node.Url] = nil // Mark as failed
+				} else {
+					nodeStates[load.Node.Url] = make(map[string]clientPkg.LoadStateResponse)
+					for _, s := range states {
+						nodeStates[load.Node.Url][s.LoadName] = s
+					}
+				}
+			}
+		}
+
+		for _, load := range loads {
+			stateStr := ""
+			if nodeStates[load.Node.Url] == nil {
+				stateStr = color.RedString("unknown")
+			} else if state, exists := nodeStates[load.Node.Url][load.Name]; !exists || state.State == "" {
+				stateStr = color.WhiteString("not deployed")
+			} else if state.State == "running" {
+				stateStr = color.GreenString("running")
+			} else if state.State == "planned" {
+				stateStr = color.YellowString("planned")
+			} else {
+				stateStr = nodeStates[load.Node.Url][load.Name].State
+			}
+			color.White("%s (node %s) [%s]\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), stateStr)
 			prettyJSON(load, "name", "node")
 		}
 	},
