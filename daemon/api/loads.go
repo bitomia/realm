@@ -33,6 +33,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 				LoadName:     loadName,
 				DeploymentId: d.ID.String(),
 				State:        state,
+				Driver:       string(d.LoadDriver.GetLoadDriverID()),
 			})
 		}
 	}

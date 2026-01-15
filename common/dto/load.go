@@ -6,6 +6,7 @@ type LoadDeployment struct {
 	LoadName     string                 `json:"load_name"`
 	DeploymentId string                 `json:"deployment_id"`
 	State        common.DeploymentState `json:"state"`
+	Driver       string                 `json:"driver"`
 }
 
 type LoadsDeployments []LoadDeployment
