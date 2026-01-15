@@ -1042,13 +1042,7 @@ func (c *Client) UnplanLoad(load *common.Load) error {
 	return nil
 }
 
-type LoadStateResponse struct {
-	LoadName    string `json:"load_name"`
-	State       string `json:"state"`
-	Deployments int    `json:"deployments"`
-}
-
-func (c *Client) GetLoadStates(nodeUrl string) ([]LoadStateResponse, error) {
+func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
@@ -1077,10 +1071,10 @@ func (c *Client) GetLoadStates(nodeUrl string) ([]LoadStateResponse, error) {
 		return nil, fmt.Errorf("%s", string(body))
 	}
 
-	var states []LoadStateResponse
-	if err := json.Unmarshal(body, &states); err != nil {
+	var loadDeployments dto.LoadsDeployments
+	if err := json.Unmarshal(body, &loadDeployments); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %v", err)
 	}
 
-	return states, nil
+	return loadDeployments, nil
 }

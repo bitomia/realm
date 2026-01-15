@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/db"
 )
 
@@ -75,7 +76,7 @@ func StartLoadHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotAcceptable)
 			return
 		}
-		slog.Info("StartLoadHandler", "msg", "load deployed", "deploymentID", deployment.ID)
+		slog.Info("loads.StartLoadHandler", "msg", "load deployment started", "deploymentID", deployment.ID)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -106,11 +107,11 @@ func StopLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	for _, deployment := range deployments {
 		slog.Info("loads.StopLoadDeploymentsHandler", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
-
 		if err := deployment.LoadDriver.StopDeployment(database.DeploymentsRepository, deployment); err != nil {
 			http.Error(w, err.Error(), http.StatusNotAcceptable)
 			return
 		}
+		slog.Info("loads.StopLoadDeploymentsHandler", "msg", "load deployments stopped", "deploymentID", deployment.ID)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -146,55 +147,14 @@ func UnplanLoadHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type LoadStateResponse struct {
-	LoadName    string                 `json:"load_name"`
-	State       common.DeploymentState `json:"state"`
-	Deployments int                    `json:"deployments"`
-}
-
-func GetLoadStatesHandler(w http.ResponseWriter, r *http.Request) {
+func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("loads.GetLoadStatesHandler")
 
-	database := db.GetDB()
-
-	allDeployments, err := database.DeploymentsRepository.GetAll()
+	response, err := api.GetLoadsDeployments()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
-
-	// Group deployments by load name
-	loadDeployments := make(map[string][]common.Deployment)
-	for _, d := range allDeployments {
-		loadDeployments[d.LoadName] = append(loadDeployments[d.LoadName], d)
-	}
-
-	// Build response for each load
-	var response []LoadStateResponse
-	for loadName, deployments := range loadDeployments {
-		var state common.DeploymentState
-		hasRunning := false
-		hasPlanned := false
-		for _, d := range deployments {
-			if d.State == common.DeploymentStateRunning {
-				hasRunning = true
-			} else if d.State == common.DeploymentStatePlanned {
-				hasPlanned = true
-			}
-		}
-		if hasRunning {
-			state = common.DeploymentStateRunning
-		} else if hasPlanned {
-			state = common.DeploymentStatePlanned
-		}
-
-		response = append(response, LoadStateResponse{
-			LoadName:    loadName,
-			State:       state,
-			Deployments: len(deployments),
-		})
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

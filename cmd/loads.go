@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -10,6 +11,7 @@ import (
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
 )
 
 func doPlanLoads(client *clientPkg.Client, loads map[string]*common.Load) error {
@@ -67,7 +69,7 @@ var planLoads = &cobra.Command{
 var listLoads = &cobra.Command{
 	Use:                   "list [--all | load...]",
 	Aliases:               []string{"ls"},
-	Short:                 "List loads with their current state",
+	Short:                 "List loads deployments",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -78,17 +80,18 @@ var listLoads = &cobra.Command{
 		}
 		client := clientPkg.NewClient()
 
-		// Collect states from all nodes
-		nodeStates := make(map[string]map[string]clientPkg.LoadStateResponse)
+		// Collect load deployments from all nodes
+		nodeLoadsDeployments := make(map[string]map[string]dto.LoadsDeployments)
 		for _, load := range loads {
-			if _, exists := nodeStates[load.Node.Url]; !exists {
-				states, err := client.GetLoadStates(load.Node.Url)
+			if _, exists := nodeLoadsDeployments[load.Node.Url]; !exists {
+				loadsDeployments, err := client.GetLoadsDeployments(load.Node.Url)
 				if err != nil {
-					nodeStates[load.Node.Url] = nil // Mark as failed
+					log.Error(err.Error())
+					nodeLoadsDeployments[load.Node.Url] = nil // Mark as failed
 				} else {
-					nodeStates[load.Node.Url] = make(map[string]clientPkg.LoadStateResponse)
-					for _, s := range states {
-						nodeStates[load.Node.Url][s.LoadName] = s
+					nodeLoadsDeployments[load.Node.Url] = make(map[string]dto.LoadsDeployments)
+					for _, s := range loadsDeployments {
+						nodeLoadsDeployments[load.Node.Url][s.LoadName] = loadsDeployments
 					}
 				}
 			}
@@ -96,18 +99,27 @@ var listLoads = &cobra.Command{
 
 		for _, load := range loads {
 			stateStr := ""
-			if nodeStates[load.Node.Url] == nil {
+			if nodeLoadsDeployments[load.Node.Url] == nil {
 				stateStr = color.RedString("unknown")
-			} else if state, exists := nodeStates[load.Node.Url][load.Name]; !exists || state.State == "" {
-				stateStr = color.WhiteString("not deployed")
-			} else if state.State == "running" {
-				stateStr = color.GreenString("running")
-			} else if state.State == "planned" {
-				stateStr = color.YellowString("planned")
 			} else {
-				stateStr = nodeStates[load.Node.Url][load.Name].State
+				deployments, exists := nodeLoadsDeployments[load.Node.Url][load.Name]
+				if !exists {
+					stateStr = color.WhiteString("not deployed")
+				} else {
+					for _, d := range deployments {
+						switch d.State {
+						case "running":
+							stateStr = fmt.Sprintf("%s %s", stateStr, color.GreenString("running"))
+						case "planned":
+							stateStr = fmt.Sprintf("%s %s", stateStr, color.YellowString("planned"))
+						default:
+							stateStr = fmt.Sprintf("%s %s", stateStr, string(d.State))
+						}
+					}
+				}
 			}
-			color.White("%s (node %s) [%s]\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), stateStr)
+
+			color.White("%s (node %s) [%s]\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), strings.TrimSpace(stateStr))
 			prettyJSON(load, "name", "node")
 		}
 	},

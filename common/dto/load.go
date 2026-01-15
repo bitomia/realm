@@ -2,6 +2,14 @@ package dto
 
 import "github.com/bitomia/realm/common"
 
+type LoadDeployment struct {
+	LoadName     string                 `json:"load_name"`
+	DeploymentId string                 `json:"deployment_id"`
+	State        common.DeploymentState `json:"state"`
+}
+
+type LoadsDeployments []LoadDeployment
+
 type LoadInfo struct {
 	Name   string `json:"name"`
 	Node   string `json:"node"`
