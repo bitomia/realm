@@ -948,12 +948,9 @@ func (c *Client) StartLoad(load *common.Load) error {
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/start", load.Node.Url)
+	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
 
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(load)
-
-	req, err := http.NewRequest("POST", url, payload)
+	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}

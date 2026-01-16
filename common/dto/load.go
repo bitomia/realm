@@ -30,3 +30,7 @@ func NewLoadsInfoDTO(loads map[string]*common.Load) LoadsInfo {
 	}
 	return loadsInfoRes
 }
+
+type PlanLoadInfo struct {
+	DeploymentId string `json:"deployment_id"`
+}
