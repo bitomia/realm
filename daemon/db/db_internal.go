@@ -26,6 +26,7 @@ const (
 	healthPrefix      = "health"
 	deploymentsPrefix = "deployments"
 	loadsPrefix       = "loads"
+	nodePrefix        = "node"
 )
 
 func getEtcdDataDir() string {
@@ -162,6 +163,18 @@ func (db *DaemonDB) deploymentsKeyPrefix() (string, error) {
 		return "", err
 	}
 	return path.Join(daemonId, deploymentsPrefix), nil
+}
+
+func (db *DaemonDB) nodeKey() (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(daemonId, nodePrefix), nil
+}
+
+func (db *DaemonDB) nodeKeyByDaemonId(daemonId string) (string, error) {
+	return path.Join(daemonId, nodePrefix), nil
 }
 
 func (db *DaemonDB) txn(ops ...clientv3.Op) (*clientv3.TxnResponse, error) {

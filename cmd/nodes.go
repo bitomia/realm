@@ -8,9 +8,23 @@ import (
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
-
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
 )
+
+func validateNodeArgs(cmd *cobra.Command, args []string) error {
+	all, _ := cmd.Flags().GetBool("all")
+
+	if all && len(args) > 0 {
+		return fmt.Errorf("Cannot use --all with node names")
+	}
+
+	if !all && len(args) == 0 {
+		return fmt.Errorf("Must specify --all or at least one node name")
+	}
+
+	return nil
+}
 
 var hostCmd = &cobra.Command{
 	Use:     "nodes",
@@ -31,9 +45,6 @@ var nodeStates = &cobra.Command{
 		for id, node := range clientPkg.GetNodes() {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
-			if node.MAC != nil {
-				fmt.Printf(" MAC: %s\n", color.CyanString(*node.MAC))
-			}
 			state, err := client.GetNodeState(node.Url)
 			if err != nil {
 				log.Info(" Node not available: %s", err.Error())
@@ -72,7 +83,48 @@ var nodeStates = &cobra.Command{
 	},
 }
 
+var startNodes = &cobra.Command{
+	Use:                   "start [--all | node...]",
+	Short:                 "Startup nodes",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := config.GetNodesFromConfig(nodeNames...)
+		client := clientPkg.NewClient()
+
+		for _, n := range nodes {
+			log.Info(" -> Starting up node %s", color.CyanString(n.Name))
+			if err := client.StartupNode(n); err != nil {
+				log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
+			}
+		}
+	},
+}
+
+var shutdownNodes = &cobra.Command{
+	Use:                   "shutdown [--all | load...]",
+	Short:                 "Stop loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		nodes := config.GetNodesFromConfig(loadNames...)
+		client := clientPkg.NewClient()
+
+		for _, n := range nodes {
+			log.Info(" -> Shutting down node %s", color.CyanString(n.Name))
+			if err := client.ShutdownNode(n); err != nil {
+				log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
+			}
+		}
+	},
+}
+
 func init() {
+	startNodes.Flags().Bool("all", false, "All nodes")
+	shutdownNodes.Flags().Bool("all", false, "All nodes")
+
 	hostCmd.AddCommand(nodeStates)
+	hostCmd.AddCommand(startNodes)
+	hostCmd.AddCommand(shutdownNodes)
 	rootCmd.AddCommand(hostCmd)
 }

@@ -62,7 +62,7 @@ func (m *MockLoadDriver) GetDriverConfig() LoadDriverConfig {
 }
 
 func createTestLoad(name, nodeName string, driverID LoadDriverID, driverConfig any) *Load {
-	node := &Node{Name: nodeName, Url: "http://test.com"}
+	node := &NodeConfig{Name: nodeName, Url: "http://test.com"}
 	driver := &MockLoadDriver{driver: driverID, driverConfig: driverConfig}
 
 	load := &Load{
@@ -160,7 +160,7 @@ func TestHashableLoadConfig_NilHandling(t *testing.T) {
 		Name:      "test",
 		Driver:    &MockLoadDriver{driver: "test", driverConfig: nil},
 		DependsOn: nil,
-		Node:      &Node{Name: "node1", Url: "http://test.com"},
+		Node:      &NodeConfig{Name: "node1", Url: "http://test.com"},
 		State:     LoadStop,
 	}
 

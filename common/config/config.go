@@ -109,8 +109,8 @@ type LoadsConfig map[string]common.LoadConfig
 
 type Config struct {
 	// Client config
-	Nodes     map[string]*common.Node `json:"nodes"`
-	Discovery DiscoveryConfig         `json:"discovery"`
+	Nodes     map[string]*common.NodeConfig `json:"nodes"`
+	Discovery DiscoveryConfig               `json:"discovery"`
 
 	// Daemon config
 	Daemon DaemonConfig `json:"daemon"`

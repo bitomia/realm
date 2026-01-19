@@ -12,6 +12,10 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/state", auth.WithAuth(handlers.GetNodeStateHandler)).Methods("GET")
 	router.Handle("/system", auth.WithAuth(handlers.GetSystemInfoHandler)).Methods("GET")
 
+	router.Handle("/node/plan", auth.WithAuth(handlers.PlanAndRegisterNodeHandler)).Methods("POST")
+	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNodeHandler)).Methods("POST")
+	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNodeHandler)).Methods("POST")
+
 	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
 	router.Handle("/images", auth.WithAuth(handlers.PullImageHandler)).Methods("POST")
 
@@ -35,8 +39,9 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/network/{container}/repair", auth.WithAuth(handlers.RepairNetworkHandler)).Methods("POST")
 
 	router.Handle("/loads", auth.WithAuth(handlers.GetLoadsDeploymentsHandler)).Methods("GET")
-	router.Handle("/loads/plan", auth.WithAuth(handlers.PlanLoadHandler)).Methods("POST")
+	router.Handle("/loads/plan", auth.WithAuth(handlers.PlanAndRegisterLoadHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/start", auth.WithAuth(handlers.StartLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/stop", auth.WithAuth(handlers.StopLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/unplan", auth.WithAuth(handlers.UnplanLoadHandler)).Methods("POST")
+
 }

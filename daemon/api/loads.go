@@ -91,7 +91,7 @@ func StopLoadDeployments(loadName string) error {
 	return nil
 }
 
-func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
+func PlanAndRegisterLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	database := db.GetDB()
 
 	deploymentID, err := load.Driver.PlanAndRegister(database.DeploymentsRepository, load.Name)

@@ -43,9 +43,9 @@ type HashableLoadConfig struct {
 
 type Load struct {
 	Name       string
-	Driver     LoadDriver
+	Node       *NodeConfig
 	DependsOn  []*Load
-	Node       *Node
+	Driver     LoadDriver
 	State      LoadState
 	StartChain LoadChain
 	StopChain  LoadChain

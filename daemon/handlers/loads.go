@@ -11,8 +11,8 @@ import (
 	"github.com/bitomia/realm/daemon/api"
 )
 
-func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("loads.PlanLoadHandler")
+func PlanAndRegisterLoadHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.PlanAndRegisterLoadHandler")
 
 	var load common.Load
 	err := json.NewDecoder(r.Body).Decode(&load)
@@ -21,9 +21,9 @@ func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("loads.PlanLoadHandler", "load", load.Name, "driver", load.Driver)
+	slog.Info("handlers.PlanAndRegisterLoadHandler", "load", load.Name, "driver", load.Driver)
 
-	planLoadInfo, err := api.PlanLoad(&load)
+	planLoadInfo, err := api.PlanAndRegisterLoad(&load)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -35,7 +35,7 @@ func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
 
 func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("loads.StartLoadHandler", "loadName", loadName)
+	slog.Info("handlers.StartLoadDeploymentsHandler", "loadName", loadName)
 
 	if err := api.StartLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -47,7 +47,7 @@ func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 
 func StopLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("loads.StopLoadDeploymentsHandler", "loadName", loadName)
+	slog.Info("handlers.StopLoadDeploymentsHandler", "loadName", loadName)
 
 	if err := api.StopLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -59,7 +59,7 @@ func StopLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 
 func UnplanLoadHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("loads.UnplanLoadHandler", "loadName", loadName)
+	slog.Info("handlers.UnplanLoadHandler", "loadName", loadName)
 
 	if err := api.UnplanLoad(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -70,7 +70,7 @@ func UnplanLoadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("loads.GetLoadStatesHandler")
+	slog.Info("handlers.GetLoadsDeploymentsHandler")
 
 	response, err := api.GetLoadsDeployments()
 	if err != nil {

@@ -19,8 +19,10 @@ func TestConfig(t *testing.T) {
 nodes:
   lab1:
     url: http://192.168.1.54:9000
+    driver: linux
   lab2:
     url: http://192.168.1.55:9000
+    driver: linux
 
 loads:
   web:
@@ -65,8 +67,10 @@ func TestConfigCycleError(t *testing.T) {
 nodes:
   lab1:
     url: http://192.168.1.54:9000
+    driver: linux
   lab2:
     url: http://192.168.1.55:9000
+    driver: linux
 
 loads:
   web:
@@ -104,6 +108,7 @@ func TestProcessDriverInvalidCmd(t *testing.T) {
 nodes:
   lab1:
     url: http://192.168.1.54:9000
+    driver: linux
 
 loads:
   netcat:

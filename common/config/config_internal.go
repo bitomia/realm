@@ -184,6 +184,15 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	// Populate node names from map keys
 	for nodeName, node := range config.Nodes {
 		node.Name = nodeName
+		if len(node.Driver) == 0 {
+			return fmt.Errorf("driver required for node '%s'", nodeName)
+		} else {
+			driver, err := common.BuildNodeDriver(common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
+			if err != nil {
+				return fmt.Errorf("Error building node driver '%s': %s", nodeName, err.Error())
+			}
+			newNodeConfig(nodeName, node, driver)
+		}
 	}
 
 	// Check load uniqueness
@@ -191,7 +200,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	getUniqueValues(l, config.Loads)
 
 	// Create all loads
-	allDeps := make(map[string][]string)
+	allLoadDeps := make(map[string][]string)
 
 	for loadName, loadConfig := range config.Loads {
 		if loadConfig.Node == "" {
@@ -201,19 +210,21 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
 		}
-
+		if len(loadConfig.Driver) == 0 {
+			return fmt.Errorf("driver required for load '%s'", loadName)
+		}
 		driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: loadConfig.Driver, DriverConfig: loadConfig.DriverConfig})
 		if err != nil {
 			return err
 		}
 
 		newLoadConfig(loadName, node, driver)
-		allDeps[loadName] = loadConfig.DependsOn
+		allLoadDeps[loadName] = loadConfig.DependsOn
 	}
 
 	// Traverse all loads and build a DAG
 	for loadName, load := range loadsConfig {
-		for _, depLoad := range allDeps[loadName] {
+		for _, depLoad := range allLoadDeps[loadName] {
 			loads, exist := loadsConfig[depLoad]
 			if !exist {
 				log.Fatalf("dependency node '%s' not exists", depLoad)

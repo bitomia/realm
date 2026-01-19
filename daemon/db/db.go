@@ -22,6 +22,7 @@ type DaemonDB struct {
 	server                *embed.Etcd
 	ctx                   context.Context
 	DeploymentsRepository common.DeploymentsRepository
+	NodesRepository       common.NodesRepository
 }
 
 var (
@@ -121,6 +122,7 @@ func GetDB() *DaemonDB {
 			ctx:    ctx,
 		}
 		instance.DeploymentsRepository = &EtcdDeploymentsRepository{instance}
+		instance.NodesRepository = &EtcdNodesRepository{instance}
 
 		if etcdMode == "server" {
 			slog.Info("Database initialized with etcd server")

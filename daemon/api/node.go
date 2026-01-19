@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cpu"
@@ -46,4 +47,44 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 		return nil, fmt.Errorf("failed to get system info: %w", err)
 	}
 	return info, nil
+}
+
+func PlanAndRegisterNode(node *common.Node) error {
+	database := db.GetDB()
+
+	if err := node.Driver.PlanAndRegister(node.Name, database.NodesRepository); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ShutdownNode() error {
+	database := db.GetDB()
+
+	nodeEntry, err := database.NodesRepository.GetSelf()
+	if err != nil {
+		return fmt.Errorf("failed to get self node: %w", err)
+	}
+
+	if err := nodeEntry.NodeDriver.Shutdown(); err != nil {
+		return fmt.Errorf("failed to shutdown self node: %w", err)
+	}
+
+	return nil
+}
+
+func RestartNode() error {
+	database := db.GetDB()
+
+	nodeEntry, err := database.NodesRepository.GetSelf()
+	if err != nil {
+		return fmt.Errorf("failed to get self node: %w", err)
+	}
+
+	if err := nodeEntry.NodeDriver.Restart(); err != nil {
+		return fmt.Errorf("failed to restart self node: %w", err)
+	}
+
+	return nil
 }
