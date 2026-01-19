@@ -15,11 +15,11 @@ type EtcdDeploymentsRepository struct {
 }
 
 type DeploymentValue struct {
-	ID               common.DeploymentID
-	LoadName         string
-	State            common.DeploymentState
-	LoadDriverConfig common.LoadDriverConfig
-	Metadata         any
+	ID               common.DeploymentID     `json:"id"`
+	LoadName         string                  `json:"load_name"`
+	LoadDriverConfig common.LoadDriverConfig `json:"load_driver_config"`
+	State            common.DeploymentState  `json:"state"`
+	Metadata         any                     `json:"metadata"`
 }
 
 func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, state common.DeploymentState, metadata any) (common.DeploymentID, error) {
