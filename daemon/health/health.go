@@ -14,7 +14,7 @@ import (
 
 type HealthPublisher struct {
 	db              *db.DaemonDB
-	nodeID          string
+	hostname        string
 	leaseID         clientv3.LeaseID
 	publishChan     chan bool
 	stopChan        chan bool
@@ -46,7 +46,7 @@ func GetHealthPublisher() *HealthPublisher {
 		}
 		instance = &HealthPublisher{
 			db:              db.GetDB(),
-			nodeID:          hostname,
+			hostname:        hostname,
 			publishChan:     make(chan bool, 1),
 			stopChan:        make(chan bool, 1),
 			publishInterval: DEFAULT_PUBLISH_INTERVAL,
@@ -56,7 +56,7 @@ func GetHealthPublisher() *HealthPublisher {
 }
 
 func (hp *HealthPublisher) Start() error {
-	slog.Info("Starting health publisher for node", "nodeID", hp.nodeID)
+	slog.Info("Starting health publisher for node", "hostname", hp.hostname)
 
 	leaseID, err := hp.db.CreateLease(DEFAULT_TTL)
 	if err != nil {
@@ -87,21 +87,21 @@ func (hp *HealthPublisher) Start() error {
 }
 
 func (hp *HealthPublisher) Stop() {
-	slog.Info("Stopping health publisher for node", "nodeID", hp.nodeID)
+	slog.Info("Stopping health publisher for node", "hostname", hp.hostname)
 
 	hp.PublishStatus(STATUS_STOPPING, nil)
 
 	close(hp.stopChan)
 	hp.wg.Wait()
 
-	hp.db.DeleteHealthStatus(hp.nodeID)
+	hp.db.DeleteHealthStatus(hp.hostname)
 	slog.Info("Health publisher stopped")
 }
 
 func (hp *HealthPublisher) PublishStatus(status string, metadata map[string]interface{}) error {
 	db := db.GetDB()
 
-	err := db.PublishHealthStatus(hp.nodeID, hp.leaseID, status, metadata)
+	err := db.PublishHealthStatus(hp.hostname, hp.leaseID, status, metadata)
 	if err != nil {
 		slog.Error("Failed to publish health status", "error", err.Error())
 		return err

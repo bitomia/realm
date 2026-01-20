@@ -449,7 +449,7 @@ func TestHealthStatus_PublishAndGet(t *testing.T) {
 
 	status, err := db.GetHealthStatus("node1")
 	assert.NoError(t, err)
-	assert.Equal(t, "node1", status.NodeID)
+	assert.Equal(t, "node1", status.Hostname)
 	assert.Equal(t, "healthy", status.Status)
 	assert.NotNil(t, status.Metadata)
 	assert.Equal(t, "50%", status.Metadata["cpu"])
@@ -481,12 +481,12 @@ func TestHealthStatus_GetAll(t *testing.T) {
 
 	assert.Len(t, statuses, 2)
 
-	nodeIDs := make(map[string]bool)
+	hostnames := make(map[string]bool)
 	for _, s := range statuses {
-		nodeIDs[s.NodeID] = true
+		hostnames[s.Hostname] = true
 	}
-	assert.True(t, nodeIDs["node1"])
-	assert.True(t, nodeIDs["node2"])
+	assert.True(t, hostnames["node1"])
+	assert.True(t, hostnames["node2"])
 }
 
 func TestHealthStatus_Delete(t *testing.T) {

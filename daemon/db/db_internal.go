@@ -125,12 +125,12 @@ func (db *DaemonDB) dnsKey(dnsName string) (string, error) {
 	return path.Join(daemonId, dnsPrefix, dnsName), nil
 }
 
-func (db *DaemonDB) healthKey(nodeId string) (string, error) {
+func (db *DaemonDB) healthKey(hostname string) (string, error) {
 	daemonId, err := id.GetDaemonId()
 	if err != nil {
 		return "", err
 	}
-	return path.Join(daemonId, healthPrefix, nodeId), nil
+	return path.Join(daemonId, healthPrefix, hostname), nil
 }
 
 func (db *DaemonDB) deploymentKey(deploymentId common.DeploymentID) (string, error) {

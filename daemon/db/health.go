@@ -9,15 +9,15 @@ import (
 )
 
 type HealthStatus struct {
-	NodeID    string                 `json:"node_id"`
+	Hostname  string                 `json:"hostname"`
 	Status    string                 `json:"status"`
 	Timestamp time.Time              `json:"timestamp"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
-func (db *DaemonDB) PublishHealthStatus(nodeId string, leaseId clientv3.LeaseID, status string, metadata map[string]interface{}) error {
+func (db *DaemonDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID, status string, metadata map[string]interface{}) error {
 	healthStatus := HealthStatus{
-		NodeID:    nodeId,
+		Hostname:  hostname,
 		Status:    status,
 		Timestamp: time.Now(),
 		Metadata:  metadata,
@@ -29,7 +29,7 @@ func (db *DaemonDB) PublishHealthStatus(nodeId string, leaseId clientv3.LeaseID,
 		return err
 	}
 
-	healthKey, err := db.healthKey(nodeId)
+	healthKey, err := db.healthKey(hostname)
 	if err != nil {
 		slog.Error("Error getting health key", "error", err.Error())
 		return err
@@ -38,8 +38,8 @@ func (db *DaemonDB) PublishHealthStatus(nodeId string, leaseId clientv3.LeaseID,
 	return db.PutWithLease(healthKey, string(value), leaseId)
 }
 
-func (db *DaemonDB) GetHealthStatus(nodeId string) (HealthStatus, error) {
-	healthKey, err := db.healthKey(nodeId)
+func (db *DaemonDB) GetHealthStatus(hostname string) (HealthStatus, error) {
+	healthKey, err := db.healthKey(hostname)
 	if err != nil {
 		return HealthStatus{}, err
 	}
@@ -76,8 +76,8 @@ func (db *DaemonDB) GetAllHealthStatuses() ([]HealthStatus, error) {
 	return healthStatuses, nil
 }
 
-func (db *DaemonDB) DeleteHealthStatus(nodeId string) error {
-	healthKey, err := db.healthKey(nodeId)
+func (db *DaemonDB) DeleteHealthStatus(hostname string) error {
+	healthKey, err := db.healthKey(hostname)
 	if err != nil {
 		return err
 	}
