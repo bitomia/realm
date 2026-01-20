@@ -1114,14 +1114,18 @@ func (c *Client) StartupNode(node *common.Node) error {
 	return node.Driver.Startup()
 }
 
-func (c *Client) ShutdownNode(node *common.Node) error {
+func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(request)
+
 	url := fmt.Sprintf("%s/node/shutdown", node.Url)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}
@@ -1146,14 +1150,18 @@ func (c *Client) ShutdownNode(node *common.Node) error {
 	return nil
 }
 
-func (c *Client) RestartNode(node *common.Node) error {
+func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
+	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(request)
+
 	url := fmt.Sprintf("%s/node/restart", node.Url)
 
-	req, err := http.NewRequest("POST", url, nil)
+	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %v", err)
 	}

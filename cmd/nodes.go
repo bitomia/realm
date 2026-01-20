@@ -130,7 +130,7 @@ var shutdownNodes = &cobra.Command{
 
 		for _, n := range nodes {
 			log.Info(" -> Shutting down node %s", color.CyanString(n.Name))
-			if err := client.ShutdownNode(n); err != nil {
+			if err := client.ShutdownNode(n, "", 0); err != nil {
 				log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 			}
 		}

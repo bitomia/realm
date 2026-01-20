@@ -59,7 +59,7 @@ func PlanAndRegisterNode(node *common.Node) error {
 	return nil
 }
 
-func ShutdownNode() error {
+func ShutdownNode(message string, time uint32) error {
 	database := db.GetDB()
 
 	nodeEntry, err := database.NodesRepository.GetSelf()
@@ -67,14 +67,14 @@ func ShutdownNode() error {
 		return fmt.Errorf("failed to get self node: %w", err)
 	}
 
-	if err := nodeEntry.NodeDriver.Shutdown(); err != nil {
+	if err := nodeEntry.NodeDriver.Shutdown(message, time); err != nil {
 		return fmt.Errorf("failed to shutdown self node: %w", err)
 	}
 
 	return nil
 }
 
-func RestartNode() error {
+func RestartNode(message string, time uint32) error {
 	database := db.GetDB()
 
 	nodeEntry, err := database.NodesRepository.GetSelf()
@@ -82,7 +82,7 @@ func RestartNode() error {
 		return fmt.Errorf("failed to get self node: %w", err)
 	}
 
-	if err := nodeEntry.NodeDriver.Restart(); err != nil {
+	if err := nodeEntry.NodeDriver.Restart(message, time); err != nil {
 		return fmt.Errorf("failed to restart self node: %w", err)
 	}
 

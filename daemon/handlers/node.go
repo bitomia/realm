@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/api"
 )
 
@@ -54,7 +55,14 @@ func PlanAndRegisterNodeHandler(w http.ResponseWriter, r *http.Request) {
 func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.ShutdownNodeHandler")
 
-	if err := api.ShutdownNode(); err != nil {
+	var request dto.ShutdownNodeRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.ShutdownNode(request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -65,7 +73,14 @@ func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 func RestartNodeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.RestartNodeHandler")
 
-	if err := api.RestartNode(); err != nil {
+	var request dto.RestartNodeRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.RestartNode(request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

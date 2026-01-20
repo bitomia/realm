@@ -108,3 +108,13 @@ type SystemInfo struct {
 	CpuMhz            uint32  `json:"cpu_mhz"`              // Maximum CPU frequency in Megahertz
 	RamTotal          uint64  `json:"ram_total"`            // Total available RAM in bytes
 }
+
+type ShutdownNodeRequest struct {
+	WallMessage string `json:"wall_message"`
+	Time        uint32 `json:"time"`
+}
+
+type RestartNodeRequest struct {
+	WallMessage string `json:"wall_message"`
+	Time        uint32 `json:"time"`
+}

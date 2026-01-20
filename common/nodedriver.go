@@ -36,8 +36,8 @@ type NodeDriver interface {
 	PlanAndRegister(nodeName string, repository NodesRepository) error
 
 	Startup() error
-	Shutdown() error
-	Restart() error
+	Shutdown(message string, time uint32) error
+	Restart(message string, time uint32) error
 	GetStatus() (NodeStatus, error)
 
 	// GetDriverConfig returns the configuration for this node driver.

@@ -14,11 +14,12 @@ import (
 
 const LinuxDriverID common.NodeDriverID = "linux"
 
+var shutdownCmd = "/usr/sbin/shutdown"
+var restartCmd = "/usr/sbin/shutdown"
+
 type LinuxConfig struct {
-	WakeOnLan   bool   `json:"wol"`
-	MAC         string `json:"mac"`
-	ShutdownCmd string `json:"shutdown_cmd"`
-	RestartCmd  string `json:"restart_cmd"`
+	WakeOnLan bool   `json:"wol"`
+	MAC       string `json:"mac"`
 }
 
 type LinuxDriver struct {
@@ -28,10 +29,8 @@ type LinuxDriver struct {
 func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 	// Set default values
 	var config = LinuxConfig{
-		WakeOnLan:   false,
-		MAC:         "",
-		ShutdownCmd: "poweroff",
-		RestartCmd:  "reboot",
+		WakeOnLan: false,
+		MAC:       "",
 	}
 	if c != nil {
 		// Configure mapstructure decoder to use 'json' tags
@@ -97,12 +96,6 @@ func (l LinuxDriver) UnmarshalJSON(data []byte) error {
 }
 
 func (l LinuxDriver) Verify() error {
-	if l.Config.ShutdownCmd == "" {
-		return fmt.Errorf("shutdown_cmd not specified")
-	}
-	if l.Config.RestartCmd == "" {
-		return fmt.Errorf("restart_cmd not specified")
-	}
 	if l.Config.WakeOnLan {
 		if l.Config.MAC == "" {
 			return fmt.Errorf("mac address required when wol is enabled")
@@ -170,16 +163,26 @@ func (l LinuxDriver) Startup() error {
 	return nil
 }
 
-func (l LinuxDriver) Shutdown() error {
-	cmd := exec.Command(l.Config.ShutdownCmd)
+func (l LinuxDriver) Shutdown(message string, time uint32) error {
+	timeArg := "now"
+	if time > 0 {
+		timeArg = fmt.Sprintf("+%d", time)
+	}
+
+	cmd := exec.Command(shutdownCmd, "-P", timeArg, message)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to execute shutdown command: %w", err)
 	}
 	return nil
 }
 
-func (l LinuxDriver) Restart() error {
-	cmd := exec.Command(l.Config.RestartCmd)
+func (l LinuxDriver) Restart(message string, time uint32) error {
+	timeArg := "now"
+	if time > 0 {
+		timeArg = fmt.Sprintf("+%d", time)
+	}
+
+	cmd := exec.Command(restartCmd, "-r", timeArg, message)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to execute restart command: %w", err)
 	}
