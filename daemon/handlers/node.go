@@ -41,11 +41,14 @@ func PlanAndRegisterNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.PlanLoadHandler", "load", node.Name, "driver", node.Driver)
+	slog.Info("handlers.PlanAndRegisterNodeHandler", "node", node.Name, "driver", node.Driver)
 
 	if err := api.PlanAndRegisterNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {

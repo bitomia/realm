@@ -83,6 +83,24 @@ var nodeStates = &cobra.Command{
 	},
 }
 
+var planNodes = &cobra.Command{
+	Use:                   "plan [--all | node...]",
+	Short:                 "Plan nodes on the cluster",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := config.GetNodesFromConfig(nodeNames...)
+		client := clientPkg.NewClient()
+
+		for _, n := range nodes {
+			log.Info(" -> Planning node %s", color.CyanString(n.Name))
+			if err := client.PlanNode(n); err != nil {
+				log.Fatal("Planning node '%s' failed: %s", n.Name, err.Error())
+			}
+		}
+	},
+}
+
 var startNodes = &cobra.Command{
 	Use:                   "start [--all | node...]",
 	Short:                 "Startup nodes",
@@ -120,10 +138,12 @@ var shutdownNodes = &cobra.Command{
 }
 
 func init() {
+	planNodes.Flags().Bool("all", false, "All nodes")
 	startNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
 
 	hostCmd.AddCommand(nodeStates)
+	hostCmd.AddCommand(planNodes)
 	hostCmd.AddCommand(startNodes)
 	hostCmd.AddCommand(shutdownNodes)
 	rootCmd.AddCommand(hostCmd)

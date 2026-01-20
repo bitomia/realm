@@ -1076,6 +1076,40 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 	return loadDeployments, nil
 }
 
+func (c *Client) PlanNode(node *common.Node) error {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/node/plan", node.Url)
+
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(node)
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed planning node: %s", string(body))
+	}
+
+	return nil
+}
+
 func (c *Client) StartupNode(node *common.Node) error {
 	return node.Driver.Startup()
 }
