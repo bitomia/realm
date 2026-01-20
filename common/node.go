@@ -33,11 +33,14 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if driver, err := BuildNodeDriver(NodeDriverConfig{Driver: aux.Driver, DriverConfig: aux.DriverConfig}); err != nil {
+	driver, err := BuildNodeDriver(NodeDriverConfig{Driver: aux.Driver, DriverConfig: aux.DriverConfig})
+	if err != nil {
 		return err
-	} else {
-		n.Driver = driver
 	}
+
+	n.Name = aux.Name
+	n.Url = aux.Url
+	n.Driver = driver
 
 	return nil
 }
