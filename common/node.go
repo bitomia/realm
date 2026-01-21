@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 )
 
 type NodeConfig struct {
@@ -18,6 +19,24 @@ type Node struct {
 	Driver NodeDriver
 }
 
+func NewNodeFromConfig(config *NodeConfig) (*Node, error) {
+	if config == nil {
+		return nil, fmt.Errorf("nil config")
+	}
+
+	driver, err := BuildNodeDriver(NodeDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
+	if err != nil {
+		return nil, err
+	}
+
+	var node Node
+	node.Name = config.Name
+	node.Url = config.Url
+	node.Driver = driver
+
+	return &node, nil
+}
+
 func (n *Node) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NodeConfig{
 		Name:         n.Name,
@@ -28,21 +47,18 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Node) UnmarshalJSON(data []byte) error {
-	aux := NodeConfig{}
-	if err := json.Unmarshal(data, &aux); err != nil {
+	config := NodeConfig{}
+	if err := json.Unmarshal(data, &config); err != nil {
 		return err
 	}
-
-	driver, err := BuildNodeDriver(NodeDriverConfig{Driver: aux.Driver, DriverConfig: aux.DriverConfig})
-	if err != nil {
+	if naux, err := NewNodeFromConfig(&config); err != nil {
 		return err
+	} else {
+		n.Name = naux.Name
+		n.Url = naux.Url
+		n.Driver = naux.Driver
+		return nil
 	}
-
-	n.Name = aux.Name
-	n.Url = aux.Url
-	n.Driver = driver
-
-	return nil
 }
 
 func (n *Node) Hash() [32]byte {
