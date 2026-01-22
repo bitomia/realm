@@ -19,7 +19,7 @@ var restartCmd = "/usr/sbin/shutdown"
 
 type LinuxConfig struct {
 	WakeOnLan bool   `json:"wol"`
-	MAC       string `json:"mac"`
+	MAC       string `json:"MAC"`
 }
 
 type LinuxDriver struct {
