@@ -79,11 +79,11 @@ func (m *mockNodeDriver) Startup() error {
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown() error {
+func (m *mockNodeDriver) Shutdown(message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Restart() error {
+func (m *mockNodeDriver) Restart(message string, time uint32) error {
 	return nil
 }
 

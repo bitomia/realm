@@ -1,6 +1,8 @@
 package common
 
 import (
+	"encoding/json"
+
 	"github.com/google/uuid"
 )
 
@@ -34,6 +36,7 @@ type Deployment struct {
 type DeploymentsRepository interface {
 	Create(loadName string, driver LoadDriver, state DeploymentState, metadata any) (DeploymentID, error)
 	UpdateState(deploymentID DeploymentID, state DeploymentState) error
+	UpdateMetadata(deploymentID DeploymentID, updateFn func(metadata any) error) error
 
 	GetAll() ([]Deployment, error)
 	GetByLoad(loadName string) ([]Deployment, error)
@@ -42,4 +45,30 @@ type DeploymentsRepository interface {
 
 	DeleteByLoad(loadName string) error
 	DeleteDeployment(deploymentID uuid.UUID) error
+}
+
+// UpdateMetadata is a generic helper that provides type-safe metadata updates.
+// It handles the JSON marshal/unmarshal internally so callers get a typed pointer.
+func UpdateMetadata[T any](repo DeploymentsRepository, deploymentID DeploymentID, updateFn func(metadata *T) error) error {
+	return repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+		ptr := metadataPtr.(*any)
+
+		var metadata T
+		if *ptr != nil {
+			data, err := json.Marshal(*ptr)
+			if err != nil {
+				return err
+			}
+			if err := json.Unmarshal(data, &metadata); err != nil {
+				return err
+			}
+		}
+
+		if err := updateFn(&metadata); err != nil {
+			return err
+		}
+
+		*ptr = metadata
+		return nil
+	})
 }

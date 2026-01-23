@@ -31,6 +31,10 @@ type ContainerDriver struct {
 	Config ContainerConfig
 }
 
+type ContainerEntryMetadata struct {
+	ContainerName string `json:"container_name"`
+}
+
 func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ContainerConfig
 
@@ -110,17 +114,13 @@ func (c ContainerDriver) PlanAndRegister(repository common.DeploymentsRepository
 	}
 
 	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, c, common.DeploymentStatePlanned, nil)
+	did, err := repository.Create(loadName, c, common.DeploymentStatePlanned, ContainerEntryMetadata{})
 	if err != nil {
 		slog.Error("ContainerDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
 	}
 
 	return did, nil
-}
-
-type ContainerEntryMetadata struct {
-	ContainerName string `json:"container_name"`
 }
 
 func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
@@ -164,13 +164,20 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 
 	// TODO network options
 
-	slog.Info("ContainerDriver.StartDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
+	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+		metadata.ContainerName = containerName
+		return nil
+	}); err != nil {
+		return err
+	}
 
 	// Update deployment state to "running"
 	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
 		slog.Error("ContainerDriver.StartDeployment", "msg", "failed to update deployment state", "error", err)
 		return err
 	}
+
+	slog.Info("ContainerDriver.StartDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
 
 	return nil
 }
@@ -193,7 +200,7 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	}
 
 	containerName := metadata.ContainerName
-	slog.Info("ContainerDriver.StopDeployment", "msg", "stopping container successfully retrieved container name", "deployment", deployment.ID, "container", containerName)
+	slog.Info("ContainerDriver.StopDeployment", "msg", "retrieved container name", "deployment", deployment.ID, "container", containerName)
 
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
@@ -243,6 +250,13 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	}
 
 	slog.Info("ContainerDriver.StopDeployment", "msg", "container stopped and deleted", "container", containerName)
+
+	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+		metadata.ContainerName = ""
+		return nil
+	}); err != nil {
+		return err
+	}
 
 	// Delete deployment from repository
 	if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {

@@ -32,6 +32,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 			case common.DeploymentStatePlanned:
 				state = common.DeploymentStatePlanned
 			}
+
 			response = append(response, dto.LoadDeployment{
 				LoadName:     loadName,
 				DeploymentId: d.ID.String(),

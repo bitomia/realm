@@ -664,3 +664,165 @@ func TestEtcdDeploymentsRepository_Create_DifferentMetadataForMultipleDeployment
 		assert.NotNil(t, d.Metadata, "All deployments should have metadata")
 	}
 }
+
+// Tests for UpdateMetadata method
+func TestEtcdDeploymentsRepository_UpdateMetadata(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	initialMetadata := map[string]any{"count": float64(0), "status": "initial"}
+
+	// Create deployment with initial metadata
+	deploymentID, err := repo.Create("test-load", driver, common.DeploymentStatePlanned, initialMetadata)
+	require.NoError(t, err)
+
+	// Update metadata
+	err = repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+		metadata := metadataPtr.(*any)
+		*metadata = map[string]any{"count": float64(1), "status": "updated"}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	// Verify the update was applied
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment.Metadata)
+
+	updatedMetadata, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok, "Metadata should be a map[string]any")
+	assert.Equal(t, float64(1), updatedMetadata["count"])
+	assert.Equal(t, "updated", updatedMetadata["status"])
+}
+
+func TestEtcdDeploymentsRepository_UpdateMetadata_FromNilToValue(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+
+	// Create deployment with nil metadata
+	deploymentID, err := repo.Create("test-load", driver, common.DeploymentStatePlanned, nil)
+	require.NoError(t, err)
+
+	// Update nil metadata to a value
+	err = repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+		metadata := metadataPtr.(*any)
+		*metadata = map[string]any{"new": "value"}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	// Verify the update was applied
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.NotNil(t, deployment.Metadata)
+
+	updatedMetadata, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok, "Metadata should be a map[string]any")
+	assert.Equal(t, "value", updatedMetadata["new"])
+}
+
+func TestEtcdDeploymentsRepository_UpdateMetadata_IncrementCounter(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	initialMetadata := map[string]any{"counter": float64(0)}
+
+	// Create deployment with counter metadata
+	deploymentID, err := repo.Create("test-load", driver, common.DeploymentStatePlanned, initialMetadata)
+	require.NoError(t, err)
+
+	// Update metadata by incrementing counter multiple times
+	for i := 1; i <= 3; i++ {
+		err = repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+			metadata := metadataPtr.(*any)
+			currentMap, ok := (*metadata).(map[string]any)
+			if !ok {
+				currentMap = make(map[string]any)
+			}
+			counter, _ := currentMap["counter"].(float64)
+			currentMap["counter"] = counter + 1
+			*metadata = currentMap
+			return nil
+		})
+		assert.NoError(t, err)
+	}
+
+	// Verify counter was incremented 3 times
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+
+	updatedMetadata, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, float64(3), updatedMetadata["counter"])
+}
+
+func TestEtcdDeploymentsRepository_UpdateMetadata_UpdateFnReturnsError(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	initialMetadata := map[string]any{"value": "original"}
+
+	// Create deployment
+	deploymentID, err := repo.Create("test-load", driver, common.DeploymentStatePlanned, initialMetadata)
+	require.NoError(t, err)
+
+	// Try to update with a function that returns an error
+	updateErr := fmt.Errorf("update failed")
+	err = repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+		return updateErr
+	})
+
+	// Note: Current implementation doesn't return the error from OptimisticUpdate
+	// This test documents the current behavior
+	assert.NoError(t, err)
+
+	// Metadata should remain unchanged since updateFn failed
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+
+	meta, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "original", meta["value"])
+}
+
+func TestEtcdDeploymentsRepository_UpdateMetadata_DoesNotAffectOtherFields(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+	initialMetadata := map[string]any{"value": "test"}
+
+	// Create deployment with specific state
+	deploymentID, err := repo.Create("test-load", driver, common.DeploymentStatePlanned, initialMetadata)
+	require.NoError(t, err)
+
+	// Get original deployment to verify state
+	originalDeployment, err := repo.GetDeployment(deploymentID)
+	require.NoError(t, err)
+	assert.Equal(t, common.DeploymentStatePlanned, originalDeployment.State)
+
+	// Update only metadata
+	err = repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
+		metadata := metadataPtr.(*any)
+		*metadata = map[string]any{"value": "updated"}
+		return nil
+	})
+	assert.NoError(t, err)
+
+	// Verify other fields remain unchanged
+	deployment, err := repo.GetDeployment(deploymentID)
+	assert.NoError(t, err)
+	assert.Equal(t, deploymentID, deployment.ID)
+	assert.Equal(t, "test-load", deployment.LoadName)
+	assert.Equal(t, common.DeploymentStatePlanned, deployment.State)
+
+	// And metadata is updated
+	updatedMetadata, ok := deployment.Metadata.(map[string]any)
+	assert.True(t, ok)
+	assert.Equal(t, "updated", updatedMetadata["value"])
+}

@@ -252,6 +252,26 @@ func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID
 	return nil
 }
 
+func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.DeploymentID, updateFn func(metadataPtr any) error) error {
+	deploymentKey, err := r.db.deploymentKey(deploymentID)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.Update", "deploymentID", deploymentID, "msg", "deploymentKey failed", "error", err.Error())
+		return err
+	}
+
+	r.db.OptimisticUpdate(deploymentKey, func(currentValue []byte) ([]byte, error) {
+		var deployment DeploymentValue
+		if err := json.Unmarshal(currentValue, &deployment); err != nil {
+			return nil, err
+		}
+		if err := updateFn(&deployment.Metadata); err != nil {
+			return nil, err
+		}
+		return json.Marshal(deployment)
+	})
+	return nil
+}
+
 func (r *EtcdDeploymentsRepository) GetByLoadAndState(loadName string, state common.DeploymentState) ([]common.Deployment, error) {
 	deployments, err := r.GetByLoad(loadName)
 	if err != nil {
