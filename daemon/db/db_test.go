@@ -22,7 +22,7 @@ import (
 
 const testConfig = `
 daemon:
-  id_path: ./realm.id
+  data_path: .
 
 nodes:
   lab1:

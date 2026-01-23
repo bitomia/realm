@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -30,11 +31,11 @@ const (
 )
 
 func getEtcdDataDir() string {
-	dataDir := config.Get().Daemon.EtcdDataDir
-	if dataDir == "" {
-		dataDir = "/var/lib/realm/etcd"
+	dataPath := config.Get().Daemon.DataPath
+	if dataPath == "" {
+		dataPath = "/var/lib/realm"
 	}
-	return dataDir
+	return filepath.Join(dataPath, "etcd")
 }
 
 func getEtcdConfig() *embed.Config {

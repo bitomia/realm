@@ -1,8 +1,7 @@
 daemon:
-  id_path: /opt/realm_data/realm.id
+  data_path: /opt/realm_data
   etcd_listen_client_urL: http://192.168.105.2:2379
   etcd_listen_peer_url: http://192.168.105.2:2380
-  etcd_data_dir: /opt/realm_data/etcd  
   cni_path: /opt/cni/bin
   volumes_pool: realmpool
   listen_address: 0.0.0.0

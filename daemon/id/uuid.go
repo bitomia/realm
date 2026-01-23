@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 
@@ -14,10 +15,11 @@ import (
 )
 
 func GetDaemonId() (string, error) {
-	idPath := config.Get().Daemon.IdPath
-	if idPath == "" {
-		return "", fmt.Errorf("Invalid ID file path")
+	dataPath := config.Get().Daemon.DataPath
+	if dataPath == "" {
+		return "", fmt.Errorf("Invalid data path")
 	}
+	idPath := filepath.Join(dataPath, "realm.id")
 
 	if internal.FileExists(idPath) {
 		data, err := os.ReadFile(idPath)
@@ -27,6 +29,13 @@ func GetDaemonId() (string, error) {
 			os.Exit(1)
 		}
 		return strings.TrimSpace(string(data)), nil
+	}
+
+	// Ensure data directory exists
+	if err := os.MkdirAll(dataPath, 0755); err != nil {
+		slog.Error("Error creating data directory", "error", err)
+		debug.PrintStack()
+		os.Exit(1)
 	}
 
 	newUUID := uuid.New().String()

@@ -13,9 +13,9 @@ var BuildGitCommit string
 // DaemonConfig holds the configuration for the realm daemon.
 // All fields are optional and have platform-specific or sensible defaults.
 type DaemonConfig struct {
-	// Path to store daemon unique ID.
-	// Default: /var/lib/realm/realm.id (Linux) or %ProgramData%\realm\realm.id (Windows)
-	IdPath string `json:"id_path"`
+	// Path to store daemon data (ID file and etcd data).
+	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
+	DataPath string `json:"data_path"`
 
 	// Path to CNI plugins.
 	// Default: /opt/cni (Linux) or %ProgramData%\realm\cni (Windows)
@@ -82,10 +82,6 @@ type DaemonConfig struct {
 	// Example: ["http://node1:2379", "http://node2:2379"]
 	// Default: empty (uses EtcdListenClientUrl when in server mode)
 	EtcdEndpoints []string `json:"etcd_endpoints"`
-
-	// Etcd data directory.
-	// Default: /var/lib/realm/etcd (Linux) or %ProgramData%\realm\etcd (Windows)
-	EtcdDataDir string `json:"etcd_data_dir"`
 
 	// Etcd client URL.
 	// Default: http://127.0.0.1:2379

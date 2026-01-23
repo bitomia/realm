@@ -78,7 +78,7 @@ In this configuration, embedded etcd will listen for client requests on http://1
 
 ```
 daemon:
-  id_path: ./realm_data/realm.id
+  data_path: ./realm_data
   etcd_mode: client
   etcd_listen_client_url: http://192.168.105.3:2379
   etcd_endpoints: ["http://192.168.105.2:2379"]
@@ -98,7 +98,7 @@ The daemon section configures the realm daemon behavior. All fields are optional
 
 ```yaml
 daemon:
-  id_path: /var/lib/realm/realm.id          # Path to store daemon unique ID (default: platform-specific)
+  data_path: /var/lib/realm                 # Path to store daemon data (ID and etcd) (default: /var/lib/realm on Linux)
   cni_path: /opt/cni                        # Path to CNI plugins (default: /opt/cni on Linux)
   volumes_pool: realm_volumes               # Name of ZFS pool for volumes (default: realm_volumes)
   listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
@@ -112,7 +112,6 @@ daemon:
   github_registry_token: ""                 # Token for GitHub registry (default: empty)
   containerd_sock: /run/containerd/containerd.sock  # Containerd socket path (default: platform-specific)
   containerd_namespace: realm               # Containerd namespace (default: realm)
-  etcd_data_dir: /var/lib/realm/etcd        # etcd data directory (default: /var/lib/realm/etcd on Linux)
   etcd_name: ""                             # etcd member name (default: empty)
   etcd_listen_client_url: http://127.0.0.1:2379   # etcd client URL (default: http://127.0.0.1:2379)
   etcd_listen_peer_url: http://127.0.0.1:2380     # etcd peer URL (default: http://127.0.0.1:2380)
