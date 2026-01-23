@@ -32,8 +32,8 @@ func prettyJSON(v any, excludeFields ...string) {
 
 		line = bytes.ReplaceAll(line, []byte(`"`), []byte(""))
 		line = bytes.ReplaceAll(line, []byte(","), []byte(""))
-		line = bytes.TrimLeft(line, "{")
-		line = bytes.TrimRight(line, "}")
+		line = bytes.TrimLeft(line, "{}")
+		line = bytes.TrimRight(line, "{}")
 
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
