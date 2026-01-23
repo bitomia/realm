@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/internal"
 )
 
 func getExeDir() string {
@@ -48,6 +49,12 @@ func setDefaults() {
 		cniPath = "/opt/cni"
 	}
 
+	// Detect main network interface IP for etcd URLs
+	mainIP := internal.AutodetectIPAddress()
+	if mainIP == "" {
+		mainIP = "127.0.0.1"
+	}
+
 	viper.SetDefault("daemon.data_path", dataPath)
 	viper.SetDefault("daemon.cni_path", cniPath)
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
@@ -64,8 +71,8 @@ func setDefaults() {
 	viper.SetDefault("daemon.etcd_mode", "server")
 	viper.SetDefault("daemon.etcd_endpoints", []string{})
 	viper.SetDefault("daemon.etcd_name", "")
-	viper.SetDefault("daemon.etcd_listen_client_url", "http://127.0.0.1:2379")
-	viper.SetDefault("daemon.etcd_listen_peer_url", "http://127.0.0.1:2380")
+	viper.SetDefault("daemon.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", mainIP))
+	viper.SetDefault("daemon.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", mainIP))
 	viper.SetDefault("daemon.etcd_initial_cluster", "")
 	viper.SetDefault("daemon.etcd_cluster_state", "new")
 }
@@ -176,6 +183,19 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	config, err := unmarshall()
 	if err != nil {
 		return err
+	}
+
+	if !viper.IsSet("daemon.etcd_listen_client_url") {
+		mainIP := internal.AutodetectIPAddress()
+		if mainIP != "" && mainIP != "127.0.0.1" {
+			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", mainIP, "url", config.Daemon.EtcdListenClientUrl)
+		}
+	}
+	if !viper.IsSet("daemon.etcd_listen_peer_url") {
+		mainIP := internal.AutodetectIPAddress()
+		if mainIP != "" && mainIP != "127.0.0.1" {
+			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", mainIP, "url", config.Daemon.EtcdListenPeerUrl)
+		}
 	}
 
 	// Populate node names from map keys

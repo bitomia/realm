@@ -84,11 +84,11 @@ type DaemonConfig struct {
 	EtcdEndpoints []string `json:"etcd_endpoints"`
 
 	// Etcd client URL.
-	// Default: http://127.0.0.1:2379
+	// Default: http://<main-network-interface-ip>:2379 (auto-detected)
 	EtcdListenClientUrl string `json:"etcd_listen_client_url"`
 
 	// Etcd peer URL.
-	// Default: http://127.0.0.1:2380
+	// Default: http://<main-network-interface-ip>:2380 (auto-detected)
 	EtcdListenPeerUrl string `json:"etcd_listen_peer_url"`
 
 	// Expected members of the cluster, and this is how to reach them via peer URLs.

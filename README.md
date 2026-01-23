@@ -113,8 +113,8 @@ daemon:
   containerd_sock: /run/containerd/containerd.sock  # Containerd socket path (default: platform-specific)
   containerd_namespace: realm               # Containerd namespace (default: realm)
   etcd_name: ""                             # etcd member name (default: empty)
-  etcd_listen_client_url: http://127.0.0.1:2379   # etcd client URL (default: http://127.0.0.1:2379)
-  etcd_listen_peer_url: http://127.0.0.1:2380     # etcd peer URL (default: http://127.0.0.1:2380)
+  etcd_listen_client_url: http://192.168.1.100:2379   # etcd client URL (default: auto-detected from main network interface)
+  etcd_listen_peer_url: http://192.168.1.100:2380     # etcd peer URL (default: auto-detected from main network interface)
   etcd_initial_cluster: ""                  # etcd initial cluster configuration (default: empty)
   etcd_cluster_state: new                   # etcd cluster state: "new" or "existing" (default: new)
 ```
