@@ -168,6 +168,10 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 			continue
 		}
 
+		if err := checkStatus(resp); err != nil {
+			return nil, errors.New(string(body))
+		}
+
 		var containers map[string]Container
 		if err := json.Unmarshal(body, &containers); err != nil {
 			log.Error("Failed to parse JSON: %v", err)
@@ -399,6 +403,10 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Fatal("Failed to read response body: %v", err)
+		}
+
+		if err := checkStatus(resp); err != nil {
+			return nil, errors.New(string(body))
 		}
 
 		var networkConfig any
