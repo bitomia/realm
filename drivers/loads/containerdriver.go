@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"syscall"
 
 	"github.com/containerd/containerd"
@@ -13,6 +14,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
+	"github.com/bitomia/realm/daemon/network"
 
 	"github.com/bitomia/realm/common/dto"
 )
@@ -20,11 +22,12 @@ import (
 const ContainerDriverID common.LoadDriverID = "container"
 
 type ContainerConfig struct {
-	Image            string           `json:"image"`
-	Env              []string         `json:"env"`
-	Quotas           *dto.Quotas      `json:"quotas"`
-	VolumeMountPoint string           `json:"volume_mount_point"`
-	MountVolume      *dto.MountVolume `json:"mount_volume"`
+	Image            string                   `json:"image"`
+	Env              []string                 `json:"env"`
+	Quotas           *dto.Quotas              `json:"quotas"`
+	VolumeMountPoint string                   `json:"volume_mount_point"`
+	MountVolume      *dto.MountVolume         `json:"mount_volume"`
+	Network          *dto.StartNetworkRequest `json:"network,omitempty"`
 }
 
 type ContainerDriver struct {
@@ -32,7 +35,9 @@ type ContainerDriver struct {
 }
 
 type ContainerEntryMetadata struct {
-	ContainerName string `json:"container_name"`
+	ContainerName string  `json:"container_name"`
+	IPAddress     *net.IP `json:"ip_address,omitempty"`
+	GWAddress     *net.IP `json:"gw_address,omitempty"`
 }
 
 func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
@@ -162,10 +167,46 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		return err
 	}
 
-	// TODO network options
+	var gwAddressPtr *net.IP
+	var ipAddressPtr *net.IP
+	// Attach network if configured
+	if c.Config.Network != nil {
+		slog.Info("ContainerDriver.StartDeployment", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
+
+		if err, _, gwAddress, ipAddress := network.StartNetwork(containerName, *c.Config.Network); err != nil {
+			slog.Error("ContainerDriver.StartDeployment", "msg", "failed to attach network. rolling back...", "error", err)
+
+			// Kill the task
+			if task != nil {
+				ctx, client, _ := cruntime.CreateClient()
+				if client != nil {
+					defer client.Close()
+					task.Kill(ctx, syscall.SIGKILL)
+					task.Wait(ctx)
+					task.Delete(ctx)
+				}
+			} else {
+				gwAddressPtr = &gwAddress
+				ipAddressPtr = &ipAddress
+			}
+
+			// Delete container
+			deleteOpts := dto.DeleteContainerOpts{
+				RemoveVolume: true,
+			}
+			if delErr := containers.DeleteContainer(containerName, deleteOpts, syscall.SIGKILL, true, true); delErr != nil {
+				slog.Error("ContainerDriver.StartDeployment", "msg", "delete container on network rollback failed", "error", delErr)
+			}
+			return fmt.Errorf("failed to attach network: %w", err)
+		}
+
+		slog.Info("ContainerDriver.StartDeployment", "msg", "network attached successfully", "container", containerName)
+	}
 
 	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
 		metadata.ContainerName = containerName
+		metadata.GWAddress = gwAddressPtr
+		metadata.IPAddress = ipAddressPtr
 		return nil
 	}); err != nil {
 		return err
@@ -221,6 +262,18 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	if err != nil {
 		slog.Warn("ContainerDriver.StopDeployment", "msg", "no task found for container", "container", containerName)
 	} else {
+
+		// Detach network before killing the task (network needs the netns which requires the process to be alive)
+		if c.Config.Network != nil {
+			slog.Info("ContainerDriver.StopDeployment", "msg", "detaching network", "container", containerName)
+			if err := network.DeleteNetwork(containerName); err != nil {
+				slog.Error("ContainerDriver.StopDeployment", "msg", "failed to detach network", "container", containerName, "error", err)
+				// Continue with container cleanup even if network cleanup fails
+			} else {
+				slog.Info("ContainerDriver.StopDeployment", "msg", "network detached successfully", "container", containerName)
+			}
+		}
+
 		// Kill the task with SIGTERM
 		if err := task.Kill(ctx, syscall.SIGTERM); err != nil {
 			slog.Error("ContainerDriver.StopDeployment", "msg", "failed to kill task", "container", containerName, "error", err)
