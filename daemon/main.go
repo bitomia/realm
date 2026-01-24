@@ -21,6 +21,7 @@ import (
 	"github.com/bitomia/realm/daemon/health"
 	"github.com/bitomia/realm/daemon/id"
 	"github.com/bitomia/realm/daemon/mdns"
+	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/proxy"
 	"github.com/bitomia/realm/daemon/volumes"
 )
@@ -68,6 +69,13 @@ func Start(purgeDB bool) {
 		os.Exit(1)
 	}
 	slog.Info("Volumes ready", "path", volumesPath)
+
+	slog.Info("Validating CNI availability")
+	if err := network.ValidateCNIAvailability(); err != nil {
+		slog.Error("CNI validation failed", "error", err.Error())
+		os.Exit(1)
+	}
+	slog.Info("CNI plugins validated successfully")
 
 	db := db.GetDB()
 	if db == nil {

@@ -99,7 +99,7 @@ The daemon section configures the realm daemon behavior. All fields are optional
 ```yaml
 daemon:
   data_path: /var/lib/realm                 # Path to store daemon data (ID and etcd) (default: /var/lib/realm on Linux)
-  cni_path: /opt/cni                        # Path to CNI plugins (default: /opt/cni on Linux)
+  cni_path: /usr/lib/cni                    # Path to CNI plugins (default: /usr/lib/cni on Linux)
   volumes_pool: realm_volumes               # Name of ZFS pool for volumes (default: realm_volumes)
   listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
   listen_port: 9000                         # Port to bind the daemon API (default: 9000)

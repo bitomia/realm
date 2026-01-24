@@ -3,5 +3,4 @@ daemon:
   etcd_mode: client
   etcd_listen_client_url: http://192.168.105.3:2379
   etcd_endpoints: ["http://192.168.105.2:2379"]
-  cni_path: /opt/cni/bin
   listen_address: 0.0.0.0

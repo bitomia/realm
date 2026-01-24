@@ -31,6 +31,11 @@ const MIN_SUBNET = 167772160 // 10.0.0.0
 const MAX_SUBNET = 184549120 // 10.255.255.0
 const SUBNET_OFFSET = 256
 
+// Required CNI plugins
+var (
+	requiredCNIPlugins = []string{"bridge", "host-local", "firewall", "portmap"}
+)
+
 type IPAddresses struct {
 	Addresses []IP `json:"ips"`
 }
@@ -125,7 +130,7 @@ func generateInterfaceName(containerID string) string {
 
 func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) error {
 	cniPath := config.Get().Daemon.CniPath
-	// TODO check cniPath exists
+	// CNI path validated at daemon startup via ValidateCNIAvailability()
 	cniConfig := libcni.NewCNIConfig(filepath.SplitList(cniPath), nil)
 
 	db := db.GetDB()
@@ -209,7 +214,7 @@ func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, ma
 		pid := task.Pid()
 
 		cniPath := config.Get().Daemon.CniPath
-		// TODO check cniPath exists
+		// CNI path validated at daemon startup via ValidateCNIAvailability()
 		cniConfig := libcni.NewCNIConfig(filepath.SplitList(cniPath), nil)
 
 		netns := fmt.Sprintf("/proc/%d/ns/net", pid)
@@ -442,4 +447,32 @@ func PurgeBridgeNetwork(bridge *Bridge) error {
 		return errors.New("bridge nil")
 	}
 	return netlink.LinkDel(bridge.Link)
+}
+
+// ValidateCNIAvailability checks if CNI path and all required plugins exist
+func ValidateCNIAvailability() error {
+	cniPath := config.Get().Daemon.CniPath
+
+	// Check if CNI path exists
+	if _, err := os.Stat(cniPath); os.IsNotExist(err) {
+		return fmt.Errorf("CNI path does not exist: %s", cniPath)
+	}
+
+	var missingPlugins []string
+
+	// Check each plugin
+	for _, plugin := range requiredCNIPlugins {
+		pluginPath := filepath.Join(cniPath, plugin)
+		if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
+			missingPlugins = append(missingPlugins, plugin)
+		}
+	}
+
+	// Report all missing plugins at once
+	if len(missingPlugins) > 0 {
+		return fmt.Errorf("missing required CNI plugins in %s: %s",
+			cniPath, strings.Join(missingPlugins, ", "))
+	}
+
+	return nil
 }

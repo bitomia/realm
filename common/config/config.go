@@ -18,7 +18,7 @@ type DaemonConfig struct {
 	DataPath string `json:"data_path"`
 
 	// Path to CNI plugins.
-	// Default: /opt/cni (Linux) or %ProgramData%\realm\cni (Windows)
+	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)
 	CniPath string `json:"cni_path"`
 
 	// Name of the ZFS pool for container volumes.

@@ -46,7 +46,7 @@ func setDefaults() {
 		containersLogPath = "/var/log/realm/containers"
 		dataPath = "/var/lib/realm"
 		containerdSock = "/run/containerd/containerd.sock"
-		cniPath = "/opt/cni"
+		cniPath = "/usr/lib/cni"
 	}
 
 	// Detect main network interface IP for etcd URLs
