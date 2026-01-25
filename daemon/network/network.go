@@ -157,6 +157,22 @@ func generateInterfaceName(containerID string) string {
 	return "meth" + hashedID
 }
 
+func getBridgeName(network string) string {
+	return strings.Split(network, "-")[0]
+}
+
+func deleteBridge(bridgeName string) error {
+	link, err := netlink.LinkByName(bridgeName)
+	if err != nil {
+		return nil
+	}
+	if err := netlink.LinkDel(link); err != nil {
+		return fmt.Errorf("failed to delete bridge %s: %w", bridgeName, err)
+	}
+	slog.Info("Bridge deleted", "bridge", bridgeName)
+	return nil
+}
+
 func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) error {
 	cniPath := config.Get().Daemon.CniPath
 	// CNI path validated at daemon startup via ValidateCNIAvailability()
@@ -190,7 +206,6 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 		}
 
 		// we have to delete the host iface because CNI bridge plugin is not doing this
-		// TODO check if there is a better way without adding an extra dependency as netlink package
 		isHostIfaceUsed, err := dbConn.IsHostIfaceUsedExceptForContainer(c.HostIfaceName, containerName)
 		if err != nil {
 			return errors.New("isHostIfaceUsed call failed")
@@ -217,9 +232,14 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 			continue
 		}
 		if count == 0 {
-			slog.Info("Network has no more containers, releasing subnet", "network", network)
+			slog.Info("Network has no more containers, releasing subnet and deleting bridge", "network", network)
 			if err := dbConn.ReleaseSubnet(network); err != nil {
 				slog.Error("Failed to release subnet", "network", network, "error", err)
+			}
+			// Delete the bridge since no containers are using this network anymore
+			bridgeName := getBridgeName(network)
+			if err := deleteBridge(bridgeName); err != nil {
+				slog.Error("Failed to delete bridge", "bridge", bridgeName, "error", err)
 			}
 		}
 	}
@@ -244,8 +264,8 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 	if err != nil {
 		return fmt.Errorf("failed to get subnet: %w", err), nil, nil, nil
 	}
-	network := strings.Split(netConfig.Network, "-")[0]
-	netConf := createNetworkConfig(network, subnet, netConfig.IPMasq, netConfig.PortMap)
+	bridgeName := getBridgeName(netConfig.Network)
+	netConf := createNetworkConfig(bridgeName, subnet, netConfig.IPMasq, netConfig.PortMap)
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
 		return fmt.Errorf("failed to parse CNI config: %w", err), nil, nil, nil
