@@ -14,7 +14,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/internal"
 )
 
 func getExeDir() string {
@@ -26,7 +25,7 @@ func getExeDir() string {
 	return filepath.Dir(execPath)
 }
 
-func setDefaults() {
+func setDefaults(networkConfig NetworkConfig) {
 	// Set platform-specific default paths
 	var logsPath, containersLogPath, dataPath, containerdSock, cniPath string
 	if runtime.GOOS == "windows" {
@@ -49,10 +48,9 @@ func setDefaults() {
 		cniPath = "/usr/lib/cni"
 	}
 
-	// Detect main network interface IP for etcd URLs
-	mainIP := internal.AutodetectIPAddress()
-	if mainIP == "" {
-		mainIP = "127.0.0.1"
+	etcdListenIPAdddress := "127.0.0.1"
+	if networkConfig.IPAddress != nil {
+		etcdListenIPAdddress = networkConfig.IPAddress.String()
 	}
 
 	viper.SetDefault("daemon.data_path", dataPath)
@@ -71,8 +69,8 @@ func setDefaults() {
 	viper.SetDefault("daemon.etcd_mode", "server")
 	viper.SetDefault("daemon.etcd_endpoints", []string{})
 	viper.SetDefault("daemon.etcd_name", "")
-	viper.SetDefault("daemon.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", mainIP))
-	viper.SetDefault("daemon.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", mainIP))
+	viper.SetDefault("daemon.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
+	viper.SetDefault("daemon.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
 	viper.SetDefault("daemon.etcd_initial_cluster", "")
 	viper.SetDefault("daemon.etcd_cluster_state", "new")
 }
@@ -163,7 +161,8 @@ func checkForCycles(l map[string]*common.Load) error {
 }
 
 func readConfig(unmarshall func() (*Config, error), configFilePath string) error {
-	setDefaults()
+	networkConfig := autodetectNetworkConfig()
+	setDefaults(networkConfig)
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("realm")
@@ -185,16 +184,27 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 		return err
 	}
 
+	// If listen_address is configured with a specific IP (not 127.0.0.1 or 0.0.0.0), use it to find the network interface
+	if viper.IsSet("daemon.listen_address") && config.Daemon.ListenAddress != "127.0.0.1" && config.Daemon.ListenAddress != "0.0.0.0" {
+		configuredNetworkConfig, err := getNetworkConfigFromIP(config.Daemon.ListenAddress)
+		if err != nil {
+			slog.Warn("Failed to get network config from configured listen_address, using auto-detected network", "listen_address", config.Daemon.ListenAddress, "error", err)
+		} else {
+			networkConfig = configuredNetworkConfig
+			slog.Info("Using network interface from configured listen_address", "ip", networkConfig.IPAddress.String(), "interface", networkConfig.Iface.Name)
+		}
+	}
+
+	config.NetworkConfig = networkConfig
+
 	if !viper.IsSet("daemon.etcd_listen_client_url") {
-		mainIP := internal.AutodetectIPAddress()
-		if mainIP != "" && mainIP != "127.0.0.1" {
-			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", mainIP, "url", config.Daemon.EtcdListenClientUrl)
+		if networkConfig.IPAddress != nil {
+			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", networkConfig.IPAddress.String(), "url", config.Daemon.EtcdListenClientUrl)
 		}
 	}
 	if !viper.IsSet("daemon.etcd_listen_peer_url") {
-		mainIP := internal.AutodetectIPAddress()
-		if mainIP != "" && mainIP != "127.0.0.1" {
-			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", mainIP, "url", config.Daemon.EtcdListenPeerUrl)
+		if networkConfig.IPAddress != nil {
+			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", networkConfig.IPAddress, "url", config.Daemon.EtcdListenPeerUrl)
 		}
 	}
 

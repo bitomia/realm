@@ -3,6 +3,7 @@ package mdns
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"sync"
 
@@ -13,7 +14,7 @@ import (
 
 type MDNSService struct {
 	server *zeroconf.Server
-	mu     sync.Mutex
+	mutex  sync.Mutex
 }
 
 var (
@@ -29,12 +30,19 @@ func GetMDNSService() *MDNSService {
 }
 
 func (m *MDNSService) Start() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	slog.Info("Starting mDNS service")
 
 	port := config.Get().Daemon.ListenPort
+	networkConfig := config.Get().NetworkConfig
+	var networkInterfaces []net.Interface
+	if networkConfig.IPAddress != nil {
+		networkInterfaces = append(networkInterfaces, *networkConfig.Iface)
+
+	}
+	slog.Info("mDNS network configuration", "ifaces", networkInterfaces)
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -42,7 +50,7 @@ func (m *MDNSService) Start() error {
 		return fmt.Errorf("failed to start mDNS server: cannot get hostname")
 	}
 
-	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, nil, nil)
+	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, nil, networkInterfaces)
 	if err != nil {
 		return fmt.Errorf("failed to start mDNS server: %w", err)
 	}
@@ -56,8 +64,8 @@ func (m *MDNSService) Start() error {
 }
 
 func (m *MDNSService) Stop() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	slog.Info("Stopping mDNS service")
 

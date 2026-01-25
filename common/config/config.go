@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"log"
+	"log/slog"
+	"net"
 	"strings"
 
 	"github.com/bitomia/realm/common"
@@ -103,6 +105,11 @@ type DiscoveryConfig struct {
 
 type LoadsConfig map[string]common.LoadConfig
 
+type NetworkConfig struct {
+	IPAddress *net.IP
+	Iface     *net.Interface
+}
+
 type Config struct {
 	// Client config
 	Nodes     map[string]*common.NodeConfig `json:"nodes"`
@@ -111,6 +118,9 @@ type Config struct {
 	// Daemon config
 	Daemon DaemonConfig `json:"daemon"`
 	Loads  LoadsConfig  `json:"loads"`
+
+	// Autoconfigured network Config
+	NetworkConfig NetworkConfig `json:"-"`
 }
 
 // Get returns the global configuration instance.
@@ -170,4 +180,92 @@ func Init(configFilePath *string) error {
 		return fmt.Errorf("%s", err.Error())
 	}
 	return nil
+}
+
+func findNetworkInterface(targetIP net.IP, interfaces []net.Interface) (NetworkConfig, error) {
+	for _, iface := range interfaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip != nil && ip.Equal(targetIP) {
+				return NetworkConfig{&ip, &iface}, nil
+			}
+		}
+	}
+
+	return NetworkConfig{nil, nil}, fmt.Errorf("no network interface found")
+}
+
+func getNetworkConfigFromIP(ipStr string) (NetworkConfig, error) {
+	targetIP := net.ParseIP(ipStr)
+	if targetIP == nil {
+		return NetworkConfig{nil, nil}, fmt.Errorf("invalid IP address: %s", ipStr)
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return NetworkConfig{nil, nil}, fmt.Errorf("failed to get network interfaces: %w", err)
+	}
+
+	return findNetworkInterface(targetIP, interfaces)
+}
+
+func autodetectNetworkConfig() NetworkConfig {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		slog.Warn("Failed to get network interfaces", "error", err)
+		return NetworkConfig{nil, nil}
+	}
+
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err == nil {
+		defer conn.Close()
+		localAddr := conn.LocalAddr().(*net.UDPAddr)
+		localIP := localAddr.IP
+
+		if netConfig, err := findNetworkInterface(localIP, interfaces); err == nil {
+			return netConfig
+		} else {
+			return NetworkConfig{&localAddr.IP, nil}
+		}
+	}
+
+	for _, iface := range interfaces {
+		// Skip interfaces that are down or loopback
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// Return the first non-loopback IPv4 address
+			if ip != nil && ip.To4() != nil && !ip.IsLoopback() {
+				return NetworkConfig{&ip, &iface}
+			}
+		}
+	}
+
+	return NetworkConfig{nil, nil}
 }
