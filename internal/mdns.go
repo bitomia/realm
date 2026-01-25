@@ -10,8 +10,17 @@ import (
 )
 
 const (
-	mdnsAddr = "224.0.0.251:5353"
+	mdnsAddr             = "224.0.0.251:5353"
+	defaultQueryTimeout  = 1000 * time.Millisecond
+	defaultReadTimeout   = 500 * time.Millisecond
+	defaultDetailTimeout = 100 * time.Millisecond
 )
+
+type QueryConfig struct {
+	QueryTimeout  time.Duration // Total time to spend querying
+	ReadTimeout   time.Duration // Timeout for individual read operations
+	DetailTimeout time.Duration // Timeout for service detail queries
+}
 
 type DNSHeader struct {
 	ID      uint16
@@ -38,9 +47,16 @@ type ServiceInfo struct {
 	TXT      []string
 }
 
-// serviceName = "_services._dns-sd._udp.local"
-// TODO timeouts
 func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
+	return QueryServicesWithConfig(serviceName, QueryConfig{
+		QueryTimeout:  defaultQueryTimeout,
+		ReadTimeout:   defaultReadTimeout,
+		DetailTimeout: defaultDetailTimeout,
+	})
+}
+
+// serviceName example: "_services._dns-sd._udp.local"
+func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string]*ServiceInfo, error) {
 	addr, err := net.ResolveUDPAddr("udp", mdnsAddr)
 	if err != nil {
 		return nil, fmt.Errorf("Error resolving mDNS address: %v\n", err)
@@ -70,6 +86,7 @@ func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
 
 	multicastAddr := &net.UDPAddr{IP: net.IPv4(224, 0, 0, 251)}
 	joinedCount := 0
+	var joinErrors []string
 
 	for _, iface := range interfaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagMulticast == 0 {
@@ -78,14 +95,17 @@ func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
 
 		err = p.JoinGroup(&iface, multicastAddr)
 		if err != nil {
-			// TODO
+			joinErrors = append(joinErrors, fmt.Sprintf("interface %s: %v", iface.Name, err))
 		} else {
 			joinedCount++
 		}
 	}
 
 	if joinedCount == 0 {
-		fmt.Println("Warning: Failed to join multicast group on any interface")
+		if len(joinErrors) > 0 {
+			return nil, fmt.Errorf("failed to join multicast group on any interface: %s", strings.Join(joinErrors, "; "))
+		}
+		return nil, fmt.Errorf("no suitable interfaces found for multicast communication")
 	}
 
 	query := buildMDNSQuery(serviceName)
@@ -95,13 +115,13 @@ func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
 		return nil, fmt.Errorf("Error sending query: %v\n", err)
 	}
 
-	endTime := time.Now().Add(1000 * time.Millisecond)
+	endTime := time.Now().Add(config.QueryTimeout)
 	responseCount := 0
 	services := make(map[string]*ServiceInfo)
 	hostnames := make(map[string]bool)
 
 	for time.Now().Before(endTime) {
-		conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		conn.SetReadDeadline(time.Now().Add(config.ReadTimeout))
 
 		buffer := make([]byte, 1500)
 		n, _, err := conn.ReadFromUDP(buffer)
@@ -118,13 +138,13 @@ func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
 	}
 
 	for serviceName := range services {
-		queryServiceDetails(p, addr, serviceName, services)
-		time.Sleep(100 * time.Millisecond)
+		queryServiceDetails(p, addr, serviceName)
+		time.Sleep(config.DetailTimeout)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(config.DetailTimeout)
 	for {
-		conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		conn.SetReadDeadline(time.Now().Add(config.DetailTimeout))
 		buffer := make([]byte, 1500)
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
@@ -393,36 +413,7 @@ func parseTXTRecord(data []byte) string {
 	return result
 }
 
-func queryServiceDetails(p *ipv4.PacketConn, addr *net.UDPAddr, serviceName string, services map[string]*ServiceInfo) {
+func queryServiceDetails(p *ipv4.PacketConn, addr *net.UDPAddr, serviceName string) {
 	srvQuery := buildMDNSQuery(serviceName)
 	p.WriteTo(srvQuery, nil, addr)
-}
-
-func queryHostnameIP(p *ipv4.PacketConn, addr *net.UDPAddr, hostname string, services map[string]*ServiceInfo) {
-	// Query A record
-	aQuery := buildDNSQuery(hostname, 1) // Type 1 = A record
-	p.WriteTo(aQuery, nil, addr)
-
-	// Query AAAA record
-	aaaaQuery := buildDNSQuery(hostname, 28) // Type 28 = AAAA record
-	p.WriteTo(aaaaQuery, nil, addr)
-}
-
-func buildDNSQuery(name string, qtype uint16) []byte {
-	query := make([]byte, 0, 512)
-
-	// DNS Header
-	query = append(query, 0x00, 0x00) // ID
-	query = append(query, 0x00, 0x00) // Flags
-	query = append(query, 0x00, 0x01) // Questions
-	query = append(query, 0x00, 0x00) // Answers
-	query = append(query, 0x00, 0x00) // NS Count
-	query = append(query, 0x00, 0x00) // AR Count
-
-	// Question
-	query = append(query, encodeDNSName(name)...)
-	query = append(query, byte(qtype>>8), byte(qtype&0xFF)) // Type
-	query = append(query, 0x00, 0x01)                       // Class IN
-
-	return query
 }

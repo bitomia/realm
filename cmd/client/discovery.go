@@ -25,7 +25,19 @@ func GetNodes() map[string]*common.NodeConfig {
 		seenUrls[node.Url] = node.Name
 	}
 
-	services, _ := internal.QueryServices("_realm._tcp.local")
+	if config.Get().Discovery.MdnsEnabled {
+		services, err := internal.QueryServices("_realm._tcp.local")
+		if err != nil {
+			log.Warn("mDNS discovery failed: %v", err)
+		} else {
+			addDiscoveredServices(services, nodes, seenUrls)
+		}
+	}
+
+	return nodes
+}
+
+func addDiscoveredServices(services map[string]*internal.ServiceInfo, nodes map[string]*common.NodeConfig, seenUrls map[string]string) {
 	for _, service := range services {
 		if service.Hostname == "" || service.Port == 0 || len(service.IPs) == 0 {
 			continue
@@ -53,8 +65,6 @@ func GetNodes() map[string]*common.NodeConfig {
 			seenUrls[url] = name
 		}
 	}
-
-	return nodes
 }
 
 func GetNode(nodeName string) *common.NodeConfig {
