@@ -343,3 +343,12 @@ func (db *DaemonDB) getNextSubnet(network string) (int32, error) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// DeleteSubnetOffset removes the subnet assignment for a network
+func (db *DaemonDB) DeleteSubnetOffset(network string) error {
+	subnetKey, err := db.subnetKey(network)
+	if err != nil {
+		return err
+	}
+	return db.delete(subnetKey)
+}

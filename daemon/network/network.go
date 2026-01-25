@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"crypto/sha1"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -47,20 +48,42 @@ func int32ToIPv4(i int32) net.IP {
 	return net.IP(ipBytes)
 }
 
-func getSubnet(network string) string {
+func getSubnet(network string) (string, error) {
 	subnetOffset, err := db.GetDB().NewOrRetrieveSubnetOffset(network)
 	if err != nil {
-		slog.Error("Error acquiring new subnet", "error", err)
+		return "", fmt.Errorf("error acquiring new subnet: %w", err)
 	}
 
 	subnet := MIN_SUBNET + subnetOffset*SUBNET_OFFSET
 	if subnet > MAX_SUBNET {
-		slog.Error("No more subnets available!")
-		os.Exit(1)
+		return "", errors.New("no more subnets available")
 	}
 
 	subnetAddr := int32ToIPv4(subnet)
-	return fmt.Sprintf("%s/24", subnetAddr.String())
+	return fmt.Sprintf("%s/24", subnetAddr.String()), nil
+}
+
+// deriveGatewayFromSubnet extracts the gateway IP from a subnet CIDR (e.g., "10.5.0.0/24" -> "10.5.0.1")
+func deriveGatewayFromSubnet(subnet string) string {
+	_, ipNet, err := net.ParseCIDR(subnet)
+	if err != nil {
+		slog.Error("Failed to parse subnet CIDR, using fallback", "subnet", subnet, "error", err)
+		return "10.0.1.1"
+	}
+
+	// Get the network address and add 1 to get the gateway
+	ip := ipNet.IP.To4()
+	if ip == nil {
+		slog.Error("Subnet is not IPv4, using fallback", "subnet", subnet)
+		return "10.0.1.1"
+	}
+
+	// Gateway is typically the first usable IP in the subnet (network address + 1)
+	gateway := make(net.IP, 4)
+	copy(gateway, ip)
+	gateway[3]++
+
+	return gateway.String()
 }
 
 func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.Portmap) string {
@@ -70,14 +93,20 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
 	} else {
 		ipMaskStr = "false"
 	}
-	portmappings := ""
+	var portmapEntries []string
 	for _, portmap := range portmaps {
-		portmappings += fmt.Sprintf(`{ "hostPort": %d, "containerPort": %d, "protocol": "%s"}`, portmap.HostPort, portmap.ContainerPort, portmap.Protocol)
+		portmapEntries = append(portmapEntries, fmt.Sprintf(
+			`{ "hostPort": %d, "containerPort": %d, "protocol": "%s"}`,
+			portmap.HostPort, portmap.ContainerPort, portmap.Protocol))
 	}
+	portmappings := strings.Join(portmapEntries, ", ")
 	portmapConfig := ""
 	if len(portmappings) > 0 {
 		portmapConfig = fmt.Sprintf(`, { "type": "portmap", "capabilities": { "portMappings": true }, "runtimeConfig": { "portMappings": [ %s ] } }`, portmappings)
 	}
+
+	// Derive the gateway IP from the subnet for DNS nameserver
+	gatewayIP := deriveGatewayFromSubnet(subnet)
 
 	return fmt.Sprintf(`
 {
@@ -105,7 +134,7 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
             },
             "dns": {
                 "nameservers": [
-                    "10.0.1.1",
+                    "%s",
                     "8.8.8.8",
                     "8.8.4.4"
                 ]
@@ -117,7 +146,7 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
         }%s
     ]
 }
-`, network, network, ipMaskStr, subnet, portmapConfig)
+`, network, network, ipMaskStr, subnet, gatewayIP, portmapConfig)
 }
 
 func generateInterfaceName(containerID string) string {
@@ -133,9 +162,18 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 	// CNI path validated at daemon startup via ValidateCNIAvailability()
 	cniConfig := libcni.NewCNIConfig(filepath.SplitList(cniPath), nil)
 
-	db := db.GetDB()
-	configs, _ := db.GetNetConfigs(containerName)
+	dbConn := db.GetDB()
+	configs, err := dbConn.GetNetConfigs(containerName)
+	if err != nil {
+		slog.Error("Failed to get network configs, continuing with cleanup", "container", containerName, "error", err)
+	}
+
+	// Track networks used by this container for subnet cleanup
+	networksToCheck := make(map[string]bool)
+
 	for _, c := range configs {
+		networksToCheck[c.Network] = true
+
 		confList, err := libcni.ConfListFromBytes([]byte(c.Config))
 		if err != nil {
 			return fmt.Errorf("Failed to parse CNI config: %s\n", err)
@@ -153,7 +191,7 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 
 		// we have to delete the host iface because CNI bridge plugin is not doing this
 		// TODO check if there is a better way without adding an extra dependency as netlink package
-		isHostIfaceUsed, err := db.IsHostIfaceUsedExceptForContainer(c.HostIfaceName, containerName)
+		isHostIfaceUsed, err := dbConn.IsHostIfaceUsedExceptForContainer(c.HostIfaceName, containerName)
 		if err != nil {
 			return errors.New("isHostIfaceUsed call failed")
 		} else if !isHostIfaceUsed {
@@ -169,7 +207,22 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 			}
 		}
 	}
-	db.DeleteAllNetConfigs(containerName)
+	dbConn.DeleteAllNetConfigs(containerName)
+
+	// Release subnet for networks that no longer have any containers
+	for network := range networksToCheck {
+		count, err := dbConn.GetNetworkContainerCount(network)
+		if err != nil {
+			slog.Error("Failed to get network container count", "network", network, "error", err)
+			continue
+		}
+		if count == 0 {
+			slog.Info("Network has no more containers, releasing subnet", "network", network)
+			if err := dbConn.ReleaseSubnet(network); err != nil {
+				slog.Error("Failed to release subnet", "network", network, "error", err)
+			}
+		}
+	}
 
 	return nil
 }
@@ -187,13 +240,15 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 		return err, nil, nil, nil
 	}
 
-	subnet := getSubnet(netConfig.Network)
+	subnet, err := getSubnet(netConfig.Network)
+	if err != nil {
+		return fmt.Errorf("failed to get subnet: %w", err), nil, nil, nil
+	}
 	network := strings.Split(netConfig.Network, "-")[0]
 	netConf := createNetworkConfig(network, subnet, netConfig.IPMasq, netConfig.PortMap)
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
-		slog.Error("Failed to parse CNI config", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to parse CNI config: %w", err), nil, nil, nil
 	}
 
 	var gw net.IP
@@ -255,8 +310,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 				slog.Info("Updating resolv.conf for container", "container", containerName, "pid", pid, "gw", gw)
 				resolvConfContent := fmt.Sprintf("nameserver %s\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n", gw)
 				if err := WriteStringToResolvConf(ctx, task, resolvConfContent); err != nil {
-					slog.Error("Error writing resolv.conf", "container", containerName, "error", err.Error())
-					os.Exit(1)
+					return fmt.Errorf("error writing resolv.conf for container %s: %w", containerName, err), nil, nil, nil
 				}
 			} else {
 				slog.Error("Cannot update resolv.conf for container", "container", containerName, "pid", pid)
@@ -274,9 +328,12 @@ func WriteStringToResolvConf(ctx context.Context, task containerd.Task, content 
 		oldExecProcess.Delete(ctx)
 	}
 
+	// Use base64 encoding to safely pass content without shell injection
+	encoded := base64.StdEncoding.EncodeToString([]byte(content))
+
 	// Now create and execute a new write-resolv process
 	execProcess, err := task.Exec(ctx, "write-resolv", &specs.Process{
-		Args: []string{"/bin/sh", "-c", "echo '" + content + "' > /etc/resolv.conf"},
+		Args: []string{"/bin/sh", "-c", fmt.Sprintf("echo %s | base64 -d > /etc/resolv.conf", encoded)},
 		Cwd:  "/",
 	}, cio.NewCreator(cio.WithStdio))
 	if err != nil {
@@ -338,10 +395,13 @@ func RepairNetwork(containerName string) error {
 
 	configs, err := db.GetDB().GetNetConfigs(containerName)
 	if err != nil {
-		// TODO
+		return fmt.Errorf("failed to get network configs: %w", err)
 	}
 	for _, c := range configs {
 		confList, err := libcni.ConfListFromBytes([]byte(c.Config))
+		if err != nil {
+			return fmt.Errorf("failed to parse CNI config: %w", err)
+		}
 		_, rt, err := cniConfig.GetNetworkListCachedConfig(confList, &libcni.RuntimeConf{
 			ContainerID: containerName,
 			NetNS:       netns,
@@ -394,13 +454,20 @@ type IP struct {
 }
 
 func GetNetworkConfig(container string) []IP {
-	db := db.GetDB()
+	dbConn := db.GetDB()
 
 	var networks []IP
-	configs, _ := db.GetNetConfigs(container)
+	configs, err := dbConn.GetNetConfigs(container)
+	if err != nil {
+		slog.Error("Failed to get network configs", "container", container, "error", err)
+		return networks
+	}
 	for _, config := range configs {
 		var result IPAddresses
-		json.Unmarshal([]byte(config.CniResult), &result)
+		if err := json.Unmarshal([]byte(config.CniResult), &result); err != nil {
+			slog.Error("Failed to unmarshal CNI result", "container", container, "error", err)
+			continue
+		}
 		for _, ip := range result.Addresses {
 			networks = append(networks, ip)
 		}
@@ -414,14 +481,12 @@ type Bridge struct {
 }
 
 // Returns bridges with veth links from the host system
-func GetBridgeVethLinks() map[string]*Bridge {
+func GetBridgeVethLinks() (map[string]*Bridge, error) {
 	var bridges = make(map[string]*Bridge)
 
 	links, err := netlink.LinkList()
 	if err != nil {
-		slog.Error("failed to list links", "error", err)
-		os.Exit(1)
-		return nil
+		return nil, fmt.Errorf("failed to list links: %w", err)
 	}
 
 	for _, link := range links {
@@ -437,15 +502,15 @@ func GetBridgeVethLinks() map[string]*Bridge {
 			}
 		}
 	}
-	return bridges
+	return bridges, nil
 }
 
 func PurgeBridgeNetwork(bridge *Bridge) error {
-	for _, l := range bridge.VethLinks {
-		netlink.LinkDel(l)
-	}
 	if bridge == nil {
 		return errors.New("bridge nil")
+	}
+	for _, l := range bridge.VethLinks {
+		netlink.LinkDel(l)
 	}
 	return netlink.LinkDel(bridge.Link)
 }

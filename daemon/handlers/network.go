@@ -67,12 +67,17 @@ func ListNetworksHandler(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 
-	db := db.GetDB()
-	vethBridges := network.GetBridgeVethLinks()
+	dbConn := db.GetDB()
+	vethBridges, err := network.GetBridgeVethLinks()
+	if err != nil {
+		log.Printf("Failed to get bridge veth links: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	networks := make(map[string]*NetworkInfo)
 
 	for _, container := range containersList {
-		configs, _ := db.GetNetConfigs(container.ID)
+		configs, _ := dbConn.GetNetConfigs(container.ID)
 
 		if _, ok := networks[container.ID]; !ok {
 			networks[container.ID] = &NetworkInfo{}
@@ -129,10 +134,10 @@ func PurgeNetworksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db := db.GetDB()
+	dbConn := db.GetDB()
 	hostIfaces := []string{}
 	for _, container := range containersList {
-		configs, _ := db.GetNetConfigs(container.ID)
+		configs, _ := dbConn.GetNetConfigs(container.ID)
 		for _, config := range configs {
 			hostIfaces = append(hostIfaces, config.HostIfaceName)
 		}
@@ -140,8 +145,13 @@ func PurgeNetworksHandler(w http.ResponseWriter, r *http.Request) {
 
 	result := PurgedNetworkInfo{}
 
-	// Purge orphaned bridgets and links
-	bridges := network.GetBridgeVethLinks()
+	// Purge orphaned bridges and links
+	bridges, err := network.GetBridgeVethLinks()
+	if err != nil {
+		log.Printf("Failed to get bridge veth links: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	for bridgeName, bridge := range bridges {
 		if !slices.Contains(hostIfaces, bridgeName) {
 			log.Printf("Purging %s orphaned bridge network", bridgeName)

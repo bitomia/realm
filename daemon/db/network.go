@@ -17,6 +17,7 @@ type NetworkConfig struct {
 
 // TODO replace usage with NetworkConfig type if possible
 type NetConfig struct {
+	Network        string `json:"network"`
 	Config         string `json:"config"`
 	CniResult      string `json:"cni_result"`
 	GuestIfaceName string `json:"guest_ifname"`
@@ -102,6 +103,7 @@ func (db *DaemonDB) GetNetConfigs(container string) ([]NetConfig, error) {
 		}
 		// Convert to NetConfig format
 		config := NetConfig{
+			Network:        netConfig.Network,
 			Config:         netConfig.Config,
 			CniResult:      netConfig.CniResult,
 			GuestIfaceName: netConfig.GuestIfaceName,
@@ -155,4 +157,29 @@ func (db *DaemonDB) DeleteDNSRecord(key string) error {
 		return err
 	}
 	return db.delete(dnsKey)
+}
+
+// ReleaseSubnet releases the subnet assignment for a network
+func (db *DaemonDB) ReleaseSubnet(network string) error {
+	return db.DeleteSubnetOffset(network)
+}
+
+// GetNetworkContainerCount returns the number of containers using a network
+func (db *DaemonDB) GetNetworkContainerCount(network string) (int, error) {
+	data, err := db.getKey(networkPrefix)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, value := range data {
+		var netConfig NetworkConfig
+		if err := json.Unmarshal([]byte(value), &netConfig); err != nil {
+			continue
+		}
+		if netConfig.Network == network {
+			count++
+		}
+	}
+	return count, nil
 }
