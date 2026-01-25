@@ -325,7 +325,7 @@ func (c *Client) CreateNetwork(node string, container string) error {
 		ContainerPort: 80,
 		Protocol:      "tcp",
 	}}
-	request := dto.StartNetworkRequest{Network: container, IPMasq: true, DNS: false, PortMap: portMaps}
+	request := dto.NetworkConfig{Network: container, IPMasq: true, DNS: false, PortMap: portMaps}
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 

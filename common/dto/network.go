@@ -6,7 +6,7 @@ type Portmap struct {
 	Protocol      string `json:"protocol"`
 }
 
-type StartNetworkRequest struct {
+type NetworkConfig struct {
 	Network string    `json:"network"`
 	IPMasq  bool      `json:"ip_masq,omitempty"`
 	DNS     bool      `json:"dns,omitempty"`

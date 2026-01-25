@@ -19,7 +19,7 @@ import (
 
 func LinkContainerToNetworkHandler(w http.ResponseWriter, r *http.Request) {
 	containerName := mux.Vars(r)["container"]
-	var opts dto.StartNetworkRequest
+	var opts dto.NetworkConfig
 	err := json.NewDecoder(r.Body).Decode(&opts)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -170,10 +170,11 @@ func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 		}
 	}
 	db.DeleteAllNetConfigs(containerName)
+
 	return nil
 }
 
-func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, map[string][]any, net.IP, net.IP) {
+func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map[string][]any, net.IP, net.IP) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error()), nil, nil, nil
@@ -186,9 +187,9 @@ func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, ma
 		return err, nil, nil, nil
 	}
 
-	subnet := getSubnet(opts.Network)
-	network := strings.Split(opts.Network, "-")[0]
-	netConf := createNetworkConfig(network, subnet, opts.IPMasq, opts.PortMap)
+	subnet := getSubnet(netConfig.Network)
+	network := strings.Split(netConfig.Network, "-")[0]
+	netConf := createNetworkConfig(network, subnet, netConfig.IPMasq, netConfig.PortMap)
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
 		slog.Error("Failed to parse CNI config", "error", err)
@@ -197,7 +198,7 @@ func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, ma
 
 	var gw net.IP
 	var ip net.IPNet
-	var networkConfigs = make(map[string][]interface{})
+	var networkConfigs = make(map[string][]any)
 	for _, container := range containers {
 		if container.ID() != containerName {
 			continue
@@ -244,12 +245,12 @@ func StartNetwork(containerName string, opts dto.StartNetworkRequest) (error, ma
 			}
 		}
 
-		err = db.GetDB().AddNetConfig(opts.Network, containerName, []byte(netConf), []byte(resultJSON), ifaceName, opts.Network)
+		err = db.GetDB().AddNetConfig(netConfig.Network, containerName, []byte(netConf), []byte(resultJSON), ifaceName, netConfig.Network)
 		if err != nil {
 			return fmt.Errorf("Failed to marshal result: %s", err.Error()), nil, nil, nil
 		}
 
-		if opts.DNS {
+		if netConfig.DNS {
 			if gw != nil {
 				slog.Info("Updating resolv.conf for container", "container", containerName, "pid", pid, "gw", gw)
 				resolvConfContent := fmt.Sprintf("nameserver %s\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n", gw)

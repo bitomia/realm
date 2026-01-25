@@ -22,12 +22,12 @@ import (
 const ContainerDriverID common.LoadDriverID = "container"
 
 type ContainerConfig struct {
-	Image            string                   `json:"image"`
-	Env              []string                 `json:"env"`
-	Quotas           *dto.Quotas              `json:"quotas"`
-	VolumeMountPoint string                   `json:"volume_mount_point"`
-	MountVolume      *dto.MountVolume         `json:"mount_volume"`
-	Network          *dto.StartNetworkRequest `json:"network,omitempty"`
+	Image            string             `json:"image"`
+	Env              []string           `json:"env"`
+	Quotas           *dto.Quotas        `json:"quotas"`
+	VolumeMountPoint string             `json:"volume_mount_point"`
+	MountVolume      *dto.MountVolume   `json:"mount_volume"`
+	Network          *dto.NetworkConfig `json:"network,omitempty"`
 }
 
 type ContainerDriver struct {
@@ -262,7 +262,6 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	if err != nil {
 		slog.Warn("ContainerDriver.StopDeployment", "msg", "no task found for container", "container", containerName)
 	} else {
-
 		// Detach network before killing the task (network needs the netns which requires the process to be alive)
 		if c.Config.Network != nil {
 			slog.Info("ContainerDriver.StopDeployment", "msg", "detaching network", "container", containerName)
