@@ -17,6 +17,33 @@ import (
 	zfs "github.com/bitomia/go-libzfs"
 )
 
+func datasetExists(volume string) bool {
+	parentPath, err := GetVolumesPath()
+	if err != nil {
+		return false
+	}
+
+	parent, err := zfs.DatasetOpen(parentPath)
+	if err != nil {
+		return false
+	}
+	defer parent.Close()
+
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return false
+	}
+
+	for _, child := range parent.Children {
+		if name, ok := child.Properties[zfs.DatasetPropName]; ok {
+			if name.Value == volumePath {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func MountVolume(volume string) (string, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
@@ -51,16 +78,7 @@ func MountVolume(volume string) (string, error) {
 }
 
 func IsVolume(volume string) bool {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return false
-	}
-	ds, err := zfs.DatasetOpen(volumePath)
-	if err != nil {
-		return false
-	}
-	defer ds.Close()
-	return true
+	return datasetExists(volume)
 }
 
 func CreateVolume(volume string) error {
@@ -90,6 +108,13 @@ func DeleteVolume(volume string, deferred bool) error {
 	if err != nil {
 		return err
 	}
+
+	// Check if dataset exists before opening to avoid SIGSEGV in go-libzfs
+	if !datasetExists(volume) {
+		slog.Info("Volume does not exist, skipping delete", "path", volumePath)
+		return nil
+	}
+
 	ds, err := zfs.DatasetOpen(volumePath)
 	if err != nil {
 		return err
