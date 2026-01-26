@@ -20,14 +20,11 @@ import (
 const ProcessDriverID common.LoadDriverID = "process"
 
 type ProcessConfig struct {
-	Name       string   `json:"name"`
-	Node       string   `json:"node"`
-	DependsOn  []string `json:"depends_on"`
-	StartCmd   string   `json:"start_cmd"`
-	StartArgs  *string  `json:"start_args,omitempty"`
-	WorkingDir *string  `json:"working_dir,omitempty"`
-	StopSignal string   `json:"stop_signal"`
-	ForceKill  bool     `json:"force_kill"`
+	StartCmd   string  `json:"start_cmd"`
+	StartArgs  *string `json:"start_args,omitempty"`
+	WorkingDir *string `json:"working_dir,omitempty"`
+	StopSignal string  `json:"stop_signal"`
+	ForceKill  bool    `json:"force_kill"`
 }
 
 type ProcessDriver struct {
