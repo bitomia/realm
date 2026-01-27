@@ -3,8 +3,10 @@ package loads
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"path"
 	"syscall"
 
 	"github.com/containerd/containerd"
@@ -12,11 +14,11 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/network"
-
-	"github.com/bitomia/realm/common/dto"
 )
 
 const ContainerDriverID common.LoadDriverID = "container"
@@ -38,6 +40,8 @@ type ContainerEntryMetadata struct {
 	ContainerName string  `json:"container_name"`
 	IPAddress     *net.IP `json:"ip_address,omitempty"`
 	GWAddress     *net.IP `json:"gw_address,omitempty"`
+	StdoutPath    string  `json:"stdout_path,omitempty"`
+	StderrPath    string  `json:"stderr_path,omitempty"`
 }
 
 func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
@@ -149,8 +153,12 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		return err
 	}
 
+	stdoutPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stdout.log", containerName))
+	stderrPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stderr.log", containerName))
 	updateOpts := dto.UpdateContainerOpts{
-		State: common.LoadStart,
+		State:      common.LoadStart,
+		StdoutPath: stdoutPath,
+		StderrPath: stderrPath,
 	}
 	task, err := containers.UpdateContainerState(containerName, updateOpts)
 	if err != nil {
@@ -207,6 +215,8 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		metadata.ContainerName = containerName
 		metadata.GWAddress = gwAddressPtr
 		metadata.IPAddress = ipAddressPtr
+		metadata.StdoutPath = stdoutPath
+		metadata.StderrPath = stderrPath
 		return nil
 	}); err != nil {
 		return err
@@ -231,7 +241,6 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 
 	slog.Info("ContainerDriver.StopDeployment", "msg", "stopping container", "deployment", deployment.ID)
 
-	// Use loadName as the container name
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
@@ -339,4 +348,25 @@ func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepositor
 
 func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c.Config}
+}
+
+func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StdoutPath) == 0 {
+		return fmt.Errorf("stdout path empty")
+	}
+
+	return common.TailFile(metadata.StdoutPath, w)
+}
+
+func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	// TODO
+	return nil
 }

@@ -92,3 +92,9 @@ func DisableVolumeQuota(volume string) error {
 	slog.Warn("DisableVolumeQuota only supported on Linux", "volume", volume)
 	return errors.New("quota management only supported on Linux")
 }
+
+// ValidateZFSAvailability is a no-op on non-Linux systems
+func ValidateZFSAvailability() error {
+	slog.Info("ZFS validation skipped on non-Linux systems")
+	return nil
+}

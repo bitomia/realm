@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 
 	"github.com/bitomia/realm/common"
@@ -126,4 +127,42 @@ func UnplanLoad(loadName string) error {
 	}
 
 	return nil
+}
+
+func ReadLoadStdout(loadName string, w io.Writer) error {
+	database := db.GetDB()
+
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
+	if err != nil {
+		return err
+	}
+
+	if len(deployments) == 0 {
+		return fmt.Errorf("No planned deployments found")
+	}
+
+	if len(deployments) > 1 {
+		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
+	}
+
+	return deployments[0].LoadDriver.ReadStdout(database.DeploymentsRepository, deployments[0], w)
+}
+
+func ReadLoadStderr(loadName string, w io.Writer) error {
+	database := db.GetDB()
+
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
+	if err != nil {
+		return err
+	}
+
+	if len(deployments) == 0 {
+		return fmt.Errorf("No planned deployments found")
+	}
+
+	if len(deployments) > 1 {
+		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
+	}
+
+	return deployments[0].LoadDriver.ReadStderr(database.DeploymentsRepository, deployments[0], w)
 }

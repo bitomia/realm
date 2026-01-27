@@ -223,6 +223,50 @@ var graphLoads = &cobra.Command{
 	},
 }
 
+var stdoutLoad = &cobra.Command{
+	Use:                   "stdout <load>",
+	Short:                 "Read stdout from a load",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
+		if len(loads) == 0 {
+			log.Fatal("Load not found")
+		}
+		if len(loads) > 1 {
+			log.Fatal("Multiple loads found with that name")
+		}
+
+		load := loads[loadNames[0]]
+		client := clientPkg.NewClient()
+		if err := client.ReadLoadStdout(load); err != nil {
+			log.Fatal("Failed to read stdout: %s", err.Error())
+		}
+	},
+}
+
+var stderrLoad = &cobra.Command{
+	Use:                   "stderr <load>",
+	Short:                 "Read stderr from a load",
+	Args:                  cobra.ExactArgs(1),
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
+		if len(loads) == 0 {
+			log.Fatal("Load not found")
+		}
+		if len(loads) > 1 {
+			log.Fatal("Multiple loads found with that name")
+		}
+
+		load := loads[loadNames[0]]
+		client := clientPkg.NewClient()
+		if err := client.ReadLoadStderr(load); err != nil {
+			log.Fatal("Failed to read stderr: %s", err.Error())
+		}
+	},
+}
+
 func init() {
 	startLoads.Flags().Bool("all", false, "All loads (cluster mode)")
 	planLoads.Flags().Bool("all", false, "All loads (cluster mode)")
@@ -234,6 +278,8 @@ func init() {
 	loadsCmd.AddCommand(listLoads)
 	loadsCmd.AddCommand(planLoads)
 	loadsCmd.AddCommand(startLoads)
+	loadsCmd.AddCommand(stdoutLoad)
+	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)
 	loadsCmd.AddCommand(unplanLoads)
 	rootCmd.AddCommand(loadsCmd)

@@ -197,3 +197,7 @@ func GetVolumeInfo(volume string) (*VolumeInfo, error) {
 		Used:  used.Value,
 	}, nil
 }
+
+func Init() error {
+	return zfs.Init()
+}

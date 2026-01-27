@@ -3,6 +3,7 @@ package loads
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -262,4 +263,14 @@ func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository,
 
 func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
+}
+
+func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	// TODO
+	return nil
+}
+
+func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	// TODO
+	return nil
 }

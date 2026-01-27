@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"syscall"
 
 	"github.com/containerd/containerd"
@@ -63,7 +62,7 @@ func GetContainerdVersion() (*containerd.Version, error) {
 	return &version, nil
 }
 
-func RepairContainer(c db.Container) error {
+func RepairContainer(c db.Container, stdoutPath string, stderrPath string) error {
 	// Plan:
 	// Check first if the container is in the expected state:
 	// 1. containers.last_status == containerd status
@@ -102,7 +101,7 @@ func RepairContainer(c db.Container) error {
 		if err != nil {
 			return err
 		}
-		_, err = startContainer(c.ContainerName)
+		_, err = startContainer(c.ContainerName, stdoutPath, stderrPath)
 		if err != nil {
 			return err
 		}
@@ -115,10 +114,9 @@ func RepairContainer(c db.Container) error {
 	}
 	return nil
 
-	// 2. brtfs configuration should persist between reboots
-	// 3. network survives reboot?
-	// 4. subnet survives reboot?
-	// 5. caddy config survives reboot?
+	// 2. network survives reboot?
+	// 3. subnet survives reboot?
+	// 4. caddy config survives reboot?
 }
 
 func CreateContainer(containerName string, opts dto.CreateContainerRequest, extraSpecOpts []oci.SpecOpts) error {
@@ -292,7 +290,7 @@ func UpdateContainerState(containerName string, opts dto.UpdateContainerOpts) (c
 	switch opts.State {
 	case common.LoadStart:
 		database := db.GetDB()
-		if task, err := startContainer(containerName); err != nil {
+		if task, err := startContainer(containerName, opts.StdoutPath, opts.StderrPath); err != nil {
 			database.UpdateContainerState(containerName, common.LoadStartFailed)
 			return nil, err
 		} else {
@@ -360,24 +358,6 @@ func removeContainerSnapshots(ctx context.Context, c *containerd.Client, contain
 
 	slog.Info("Snapshot removed successfully", "containerID", container.ID())
 	return nil
-}
-
-func RestoreContainers(db *db.DaemonDB) {
-	allContainers, err := db.GetAllContainers()
-	if err != nil {
-		slog.Error("Cannot get containers info", "error", err.Error())
-		os.Exit(1)
-	}
-
-	if len(allContainers) > 0 {
-		slog.Info("Restoring containers")
-		for _, c := range allContainers {
-			slog.Info("Checking container", "container", c.ContainerName)
-			if err := RepairContainer(c); err != nil {
-				slog.Info("Error on repair container", "container", c.ContainerName, "error", err.Error())
-			}
-		}
-	}
 }
 
 func TryPullAndGetImage(ctx context.Context, client *containerd.Client, imageName string) (containerd.Image, error) {

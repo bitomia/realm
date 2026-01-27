@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net"
 	"os"
 	"os/exec"
@@ -12,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"log/slog"
 
 	"github.com/bitomia/realm/common"
 	"github.com/google/uuid"
@@ -780,4 +780,14 @@ func (d QemuDriver) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(&d),
 	}
 	return json.Unmarshal(data, &aux)
+}
+
+func (q QemuDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	// TODO
+	return nil
+}
+
+func (q QemuDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	// TODO
+	return nil
 }

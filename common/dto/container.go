@@ -27,7 +27,9 @@ type CreateContainerRequest struct {
 }
 
 type UpdateContainerOpts struct {
-	State common.LoadState `json:"state"`
+	State      common.LoadState `json:"state"`
+	StdoutPath string           `json:"stdout_path"`
+	StderrPath string           `json:"stderr_path"`
 }
 
 type DeleteContainerOpts struct {

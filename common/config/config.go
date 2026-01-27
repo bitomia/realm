@@ -44,10 +44,6 @@ type DaemonConfig struct {
 	// Default: text
 	LogFormat string `json:"log_format"`
 
-	// Path to store container logs.
-	// Default: /var/log/realm/containers (Linux) or %ProgramData%\realm\logs\containers (Windows)
-	ContainersLogPath string `json:"containers_log_path"`
-
 	// Enables or disables the reverse proxy.
 	// Default: false
 	ProxyEnabled bool `json:"proxy_enabled"`

@@ -80,3 +80,21 @@ func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+func ReadLoadStdoutHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+	slog.Info("handlers.ReadStdoutLoadHandler", "loadName", loadName)
+	if err := api.ReadLoadStdout(loadName, w); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+}
+
+func ReadLoadStderrHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+	slog.Info("handlers.ReadStderrLoadHandler", "loadName", loadName)
+	if err := api.ReadLoadStderr(loadName, w); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+}

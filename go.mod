@@ -3,7 +3,7 @@ module github.com/bitomia/realm
 go 1.25.1
 
 require (
-	github.com/bitomia/go-libzfs v0.0.0-20250710160127-d34e0b5376f7
+	github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.28
 	github.com/containernetworking/cni v1.3.0

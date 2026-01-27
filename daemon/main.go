@@ -63,6 +63,11 @@ func Start(purgeDB bool) {
 	}
 	slog.Info("Containerd version", "version", containerdVersion)
 
+	slog.Info("Initializing volumes")
+	if err := volumes.Init(); err != nil {
+		slog.Error("Volumes initialization failed", "error", err.Error())
+		os.Exit(1)
+	}
 	volumesPath, err := volumes.GetVolumesPath()
 	if err != nil {
 		slog.Error("Cannot get volumes path", "error", err.Error())
@@ -97,7 +102,6 @@ func Start(purgeDB bool) {
 	} else {
 		slog.Info("Proxy is disabled, skipping initialization")
 	}
-	containers.RestoreContainers(db)
 
 	healthPublisher := health.GetHealthPublisher()
 	err = healthPublisher.Start()

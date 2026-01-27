@@ -579,6 +579,74 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 	return loadDeployments, nil
 }
 
+func (c *Client) ReadLoadStdout(load *common.Load) error {
+	client := &http.Client{
+		Timeout: 0, // No timeout for streaming
+	}
+
+	url := fmt.Sprintf("%s/loads/%s/stdout", load.Node.Url, load.Name)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to read stdout: %s", string(body))
+	}
+
+	// Stream the response body to stdout
+	_, err = io.Copy(os.Stdout, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to stream stdout: %v", err)
+	}
+
+	return nil
+}
+
+func (c *Client) ReadLoadStderr(load *common.Load) error {
+	client := &http.Client{
+		Timeout: 0, // No timeout for streaming
+	}
+
+	url := fmt.Sprintf("%s/loads/%s/stderr", load.Node.Url, load.Name)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to read stderr: %s", string(body))
+	}
+
+	// Stream the response body to stdout
+	_, err = io.Copy(os.Stdout, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to stream stderr: %v", err)
+	}
+
+	return nil
+}
+
 func (c *Client) PlanNode(node *common.Node) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
