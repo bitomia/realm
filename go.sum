@@ -10,8 +10,6 @@ github.com/Microsoft/hcsshim v0.11.7 h1:vl/nj3Bar/CvJSYo7gIQPyRWc9f3c6IeSNavBTSZ
 github.com/Microsoft/hcsshim v0.11.7/go.mod h1:MV8xMfmECjl5HdO7U/3/hFVnkmSBjAjmA09d4bExKcU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
-github.com/bitomia/go-libzfs v0.0.0-20250710160127-d34e0b5376f7 h1:43GbC+oP5QLOONrIgjuSsCnbXBs6uQBEQ5y0B33M0Gs=
-github.com/bitomia/go-libzfs v0.0.0-20250710160127-d34e0b5376f7/go.mod h1:6uXDxE7U4h2Hv1IOq6piQ//f6VEOfKalCw4vxGDVIHA=
 github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4 h1:O+zkuyvm4jormfKHMMoElAKwBPjFHcvSw9tr95NpxMc=
 github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4/go.mod h1:6uXDxE7U4h2Hv1IOq6piQ//f6VEOfKalCw4vxGDVIHA=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=

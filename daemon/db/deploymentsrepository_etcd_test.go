@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/bitomia/realm/common"
@@ -92,6 +93,14 @@ func (m mockLoadDriver) UnplanDeployment(repository common.DeploymentsRepository
 
 func (m mockLoadDriver) GetDriverConfig() common.LoadDriverConfig {
 	return m.config
+}
+
+func (m mockLoadDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	return nil
+}
+
+func (m mockLoadDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+	return nil
 }
 
 func init() {

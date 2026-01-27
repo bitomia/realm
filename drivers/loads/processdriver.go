@@ -37,6 +37,11 @@ type ProcInfo struct {
 	Cmd *exec.Cmd
 }
 
+type ProcessEntryMetadata struct {
+	StdoutPath string `json:"stdout_path,omitempty"`
+	StderrPath string `json:"stderr_path,omitempty"`
+}
+
 var procStore map[common.DeploymentID]ProcInfo = make(map[common.DeploymentID]ProcInfo)
 
 func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
@@ -138,7 +143,7 @@ func (p ProcessDriver) PlanAndRegister(repository common.DeploymentsRepository, 
 	}
 
 	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, p, common.DeploymentStatePlanned, nil)
+	did, err := repository.Create(loadName, p, common.DeploymentStatePlanned, ProcessEntryMetadata{})
 	if err != nil {
 		slog.Error("ProcessDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
@@ -170,12 +175,15 @@ func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, 
 	}
 	logsPath := config.Daemon.LogsPath
 
-	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s.log", deployment.LoadName), 0755)
+	stdoutPath := fmt.Sprintf("%s/%s_stdout.log", logsPath, deployment.LoadName)
+	stderrPath := fmt.Sprintf("%s/%s_stderr.log", logsPath, deployment.LoadName)
+
+	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_stdout.log", deployment.LoadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create output log file: %v", err)
 	}
 
-	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_error.log", deployment.LoadName), 0755)
+	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_stderr.log", deployment.LoadName), 0755)
 	if err != nil {
 		return fmt.Errorf("Failed to create error log file: %v", err)
 	}
@@ -193,6 +201,15 @@ func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, 
 
 	// Store process info
 	procStore[deployment.ID] = ProcInfo{Cmd: cmd}
+
+	// Update metadata with file paths
+	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
+		metadata.StdoutPath = stdoutPath
+		metadata.StderrPath = stderrPath
+		return nil
+	}); err != nil {
+		return err
+	}
 
 	// Update deployment state to "running"
 	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
@@ -266,11 +283,33 @@ func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 }
 
 func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	// TODO
-	return nil
+	var metadata ProcessEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ProcessDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StdoutPath) == 0 {
+		return fmt.Errorf("stdout path empty")
+	}
+
+	return common.TailFile(metadata.StdoutPath, w)
 }
 
 func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	// TODO
-	return nil
+	var metadata ProcessEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ProcessDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StderrPath) == 0 {
+		return fmt.Errorf("stderr path empty")
+	}
+
+	return common.TailFile(metadata.StderrPath, w)
 }

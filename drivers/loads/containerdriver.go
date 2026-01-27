@@ -367,6 +367,17 @@ func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, dep
 }
 
 func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	// TODO
-	return nil
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ContainerDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StderrPath) == 0 {
+		return fmt.Errorf("stderr path empty")
+	}
+
+	return common.TailFile(metadata.StderrPath, w)
 }

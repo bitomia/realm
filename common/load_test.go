@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"io"
 	"testing"
 	"time"
 
@@ -59,6 +60,14 @@ func (m *MockLoadDriver) GetDriverConfig() LoadDriverConfig {
 		Driver:       m.driver,
 		DriverConfig: m.driverConfig,
 	}
+}
+
+func (m *MockLoadDriver) ReadStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
+	return nil
+}
+
+func (m *MockLoadDriver) ReadStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
+	return nil
 }
 
 func createTestLoad(name, nodeName string, driverID LoadDriverID, driverConfig any) *Load {
