@@ -350,7 +350,7 @@ func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c.Config}
 }
 
-func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (c ContainerDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
@@ -366,7 +366,7 @@ func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, dep
 	return common.TailFile(metadata.StdoutPath, w)
 }
 
-func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ContainerDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)

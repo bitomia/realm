@@ -129,7 +129,7 @@ func UnplanLoad(loadName string) error {
 	return nil
 }
 
-func ReadLoadStdout(loadName string, w io.Writer) error {
+func StreamLoadStdout(loadName string, w io.Writer) error {
 	database := db.GetDB()
 
 	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
@@ -145,10 +145,10 @@ func ReadLoadStdout(loadName string, w io.Writer) error {
 		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
 	}
 
-	return deployments[0].LoadDriver.ReadStdout(database.DeploymentsRepository, deployments[0], w)
+	return deployments[0].LoadDriver.StreamStdout(database.DeploymentsRepository, deployments[0], w)
 }
 
-func ReadLoadStderr(loadName string, w io.Writer) error {
+func StreamLoadStderr(loadName string, w io.Writer) error {
 	database := db.GetDB()
 
 	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
@@ -164,5 +164,5 @@ func ReadLoadStderr(loadName string, w io.Writer) error {
 		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
 	}
 
-	return deployments[0].LoadDriver.ReadStderr(database.DeploymentsRepository, deployments[0], w)
+	return deployments[0].LoadDriver.StreamStderr(database.DeploymentsRepository, deployments[0], w)
 }

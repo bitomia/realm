@@ -52,9 +52,9 @@ type LoadDriver interface {
 	// GetDriverConfig returns the configuration for this load driver.
 	GetDriverConfig() LoadDriverConfig
 
-	// Read load stdout and write to w
-	ReadStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error
+	// Stream load stdout to writer
+	StreamStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error
 
-	// Read load stderr and write to w
-	ReadStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error
+	// Stream load stderr to writer
+	StreamStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error
 }

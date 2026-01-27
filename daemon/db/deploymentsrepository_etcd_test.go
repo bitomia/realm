@@ -95,11 +95,11 @@ func (m mockLoadDriver) GetDriverConfig() common.LoadDriverConfig {
 	return m.config
 }
 
-func (m mockLoadDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (m mockLoadDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	return nil
 }
 
-func (m mockLoadDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (m mockLoadDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	return nil
 }
 

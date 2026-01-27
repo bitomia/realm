@@ -62,11 +62,11 @@ func (m *MockLoadDriver) GetDriverConfig() LoadDriverConfig {
 	}
 }
 
-func (m *MockLoadDriver) ReadStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
+func (m *MockLoadDriver) StreamStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
 	return nil
 }
 
-func (m *MockLoadDriver) ReadStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
+func (m *MockLoadDriver) StreamStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error {
 	return nil
 }
 

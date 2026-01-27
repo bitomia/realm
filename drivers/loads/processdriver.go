@@ -282,7 +282,7 @@ func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
 }
 
-func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (p ProcessDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	var metadata ProcessEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ProcessDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
@@ -298,7 +298,7 @@ func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deplo
 	return common.TailFile(metadata.StdoutPath, w)
 }
 
-func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (p ProcessDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	var metadata ProcessEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ProcessDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)

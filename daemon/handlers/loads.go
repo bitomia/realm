@@ -84,7 +84,7 @@ func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 func ReadLoadStdoutHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
 	slog.Info("handlers.ReadStdoutLoadHandler", "loadName", loadName)
-	if err := api.ReadLoadStdout(loadName, w); err != nil {
+	if err := api.StreamLoadStdout(loadName, w); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
@@ -93,7 +93,7 @@ func ReadLoadStdoutHandler(w http.ResponseWriter, r *http.Request) {
 func ReadLoadStderrHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
 	slog.Info("handlers.ReadStderrLoadHandler", "loadName", loadName)
-	if err := api.ReadLoadStderr(loadName, w); err != nil {
+	if err := api.StreamLoadStderr(loadName, w); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
