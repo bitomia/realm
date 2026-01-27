@@ -100,7 +100,10 @@ func Start(purgeDB bool) {
 		}
 	}
 
-	dns.Initialize()
+	if err := dns.Initialize(); err != nil {
+		slog.Error("DNS initialization failed", "error", err.Error())
+		os.Exit(1)
+	}
 	if cfg.Daemon.ProxyEnabled {
 		proxy.Initialize()
 	} else {
@@ -132,6 +135,8 @@ func Start(purgeDB bool) {
 		Handler: router,
 	}
 
+	fmt.Printf("\n%+v\n", cfg.Daemon.Registries)
+
 	go func() {
 		slog.Info("Daemon running", "addr", serverAddr)
 		server.ListenAndServe()
@@ -153,6 +158,10 @@ func Start(purgeDB bool) {
 
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	if err := dns.Shutdown(ctx); err != nil {
+		slog.Error("DNS shutdown error", "error", err)
 	}
 
 	mdnsService.Stop()

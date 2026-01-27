@@ -12,6 +12,21 @@ import (
 
 var BuildGitCommit string
 
+// RegistryAuth holds authentication credentials for a container registry.
+// Token OR Username/Password should be set, not both.
+type RegistryAuth struct {
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Token    string `json:"token,omitempty"`
+}
+
+// RegistryConfig holds configuration for a container registry.
+type RegistryConfig struct {
+	Host     string       `json:"host"`              // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
+	Auth     RegistryAuth `json:"auth"`
+	Insecure bool         `json:"insecure,omitempty"` // Allow HTTP instead of HTTPS
+}
+
 // DaemonConfig holds the configuration for the realm daemon.
 // All fields are optional and have platform-specific or sensible defaults.
 type DaemonConfig struct {
@@ -62,9 +77,9 @@ type DaemonConfig struct {
 	// Default: localhost:2019
 	MasterCaddyUrl string `json:"master_caddy_url"`
 
-	// Token for GitHub container registry authentication. Used to pull container images.
-	// Default: empty
-	GitHubRegistryToken string `json:"github_registry_token"`
+	// Registries holds authentication configuration for container registries.
+	// Default: empty (anonymous pulls)
+	Registries []RegistryConfig `json:"registries,omitempty"`
 
 	// Multicast address for herd communication.
 	HerdMcastAddress string `json:"herd_mcast_address"`

@@ -70,6 +70,14 @@ func (m *MockLoadDriver) StreamStderr(repository DeploymentsRepository, deployme
 	return nil
 }
 
+func (m *MockLoadDriver) ReadStdout(repository DeploymentsRepository, deployment Deployment, offset int64) ([]byte, int64, error) {
+	return nil, 0, nil
+}
+
+func (m *MockLoadDriver) ReadStderr(repository DeploymentsRepository, deployment Deployment, offset int64) ([]byte, int64, error) {
+	return nil, 0, nil
+}
+
 func createTestLoad(name, nodeName string, driverID LoadDriverID, driverConfig any) *Load {
 	node := &NodeConfig{Name: nodeName, Url: "http://test.com"}
 	driver := &MockLoadDriver{driver: driverID, driverConfig: driverConfig}

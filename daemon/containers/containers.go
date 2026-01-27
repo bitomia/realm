@@ -14,6 +14,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
@@ -370,7 +371,8 @@ func TryPullAndGetImage(ctx context.Context, client *containerd.Client, imageNam
 	if len(images) == 0 {
 		slog.Info("TryPullAndGetImage", "msg", "pulling image", "image", imageName)
 
-		image, err := client.Pull(ctx, imageName, containerd.WithPullUnpack)
+		pullOpts := cruntime.GetPullOptions(&config.Get().Daemon)
+		image, err := client.Pull(ctx, imageName, pullOpts...)
 		if err != nil {
 			slog.Error("TryPullAndGetImage", "error", err)
 			return nil, err

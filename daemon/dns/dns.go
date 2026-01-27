@@ -1,15 +1,22 @@
 package dns
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
 	"strings"
+	"sync"
 
 	"github.com/miekg/dns"
 
 	"github.com/bitomia/realm/daemon/db"
+)
+
+var (
+	udpServer *dns.Server
+	tcpServer *dns.Server
+	serverMu  sync.Mutex
 )
 
 func forwardRequest(w dns.ResponseWriter, r *dns.Msg) {
@@ -102,25 +109,64 @@ func UnregisterContainerDNS(containerName string) error {
 	return database.DeleteDNSRecord(key)
 }
 
-func Initialize() {
+func Initialize() error {
+	serverMu.Lock()
+	defer serverMu.Unlock()
+
 	dns.HandleFunc(".", HandleDNSRequest)
 
-	server := &dns.Server{Addr: ":15353", Net: "udp"}
+	udpServer = &dns.Server{Addr: ":15353", Net: "udp"}
+	tcpServer = &dns.Server{Addr: ":15353", Net: "tcp"}
+
+	errChan := make(chan error, 2)
+
 	go func() {
 		slog.Info("Starting DNS server on :15353 (UDP)")
-		if err := server.ListenAndServe(); err != nil {
+		if err := udpServer.ListenAndServe(); err != nil {
 			slog.Error("Failed to start DNS server", "error", err)
-			os.Exit(1)
+			errChan <- err
 		}
 	}()
 
-	tcpServer := &dns.Server{Addr: ":15353", Net: "tcp"}
 	go func() {
 		slog.Info("Starting DNS server on port :15353 (TCP)")
 		if err := tcpServer.ListenAndServe(); err != nil {
 			slog.Error("Failed to start DNS server", "error", err)
-			os.Exit(1)
+			errChan <- err
 		}
 	}()
 
+	return nil
+}
+
+func Shutdown(ctx context.Context) error {
+	serverMu.Lock()
+	defer serverMu.Unlock()
+
+	var firstErr error
+
+	if udpServer != nil {
+		slog.Info("Shutting down DNS server (UDP)")
+		if err := udpServer.ShutdownContext(ctx); err != nil {
+			slog.Error("Error shutting down UDP DNS server", "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+		udpServer = nil
+	}
+
+	if tcpServer != nil {
+		slog.Info("Shutting down DNS server (TCP)")
+		if err := tcpServer.ShutdownContext(ctx); err != nil {
+			slog.Error("Error shutting down TCP DNS server", "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+		tcpServer = nil
+	}
+
+	slog.Info("DNS servers stopped")
+	return firstErr
 }

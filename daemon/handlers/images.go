@@ -5,10 +5,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/bitomia/realm/daemon/cruntime"
-	"github.com/bitomia/realm/common/dto"
-	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
+
+	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/daemon/cruntime"
 )
 
 func toImagesResponse(images []images.Image) dto.ImagesResponse {
@@ -63,7 +64,8 @@ func PullImageHandler(w http.ResponseWriter, r *http.Request) {
 	defer client.Close()
 
 	slog.Info("PullImageHandler", "msg", "pulling image", "image", pullImage.Image)
-	image, err := client.Pull(ctx, pullImage.Image, containerd.WithPullUnpack)
+	pullOpts := cruntime.GetPullOptions(&config.Get().Daemon)
+	image, err := client.Pull(ctx, pullImage.Image, pullOpts...)
 	if err != nil {
 		slog.Error("PullImageHandler", "msg", "cannot pull image", "image", pullImage.Image, "error", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
