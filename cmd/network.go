@@ -40,64 +40,7 @@ var listNetworks = &cobra.Command{
 	},
 }
 
-var createNetwork = &cobra.Command{
-	Use:                   "create [node] [container]",
-	Short:                 "Create network",
-	DisableFlagsInUseLine: true,
-	Args:                  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
-		node := clientPkg.GetNode(args[0])
-
-		color.Blue("Creating network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.CreateNetwork(node.Url, args[1]); err != nil {
-			log.Error("%s", err.Error())
-		} else {
-			color.Green("Successfully created network for container %s\n", color.CyanString(args[1]))
-		}
-	},
-}
-
-var deleteNetwork = &cobra.Command{
-	Use:                   "delete [node] [container]",
-	Short:                 "Delete network",
-	DisableFlagsInUseLine: true,
-	Args:                  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
-		node := clientPkg.GetNode(args[0])
-
-		color.Blue("Deleting network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.DeleteNetwork(node.Url, args[1]); err != nil {
-			log.Error("%s", err.Error())
-		} else {
-			color.Green("Successfully deleted network for container %s\n", color.CyanString(args[1]))
-		}
-	},
-}
-
-var repairNetwork = &cobra.Command{
-	Use:                   "repair [node] [container]",
-	Short:                 "Repair container network configuration",
-	DisableFlagsInUseLine: true,
-	Args:                  cobra.ExactArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
-		node := clientPkg.GetNode(args[0])
-
-		color.Blue("Repairing network for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
-		if err := client.RepairNetwork(node.Url, args[1]); err != nil {
-			color.Red("Error repairing network: %v\n", err)
-		} else {
-			color.Green("Successfully repaired network for container %s\n", color.CyanString(args[1]))
-		}
-	},
-}
-
 func init() {
 	networkCmd.AddCommand(listNetworks)
-	networkCmd.AddCommand(createNetwork)
-	networkCmd.AddCommand(deleteNetwork)
-	networkCmd.AddCommand(repairNetwork)
 	rootCmd.AddCommand(networkCmd)
 }
