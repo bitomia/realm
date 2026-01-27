@@ -791,3 +791,13 @@ func (q QemuDriver) StreamStderr(repository common.DeploymentsRepository, deploy
 	// TODO
 	return nil
 }
+
+func (q QemuDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	// TODO
+	return nil, 0, nil
+}
+
+func (q QemuDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	// TODO
+	return nil, 0, nil
+}

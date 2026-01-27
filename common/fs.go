@@ -21,6 +21,27 @@ func isTruncated(file *os.File) (bool, error) {
 	return currentPos > fileInfo.Size(), nil
 }
 
+func ReadFileAt(filepath string, offset int64) ([]byte, int64, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer file.Close()
+
+	_, err = file.Seek(offset, io.SeekStart)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	endPos := offset + int64(len(data))
+	return data, endPos, nil
+}
+
 func TailFile(filepath string, w io.Writer) error {
 	slog.Debug("TailFile starting", "filepath", filepath)
 	file, err := os.Open(filepath)

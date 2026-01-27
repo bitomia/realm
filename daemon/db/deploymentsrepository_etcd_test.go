@@ -103,6 +103,14 @@ func (m mockLoadDriver) StreamStderr(repository common.DeploymentsRepository, de
 	return nil
 }
 
+func (m mockLoadDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	return nil, 0, nil
+}
+
+func (m mockLoadDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	return nil, 0, nil
+}
+
 func init() {
 	common.RegisterLoadDriver(mockLoadDriver{})
 }

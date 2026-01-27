@@ -381,3 +381,35 @@ func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, d
 
 	return common.TailFile(metadata.StderrPath, w)
 }
+
+func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ContainerDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return nil, 0, err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StdoutPath) == 0 {
+		return nil, 0, fmt.Errorf("stdout path empty")
+	}
+
+	return common.ReadFileAt(metadata.StdoutPath, offset)
+}
+
+func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		slog.Error("ContainerDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+		return nil, 0, err
+	} else {
+		json.Unmarshal(tmp, &metadata)
+	}
+
+	if len(metadata.StderrPath) == 0 {
+		return nil, 0, fmt.Errorf("stderr path empty")
+	}
+
+	return common.ReadFileAt(metadata.StderrPath, offset)
+}

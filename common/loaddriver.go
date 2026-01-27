@@ -57,4 +57,10 @@ type LoadDriver interface {
 
 	// Stream load stderr to writer
 	StreamStderr(repository DeploymentsRepository, deployment Deployment, w io.Writer) error
+
+	// Read load stdout from offset, returns bytes read and end position
+	ReadStdout(repository DeploymentsRepository, deployment Deployment, offset int64) ([]byte, int64, error)
+
+	// Read load stderr from offset, returns bytes read and end position
+	ReadStderr(repository DeploymentsRepository, deployment Deployment, offset int64) ([]byte, int64, error)
 }
