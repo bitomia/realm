@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/containerd/containerd"
@@ -14,12 +15,9 @@ import (
 )
 
 func createTask(ctx context.Context, container containerd.Container, containerName string, stdoutPath string, stderrPath string) (containerd.Task, error) {
-	if err := os.MkdirAll(stdoutPath, 0755); err != nil {
-		slog.Error("Failed to create containers log directory", "path", stdoutPath, "error", err.Error())
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-	if err := os.MkdirAll(stderrPath, 0755); err != nil {
-		slog.Error("Failed to create containers log directory", "path", stderrPath, "error", err.Error())
+	logDir := filepath.Dir(stdoutPath)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		slog.Error("Failed to create containers log directory", "path", logDir, "error", err.Error())
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 

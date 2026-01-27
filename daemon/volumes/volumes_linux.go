@@ -17,6 +17,12 @@ import (
 	zfs "github.com/bitomia/go-libzfs"
 )
 
+// ZFSVolumeManager implements VolumeManager using ZFS
+type ZFSVolumeManager struct{}
+
+// DirectoryVolumeManager implements VolumeManager using simple directories
+type DirectoryVolumeManager struct{}
+
 func datasetExists(volume string) bool {
 	parentPath, err := GetVolumesPath()
 	if err != nil {
@@ -44,7 +50,7 @@ func datasetExists(volume string) bool {
 	return false
 }
 
-func MountVolume(volume string) (string, error) {
+func (m *ZFSVolumeManager) MountVolume(volume string) (string, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return "", err
@@ -77,11 +83,11 @@ func MountVolume(volume string) (string, error) {
 	}
 }
 
-func IsVolume(volume string) bool {
+func (m *ZFSVolumeManager) IsVolume(volume string) bool {
 	return datasetExists(volume)
 }
 
-func CreateVolume(volume string) error {
+func (m *ZFSVolumeManager) CreateVolume(volume string) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		debug.PrintStack()
@@ -103,7 +109,7 @@ func CreateVolume(volume string) error {
 	return nil
 }
 
-func DeleteVolume(volume string, deferred bool) error {
+func (m *ZFSVolumeManager) DeleteVolume(volume string, deferred bool) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return err
@@ -136,7 +142,7 @@ func DeleteVolume(volume string, deferred bool) error {
 	return nil
 }
 
-func SetVolumeQuota(volume string, quotaSize string) error {
+func (m *ZFSVolumeManager) SetVolumeQuota(volume string, quotaSize string) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return err
@@ -152,7 +158,7 @@ func SetVolumeQuota(volume string, quotaSize string) error {
 	return nil
 }
 
-func DisableVolumeQuota(volume string) error {
+func (m *ZFSVolumeManager) DisableVolumeQuota(volume string) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return err
@@ -169,7 +175,7 @@ func DisableVolumeQuota(volume string) error {
 	return nil
 }
 
-func GetVolumeInfo(volume string) (*VolumeInfo, error) {
+func (m *ZFSVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return nil, err
@@ -198,6 +204,118 @@ func GetVolumeInfo(volume string) (*VolumeInfo, error) {
 	}, nil
 }
 
-func Init() error {
+func (m *ZFSVolumeManager) Init() error {
 	return zfs.Init()
+}
+
+// DirectoryVolumeManager implementation for Linux
+func (m *DirectoryVolumeManager) Init() error {
+	path, err := GetVolumesPath()
+
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *DirectoryVolumeManager) MountVolume(volume string) (string, error) {
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return "", err
+	}
+
+	// Check if the path exists
+	info, err := os.Stat(volumePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", fmt.Errorf("volume path does not exist: %s", volumePath)
+		}
+		return "", fmt.Errorf("failed to stat volume path: %v", err)
+	}
+
+	// Check it is a directory
+	if !info.IsDir() {
+		return "", fmt.Errorf("volume path is not a directory: %s", volumePath)
+	}
+
+	slog.Info("Volume mounted", "path", volumePath)
+	return volumePath, nil
+}
+
+func (m *DirectoryVolumeManager) IsVolume(volume string) bool {
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return false
+	}
+	info, err := os.Stat(volumePath)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+func (m *DirectoryVolumeManager) CreateVolume(volume string) error {
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return err
+	}
+
+	// Create the directory with appropriate permissions
+	err = os.MkdirAll(volumePath, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create volume directory: %v", err)
+	}
+
+	slog.Info("Volume created", "path", volumePath)
+	return nil
+}
+
+func (m *DirectoryVolumeManager) DeleteVolume(volume string, deferred bool) error {
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return err
+	}
+
+	// Check if the path exists
+	if _, err := os.Stat(volumePath); os.IsNotExist(err) {
+		return fmt.Errorf("volume does not exist: %s", volumePath)
+	}
+
+	// Remove the directory and all its contents
+	err = os.RemoveAll(volumePath)
+	if err != nil {
+		return fmt.Errorf("failed to delete volume: %v", err)
+	}
+
+	slog.Info("Volume deleted", "path", volumePath)
+	return nil
+}
+
+func (m *DirectoryVolumeManager) SetVolumeQuota(volume string, quotaSize string) error {
+	slog.Warn("SetVolumeQuota not supported with directory-based volumes", "volume", volume)
+	return fmt.Errorf("quota management not supported with directory-based volumes")
+}
+
+func (m *DirectoryVolumeManager) DisableVolumeQuota(volume string) error {
+	slog.Warn("DisableVolumeQuota not supported with directory-based volumes", "volume", volume)
+	return fmt.Errorf("quota management not supported with directory-based volumes")
+}
+
+func (m *DirectoryVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
+	volumePath, err := GetPathForVolume(volume)
+	if err != nil {
+		return nil, err
+	}
+
+	// For directory-based volumes, we can't get detailed quota information
+	// Just return basic info
+	return &VolumeInfo{
+		Name:  volumePath,
+		Quota: "none",
+		Used:  "unknown",
+	}, nil
 }

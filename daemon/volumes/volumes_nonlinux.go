@@ -10,7 +10,53 @@ import (
 	"os"
 )
 
-func MountVolume(volume string) (string, error) {
+// ZFSVolumeManager is not available on non-Linux systems
+type ZFSVolumeManager struct{}
+
+// DirectoryVolumeManager implements VolumeManager using simple directories
+type DirectoryVolumeManager struct{}
+
+// ZFSVolumeManager methods - all return errors on non-Linux
+func (m *ZFSVolumeManager) Init() error {
+	return errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) MountVolume(volume string) (string, error) {
+	return "", errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) IsVolume(volume string) bool {
+	return false
+}
+
+func (m *ZFSVolumeManager) CreateVolume(volume string) error {
+	return errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) DeleteVolume(volume string, deferred bool) error {
+	return errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) SetVolumeQuota(volume string, quotaSize string) error {
+	return errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) DisableVolumeQuota(volume string) error {
+	return errors.New("ZFS not supported on this platform")
+}
+
+func (m *ZFSVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
+	return nil, errors.New("ZFS not supported on this platform")
+}
+
+// DirectoryVolumeManager implementation for non-Linux systems
+
+func (m *DirectoryVolumeManager) Init() error {
+	// No initialization needed for directory-based volumes
+	return nil
+}
+
+func (m *DirectoryVolumeManager) MountVolume(volume string) (string, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return "", err
@@ -34,7 +80,7 @@ func MountVolume(volume string) (string, error) {
 	return volumePath, nil
 }
 
-func IsVolume(volume string) bool {
+func (m *DirectoryVolumeManager) IsVolume(volume string) bool {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return false
@@ -46,7 +92,7 @@ func IsVolume(volume string) bool {
 	return info.IsDir()
 }
 
-func CreateVolume(volume string) error {
+func (m *DirectoryVolumeManager) CreateVolume(volume string) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return err
@@ -62,7 +108,7 @@ func CreateVolume(volume string) error {
 	return nil
 }
 
-func DeleteVolume(volume string, deferred bool) error {
+func (m *DirectoryVolumeManager) DeleteVolume(volume string, deferred bool) error {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return err
@@ -83,14 +129,14 @@ func DeleteVolume(volume string, deferred bool) error {
 	return nil
 }
 
-func SetVolumeQuota(volume string, quotaSize string) error {
-	slog.Warn("SetVolumeQuota only supported on Linux", "volume", volume)
-	return errors.New("quota management only supported on Linux")
+func (m *DirectoryVolumeManager) SetVolumeQuota(volume string, quotaSize string) error {
+	slog.Warn("SetVolumeQuota not supported with directory-based volumes", "volume", volume)
+	return errors.New("quota management not supported with directory-based volumes")
 }
 
-func DisableVolumeQuota(volume string) error {
-	slog.Warn("DisableVolumeQuota only supported on Linux", "volume", volume)
-	return errors.New("quota management only supported on Linux")
+func (m *DirectoryVolumeManager) DisableVolumeQuota(volume string) error {
+	slog.Warn("DisableVolumeQuota not supported with directory-based volumes", "volume", volume)
+	return errors.New("quota management not supported with directory-based volumes")
 }
 
 // ValidateZFSAvailability is a no-op on non-Linux systems

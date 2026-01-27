@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func GetVolumeInfo(volume string) (*VolumeInfo, error) {
+func (m *DirectoryVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
 	volumePath, err := GetPathForVolume(volume)
 	if err != nil {
 		return nil, err

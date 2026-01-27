@@ -27,6 +27,12 @@ type DaemonConfig struct {
 	// Default: realm_volumes
 	VolumesPool string `json:"volumes_pool"`
 
+	// Enable ZFS for volume management.
+	// When true, uses ZFS-based volume implementation.
+	// When false, uses directory-based volume implementation.
+	// Default: false
+	ZFS bool `json:"zfs"`
+
 	// Address to bind the daemon API.
 	// Default: 127.0.0.1
 	ListenAddress string `json:"listen_address"`

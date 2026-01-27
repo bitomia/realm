@@ -64,7 +64,7 @@ func Start(purgeDB bool) {
 	slog.Info("Containerd version", "version", containerdVersion)
 
 	slog.Info("Initializing volumes")
-	if err := volumes.Init(); err != nil {
+	if err := volumes.InitializeManager(cfg.Daemon.ZFS); err != nil {
 		slog.Error("Volumes initialization failed", "error", err.Error())
 		os.Exit(1)
 	}
@@ -73,7 +73,11 @@ func Start(purgeDB bool) {
 		slog.Error("Cannot get volumes path", "error", err.Error())
 		os.Exit(1)
 	}
-	slog.Info("Volumes ready", "path", volumesPath)
+	if cfg.Daemon.ZFS {
+		slog.Info("Volumes ready (ZFS)", "path", volumesPath)
+	} else {
+		slog.Info("Volumes ready (directory-based)", "path", volumesPath)
+	}
 
 	slog.Info("Validating CNI availability")
 	if err := network.ValidateCNIAvailability(); err != nil {
