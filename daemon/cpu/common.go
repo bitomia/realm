@@ -137,3 +137,9 @@ func CollectNodeState(ctx context.Context, client *containerd.Client) (cpu.Times
 
 	return cpuStatB, cpuUsage, containers, nil
 }
+
+func GetCPUStat(s *cpu.TimesStat) (float64, float64) {
+	active := s.User + s.Nice + s.System
+	total := active + s.Idle
+	return active, total
+}

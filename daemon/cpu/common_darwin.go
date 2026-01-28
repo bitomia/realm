@@ -15,3 +15,11 @@ func GetMemLimit() float64 {
 	}
 	return float64(memsize)
 }
+
+func GetFreeStorage() (uint64, error) {
+	var fsStat unix.Statfs_t
+	if err := unix.Statfs("/", &fsStat); err != nil {
+		return 0, err
+	}
+	return fsStat.Bfree * uint64(fsStat.Bsize), nil
+}

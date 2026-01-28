@@ -4,6 +4,7 @@
 package cpu
 
 import (
+	"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -35,4 +36,23 @@ func GetMemLimit() float64 {
 	}
 
 	return float64(memStatus.ullTotalPhys)
+}
+
+func GetFreeStorage() (uint64, error) {
+	var freeBytesAvailable, totalBytes, totalFreeBytes uint64
+	rootPath, err := filepath.Abs("\\")
+	if err != nil {
+		rootPath = "C:\\"
+	}
+	pathPtr, err := windows.UTF16PtrFromString(rootPath)
+	if err != nil {
+		return 0, err
+	}
+
+	err = windows.GetDiskFreeSpaceEx(pathPtr, &freeBytesAvailable, &totalBytes, &totalFreeBytes)
+	if err != nil {
+		return 0, err
+	}
+
+	return totalFreeBytes, nil
 }

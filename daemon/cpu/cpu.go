@@ -1,6 +1,3 @@
-//go:build linux
-// +build linux
-
 package cpu
 
 import (
@@ -15,18 +12,11 @@ import (
 	"github.com/shirou/gopsutil/v4/load"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/process"
-	"golang.org/x/sys/unix"
 
 	"github.com/bitomia/realm/daemon/cruntime"
 
 	"github.com/bitomia/realm/common/dto"
 )
-
-func GetCPUStat(s *cpu.TimesStat) (float64, float64) {
-	active := s.User + s.Nice + s.System
-	total := active + s.Idle
-	return active, total
-}
 
 func GetNodeState() (*dto.NodeStateResponse, error) {
 	ctx, client, err := cruntime.CreateClient()
@@ -62,10 +52,7 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 	nodeState.UsedMem = memStat.Used
 	nodeState.FreeMem = memStat.Free
 	nodeState.FreeMemPercent = float64(memStat.Available) / float64(memStat.Total) * 100
-
-	var fsStat unix.Statfs_t
-	unix.Statfs("/", &fsStat)
-	nodeState.FreeStorage = fsStat.Bfree * uint64(fsStat.Bsize)
+	nodeState.FreeStorage, _ = GetFreeStorage()
 
 	// Get swap memory information
 	swapStat, err := mem.SwapMemory()

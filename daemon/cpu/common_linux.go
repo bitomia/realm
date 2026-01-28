@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 func GetMemLimit() float64 {
@@ -31,4 +33,12 @@ func GetMemLimit() float64 {
 		}
 	}
 	return float64(^uint64(0))
+}
+
+func GetFreeStorage() (uint64, error) {
+	var fsStat unix.Statfs_t
+	if err := unix.Statfs("/", &fsStat); err != nil {
+		return 0, err
+	}
+	return fsStat.Bfree * uint64(fsStat.Bsize), nil
 }
