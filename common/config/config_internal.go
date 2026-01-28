@@ -34,11 +34,15 @@ func setDefaults(networkConfig NetworkConfig) {
 		if programData == "" {
 			programData = "C:\\ProgramData"
 		}
+		programFiles := os.Getenv("ProgramFiles")
+		if programFiles == "" {
+			programFiles = "C:\\Program Files"
+		}
 		logsPath = filepath.Join(programData, "realm", "logs")
 		containersLogPath = filepath.Join(programData, "realm", "logs", "containers")
 		dataPath = filepath.Join(programData, "realm")
 		containerdSock = "npipe:////./pipe/containerd-containerd"
-		cniPath = filepath.Join(programData, "realm", "cni")
+		cniPath = filepath.Join(programFiles, "containerd", "cni", "bin")
 	} else {
 		// Linux/Unix default paths
 		logsPath = "/var/log/realm"

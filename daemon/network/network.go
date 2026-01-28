@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -34,7 +35,8 @@ const SUBNET_OFFSET = 256
 
 // Required CNI plugins
 var (
-	requiredCNIPlugins = []string{"bridge", "host-local", "firewall", "portmap"}
+	requiredCNIPlugins    = []string{"bridge", "host-local", "firewall", "portmap"}
+	winRequiredCNIPlugins = []string{"host-local.exe", "win-bridge.exe", "win-overlay.exe"}
 )
 
 type IPAddresses struct {
@@ -547,6 +549,10 @@ func ValidateCNIAvailability() error {
 	var missingPlugins []string
 
 	// Check each plugin
+	var requiredCNIPlugins = requiredCNIPlugins
+	if runtime.GOOS == "windows" {
+		requiredCNIPlugins = winRequiredCNIPlugins
+	}
 	for _, plugin := range requiredCNIPlugins {
 		pluginPath := filepath.Join(cniPath, plugin)
 		if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
@@ -554,7 +560,6 @@ func ValidateCNIAvailability() error {
 		}
 	}
 
-	// Report all missing plugins at once
 	if len(missingPlugins) > 0 {
 		return fmt.Errorf("missing required CNI plugins in %s: %s",
 			cniPath, strings.Join(missingPlugins, ", "))
