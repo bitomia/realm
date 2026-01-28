@@ -135,8 +135,6 @@ func Start(purgeDB bool) {
 		Handler: router,
 	}
 
-	fmt.Printf("\n%+v\n", cfg.Daemon.Registries)
-
 	go func() {
 		slog.Info("Daemon running", "addr", serverAddr)
 		server.ListenAndServe()
