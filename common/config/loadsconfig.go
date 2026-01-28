@@ -14,6 +14,11 @@ var (
 	loadsConfigGraph graph.Graph[string, string]
 )
 
+func resetLoadsConfig() {
+	loadsConfig = make(map[string]*common.Load)
+	loadsConfigGraph = nil
+}
+
 func newLoadConfig(loadName string, node *common.NodeConfig, driver common.LoadDriver) (*common.Load, error) {
 	if _, exists := loadsConfig[loadName]; exists {
 		return nil, fmt.Errorf("Load name not unique")

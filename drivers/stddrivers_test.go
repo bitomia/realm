@@ -95,12 +95,132 @@ loads:
     driver_config:
       start_cmd: nc
       stop_signal: SIGHUP
-      depends_on:
-        - web
+    depends_on:
+      - web
 `
 	config.ResetConfig()
 	err := config.InitFromBuffer(yamlConfig)
+	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "cycle detected"))
+}
+
+func TestContainerDriverBindMounts(t *testing.T) {
+	yamlConfig := `
+nodes:
+  bindmount_node:
+    url: http://192.168.1.54:9000
+    driver: linux
+
+loads:
+  bindmount_web:
+    node: bindmount_node
+    driver: container
+    driver_config:
+      image: docker.io/nginx
+      bind_mounts:
+        - source: ./si2
+          destination: /home/runner/si2
+        - source: ./entrypoint
+          destination: /home/runner/entrypoint
+        - source: /opt/si2_license
+          destination: /opt/si2_license
+          readonly: true
+        - source: /opt/terrainData
+          destination: /opt/terrainData
+`
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
+	assert.NoError(t, err)
+
+	loads := config.GetLoadsFromConfig()
+	assert.NotNil(t, loads)
+	assert.Len(t, loads, 1)
+
+	webLoad := loads["bindmount_web"]
+	assert.NotNil(t, webLoad)
+	assert.Equal(t, webLoad.Driver.GetLoadDriverID(), loadsPkg.ContainerDriverID)
+
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
+	assert.Equal(t, "docker.io/nginx", containerDriver.Config.Image)
+	assert.Len(t, containerDriver.Config.BindMounts, 4)
+
+	// Verify first bind mount
+	assert.Equal(t, "./si2", containerDriver.Config.BindMounts[0].Source)
+	assert.Equal(t, "/home/runner/si2", containerDriver.Config.BindMounts[0].Destination)
+	assert.False(t, containerDriver.Config.BindMounts[0].ReadOnly)
+
+	// Verify second bind mount
+	assert.Equal(t, "./entrypoint", containerDriver.Config.BindMounts[1].Source)
+	assert.Equal(t, "/home/runner/entrypoint", containerDriver.Config.BindMounts[1].Destination)
+	assert.False(t, containerDriver.Config.BindMounts[1].ReadOnly)
+
+	// Verify third bind mount (read-only)
+	assert.Equal(t, "/opt/si2_license", containerDriver.Config.BindMounts[2].Source)
+	assert.Equal(t, "/opt/si2_license", containerDriver.Config.BindMounts[2].Destination)
+	assert.True(t, containerDriver.Config.BindMounts[2].ReadOnly)
+
+	// Verify fourth bind mount
+	assert.Equal(t, "/opt/terrainData", containerDriver.Config.BindMounts[3].Source)
+	assert.Equal(t, "/opt/terrainData", containerDriver.Config.BindMounts[3].Destination)
+	assert.False(t, containerDriver.Config.BindMounts[3].ReadOnly)
+}
+
+func TestContainerDriverNoBindMounts(t *testing.T) {
+	yamlConfig := `
+nodes:
+  nomount_node:
+    url: http://192.168.1.54:9000
+    driver: linux
+
+loads:
+  nomount_web:
+    node: nomount_node
+    driver: container
+    driver_config:
+      image: docker.io/nginx
+`
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
+	assert.NoError(t, err)
+
+	loads := config.GetLoadsFromConfig()
+	assert.NotNil(t, loads)
+
+	webLoad := loads["nomount_web"]
+	assert.NotNil(t, webLoad)
+
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
+	assert.Nil(t, containerDriver.Config.BindMounts)
+}
+
+func TestContainerDriverEmptyBindMounts(t *testing.T) {
+	yamlConfig := `
+nodes:
+  emptymount_node:
+    url: http://192.168.1.54:9000
+    driver: linux
+
+loads:
+  emptymount_web:
+    node: emptymount_node
+    driver: container
+    driver_config:
+      image: docker.io/nginx
+      bind_mounts: []
+`
+	config.ResetConfig()
+	err := config.InitFromBuffer(yamlConfig)
+	assert.NoError(t, err)
+
+	loads := config.GetLoadsFromConfig()
+	assert.NotNil(t, loads)
+
+	webLoad := loads["emptymount_web"]
+	assert.NotNil(t, webLoad)
+
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
+	assert.NotNil(t, containerDriver.Config.BindMounts)
+	assert.Len(t, containerDriver.Config.BindMounts, 0)
 }
 
 func TestProcessDriverInvalidCmd(t *testing.T) {

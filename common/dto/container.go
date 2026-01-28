@@ -18,10 +18,16 @@ type MountVolume struct {
 	VolumeSize       *string `json:"volume_size,omitempty"`
 }
 
+type BindMount struct {
+	Source      string `json:"source"`      // Host path
+	Destination string `json:"destination"` // Container path
+	ReadOnly    bool   `json:"readonly,omitempty"`
+}
+
 type CreateContainerRequest struct {
 	Image       string         `json:"image"`
-	Owner       string         `json:"owner,omitempty"`
 	MountVolume *[]MountVolume `json:"mount_volume,omitempty"`
+	BindMounts  []BindMount    `json:"bind_mounts,omitempty"`
 	Env         []string       `json:"env,omitempty"`
 	Quotas      *Quotas        `json:"quotas,omitempty"`
 }

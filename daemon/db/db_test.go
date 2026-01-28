@@ -126,7 +126,7 @@ func TestContainer_CreateAndGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	container, err := db.CreateContainer("test-container", "nginx:latest", "testuser", common.LoadStart)
+	container, err := db.CreateContainer("test-container", "nginx:latest", common.LoadStart)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-container", container.ContainerName)
@@ -168,10 +168,10 @@ func TestContainer_GetAll(t *testing.T) {
 	assert.Len(t, containers, 0)
 
 	// Create multiple containers
-	_, err = db.CreateContainer("container1", "nginx:1", "user1", common.LoadStart)
+	_, err = db.CreateContainer("container1", "nginx:1", common.LoadStart)
 	assert.NoError(t, err)
 
-	_, err = db.CreateContainer("container2", "nginx:2", "user2", common.LoadStop)
+	_, err = db.CreateContainer("container2", "nginx:2", common.LoadStop)
 	assert.NoError(t, err)
 
 	containers, err = db.GetAllContainers()
@@ -199,7 +199,7 @@ func TestContainer_UpdateState(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	_, err := db.CreateContainer("test-container", "nginx:latest", "testuser", common.LoadStart)
+	_, err := db.CreateContainer("test-container", "nginx:latest", common.LoadStart)
 	assert.NoError(t, err)
 
 	state, err := db.UpdateContainerState("test-container", common.LoadStop)
@@ -224,7 +224,7 @@ func TestContainer_UpdateImage(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	_, err := db.CreateContainer("test-container", "nginx:1.0", "testuser", "running")
+	_, err := db.CreateContainer("test-container", "nginx:1.0", "running")
 	assert.NoError(t, err)
 
 	image, err := db.UpdateContainerImage("test-container", "nginx:2.0")
@@ -249,7 +249,7 @@ func TestContainer_Delete(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	_, err := db.CreateContainer("test-container", "nginx:latest", "testuser", "running")
+	_, err := db.CreateContainer("test-container", "nginx:latest", "running")
 	assert.NoError(t, err)
 
 	err = db.DeleteContainer("test-container")

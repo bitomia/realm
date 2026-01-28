@@ -197,6 +197,34 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		}
 	}
 
+	if len(opts.BindMounts) > 0 {
+		for _, bindMount := range opts.BindMounts {
+			if bindMount.Source == "" || bindMount.Destination == "" {
+				err := fmt.Errorf("bind mount: source and destination are required")
+				slog.Error("CreateContainer", "error", err)
+				return err
+			}
+
+			mountOpts := []string{"rbind"}
+			if bindMount.ReadOnly {
+				mountOpts = append(mountOpts, "ro")
+			} else {
+				mountOpts = append(mountOpts, "rw")
+			}
+
+			bindMountSpec := []specs.Mount{
+				{
+					Type:        "bind",
+					Source:      bindMount.Source,
+					Destination: bindMount.Destination,
+					Options:     mountOpts,
+				},
+			}
+			specOpts = append(specOpts, oci.WithMounts(bindMountSpec))
+			slog.Info("CreateContainer", "msg", "Added bind mount", "source", bindMount.Source, "destination", bindMount.Destination, "readonly", bindMount.ReadOnly)
+		}
+	}
+
 	if opts.Quotas != nil {
 		if opts.Quotas.MemLimit != nil {
 			memLimit := *opts.Quotas.MemLimit * 1024 * 1024
@@ -227,7 +255,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 	}
 
 	database := db.GetDB()
-	database.CreateContainer(containerName, opts.Image, opts.Owner, "")
+	database.CreateContainer(containerName, opts.Image, "")
 
 	return nil
 }

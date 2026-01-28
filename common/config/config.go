@@ -165,6 +165,8 @@ func GetVersion() string {
 
 func ResetConfig() {
 	config = nil
+	resetLoadsConfig()
+	resetNodesConfig()
 }
 
 func InitFromBuffer(buffer string) error {

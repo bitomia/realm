@@ -24,12 +24,12 @@ import (
 const ContainerDriverID common.LoadDriverID = "container"
 
 type ContainerConfig struct {
-	Image            string             `json:"image"`
-	Env              []string           `json:"env"`
-	Quotas           *dto.Quotas        `json:"quotas"`
-	VolumeMountPoint string             `json:"volume_mount_point"`
-	MountVolume      *dto.MountVolume   `json:"mount_volume"`
-	Network          *dto.NetworkConfig `json:"network,omitempty"`
+	Image       string             `json:"image"`
+	Env         []string           `json:"env"`
+	Quotas      *dto.Quotas        `json:"quotas"`
+	MountVolume *dto.MountVolume   `json:"mount_volume,omitempty"`
+	BindMounts  []dto.BindMount    `json:"bind_mounts,omitempty"`
+	Network     *dto.NetworkConfig `json:"network,omitempty"`
 }
 
 type ContainerDriver struct {
@@ -143,9 +143,10 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 	slog.Info("ContainerDriver.StartDeployment", "msg", "starting container", "container", containerName)
 
 	createOpts := dto.CreateContainerRequest{
-		Image:  c.Config.Image,
-		Quotas: c.Config.Quotas,
-		Env:    c.Config.Env,
+		Image:      c.Config.Image,
+		Quotas:     c.Config.Quotas,
+		Env:        c.Config.Env,
+		BindMounts: c.Config.BindMounts,
 	}
 
 	if err := containers.CreateContainer(containerName, createOpts, nil); err != nil {

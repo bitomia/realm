@@ -11,6 +11,10 @@ var (
 	nodesConfig map[string]*common.Node = make(map[string]*common.Node)
 )
 
+func resetNodesConfig() {
+	nodesConfig = make(map[string]*common.Node)
+}
+
 func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeDriver) (*common.Node, error) {
 	if _, exists := nodesConfig[nodeName]; exists {
 		return nil, fmt.Errorf("Node name not unique")

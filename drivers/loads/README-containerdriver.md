@@ -1,5 +1,87 @@
 # Container Driver
 
+## Volume Configuration
+
+The container driver supports two types of volume mounts:
+
+1. **Managed Volumes** (`mount_volume`) - System-created volumes with optional size quotas
+2. **Bind Mounts** (`bind_mounts`) - Direct host path mounts (similar to Docker's `-v` flag)
+
+### Bind Mounts
+
+Bind mounts allow you to mount existing host directories directly into the container:
+
+```yaml
+loads:
+  my_app:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/myapp:latest
+      bind_mounts:
+        - source: ./data
+          destination: /app/data
+        - source: /opt/config
+          destination: /opt/config
+          readonly: true
+        - source: /var/log/myapp
+          destination: /var/log/app
+```
+
+#### Bind Mount Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `source` | string | Yes | Path on the host machine (absolute or relative) |
+| `destination` | string | Yes | Path inside the container |
+| `readonly` | bool | No | Mount as read-only. Default: false |
+
+### Managed Volumes
+
+Managed volumes are created and managed by the system (ZFS-backed or directory-based). They support size quotas (only ZFS) and are **not automatically cleaned up** when containers are deleted:
+
+```yaml
+loads:
+  database:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/postgres:15
+      mount_volume:
+        - volume_mount_point: /var/lib/postgresql/data
+          volume_size: 10G
+```
+
+#### Managed Volume Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `volume_mount_point` | string | Yes | Path inside the container where the volume is mounted |
+| `volume_size` | string | No | Size quota for the volume (e.g., "10G", "500M") |
+
+### Example
+
+```yaml
+loads:
+  web_app:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/nginx:latest
+      # Bind mount for configuration (read-only)
+      bind_mounts:
+        - source: /opt/test/nginx.conf
+          destination: /etc/nginx/nginx.conf
+          readonly: true
+        - source: /opt/test/html
+          destination: /usr/share/nginx/html
+          readonly: true
+      # Managed volume for logs with quota
+      mount_volume:
+        - volume_mount_point: /var/log/nginx
+          volume_size: 1G
+```
+
 ## Network Configuration
 
 The container load driver supports automatic network configuration using CNI (Container Network Interface).
