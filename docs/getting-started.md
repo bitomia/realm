@@ -2,13 +2,18 @@
 
 ## Installation
 
+Realm running as client does not require any external dependencies. The following guidelines are only for Realm daemon.
+
 ### Linux
 
-TODO
+```
+sudo apt update
+sudo apt install -y containerd containernetworking-plugins zfsutils-linux zfs-dkms
+```
 
 ### Windows
 
-Realm can deploy native windows containers. Follow these steps to enable them on your Windows system:
+Realm daemon can deploy native windows containers. Follow these steps to enable them on your Windows system:
 
 1. Enable native Windows containers:
 
