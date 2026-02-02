@@ -5,11 +5,15 @@ import (
 	"io"
 	"log"
 	"log/slog"
+	"maps"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
+	"github.com/expr-lang/expr"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/viper"
 
@@ -235,8 +239,35 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 	for loadName, loadConfig := range config.Loads {
 		if loadConfig.Node == "" {
-			return fmt.Errorf("load '%s' has an empty node field", loadName)
+			return fmt.Errorf("load '%s' with empty node field", loadName)
 		}
+
+		env := map[string]any{
+			"nodes": slices.Collect(maps.Values(config.Nodes)),
+			"selectAny": func(slice []any) any {
+				if len(slice) == 0 {
+					return nil
+				}
+				return slice[rand.Intn(len(slice))]
+			},
+		}
+		program, err := expr.Compile(loadConfig.Node, expr.Env(env))
+		if err == nil {
+			output, err := expr.Run(program, env)
+			if err != nil {
+				fmt.Printf("%s\n", err)
+				panic(err)
+			}
+
+			if node, ok := output.(*common.NodeConfig); ok {
+				loadConfig.Node = node.Name
+			} else {
+				return fmt.Errorf("node '%s' evaluated as expression doesn't return a node", loadConfig.Node)
+			}
+		} else if !strings.Contains(err.Error(), "unknown name") {
+			panic(err)
+		}
+
 		node, exists := config.Nodes[loadConfig.Node]
 		if !exists {
 			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)

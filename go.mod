@@ -8,6 +8,7 @@ require (
 	github.com/containerd/containerd v1.7.28
 	github.com/containernetworking/cni v1.3.0
 	github.com/dominikbraun/graph v0.23.0
+	github.com/expr-lang/expr v1.17.7
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
