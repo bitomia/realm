@@ -30,6 +30,7 @@ type ContainerConfig struct {
 	MountVolume *[]dto.MountVolume `json:"mount_volume,omitempty"`
 	BindMounts  []dto.BindMount    `json:"bind_mounts,omitempty"`
 	Network     *dto.NetworkConfig `json:"network,omitempty"`
+	Args        []string           `json:"args,omitempty"`
 }
 
 type ContainerDriver struct {
@@ -148,6 +149,7 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		Env:         c.Config.Env,
 		MountVolume: c.Config.MountVolume,
 		BindMounts:  c.Config.BindMounts,
+		Args:        c.Config.Args,
 	}
 
 	if err := containers.CreateContainer(containerName, createOpts, nil); err != nil {

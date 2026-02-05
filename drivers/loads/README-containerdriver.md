@@ -1,5 +1,45 @@
 # Container Driver
 
+## Entrypoint Arguments
+
+You can pass custom arguments to the container's entrypoint using the `args` field:
+
+```yaml
+loads:
+  my_app:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/myapp:latest
+      args:
+        - "--port"
+        - "8080"
+        - "--verbose"
+```
+
+The `args` field is an array of strings that will be passed as arguments to the container's entrypoint. This is similar to the `CMD` in Dockerfiles or the command arguments in `docker run`.
+
+**Important Notes:**
+- These arguments override the default CMD from the image (if any)
+- The entrypoint defined in the image is preserved
+- If the image has no entrypoint, the args become the command to execute
+- Arguments are passed in order as specified in the array
+
+### Example with Arguments
+
+```yaml
+loads:
+  web_server:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/nginx:latest
+      args:
+        - "nginx"
+        - "-g"
+        - "daemon off;"
+```
+
 ## Volume Configuration
 
 The container driver supports two types of volume mounts:

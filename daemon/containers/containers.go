@@ -139,6 +139,10 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		oci.WithEnv(opts.Env),
 	}
 
+	if len(opts.Args) > 0 {
+		specOpts = append(specOpts, oci.WithProcessArgs(opts.Args...))
+	}
+
 	if extraSpecOpts != nil {
 		specOpts = append(specOpts, extraSpecOpts...)
 	}
