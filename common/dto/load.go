@@ -8,6 +8,7 @@ type LoadDeployment struct {
 	State        common.DeploymentState `json:"state"`
 	Driver       string                 `json:"driver"`
 	DriverConfig any                    `json:"driver_config"`
+	Metadata     any                    `json:"metadata,omitempty"`
 }
 
 type LoadsDeployments []LoadDeployment

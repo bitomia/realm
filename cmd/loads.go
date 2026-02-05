@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -99,6 +100,7 @@ var listLoads = &cobra.Command{
 
 		for _, load := range loads {
 			stateStr := ""
+			containerNames := []string{}
 			if nodeLoadsDeployments[load.Node.Url] == nil {
 				stateStr = color.RedString("unknown")
 			} else {
@@ -107,6 +109,17 @@ var listLoads = &cobra.Command{
 					stateStr = color.WhiteString("not deployed")
 				} else {
 					for _, d := range deployments {
+						// Extract container name from metadata if it's a container driver
+						if d.Driver == "container" && d.Metadata != nil {
+							var metadata map[string]interface{}
+							if metadataBytes, err := json.Marshal(d.Metadata); err == nil {
+								if err := json.Unmarshal(metadataBytes, &metadata); err == nil {
+									if containerName, ok := metadata["container_name"].(string); ok && containerName != "" {
+										containerNames = append(containerNames, containerName)
+									}
+								}
+							}
+						}
 						switch d.State {
 						case "running":
 							stateStr = fmt.Sprintf("%s %s", stateStr, color.GreenString("running"))
@@ -119,7 +132,11 @@ var listLoads = &cobra.Command{
 				}
 			}
 
-			color.White("%s (node %s) [%s]\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), strings.TrimSpace(stateStr))
+			containerInfo := ""
+			if len(containerNames) > 0 {
+				containerInfo = fmt.Sprintf(" [%s]", strings.Join(containerNames, ", "))
+			}
+			color.White("%s (node %s) [%s]%s\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), strings.TrimSpace(stateStr), containerInfo)
 			prettyJSON(load, "name", "node")
 		}
 	},
