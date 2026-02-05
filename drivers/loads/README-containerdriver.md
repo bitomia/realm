@@ -57,7 +57,16 @@ loads:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `volume_mount_point` | string | Yes | Path inside the container where the volume is mounted |
-| `volume_size` | string | No | Size quota for the volume (e.g., "10G", "500M") |
+| `volume_size` | string | No | Size quota for the volume (e.g., "10G", "500M"). Only enforced with ZFS volumes. |
+
+**Note on `volume_size`:**
+- **With ZFS volumes** (built with `make TAGS=zfs`): Quota is enforced at the ZFS dataset level
+- **With directory volumes** (default build): Quota is ignored with a warning logged. The volume is still created and mounted, but without size restrictions
+
+To use ZFS quotas, ensure:
+1. Realm is built with ZFS support: `make TAGS=zfs`
+2. ZFS pool is configured: `daemon.zfs: true` in config
+3. ZFS pool exists and is accessible
 
 ### Example
 

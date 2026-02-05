@@ -37,7 +37,16 @@ net start containerd
 
 ### Debian 12 setup
 
-To build realm you will need also to install some ZFS dependencies from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
+Install ansible:
+
+```shell
+apt update
+apt install ansible -y
+```
+
+#### Building with ZFS support (optional)
+
+ZFS volume support is optional and enabled at build time with the `zfs` build tag. To build with ZFS, you will need to install the ZFS development libraries from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
 
 Install backports as follows:
 
@@ -47,12 +56,26 @@ deb http://deb.debian.org/debian bookworm-backports main contrib non-free-firmwa
 EOF
 ```
 
-Now install the ZFS devel and ansible dependencies:
+Now install the ZFS development dependencies:
 
 ```shell
 apt update
-apt install zfsutils-linux libzfslinux-dev ansible -y
+apt install zfsutils-linux libzfslinux-dev -y
 ```
+
+Then build with:
+
+```shell
+make TAGS=zfs
+```
+
+Before starting the daemon with ZFS support, create the ZFS pool:
+
+```shell
+sudo zpool create realm_volumes /dev/sdX  # Replace /dev/sdX with your device
+```
+
+Without the `zfs` tag, Realm uses directory-based volumes which work on all platforms with no extra dependencies.
 
 ## Configuration
 
@@ -100,7 +123,7 @@ The daemon section configures the realm daemon behavior. All fields are optional
 daemon:
   data_path: /var/lib/realm                 # Path to store daemon data (ID and etcd) (default: /var/lib/realm on Linux)
   cni_path: /usr/lib/cni                    # Path to CNI plugins (default: /usr/lib/cni on Linux)
-  volumes_pool: realm_volumes               # Name of ZFS pool for volumes (default: realm_volumes)
+  volumes_pool: realm_volumes               # Name of the volumes pool (ZFS pool name or directory name) (default: realm_volumes)
   listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
   listen_port: 9000                         # Port to bind the daemon API (default: 9000)
   logs_path: /var/log/realm                 # Path to store daemon logs (default: /var/log/realm on Linux)

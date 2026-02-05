@@ -1,0 +1,25 @@
+daemon:
+  listen_address: 0.0.0.0
+  data_path: .
+
+nodes:
+  vps-1:
+    url: http://vps1:9000
+    driver: linux
+
+  vps-2:
+    url: http://vps1:9000
+    driver: linux
+
+loads:
+  web1:
+    node: selectAny(filter(nodes, .Name startsWith "vps-"))
+    driver: container
+    driver_config:
+      image: docker.io/library/nginx:latest
+      network:
+        network: web1-{{ uuid }}
+        portmap:
+          - host_port: 12346
+            container_port: 80
+            protocol: tcp        

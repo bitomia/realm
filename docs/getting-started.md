@@ -8,8 +8,17 @@ Realm running as client does not require any external dependencies. The followin
 
 ```
 sudo apt update
-sudo apt install -y containerd containernetworking-plugins zfsutils-linux zfs-dkms
+sudo apt install -y containerd containernetworking-plugins
 ```
+
+If Realm was built with ZFS support (`make TAGS=zfs`), install ZFS utilities and create the pool:
+
+```
+sudo apt install -y zfsutils-linux zfs-dkms
+sudo zpool create realm_volumes /dev/sdX  # Replace /dev/sdX with your device
+```
+
+Note: The pool name must match the `volumes_pool` configuration (default: `realm_volumes`).
 
 ### Windows
 

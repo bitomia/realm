@@ -1,5 +1,5 @@
-//go:build linux
-// +build linux
+//go:build linux && zfs
+// +build linux,zfs
 
 package volumes
 
@@ -20,8 +20,11 @@ import (
 // ZFSVolumeManager implements VolumeManager using ZFS
 type ZFSVolumeManager struct{}
 
-// DirectoryVolumeManager implements VolumeManager using simple directories
-type DirectoryVolumeManager struct{}
+func init() {
+	newZFSManager = func() VolumeManager {
+		return &ZFSVolumeManager{}
+	}
+}
 
 func datasetExists(volume string) bool {
 	parentPath, err := GetVolumesPath()
@@ -48,6 +51,27 @@ func datasetExists(volume string) bool {
 		}
 	}
 	return false
+}
+
+func (m *ZFSVolumeManager) Init() error {
+	if err := zfs.Init(); err != nil {
+		return fmt.Errorf("failed to initialize ZFS library: %w", err)
+	}
+
+	// Verify the ZFS pool exists
+	poolName, err := GetVolumesPath()
+	if err != nil {
+		return err
+	}
+
+	pool, err := zfs.DatasetOpen(poolName)
+	if err != nil {
+		return fmt.Errorf("ZFS pool '%s' does not exist or cannot be opened: %w", poolName, err)
+	}
+	pool.Close()
+
+	slog.Info("ZFS pool verified", "pool", poolName)
+	return nil
 }
 
 func (m *ZFSVolumeManager) MountVolume(volume string) (string, error) {
@@ -201,121 +225,5 @@ func (m *ZFSVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
 		Name:  volumePath,
 		Quota: quota.Value,
 		Used:  used.Value,
-	}, nil
-}
-
-func (m *ZFSVolumeManager) Init() error {
-	return zfs.Init()
-}
-
-// DirectoryVolumeManager implementation for Linux
-func (m *DirectoryVolumeManager) Init() error {
-	path, err := GetVolumesPath()
-
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(path, 0755); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *DirectoryVolumeManager) MountVolume(volume string) (string, error) {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return "", err
-	}
-
-	// Check if the path exists
-	info, err := os.Stat(volumePath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", fmt.Errorf("volume path does not exist: %s", volumePath)
-		}
-		return "", fmt.Errorf("failed to stat volume path: %v", err)
-	}
-
-	// Check it is a directory
-	if !info.IsDir() {
-		return "", fmt.Errorf("volume path is not a directory: %s", volumePath)
-	}
-
-	slog.Info("Volume mounted", "path", volumePath)
-	return volumePath, nil
-}
-
-func (m *DirectoryVolumeManager) IsVolume(volume string) bool {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return false
-	}
-	info, err := os.Stat(volumePath)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-func (m *DirectoryVolumeManager) CreateVolume(volume string) error {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return err
-	}
-
-	// Create the directory with appropriate permissions
-	err = os.MkdirAll(volumePath, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create volume directory: %v", err)
-	}
-
-	slog.Info("Volume created", "path", volumePath)
-	return nil
-}
-
-func (m *DirectoryVolumeManager) DeleteVolume(volume string, deferred bool) error {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return err
-	}
-
-	// Check if the path exists
-	if _, err := os.Stat(volumePath); os.IsNotExist(err) {
-		return fmt.Errorf("volume does not exist: %s", volumePath)
-	}
-
-	// Remove the directory and all its contents
-	err = os.RemoveAll(volumePath)
-	if err != nil {
-		return fmt.Errorf("failed to delete volume: %v", err)
-	}
-
-	slog.Info("Volume deleted", "path", volumePath)
-	return nil
-}
-
-func (m *DirectoryVolumeManager) SetVolumeQuota(volume string, quotaSize string) error {
-	slog.Warn("SetVolumeQuota not supported with directory-based volumes", "volume", volume)
-	return fmt.Errorf("quota management not supported with directory-based volumes")
-}
-
-func (m *DirectoryVolumeManager) DisableVolumeQuota(volume string) error {
-	slog.Warn("DisableVolumeQuota not supported with directory-based volumes", "volume", volume)
-	return fmt.Errorf("quota management not supported with directory-based volumes")
-}
-
-func (m *DirectoryVolumeManager) GetVolumeInfo(volume string) (*VolumeInfo, error) {
-	volumePath, err := GetPathForVolume(volume)
-	if err != nil {
-		return nil, err
-	}
-
-	// For directory-based volumes, we can't get detailed quota information
-	// Just return basic info
-	return &VolumeInfo{
-		Name:  volumePath,
-		Quota: "none",
-		Used:  "unknown",
 	}, nil
 }

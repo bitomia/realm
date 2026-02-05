@@ -175,10 +175,10 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 			// Set volume quota
 			if mount.VolumeSize != nil {
 				if err := volumes.SetVolumeQuota(volumeName, *mount.VolumeSize); err != nil {
-					return fmt.Errorf("Failed to enable volume quota for %s: %s", volumeName, err.Error())
+					slog.Warn("CreateContainer", "msg", "failed to set volume quota, continuing without quota", "volume", volumeName, "error", err)
+				} else {
+					slog.Info("CreateContainer", "volume", volumeName, "volumeSize", *mount.VolumeSize)
 				}
-
-				slog.Info("CreateContainer", "volume", volumeName, "volumeSize", *mount.VolumeSize)
 			}
 
 			if len(mountSource) == 0 {

@@ -36,10 +36,17 @@ type VolumeManager interface {
 
 var manager VolumeManager
 
+// newZFSManager is registered by volumes_zfs.go on linux via init().
+// On non-linux platforms it remains nil, and InitializeManager returns an error.
+var newZFSManager func() VolumeManager
+
 // InitializeManager initializes the appropriate volume manager based on configuration
 func InitializeManager(useZFS bool) error {
 	if useZFS {
-		manager = &ZFSVolumeManager{}
+		if newZFSManager == nil {
+			return errors.New("ZFS is not supported on this platform")
+		}
+		manager = newZFSManager()
 	} else {
 		manager = &DirectoryVolumeManager{}
 	}
