@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            binary_name: realm
+            asset_name: realm-linux-amd64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            binary_name: realm.exe
+            asset_name: realm-windows-amd64.exe
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: go.mod
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p bin
+          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}'"
+
+      - name: Compress binary (Unix)
+        if: matrix.goos != 'windows'
+        run: |
+          cd bin
+          tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.binary_name }}
+          sha256sum ${{ matrix.asset_name }}.tar.gz > ${{ matrix.asset_name }}.tar.gz.sha256
+
+      - name: Compress binary (Windows)
+        if: matrix.goos == 'windows'
+        run: |
+          cd bin
+          Compress-Archive -Path ${{ matrix.binary_name }} -DestinationPath ${{ matrix.asset_name }}.zip
+          (Get-FileHash ${{ matrix.asset_name }}.zip -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.asset_name }}.zip" | Out-File -FilePath ${{ matrix.asset_name }}.zip.sha256 -Encoding ASCII
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            bin/${{ matrix.asset_name }}.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_REALM_RELEASE_TOKEN }}
