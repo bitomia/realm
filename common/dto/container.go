@@ -30,7 +30,9 @@ type CreateContainerRequest struct {
 	BindMounts  []BindMount    `json:"bind_mounts,omitempty"`
 	Env         []string       `json:"env,omitempty"`
 	Quotas      *Quotas        `json:"quotas,omitempty"`
+	Entrypoint  *string        `json:"entrypoint,omitempty"`
 	Args        []string       `json:"args,omitempty"`
+	WorkingDir  *string        `json:"working_dir,omitempty"`
 }
 
 type UpdateContainerOpts struct {

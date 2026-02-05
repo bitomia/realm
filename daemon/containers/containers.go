@@ -46,6 +46,15 @@ func NewError(code int, format string, a ...any) *ContainerError {
 	return &ContainerError{code, fmt.Sprintf(format, a...)}
 }
 
+// GetHostNetworkSpecOpts returns OCI spec options for host network mode
+func GetHostNetworkSpecOpts() []oci.SpecOpts {
+	return []oci.SpecOpts{
+		oci.WithHostNamespace(specs.NetworkNamespace),
+		oci.WithHostHostsFile,
+		oci.WithHostResolvconf,
+	}
+}
+
 // GetContainerdVersion verifies that containerd version is accessible.
 // Returns the version information if successful, or nil if connection fails.
 func GetContainerdVersion() (*containerd.Version, error) {
@@ -139,8 +148,21 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		oci.WithEnv(opts.Env),
 	}
 
-	if len(opts.Args) > 0 {
+	// Handle entrypoint and args
+	// If entrypoint is set, combine it with args (if any)
+	if opts.Entrypoint != nil {
+		var processArgs = []string{*opts.Entrypoint}
+		if len(opts.Args) > 0 {
+			processArgs = append(processArgs, opts.Args...)
+		}
+		specOpts = append(specOpts, oci.WithProcessArgs(processArgs...))
+	} else if len(opts.Args) > 0 {
 		specOpts = append(specOpts, oci.WithProcessArgs(opts.Args...))
+	}
+
+	// Handle working directory
+	if opts.WorkingDir != nil {
+		specOpts = append(specOpts, oci.WithProcessCwd(*opts.WorkingDir))
 	}
 
 	if extraSpecOpts != nil {

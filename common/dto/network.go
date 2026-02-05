@@ -7,7 +7,8 @@ type Portmap struct {
 }
 
 type NetworkConfig struct {
-	Network string    `json:"network"`
+	Mode    string    `json:"mode,omitempty"`    // Network mode: "bridge" (default) or "host"
+	Network string    `json:"network,omitempty"` // Network name (only used in bridge mode)
 	IPMasq  bool      `json:"ip_masq,omitempty"`
 	DNS     bool      `json:"dns,omitempty"`
 	PortMap []Portmap `json:"portmap,omitempty"`

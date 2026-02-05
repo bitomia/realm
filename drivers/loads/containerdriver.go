@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/oci"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
 
@@ -30,7 +31,9 @@ type ContainerConfig struct {
 	MountVolume *[]dto.MountVolume `json:"mount_volume,omitempty"`
 	BindMounts  []dto.BindMount    `json:"bind_mounts,omitempty"`
 	Network     *dto.NetworkConfig `json:"network,omitempty"`
+	Entrypoint  *string            `json:"entrypoint,omitempty"`
 	Args        []string           `json:"args,omitempty"`
+	WorkingDir  *string            `json:"working_dir,omitempty"`
 }
 
 type ContainerDriver struct {
@@ -106,6 +109,41 @@ func (c ContainerDriver) Verify() error {
 	if c.Config.Image == "" {
 		return fmt.Errorf("Container image not specified")
 	}
+
+	// Validate network configuration
+	if c.Config.Network != nil {
+		mode := c.Config.Network.Mode
+		if mode == "" {
+			mode = "bridge" // default mode
+		}
+
+		// Validate mode is valid
+		if mode != "bridge" && mode != "host" {
+			return fmt.Errorf("Invalid network mode '%s': must be 'bridge' or 'host'", mode)
+		}
+
+		// If not using host mode, network name is required
+		if mode != "host" && c.Config.Network.Network == "" {
+			return fmt.Errorf("Network name is required when using bridge mode")
+		}
+
+		// Warn during planning if host mode has conflicting settings
+		if mode == "host" {
+			if len(c.Config.Network.PortMap) > 0 {
+				slog.Warn("ContainerDriver.Verify", "msg", "port_map will be ignored in host network mode")
+			}
+			if c.Config.Network.IPMasq {
+				slog.Warn("ContainerDriver.Verify", "msg", "ip_masq will be ignored in host network mode")
+			}
+			if c.Config.Network.DNS {
+				slog.Warn("ContainerDriver.Verify", "msg", "dns will be ignored in host network mode")
+			}
+			if c.Config.Network.Network != "" {
+				slog.Warn("ContainerDriver.Verify", "msg", "network name will be ignored in host network mode")
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -149,10 +187,19 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		Env:         c.Config.Env,
 		MountVolume: c.Config.MountVolume,
 		BindMounts:  c.Config.BindMounts,
+		Entrypoint:  c.Config.Entrypoint,
 		Args:        c.Config.Args,
+		WorkingDir:  c.Config.WorkingDir,
 	}
 
-	if err := containers.CreateContainer(containerName, createOpts, nil); err != nil {
+	// Prepare extra OCI spec options for host networking if needed
+	var extraSpecOpts []oci.SpecOpts
+	if c.Config.Network != nil && c.Config.Network.Mode == "host" {
+		slog.Info("ContainerDriver.StartDeployment", "msg", "using host network mode", "container", containerName)
+		extraSpecOpts = containers.GetHostNetworkSpecOpts()
+	}
+
+	if err := containers.CreateContainer(containerName, createOpts, extraSpecOpts); err != nil {
 		slog.Error("ContainerDriver.StartDeployment", "msg", "create container failed", "error", err)
 		return err
 	}
@@ -181,8 +228,8 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 
 	var gwAddressPtr *net.IP
 	var ipAddressPtr *net.IP
-	// Attach network if configured
-	if c.Config.Network != nil {
+	// Attach network if configured (only for bridge mode, not host mode)
+	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
 		slog.Info("ContainerDriver.StartDeployment", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
 
 		if err, _, gwAddress, ipAddress := network.StartNetwork(containerName, *c.Config.Network); err != nil {
@@ -276,7 +323,8 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 		slog.Warn("ContainerDriver.StopDeployment", "msg", "no task found for container", "container", containerName)
 	} else {
 		// Detach network before killing the task (network needs the netns which requires the process to be alive)
-		if c.Config.Network != nil {
+		// Only detach if not using host mode (host mode doesn't use CNI networking)
+		if c.Config.Network != nil && c.Config.Network.Mode != "host" {
 			slog.Info("ContainerDriver.StopDeployment", "msg", "detaching network", "container", containerName)
 			if err := network.DeleteNetwork(containerName); err != nil {
 				slog.Error("ContainerDriver.StopDeployment", "msg", "failed to detach network", "container", containerName, "error", err)

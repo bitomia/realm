@@ -1,4 +1,4 @@
-64;2500;0c# Realm - Simple container orchestration service
+# Realm - Simple container orchestration service
 
 Realm is a extendable, embeddable and simple orchestration service for different type of loads such as native processes or OCI containers.
 

@@ -1,8 +1,12 @@
 # Container Driver
 
-## Entrypoint Arguments
+## Entrypoint and Arguments
 
-You can pass custom arguments to the container's entrypoint using the `args` field:
+You can customize how your container starts using the `entrypoint` and `args` fields.
+
+### Using Arguments Only
+
+Pass custom arguments to the container's default entrypoint using the `args` field:
 
 ```yaml
 loads:
@@ -17,15 +21,23 @@ loads:
         - "--verbose"
 ```
 
-The `args` field is an array of strings that will be passed as arguments to the container's entrypoint. This is similar to the `CMD` in Dockerfiles or the command arguments in `docker run`.
+### Using Custom Entrypoint
 
-**Important Notes:**
-- These arguments override the default CMD from the image (if any)
-- The entrypoint defined in the image is preserved
-- If the image has no entrypoint, the args become the command to execute
-- Arguments are passed in order as specified in the array
+Override the image's entrypoint with a custom executable:
 
-### Example with Arguments
+```yaml
+loads:
+  custom_app:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/myapp:latest
+      entrypoint: /bin/sh
+```
+
+### Using Both Entrypoint and Arguments
+
+Combine a custom entrypoint with arguments:
 
 ```yaml
 loads:
@@ -34,11 +46,46 @@ loads:
     driver: container
     driver_config:
       image: docker.io/nginx:latest
+      entrypoint: /usr/local/bin/custom-wrapper.sh
       args:
         - "nginx"
         - "-g"
         - "daemon off;"
 ```
+
+**How It Works:**
+- **`entrypoint` only**: Runs the specified entrypoint with no additional arguments
+- **`args` only**: Passes arguments to the image's default entrypoint (or becomes the command if no entrypoint exists)
+- **Both `entrypoint` and `args`**: The entrypoint is executed with the args appended as arguments
+- **Neither set**: Uses the image's default entrypoint and CMD
+
+**Important Notes:**
+- The `entrypoint` field is an array of strings (first element is the executable, rest are its arguments)
+- The `args` field is an array of strings that are appended after the entrypoint
+- These override the image's default ENTRYPOINT and CMD respectively
+- Arguments are passed in order as specified in the array
+
+## Working Directory
+
+You can specify a custom working directory for the container process using the `working_dir` field. This sets the current working directory inside the container where the entrypoint/command will execute.
+
+```yaml
+loads:
+  my_app:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/myapp:latest
+      working_dir: /app/data
+      args:
+        - "./run.sh"
+```
+
+**Notes:**
+- If not specified, the image's default working directory (WORKDIR) is used
+- The path must be an absolute path inside the container
+- The directory must exist in the container image or be created by the entrypoint
+- This is equivalent to Docker's `--workdir` flag or the WORKDIR directive in Dockerfiles
 
 ## Volume Configuration
 
@@ -133,20 +180,47 @@ loads:
 
 ## Network Configuration
 
-The container load driver supports automatic network configuration using CNI (Container Network Interface).
+The container load driver supports two network modes:
+1. **Bridge Mode** (default) - CNI-based isolated networking with port mapping
+2. **Host Mode** - Container shares the host's network stack
 
 ## Features
 
-- Automatic network attachment when containers start
-- CNI-based networking with bridge, firewall, and portmap plugins
-- DNS registration for container discovery (`.realm.` domain)
-- Port mapping from host to container
-- IP masquerading support
-- Automatic network cleanup when containers stop
+- **Bridge Mode**: Automatic network attachment, CNI-based networking with bridge, firewall, and portmap plugins, DNS registration, port mapping, IP masquerading
+- **Host Mode**: Direct access to host network stack, no network isolation, all ports directly exposed on host
 
 ## Configuration
 
-### Basic Network Configuration
+### Host Network Mode
+
+Use host network mode to share the host's network stack with the container. This is useful when you need maximum network performance or need to bind to specific host interfaces.
+
+```yaml
+loads:
+  monitoring:
+    node: lab1
+    driver: container
+    driver_config:
+      image: docker.io/prometheus:latest
+      network:
+        mode: host
+```
+
+**Host Mode Behavior:**
+- Container uses host's network interfaces directly
+- All ports opened by the container are directly accessible on the host
+- No port mapping needed or allowed
+- No network isolation
+- Maximum network performance
+- Similar to Docker's `--network host`
+
+**Important:** When using `mode: "host"`, the following fields are ignored (with warnings):
+- `network` (network name)
+- `port_map`
+- `ip_masq`
+- `dns`
+
+### Basic Network Configuration (Bridge Mode)
 
 Add a `network` field to your container driver configuration:
 
@@ -224,14 +298,15 @@ loads:
 
 ## Network Configuration Reference
 
-### StartNetworkRequest Fields
+### NetworkConfig Fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `network` | string | Yes | Network name. Containers on the same network can communicate. |
-| `ip_masq` | bool | No | Enable IP masquerading (NAT) for outbound traffic. Default: false |
-| `dns` | bool | No | Register container in DNS for `.realm.` domain resolution. Default: false |
-| `port_map` | []Portmap | No | Port mappings from host to container |
+| `mode` | string | No | Network mode: "bridge" (default) or "host". Host mode shares the host's network stack. |
+| `network` | string | Conditional | Network name. Required for bridge mode. Ignored in host mode. |
+| `ip_masq` | bool | No | Enable IP masquerading (NAT) for outbound traffic. Default: false. Ignored in host mode. |
+| `dns` | bool | No | Register container in DNS for `.realm.` domain resolution. Default: false. Ignored in host mode. |
+| `port_map` | []Portmap | No | Port mappings from host to container. Ignored in host mode. |
 
 ### Portmap Fields
 
