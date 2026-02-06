@@ -23,7 +23,7 @@ func PlanAndRegisterLoadHandler(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("handlers.PlanAndRegisterLoadHandler", "load", load.Name, "driver", load.Driver)
 
-	planLoadInfo, err := api.PlanAndRegisterLoad(&load)
+	planLoadInfo, err := api.PlanLoad(&load)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -37,7 +37,7 @@ func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
 	slog.Info("handlers.StartLoadDeploymentsHandler", "loadName", loadName)
 
-	if err := api.StartLoadDeployments(loadName); err != nil {
+	if err := api.RunLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

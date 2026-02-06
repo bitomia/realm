@@ -176,7 +176,7 @@ func deleteBridge(bridgeName string) error {
 	return nil
 }
 
-func DeleteNetworkConfig(ctx context.Context, containerName string, pid uint32) error {
+func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) error {
 	cniPath := config.Get().Daemon.CniPath
 	// CNI path validated at daemon startup via ValidateCNIAvailability()
 	cniConfig := libcni.NewCNIConfig(filepath.SplitList(cniPath), nil)
@@ -386,7 +386,7 @@ func DeleteNetwork(containerName string) error {
 	}
 	dns.UnregisterContainerDNS(containerName)
 
-	if err := DeleteNetworkConfig(ctx, containerName, pid); err != nil {
+	if err := deleteNetworkConfig(ctx, containerName, pid); err != nil {
 		return err
 	}
 	return nil

@@ -3,12 +3,12 @@ package dto
 import "github.com/bitomia/realm/common"
 
 type LoadDeployment struct {
-	LoadName     string                  `json:"load_name"`
-	DeploymentId string                  `json:"deployment_id"`
-	Status       common.DeploymentStatus `json:"status"`
-	Driver       string                  `json:"driver"`
-	DriverConfig any                     `json:"driver_config"`
-	Metadata     any                     `json:"metadata,omitempty"`
+	LoadName         string                  `json:"load_name"`
+	DeploymentId     string                  `json:"deployment_id"`
+	DeploymentStatus common.DeploymentStatus `json:"deployment_stat"`
+	Driver           string                  `json:"driver"`
+	DriverConfig     any                     `json:"driver_config"`
+	Metadata         any                     `json:"metadata,omitempty"`
 }
 
 type LoadsDeployments []LoadDeployment

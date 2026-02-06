@@ -272,7 +272,7 @@ func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.Deploymen
 	return nil
 }
 
-func (r *EtcdDeploymentsRepository) GetByLoadAndStatus(loadName string, status common.DeploymentStatus) ([]common.Deployment, error) {
+func (r *EtcdDeploymentsRepository) GetByLoadAndStatus(loadName string, statusCode common.DeploymentStatusCode) ([]common.Deployment, error) {
 	deployments, err := r.GetByLoad(loadName)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (r *EtcdDeploymentsRepository) GetByLoadAndStatus(loadName string, status c
 
 	var filtered []common.Deployment
 	for _, d := range deployments {
-		if d.Status == status {
+		if d.Status.StatusCode == statusCode {
 			filtered = append(filtered, d)
 		}
 	}

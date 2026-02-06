@@ -1,6 +1,10 @@
 package common
 
-import "io"
+import (
+	"fmt"
+	"io"
+	"log/slog"
+)
 
 type LoadDriverID string
 
@@ -25,29 +29,31 @@ type LoadDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// PlanAndRegister validates prerequisites and creates a deployment in "planned" status.
+	// PlanDeployment validates prerequisites and creates a deployment in "planned" status.
 	// It shall check load requirements but it won't check depending loads.
 	// This is invoked within the daemon and does not affect client behavior.
+	//
 	// Returns the deployment ID for the planned deployment.
-	PlanAndRegister(repository DeploymentsRepository, loadName string) (DeploymentID, error)
+	PlanDeployment(repository DeploymentsRepository, loadName string) (DeploymentID, error)
 
-	// StartDeployment starts the load execution for an existing planned deployment.
-	// It transitions the deployment from "planned" to "running" status.
+	// UnplanDeployment removes a planned deployment with cleanup
+	// Only operates on deployments in "planned" status.
+	UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error
+
+	// RunDeployment starts the load execution for an existing planned deployment.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	StartDeployment(repository DeploymentsRepository, deployment Deployment) error
+	RunDeployment(repository DeploymentsRepository, deployment Deployment) error
 
 	// StopDeployment stops a running load execution within the daemon.
-	// Only operates on deployments in "running" status.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopDeployment(repository DeploymentsRepository, deployment Deployment) error
 
-	// UnplanDeployment removes a planned deployment without cleanup.
-	// Only operates on deployments in "planned" status.
-	UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error
+	// UpdateDeploymentStatus update and returns current state based on internal drivers factors.
+	UpdateDeploymentStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error)
 
 	// GetDriverConfig returns the configuration for this load driver.
 	GetDriverConfig() LoadDriverConfig
@@ -63,4 +69,9 @@ type LoadDriver interface {
 
 	// Read load stderr from offset, returns bytes read and end position
 	ReadStderr(repository DeploymentsRepository, deployment Deployment, offset int64) ([]byte, int64, error)
+}
+
+func SetDeploymentError(repository DeploymentsRepository, deployment Deployment, msg string, args ...any) error {
+	slog.Error(msg, args)
+	return repository.UpdateStatus(deployment.ID, DeploymentStatus{StatusCode: DeploymentStatusError, Reason: fmt.Sprintf(msg, args)})
 }

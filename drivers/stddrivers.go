@@ -9,6 +9,5 @@ import (
 func RegisterStdDrivers() {
 	common.RegisterLoadDriver(loads.ContainerDriver{})
 	common.RegisterLoadDriver(loads.ProcessDriver{})
-	common.RegisterLoadDriver(loads.QemuDriver{})
 	common.RegisterNodeDriver(nodes.LinuxDriver{})
 }

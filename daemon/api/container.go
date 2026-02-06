@@ -8,6 +8,7 @@ import (
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/volumes"
+	"github.com/containerd/containerd"
 )
 
 // ListContainers returns a list of all containers with their status
@@ -65,4 +66,34 @@ func ListContainers() (map[string]containers.ContainerInfo, error) {
 	}
 
 	return containersState, nil
+}
+
+func GetContainerStatus(containerName string) (containerd.Status, error) {
+	ctx, client, err := cruntime.CreateClient()
+	if err != nil {
+		return containerd.Status{}, fmt.Errorf("failed to create client: %w", err)
+	}
+	defer client.Close()
+
+	ctrData, err := client.ContainerService().Get(ctx, containerName)
+	if err != nil {
+		return containerd.Status{}, fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	ctr, err := client.LoadContainer(ctx, ctrData.ID)
+	if err != nil {
+		return containerd.Status{}, fmt.Errorf("failed to load container %s: %w", ctrData.ID, err)
+	}
+
+	task, err := ctr.Task(ctx, nil)
+	if err != nil {
+		return containerd.Status{}, err
+	}
+
+	status, err := task.Status(ctx)
+	if err != nil {
+		return containerd.Status{}, fmt.Errorf("failed to get status for container %s: %w", ctrData.ID, err)
+	}
+
+	return status, nil
 }

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
@@ -74,49 +73,4 @@ func StartContainer(containerName string, stdoutPath string, stderrPath string) 
 	}
 
 	return task, nil
-}
-
-func tryDeleteContainerTask(ctx context.Context, container containerd.Container, signal syscall.Signal) error {
-	task, _ := container.Task(ctx, nil)
-	if task != nil {
-		task.Kill(ctx, signal)
-		statusC, err := task.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		status := <-statusC
-		if status.Error() != nil {
-			return status.Error()
-		}
-
-		io := task.IO()
-		_, err = task.Delete(ctx)
-		if io != nil {
-			io.Close()
-		}
-
-		return err
-	}
-	return nil
-}
-
-func stopContainer(containerName string, signal syscall.Signal) error {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
-	container, err := client.LoadContainer(ctx, containerName)
-	if err != nil {
-		slog.Error("Failed to retrieve container on stop", "container", containerName, "error", err.Error())
-		return err
-	}
-
-	err = tryDeleteContainerTask(ctx, container, signal)
-	if err != nil {
-		slog.Error("Failed to delete task for container on stop", "container", containerName, "error", err.Error())
-		return err
-	}
-	return nil
 }

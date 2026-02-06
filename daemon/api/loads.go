@@ -25,22 +25,18 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 
 	var response dto.LoadsDeployments
 	for loadName, deployments := range loadDeployments {
-		var status common.DeploymentStatus
 		for _, d := range deployments {
-			switch d.Status {
-			case common.DeploymentStatusRunning:
-				status = common.DeploymentStatusRunning
-			case common.DeploymentStatusPlanned:
-				status = common.DeploymentStatusPlanned
+			status, err := d.LoadDriver.UpdateDeploymentStatus(database.DeploymentsRepository, d)
+			if err != nil {
+				return nil, err
 			}
-
 			response = append(response, dto.LoadDeployment{
-				LoadName:     loadName,
-				DeploymentId: d.ID.String(),
-				Status:       status,
-				Driver:       string(d.LoadDriver.GetLoadDriverID()),
-				DriverConfig: d.LoadDriver.GetDriverConfig().DriverConfig,
-				Metadata:     d.Metadata,
+				LoadName:         loadName,
+				DeploymentId:     d.ID.String(),
+				DeploymentStatus: status,
+				Driver:           string(d.LoadDriver.GetLoadDriverID()),
+				DriverConfig:     d.LoadDriver.GetDriverConfig().DriverConfig,
+				Metadata:         d.Metadata,
 			})
 		}
 	}
@@ -48,7 +44,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 	return &response, nil
 }
 
-func StartLoadDeployments(loadName string) error {
+func RunLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	// Get planned deployments for this load
@@ -64,7 +60,7 @@ func StartLoadDeployments(loadName string) error {
 	// Start all planned deployments
 	for _, deployment := range deployments {
 		slog.Info("loads.StartLoadHandler", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
-		if err := deployment.LoadDriver.StartDeployment(database.DeploymentsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.RunDeployment(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 		slog.Info("loads.StartLoadHandler", "msg", "load deployment started", "deploymentID", deployment.ID)
@@ -95,10 +91,10 @@ func StopLoadDeployments(loadName string) error {
 	return nil
 }
 
-func PlanAndRegisterLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
+func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	database := db.GetDB()
 
-	deploymentID, err := load.Driver.PlanAndRegister(database.DeploymentsRepository, load.Name)
+	deploymentID, err := load.Driver.PlanDeployment(database.DeploymentsRepository, load.Name)
 	if err != nil {
 		return nil, err
 	}

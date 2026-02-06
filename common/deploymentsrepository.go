@@ -8,12 +8,19 @@ import (
 
 type DeploymentID = uuid.UUID
 
-type DeploymentStatus string
+type DeploymentStatusCode string
 
 const (
-	DeploymentStatusPlanned DeploymentStatus = "planned"
-	DeploymentStatusRunning DeploymentStatus = "running"
+	DeploymentStatusPlanned DeploymentStatusCode = "planned"
+	DeploymentStatusRunning DeploymentStatusCode = "running"
+	DeploymentStatusStopped DeploymentStatusCode = "stopped"
+	DeploymentStatusError   DeploymentStatusCode = "error"
 )
+
+type DeploymentStatus struct {
+	StatusCode DeploymentStatusCode `json:"status"`
+	Reason     string               `json:"reason"`
+}
 
 // A deployment is the object created when a load has been loaded
 // in the cluster
@@ -40,7 +47,7 @@ type DeploymentsRepository interface {
 
 	GetAll() ([]Deployment, error)
 	GetByLoad(loadName string) ([]Deployment, error)
-	GetByLoadAndStatus(loadName string, status DeploymentStatus) ([]Deployment, error)
+	GetByLoadAndStatus(loadName string, statusCode DeploymentStatusCode) ([]Deployment, error)
 	GetDeployment(deploymentID DeploymentID) (*Deployment, error)
 
 	DeleteByLoad(loadName string) error

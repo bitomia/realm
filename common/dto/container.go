@@ -41,8 +41,3 @@ const (
 	ContainerStop        ContainerState = "stop"
 	ContainerStopFailed  ContainerState = "stop_failed"
 )
-
-type DeleteContainerOpts struct {
-	RemoveVolume    bool `json:"remove_volume,omitempty"`
-	RemoveSnapshots bool `json:"remove_snapshots,omitempty"`
-}
