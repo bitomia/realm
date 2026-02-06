@@ -291,7 +291,7 @@ func (d QemuDriver) PlanAndRegister(repository common.DeploymentsRepository, loa
 	}
 
 	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, d, common.DeploymentStatePlanned, QemuMetadata{})
+	did, err := repository.Create(loadName, d, common.DeploymentStatusPlanned, QemuMetadata{})
 	if err != nil {
 		slog.Error("QemuDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
@@ -445,8 +445,8 @@ func (d QemuDriver) buildQemuArgs(vmName string) []string {
 
 func (d QemuDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	loadName := deployment.LoadName
@@ -556,9 +556,9 @@ func (d QemuDriver) StartDeployment(repository common.DeploymentsRepository, dep
 		return fmt.Errorf("failed to update deployment metadata: %w", err)
 	}
 
-	// Update deployment state to "running"
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
-		slog.Error("QemuDriver.StartDeployment", "msg", "failed to update deployment state", "error", err)
+	// Update deployment status to "running"
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusRunning); err != nil {
+		slog.Error("QemuDriver.StartDeployment", "msg", "failed to update deployment status", "error", err)
 		// Try to stop the VM
 		d.killVM(pid, pidFile)
 		return err
@@ -667,8 +667,8 @@ func (d *QemuDriver) gracefulShutdownQMP(monitorPort int) error {
 
 func (d QemuDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "running" state
-	if deployment.State != common.DeploymentStateRunning {
-		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusRunning {
+		return fmt.Errorf("deployment %s is not in running status", deployment.ID)
 	}
 
 	slog.Info("QemuDriver.StopDeployment", "msg", "stopping QEMU VM", "deployment", deployment.ID)
@@ -735,10 +735,10 @@ cleanup:
 		return err
 	}
 
-	// Update deployment state back to "planned"
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {
-		slog.Error("QemuDriver.StopDeployment", "msg", "failed to update deployment state", "deploymentID", deployment.ID, "error", err)
-		return fmt.Errorf("failed to update deployment state: %w", err)
+	// Update deployment status back to "planned"
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusPlanned); err != nil {
+		slog.Error("QemuDriver.StopDeployment", "msg", "failed to update deployment status", "deploymentID", deployment.ID, "error", err)
+		return fmt.Errorf("failed to update deployment status: %w", err)
 	}
 
 	slog.Info("QEMU VM stopped successfully", "vmName", vmName)
@@ -747,8 +747,8 @@ cleanup:
 
 func (d QemuDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	slog.Info("QemuDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)

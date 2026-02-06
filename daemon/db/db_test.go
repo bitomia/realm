@@ -16,8 +16,8 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/dto"
 )
 
 const testConfig = `
@@ -126,12 +126,12 @@ func TestContainer_CreateAndGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	container, err := db.CreateContainer("test-container", "nginx:latest", common.LoadStart)
+	container, err := db.CreateContainer("test-container", "nginx:latest", dto.ContainerStart)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-container", container.ContainerName)
 	assert.Equal(t, "nginx:latest", container.Image)
-	assert.Equal(t, common.LoadStart, container.LastState)
+	assert.Equal(t, dto.ContainerStart, container.LastState)
 
 	// Retrieve the container
 	retrieved, err := db.GetContainer("test-container")
@@ -168,10 +168,10 @@ func TestContainer_GetAll(t *testing.T) {
 	assert.Len(t, containers, 0)
 
 	// Create multiple containers
-	_, err = db.CreateContainer("container1", "nginx:1", common.LoadStart)
+	_, err = db.CreateContainer("container1", "nginx:1", dto.ContainerStart)
 	assert.NoError(t, err)
 
-	_, err = db.CreateContainer("container2", "nginx:2", common.LoadStop)
+	_, err = db.CreateContainer("container2", "nginx:2", dto.ContainerStop)
 	assert.NoError(t, err)
 
 	containers, err = db.GetAllContainers()
@@ -193,31 +193,6 @@ func TestContainer_GetAll(t *testing.T) {
 	}
 	assert.True(t, names["container1"])
 	assert.True(t, names["container2"])
-}
-
-func TestContainer_UpdateState(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	_, err := db.CreateContainer("test-container", "nginx:latest", common.LoadStart)
-	assert.NoError(t, err)
-
-	state, err := db.UpdateContainerState("test-container", common.LoadStop)
-	assert.NoError(t, err)
-	assert.Equal(t, common.LoadStop, state)
-
-	// Verify the update
-	container, err := db.GetContainer("test-container")
-	assert.NoError(t, err)
-	assert.Equal(t, common.LoadStop, container.LastState)
-}
-
-func TestContainer_UpdateStateNonExistent(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	_, err := db.UpdateContainerState("nonexistent", common.LoadStop)
-	assert.Error(t, err)
 }
 
 func TestContainer_UpdateImage(t *testing.T) {

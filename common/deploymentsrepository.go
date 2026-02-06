@@ -8,14 +8,14 @@ import (
 
 type DeploymentID = uuid.UUID
 
-type DeploymentState string
+type DeploymentStatus string
 
 const (
-	DeploymentStatePlanned DeploymentState = "planned"
-	DeploymentStateRunning DeploymentState = "running"
+	DeploymentStatusPlanned DeploymentStatus = "planned"
+	DeploymentStatusRunning DeploymentStatus = "running"
 )
 
-// A deployment is the object create when a load has been loaded
+// A deployment is the object created when a load has been loaded
 // in the cluster
 // Notice it doesn't reference Load but contains an immutable copy
 // because a deployment cannot be modified directly, it must be
@@ -24,7 +24,7 @@ type Deployment struct {
 	ID         DeploymentID
 	LoadName   string
 	LoadDriver LoadDriver
-	State      DeploymentState
+	Status     DeploymentStatus
 	Metadata   any
 }
 
@@ -34,13 +34,13 @@ type Deployment struct {
 // this repository might be stored in a distributed database
 // so no memory references must be used
 type DeploymentsRepository interface {
-	Create(loadName string, driver LoadDriver, state DeploymentState, metadata any) (DeploymentID, error)
-	UpdateState(deploymentID DeploymentID, state DeploymentState) error
+	Create(loadName string, driver LoadDriver, status DeploymentStatus, metadata any) (DeploymentID, error)
+	UpdateStatus(deploymentID DeploymentID, status DeploymentStatus) error
 	UpdateMetadata(deploymentID DeploymentID, updateFn func(metadata any) error) error
 
 	GetAll() ([]Deployment, error)
 	GetByLoad(loadName string) ([]Deployment, error)
-	GetByLoadAndState(loadName string, state DeploymentState) ([]Deployment, error)
+	GetByLoadAndStatus(loadName string, status DeploymentStatus) ([]Deployment, error)
 	GetDeployment(deploymentID DeploymentID) (*Deployment, error)
 
 	DeleteByLoad(loadName string) error

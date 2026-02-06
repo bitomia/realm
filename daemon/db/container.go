@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/dto"
 )
 
 type Container struct {
-	ContainerName string           `json:"container_name"`
-	Image         string           `json:"image"`
-	LastState     common.LoadState `json:"last_state"`
+	ContainerName string             `json:"container_name"`
+	Image         string             `json:"image"`
+	LastState     dto.ContainerState `json:"last_state"`
 }
 
 func (db *DaemonDB) GetAllContainers() ([]Container, error) {
@@ -59,7 +59,7 @@ func (db *DaemonDB) GetContainer(containerName string) (Container, error) {
 	return container, nil
 }
 
-func (db *DaemonDB) CreateContainer(containerName string, image string, state common.LoadState) (Container, error) {
+func (db *DaemonDB) CreateContainer(containerName string, image string, state dto.ContainerState) (Container, error) {
 	container := Container{
 		ContainerName: containerName,
 		Image:         image,
@@ -85,39 +85,6 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, state co
 	}
 
 	return container, nil
-}
-
-func (db *DaemonDB) UpdateContainerState(containerName string, state common.LoadState) (common.LoadState, error) {
-	slog.Info("db.UpdateContainerState", "container", containerName, "state", state)
-
-	containerKey, err := db.containerKey(containerName)
-	if err != nil {
-		slog.Error("Error getting container key", "error", err.Error())
-		return "", err
-	}
-
-	err = db.OptimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
-		var container Container
-		if err := json.Unmarshal(currentValue, &container); err != nil {
-			slog.Error("Error unmarshaling container", "error", err.Error())
-			return nil, err
-		}
-
-		container.LastState = state
-
-		value, err := json.Marshal(container)
-		if err != nil {
-			slog.Error("Error marshaling container", "error", err.Error())
-			return nil, err
-		}
-		return value, nil
-	})
-
-	if err != nil {
-		return "", err
-	}
-
-	return state, nil
 }
 
 func (db *DaemonDB) UpdateContainerImage(containerName string, image string) (string, error) {

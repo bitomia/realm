@@ -120,13 +120,13 @@ var listLoads = &cobra.Command{
 								}
 							}
 						}
-						switch d.State {
+						switch d.Status {
 						case "running":
 							stateStr = fmt.Sprintf("%s %s", stateStr, color.GreenString("running"))
 						case "planned":
 							stateStr = fmt.Sprintf("%s %s", stateStr, color.YellowString("planned"))
 						default:
-							stateStr = fmt.Sprintf("%s %s", stateStr, string(d.State))
+							stateStr = fmt.Sprintf("%s %s", stateStr, string(d.Status))
 						}
 					}
 				}

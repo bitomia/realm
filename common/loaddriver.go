@@ -25,28 +25,28 @@ type LoadDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// PlanAndRegister validates prerequisites and creates a deployment in "planned" state.
+	// PlanAndRegister validates prerequisites and creates a deployment in "planned" status.
 	// It shall check load requirements but it won't check depending loads.
 	// This is invoked within the daemon and does not affect client behavior.
 	// Returns the deployment ID for the planned deployment.
 	PlanAndRegister(repository DeploymentsRepository, loadName string) (DeploymentID, error)
 
 	// StartDeployment starts the load execution for an existing planned deployment.
-	// It transitions the deployment from "planned" to "running" state.
+	// It transitions the deployment from "planned" to "running" status.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StartDeployment(repository DeploymentsRepository, deployment Deployment) error
 
 	// StopDeployment stops a running load execution within the daemon.
-	// Only operates on deployments in "running" state.
+	// Only operates on deployments in "running" status.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopDeployment(repository DeploymentsRepository, deployment Deployment) error
 
 	// UnplanDeployment removes a planned deployment without cleanup.
-	// Only operates on deployments in "planned" state.
+	// Only operates on deployments in "planned" status.
 	UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error
 
 	// GetDriverConfig returns the configuration for this load driver.

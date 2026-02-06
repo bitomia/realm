@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/db"
@@ -66,28 +65,4 @@ func ListContainers() (map[string]containers.ContainerInfo, error) {
 	}
 
 	return containersState, nil
-}
-
-// CreateContainer creates a new container with the given name and options
-func CreateContainer(containerName string, opts dto.CreateContainerRequest) error {
-	if err := containers.CreateContainer(containerName, opts, nil); err != nil {
-		return fmt.Errorf("failed to create container %s: %w", containerName, err)
-	}
-	return nil
-}
-
-// UpdateContainerState updates the state of a container
-func UpdateContainerState(containerName string, opts dto.UpdateContainerOpts) error {
-	if _, err := containers.UpdateContainerState(containerName, opts); err != nil {
-		return fmt.Errorf("failed to update container state %s: %w", containerName, err)
-	}
-	return nil
-}
-
-// RemoveContainer removes a container
-func RemoveContainer(containerName string, opts dto.DeleteContainerOpts) error {
-	if err := containers.DeleteContainer(containerName, opts, 15, true, true); err != nil {
-		return fmt.Errorf("failed to delete container %s: %w", containerName, err)
-	}
-	return nil
 }

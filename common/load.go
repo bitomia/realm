@@ -8,20 +8,8 @@ import (
 	"github.com/dominikbraun/graph"
 )
 
-type LoadState string
 type Hash [32]byte
 type LoadChain []*Load
-
-const (
-	// LoadStart indicates the load should be running
-	LoadStart LoadState = "start"
-	// LoadStartFailed indicates the load failed to start
-	LoadStartFailed LoadState = "start_failed"
-	// LoadStop indicates the load should be stopped
-	LoadStop LoadState = "stop"
-	// LoadStopFailed indicates the load failed to stop
-	LoadStopFailed LoadState = "stop_failed"
-)
 
 type LoadConfig struct {
 	Name           string       `json:"name"`
@@ -46,7 +34,6 @@ type Load struct {
 	Node       *NodeConfig
 	DependsOn  []*Load
 	Driver     LoadDriver
-	State      LoadState
 	StartChain LoadChain
 	StopChain  LoadChain
 }

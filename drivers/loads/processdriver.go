@@ -133,9 +133,9 @@ func (p ProcessDriver) PlanAndRegister(repository common.DeploymentsRepository, 
 	}
 
 	// Check for existing running deployments (only running ones should block)
-	deployments, err := repository.GetByLoadAndState(loadName, common.DeploymentStateRunning)
+	deployments, err := repository.GetByLoadAndStatus(loadName, common.DeploymentStatusRunning)
 	if err != nil {
-		slog.Error("ProcessDriver.PlanAndRegister", "msg", "Error on GetByLoadAndState", "error", err.Error())
+		slog.Error("ProcessDriver.PlanAndRegister", "msg", "Error on GetByLoadAndStatus", "error", err.Error())
 		return uuid.Nil, err
 	}
 	if len(deployments) > 0 {
@@ -143,7 +143,7 @@ func (p ProcessDriver) PlanAndRegister(repository common.DeploymentsRepository, 
 	}
 
 	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, p, common.DeploymentStatePlanned, ProcessEntryMetadata{})
+	did, err := repository.Create(loadName, p, common.DeploymentStatusPlanned, ProcessEntryMetadata{})
 	if err != nil {
 		slog.Error("ProcessDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
@@ -154,8 +154,8 @@ func (p ProcessDriver) PlanAndRegister(repository common.DeploymentsRepository, 
 
 func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	var args []string
@@ -211,8 +211,8 @@ func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, 
 		return err
 	}
 
-	// Update deployment state to "running"
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
+	// Update deployment status to "running"
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusRunning); err != nil {
 		return err
 	}
 
@@ -221,8 +221,8 @@ func (p ProcessDriver) StartDeployment(repository common.DeploymentsRepository, 
 
 func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "running" state
-	if deployment.State != common.DeploymentStateRunning {
-		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusRunning {
+		return fmt.Errorf("deployment %s is not in running status", deployment.ID)
 	}
 
 	signal := internal.IntToSyscallSignal(p.StopSignal)
@@ -241,7 +241,7 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 	select {
 	case <-done:
 		slog.Info("ProcessDriver.StopDeployment", "msg", "process exited", "pid", cmd.Process.Pid)
-		if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {
+		if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusPlanned); err != nil {
 			return fmt.Errorf("failed to update load state: %w", err)
 		}
 
@@ -262,8 +262,8 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 
 func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)

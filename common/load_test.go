@@ -87,7 +87,6 @@ func createTestLoad(name, nodeName string, driverID LoadDriverID, driverConfig a
 		Driver:    driver,
 		DependsOn: make([]*Load, 0),
 		Node:      node,
-		State:     LoadStop,
 	}
 
 	return load
@@ -178,7 +177,6 @@ func TestHashableLoadConfig_NilHandling(t *testing.T) {
 		Driver:    &MockLoadDriver{driver: "test", driverConfig: nil},
 		DependsOn: nil,
 		Node:      &NodeConfig{Name: "node1", Url: "http://test.com"},
-		State:     LoadStop,
 	}
 
 	hash := load.Hash()

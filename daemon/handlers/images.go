@@ -7,7 +7,6 @@ import (
 
 	"github.com/containerd/containerd/images"
 
-	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cruntime"
 )
@@ -44,33 +43,4 @@ func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(toImagesResponse(images))
-}
-
-func PullImageHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("PullImageHandler")
-
-	type PullImage struct {
-		Image string `json:"image"`
-	}
-	var pullImage PullImage
-	json.NewDecoder(r.Body).Decode(&pullImage)
-
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		slog.Error("PullImageHandler", "msg", "cannot create cruntime client", "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defer client.Close()
-
-	slog.Info("PullImageHandler", "msg", "pulling image", "image", pullImage.Image)
-	pullOpts := cruntime.GetPullOptions(&config.Get().Daemon)
-	image, err := client.Pull(ctx, pullImage.Image, pullOpts...)
-	if err != nil {
-		slog.Error("PullImageHandler", "msg", "cannot pull image", "image", pullImage.Image, "error", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	slog.Info("PullImageHandler", "msg", "image pulled", "image", pullImage.Image)
-	json.NewEncoder(w).Encode(image)
 }

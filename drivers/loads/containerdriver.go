@@ -162,7 +162,7 @@ func (c ContainerDriver) PlanAndRegister(repository common.DeploymentsRepository
 	}
 
 	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, c, common.DeploymentStatePlanned, ContainerEntryMetadata{})
+	did, err := repository.Create(loadName, c, common.DeploymentStatusPlanned, ContainerEntryMetadata{})
 	if err != nil {
 		slog.Error("ContainerDriver.PlanAndRegister", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
@@ -173,8 +173,8 @@ func (c ContainerDriver) PlanAndRegister(repository common.DeploymentsRepository
 
 func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	// Use loadName to create a unique container name
@@ -206,12 +206,7 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 
 	stdoutPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stdout.log", containerName))
 	stderrPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stderr.log", containerName))
-	updateOpts := dto.UpdateContainerOpts{
-		State:      common.LoadStart,
-		StdoutPath: stdoutPath,
-		StderrPath: stderrPath,
-	}
-	task, err := containers.UpdateContainerState(containerName, updateOpts)
+	task, err := containers.StartContainer(containerName, stdoutPath, stderrPath)
 	if err != nil {
 		slog.Error("ContainerDriver.StartDeployment", "msg", "update container state failed. rolling back...", "error", err)
 
@@ -273,9 +268,9 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 		return err
 	}
 
-	// Update deployment state to "running"
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStateRunning); err != nil {
-		slog.Error("ContainerDriver.StartDeployment", "msg", "failed to update deployment state", "error", err)
+	// Update deployment status to "running"
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusRunning); err != nil {
+		slog.Error("ContainerDriver.StartDeployment", "msg", "failed to update deployment status", "error", err)
 		return err
 	}
 
@@ -286,8 +281,8 @@ func (c ContainerDriver) StartDeployment(repository common.DeploymentsRepository
 
 func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "running" state
-	if deployment.State != common.DeploymentStateRunning {
-		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusRunning {
+		return fmt.Errorf("deployment %s is not in running status", deployment.ID)
 	}
 
 	slog.Info("ContainerDriver.StopDeployment", "msg", "stopping container", "deployment", deployment.ID)
@@ -372,7 +367,7 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	}
 
 	// Delete deployment from repository
-	if err := repository.UpdateState(deployment.ID, common.DeploymentStatePlanned); err != nil {
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatusPlanned); err != nil {
 		slog.Error("ContainerDriver.StopDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
 		return fmt.Errorf("failed to delete deployment: %w", err)
 	}
@@ -382,8 +377,8 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 
 func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Verify deployment is in "planned" state
-	if deployment.State != common.DeploymentStatePlanned {
-		return fmt.Errorf("deployment %s is not in planned state", deployment.ID)
+	if deployment.Status != common.DeploymentStatusPlanned {
+		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
 	}
 
 	slog.Info("ContainerDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)

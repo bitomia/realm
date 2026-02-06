@@ -47,7 +47,7 @@ func createTask(ctx context.Context, container containerd.Container, containerNa
 	return task, nil
 }
 
-func startContainer(containerName string, stdoutPath string, stderrPath string) (containerd.Task, error) {
+func StartContainer(containerName string, stdoutPath string, stderrPath string) (containerd.Task, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		return nil, err

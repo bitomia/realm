@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
-	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -23,7 +22,7 @@ import (
 )
 
 type DBContainerEntry struct {
-	LastState common.LoadState `json:"last_state"`
+	LastState dto.ContainerState `json:"last_state"`
 }
 
 type ContainerInfo struct {
@@ -78,7 +77,7 @@ func RepairContainer(c db.Container, stdoutPath string, stderrPath string) error
 	// 1. containers.last_status == containerd status
 
 	database := db.GetDB()
-	containerRow, err := database.GetContainer(c.ContainerName)
+	containerDbEntry, err := database.GetContainer(c.ContainerName)
 	if err != nil {
 		return err
 	}
@@ -102,8 +101,8 @@ func RepairContainer(c db.Container, stdoutPath string, stderrPath string) error
 		status, _ = task.Status(ctx)
 	}
 
-	shall_restart := (containerRow.LastState == common.LoadStart || containerRow.LastState == common.LoadStartFailed) && status.Status != containerd.Running
-	shall_stop := (containerRow.LastState == common.LoadStop || containerRow.LastState == common.LoadStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
+	shall_restart := (containerDbEntry.LastState == dto.ContainerStart || containerDbEntry.LastState == dto.ContainerStartFailed) && status.Status != containerd.Running
+	shall_stop := (containerDbEntry.LastState == dto.ContainerStop || containerDbEntry.LastState == dto.ContainerStopFailed) && (status.Status == containerd.Running || status.Status == containerd.Paused || status.Status == containerd.Pausing)
 
 	if shall_restart {
 		slog.Info("Restarting container", "container", c.ContainerName)
@@ -111,7 +110,7 @@ func RepairContainer(c db.Container, stdoutPath string, stderrPath string) error
 		if err != nil {
 			return err
 		}
-		_, err = startContainer(c.ContainerName, stdoutPath, stderrPath)
+		_, err = StartContainer(c.ContainerName, stdoutPath, stderrPath)
 		if err != nil {
 			return err
 		}
@@ -339,30 +338,6 @@ func DeleteContainer(containerName string, opts dto.DeleteContainerOpts, signal 
 		}
 	}
 	return nil
-}
-
-func UpdateContainerState(containerName string, opts dto.UpdateContainerOpts) (containerd.Task, error) {
-	switch opts.State {
-	case common.LoadStart:
-		database := db.GetDB()
-		if task, err := startContainer(containerName, opts.StdoutPath, opts.StderrPath); err != nil {
-			database.UpdateContainerState(containerName, common.LoadStartFailed)
-			return nil, err
-		} else {
-			database.UpdateContainerState(containerName, common.LoadStart)
-			return task, nil
-		}
-	case common.LoadStop:
-		database := db.GetDB()
-		if err := stopContainer(containerName, syscall.SIGTERM); err != nil {
-			database.UpdateContainerState(containerName, common.LoadStopFailed)
-		} else {
-			database.UpdateContainerState(containerName, common.LoadStop)
-		}
-	default:
-		return nil, fmt.Errorf("Unknown container state: %s", opts.State)
-	}
-	return nil, fmt.Errorf("Unexpected condition on UpdateContainerState")
 }
 
 func SendSignal(containerName string, signal syscall.Signal) error {

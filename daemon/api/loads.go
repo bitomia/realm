@@ -25,19 +25,19 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 
 	var response dto.LoadsDeployments
 	for loadName, deployments := range loadDeployments {
-		var state common.DeploymentState
+		var status common.DeploymentStatus
 		for _, d := range deployments {
-			switch d.State {
-			case common.DeploymentStateRunning:
-				state = common.DeploymentStateRunning
-			case common.DeploymentStatePlanned:
-				state = common.DeploymentStatePlanned
+			switch d.Status {
+			case common.DeploymentStatusRunning:
+				status = common.DeploymentStatusRunning
+			case common.DeploymentStatusPlanned:
+				status = common.DeploymentStatusPlanned
 			}
 
 			response = append(response, dto.LoadDeployment{
 				LoadName:     loadName,
 				DeploymentId: d.ID.String(),
-				State:        state,
+				Status:       status,
 				Driver:       string(d.LoadDriver.GetLoadDriverID()),
 				DriverConfig: d.LoadDriver.GetDriverConfig().DriverConfig,
 				Metadata:     d.Metadata,
@@ -52,7 +52,7 @@ func StartLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	// Get planned deployments for this load
-	deployments, err := database.DeploymentsRepository.GetByLoadAndState(loadName, common.DeploymentStatePlanned)
+	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusPlanned)
 	if err != nil {
 		return err
 	}
@@ -77,7 +77,7 @@ func StopLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	// Only get RUNNING deployments (not planned ones)
-	deployments, err := database.DeploymentsRepository.GetByLoadAndState(loadName, common.DeploymentStateRunning)
+	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusRunning)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func UnplanLoad(loadName string) error {
 	database := db.GetDB()
 
 	// Only get PLANNED deployments
-	deployments, err := database.DeploymentsRepository.GetByLoadAndState(loadName, common.DeploymentStatePlanned)
+	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusPlanned)
 	if err != nil {
 		return err
 	}

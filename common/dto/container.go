@@ -1,7 +1,5 @@
 package dto
 
-import "github.com/bitomia/realm/common"
-
 type CpuCFS struct {
 	CpuQuota  int64  `json:"quota"`
 	CpuPeriod uint64 `json:"period"`
@@ -35,11 +33,14 @@ type CreateContainerRequest struct {
 	WorkingDir  *string        `json:"working_dir,omitempty"`
 }
 
-type UpdateContainerOpts struct {
-	State      common.LoadState `json:"state"`
-	StdoutPath string           `json:"stdout_path"`
-	StderrPath string           `json:"stderr_path"`
-}
+type ContainerState string
+
+const (
+	ContainerStart       ContainerState = "start"
+	ContainerStartFailed ContainerState = "start_failed"
+	ContainerStop        ContainerState = "stop"
+	ContainerStopFailed  ContainerState = "stop_failed"
+)
 
 type DeleteContainerOpts struct {
 	RemoveVolume    bool `json:"remove_volume,omitempty"`

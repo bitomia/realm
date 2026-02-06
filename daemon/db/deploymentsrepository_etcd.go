@@ -18,15 +18,15 @@ type DeploymentValue struct {
 	ID               common.DeploymentID     `json:"id"`
 	LoadName         string                  `json:"load_name"`
 	LoadDriverConfig common.LoadDriverConfig `json:"load_driver_config"`
-	State            common.DeploymentState  `json:"state"`
+	Status           common.DeploymentStatus `json:"status"`
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, state common.DeploymentState, metadata any) (common.DeploymentID, error) {
+func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDriver, status common.DeploymentStatus, metadata any) (common.DeploymentID, error) {
 	deployment := DeploymentValue{
 		ID:               uuid.New(),
 		LoadName:         loadName,
-		State:            state,
+		Status:           status,
 		LoadDriverConfig: driver.GetDriverConfig(),
 		Metadata:         metadata,
 	}
@@ -120,7 +120,7 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 					ID:         deployment.ID,
 					LoadName:   loadName,
 					LoadDriver: loadDriver,
-					State:      deployment.State,
+					Status:     deployment.Status,
 					Metadata:   deployment.Metadata,
 				})
 			}
@@ -162,7 +162,7 @@ func (r *EtcdDeploymentsRepository) GetDeployment(deploymentID common.Deployment
 		ID:         deploymentValue.ID,
 		LoadName:   deploymentValue.LoadName,
 		LoadDriver: loadDriver,
-		State:      deploymentValue.State,
+		Status:     deploymentValue.Status,
 		Metadata:   deploymentValue.Metadata,
 	}, nil
 }
@@ -218,25 +218,25 @@ func (r *EtcdDeploymentsRepository) DeleteDeployment(deploymentID uuid.UUID) err
 	return nil
 }
 
-func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID, state common.DeploymentState) error {
+func (r *EtcdDeploymentsRepository) UpdateStatus(deploymentID common.DeploymentID, status common.DeploymentStatus) error {
 	deployment, err := r.getDeploymentValue(deploymentID)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "GetDeployment failed", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "GetDeployment failed", "error", err.Error())
 		return err
 	}
 
-	// Update state
-	deployment.State = state
+	// Update status
+	deployment.Status = status
 
 	deploymentJson, err := json.Marshal(*deployment)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "Marshalling deployment", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "Marshalling deployment", "error", err.Error())
 		return err
 	}
 
 	deploymentKey, err := r.db.deploymentKey(deploymentID)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "creating deployment key", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "creating deployment key", "error", err.Error())
 		return err
 	}
 
@@ -245,7 +245,7 @@ func (r *EtcdDeploymentsRepository) UpdateState(deploymentID common.DeploymentID
 	}
 
 	if _, err := r.db.txn(ops...); err != nil {
-		slog.Error("EtcdLoadsRepository.UpdateState", "deploymentID", deploymentID, "msg", "db put", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "db put", "error", err.Error())
 		return err
 	}
 
@@ -272,7 +272,7 @@ func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.Deploymen
 	return nil
 }
 
-func (r *EtcdDeploymentsRepository) GetByLoadAndState(loadName string, state common.DeploymentState) ([]common.Deployment, error) {
+func (r *EtcdDeploymentsRepository) GetByLoadAndStatus(loadName string, status common.DeploymentStatus) ([]common.Deployment, error) {
 	deployments, err := r.GetByLoad(loadName)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (r *EtcdDeploymentsRepository) GetByLoadAndState(loadName string, state com
 
 	var filtered []common.Deployment
 	for _, d := range deployments {
-		if d.State == state {
+		if d.Status == status {
 			filtered = append(filtered, d)
 		}
 	}
@@ -318,7 +318,7 @@ func (r *EtcdDeploymentsRepository) GetAll() ([]common.Deployment, error) {
 			ID:         deployment.ID,
 			LoadName:   deployment.LoadName,
 			LoadDriver: loadDriver,
-			State:      deployment.State,
+			Status:     deployment.Status,
 			Metadata:   deployment.Metadata,
 		})
 	}
