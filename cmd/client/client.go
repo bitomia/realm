@@ -446,12 +446,12 @@ func (c *Client) PlanLoad(load *common.Load) error {
 	return nil
 }
 
-func (c *Client) StartLoad(load *common.Load) error {
+func (c *Client) RunLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/run", load.Node.Url, load.Name)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {

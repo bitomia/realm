@@ -17,28 +17,21 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 		return nil, err
 	}
 
-	// Group deployments by load name
-	loadDeployments := make(map[string][]common.Deployment)
-	for _, d := range allDeployments {
-		loadDeployments[d.LoadName] = append(loadDeployments[d.LoadName], d)
-	}
-
 	var response dto.LoadsDeployments
-	for loadName, deployments := range loadDeployments {
-		for _, d := range deployments {
-			status, err := d.LoadDriver.UpdateDeploymentStatus(database.DeploymentsRepository, d)
-			if err != nil {
-				return nil, err
-			}
-			response = append(response, dto.LoadDeployment{
-				LoadName:         loadName,
-				DeploymentId:     d.ID.String(),
-				DeploymentStatus: status,
-				Driver:           string(d.LoadDriver.GetLoadDriverID()),
-				DriverConfig:     d.LoadDriver.GetDriverConfig().DriverConfig,
-				Metadata:         d.Metadata,
-			})
+	for _, d := range allDeployments {
+		status, err := d.LoadDriver.UpdateDeploymentStatus(database.DeploymentsRepository, d)
+		if err != nil {
+			slog.Error("GetLoadsDeployments", "error", err)
+			return nil, err
 		}
+		response = append(response, dto.LoadDeployment{
+			LoadName:         d.LoadName,
+			DeploymentId:     d.ID.String(),
+			DeploymentStatus: status,
+			Driver:           string(d.LoadDriver.GetLoadDriverID()),
+			DriverConfig:     d.LoadDriver.GetDriverConfig().DriverConfig,
+			Metadata:         d.Metadata,
+		})
 	}
 
 	return &response, nil
@@ -47,8 +40,8 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 func RunLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
-	// Get planned deployments for this load
-	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusPlanned)
+	// Get deployments for this load
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
 		return err
 	}
@@ -57,13 +50,23 @@ func RunLoadDeployments(loadName string) error {
 		return fmt.Errorf("No planned deployment found. Run 'plan' first.")
 	}
 
+	// Verify deployments are in planned state
+	for _, deployment := range deployments {
+		if deployment.Status.StatusCode != common.DeploymentStatusPlanned && deployment.Status.StatusCode != common.DeploymentStatusStopped {
+			err := fmt.Errorf("Cannot run deployment %s: deployments must be in planned or stopped state, but deployment is in %s state", deployment.ID, deployment.Status.StatusCode)
+			slog.Error("RunLoadDeployments", "deployment", deployment.ID, "msg", err)
+
+			return err
+		}
+	}
+
 	// Start all planned deployments
 	for _, deployment := range deployments {
-		slog.Info("loads.StartLoadHandler", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
+		slog.Info("RunLoadDeployments", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
 		if err := deployment.LoadDriver.RunDeployment(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
-		slog.Info("loads.StartLoadHandler", "msg", "load deployment started", "deploymentID", deployment.ID)
+		slog.Info("RunLoadDeployments", "msg", "load deployment started", "deploymentID", deployment.ID)
 	}
 
 	return nil
@@ -72,27 +75,52 @@ func RunLoadDeployments(loadName string) error {
 func StopLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
-	// Only get RUNNING deployments (not planned ones)
-	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusRunning)
+	// Get deployments for this load
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
 		return err
 	}
+
 	if len(deployments) == 0 {
 		return fmt.Errorf("No running deployments found")
 	}
 
+	// Verify deployments are in running state
 	for _, deployment := range deployments {
-		slog.Info("loads.StopLoadDeploymentsHandler", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		if deployment.Status.StatusCode != common.DeploymentStatusRunning {
+			err := fmt.Errorf("Cannot stop deployment %s: deployments must be in running state, but deployment is in %s state", deployment.ID, deployment.Status.StatusCode)
+			slog.Error("StopLoadDeployments", "deployment", deployment.ID, "msg", err)
+
+			return err
+		}
+	}
+
+	// Stop deployments
+	for _, deployment := range deployments {
+		slog.Info("StopLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
 		if err := deployment.LoadDriver.StopDeployment(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
-		slog.Info("loads.StopLoadDeploymentsHandler", "msg", "load deployments stopped", "deploymentID", deployment.ID)
+		slog.Info("StopLoadDeployments", "msg", "load deployments stopped", "deploymentID", deployment.ID)
 	}
 	return nil
 }
 
 func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	database := db.GetDB()
+
+	// Check if deployments already exist for this load
+	existingDeployments, err := database.DeploymentsRepository.GetByLoad(load.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(existingDeployments) > 0 {
+		err := fmt.Errorf("Cannot plan load: deployment already exists for load '%s'. Run 'unplan' first.", load.Name)
+		slog.Error("PlanLoad", "error", err)
+
+		return nil, err
+	}
 
 	deploymentID, err := load.Driver.PlanDeployment(database.DeploymentsRepository, load.Name)
 	if err != nil {
@@ -105,19 +133,27 @@ func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 func UnplanLoad(loadName string) error {
 	database := db.GetDB()
 
-	// Only get PLANNED deployments
-	deployments, err := database.DeploymentsRepository.GetByLoadAndStatus(loadName, common.DeploymentStatusPlanned)
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
 		return err
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No planned deployments found")
+		return fmt.Errorf("No deployments found")
+	}
+
+	// Verify deployments are in error or stopped state
+	for _, deployment := range deployments {
+		if deployment.Status.StatusCode != common.DeploymentStatusError && deployment.Status.StatusCode != common.DeploymentStatusStopped && deployment.Status.StatusCode != common.DeploymentStatusPlanned {
+			err := fmt.Errorf("Cannot unplan deployment %s: deployment must be in planned, stopped or error state. Current state is %s", deployment.ID, deployment.Status.StatusCode)
+			slog.Error("UnplanLoad", "error", err)
+
+			return err
+		}
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("loads.UnplanLoadHandler", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
-
+		slog.Info("UnplanLoad", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
 		if err := deployment.LoadDriver.UnplanDeployment(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}

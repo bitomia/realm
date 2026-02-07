@@ -11,8 +11,8 @@ import (
 	"github.com/bitomia/realm/daemon/api"
 )
 
-func PlanAndRegisterLoadHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.PlanAndRegisterLoadHandler")
+func PlanLoadHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.PlanLoadHandler")
 
 	var load common.Load
 	err := json.NewDecoder(r.Body).Decode(&load)
@@ -21,7 +21,7 @@ func PlanAndRegisterLoadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.PlanAndRegisterLoadHandler", "load", load.Name, "driver", load.Driver)
+	slog.Info("handlers.PlanLoadHandler", "load", load.Name, "driver", load.Driver)
 
 	planLoadInfo, err := api.PlanLoad(&load)
 	if err != nil {
@@ -33,9 +33,9 @@ func PlanAndRegisterLoadHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(planLoadInfo)
 }
 
-func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
+func RunLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("handlers.StartLoadDeploymentsHandler", "loadName", loadName)
+	slog.Info("handlers.RunLoadDeploymentsHandler", "loadName", loadName)
 
 	if err := api.RunLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -77,6 +77,7 @@ func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

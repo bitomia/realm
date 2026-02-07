@@ -153,11 +153,6 @@ func (p ProcessDriver) PlanDeployment(repository common.DeploymentsRepository, l
 }
 
 func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	// Verify deployment is in "planned" state
-	if deployment.Status.StatusCode != common.DeploymentStatusPlanned {
-		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
-	}
-
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -219,11 +214,6 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 }
 
 func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	// Verify deployment is in "running" state
-	if deployment.Status.StatusCode != common.DeploymentStatusRunning {
-		return fmt.Errorf("deployment %s is not in running status", deployment.ID)
-	}
-
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
 	forceKill := p.Config.ForceKill
@@ -264,10 +254,6 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 }
 
 func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	if deployment.Status.StatusCode != common.DeploymentStatusStopped && deployment.Status.StatusCode != common.DeploymentStatusError {
-		return fmt.Errorf("invalid deployment %s state", deployment.ID)
-	}
-
 	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
 
 	if deployment.Status.StatusCode == common.DeploymentStatusError {

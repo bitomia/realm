@@ -6,7 +6,6 @@ import (
 
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
-	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/volumes"
 	"github.com/containerd/containerd"
 )
@@ -24,16 +23,10 @@ func ListContainers() (map[string]containers.ContainerInfo, error) {
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
 
-	db := db.GetDB()
 	containersState := make(map[string]containers.ContainerInfo)
 
 	for _, c := range containersList {
 		var entry containers.ContainerInfo
-		dbContainerEntry, err := db.GetContainer(c.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get container %s from DB: %w", c.ID, err)
-		}
-		entry.DBEntry.LastState = dbContainerEntry.LastState
 
 		ctr, err := client.LoadContainer(ctx, c.ID)
 		if err != nil {
@@ -77,12 +70,12 @@ func GetContainerStatus(containerName string) (containerd.Status, error) {
 
 	ctrData, err := client.ContainerService().Get(ctx, containerName)
 	if err != nil {
-		return containerd.Status{}, fmt.Errorf("failed to list containers: %w", err)
+		return containerd.Status{}, err
 	}
 
 	ctr, err := client.LoadContainer(ctx, ctrData.ID)
 	if err != nil {
-		return containerd.Status{}, fmt.Errorf("failed to load container %s: %w", ctrData.ID, err)
+		return containerd.Status{}, err
 	}
 
 	task, err := ctr.Task(ctx, nil)
@@ -92,7 +85,7 @@ func GetContainerStatus(containerName string) (containerd.Status, error) {
 
 	status, err := task.Status(ctx)
 	if err != nil {
-		return containerd.Status{}, fmt.Errorf("failed to get status for container %s: %w", ctrData.ID, err)
+		return containerd.Status{}, err
 	}
 
 	return status, nil

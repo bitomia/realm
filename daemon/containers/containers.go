@@ -20,8 +20,8 @@ import (
 	"github.com/bitomia/realm/daemon/volumes"
 )
 
+// TODO remove
 type DBContainerEntry struct {
-	LastState dto.ContainerState `json:"last_state"`
 }
 
 type ContainerInfo struct {
@@ -255,10 +255,6 @@ func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVol
 		return fmt.Errorf("failed to delete container %s: %w", containerName, err)
 	}
 
-	if err := container.Delete(ctx, containerd.WithSnapshotCleanup); err != nil {
-		return fmt.Errorf("failed to delete container %s: %w", containerName, err)
-	}
-
 	if shallRemoveVolume {
 		err = volumes.DeleteVolume(containerName, false)
 		if err != nil {
@@ -270,7 +266,8 @@ func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVol
 
 	database := db.GetDB()
 	if err = database.DeleteContainer(containerName); err != nil {
-		return fmt.Errorf("Error while trying to delete container from DB", "container", container, "error", err.Error())
+		slog.Error("Error while trying to delete container from DB", "container", container, "error", err.Error())
+		return err
 	}
 
 	return nil

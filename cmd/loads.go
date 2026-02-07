@@ -99,19 +99,18 @@ var listLoads = &cobra.Command{
 		}
 
 		for _, load := range loads {
-			stateStr := ""
+			deploymentStatusStr := "unknown"
 			containerNames := []string{}
-			if nodeLoadsDeployments[load.Node.Url] == nil {
-				stateStr = color.RedString("unknown")
-			} else {
+
+			if nodeLoadsDeployments[load.Node.Url] != nil {
 				deployments, exists := nodeLoadsDeployments[load.Node.Url][load.Name]
 				if !exists {
-					stateStr = color.WhiteString("not deployed")
+					deploymentStatusStr = "not deployed"
 				} else {
 					for _, d := range deployments {
 						// Extract container name from metadata if it's a container driver
 						if d.Driver == "container" && d.Metadata != nil {
-							var metadata map[string]interface{}
+							var metadata map[string]any
 							if metadataBytes, err := json.Marshal(d.Metadata); err == nil {
 								if err := json.Unmarshal(metadataBytes, &metadata); err == nil {
 									if containerName, ok := metadata["container_name"].(string); ok && containerName != "" {
@@ -123,15 +122,15 @@ var listLoads = &cobra.Command{
 
 						switch d.DeploymentStatus.StatusCode {
 						case common.DeploymentStatusRunning:
-							stateStr = fmt.Sprintf("%s %s", stateStr, color.GreenString("running"))
+							deploymentStatusStr = fmt.Sprintf("%s", color.GreenString("running"))
 						case common.DeploymentStatusPlanned:
-							stateStr = fmt.Sprintf("%s %s", stateStr, color.BlueString("planned"))
+							deploymentStatusStr = fmt.Sprintf("%s", color.HiBlueString("planned"))
 						case common.DeploymentStatusStopped:
-							stateStr = fmt.Sprintf("%s %s", stateStr, color.YellowString("stopped"))
+							deploymentStatusStr = fmt.Sprintf("%s", color.YellowString("stopped"))
 						case common.DeploymentStatusError:
-							stateStr = fmt.Sprintf("%s %s", stateStr, color.RedString("stopped"))
+							deploymentStatusStr = fmt.Sprintf("%s %s", color.RedString("error"), d.DeploymentStatus.Reason)
 						default:
-							stateStr = fmt.Sprintf("%s %s", stateStr, string(d.DeploymentStatus.StatusCode))
+							deploymentStatusStr = fmt.Sprintf("%s", string(d.DeploymentStatus.StatusCode))
 						}
 					}
 				}
@@ -141,15 +140,15 @@ var listLoads = &cobra.Command{
 			if len(containerNames) > 0 {
 				containerInfo = fmt.Sprintf(" [%s]", strings.Join(containerNames, ", "))
 			}
-			color.White("%s (node %s) [%s]%s\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), strings.TrimSpace(stateStr), containerInfo)
+			color.White("%s (node %s) [%s]%s\n", color.CyanString(load.Name), color.YellowString(load.Node.Name), strings.TrimSpace(deploymentStatusStr), containerInfo)
 			prettyJSON(load, "name", "node")
 		}
 	},
 }
 
-var startLoads = &cobra.Command{
-	Use:                   "start [--all | load...]",
-	Short:                 "Start loads (must be planned first)",
+var runLoads = &cobra.Command{
+	Use:                   "run [--all | load...]",
+	Short:                 "Run loads (must be planned first)",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -164,9 +163,9 @@ var startLoads = &cobra.Command{
 			for _, l := range startChain {
 				if _, exists := loaded[l.Name]; !exists {
 					loaded[l.Name] = true
-					log.Info(" -> Starting load %s", color.CyanString(l.Name))
-					if err := client.StartLoad(l); err != nil {
-						log.Fatal("Starting load failed: %s", err.Error())
+					log.Info(" -> Running load %s", color.CyanString(l.Name))
+					if err := client.RunLoad(l); err != nil {
+						log.Fatal("Running load failed: %s", err.Error())
 					}
 				}
 			}
@@ -290,16 +289,16 @@ var stderrLoad = &cobra.Command{
 }
 
 func init() {
-	startLoads.Flags().Bool("all", false, "All loads (cluster mode)")
-	planLoads.Flags().Bool("all", false, "All loads (cluster mode)")
-	listLoads.Flags().Bool("all", false, "All loads (cluster mode)")
-	stopLoads.Flags().Bool("all", false, "All loads (cluster mode)")
-	unplanLoads.Flags().Bool("all", false, "All loads (cluster mode)")
+	runLoads.Flags().Bool("all", false, "All loads")
+	planLoads.Flags().Bool("all", false, "All loads")
+	listLoads.Flags().Bool("all", false, "All loads")
+	stopLoads.Flags().Bool("all", false, "All loads")
+	unplanLoads.Flags().Bool("all", false, "All loads")
 
 	loadsCmd.AddCommand(graphLoads)
 	loadsCmd.AddCommand(listLoads)
 	loadsCmd.AddCommand(planLoads)
-	loadsCmd.AddCommand(startLoads)
+	loadsCmd.AddCommand(runLoads)
 	loadsCmd.AddCommand(stdoutLoad)
 	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)

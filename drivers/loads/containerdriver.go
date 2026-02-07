@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/oci"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
@@ -171,10 +172,6 @@ func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository,
 }
 
 func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	if deployment.Status.StatusCode != common.DeploymentStatusStopped && deployment.Status.StatusCode != common.DeploymentStatusError {
-		return fmt.Errorf("deployment %s not in valid state", deployment.ID)
-	}
-
 	slog.Info("ContainerDriver.UnplanDeployment", "msg", "unplanning deployment", "deployment", deployment.ID)
 
 	// Clean-up if error
@@ -205,11 +202,6 @@ unplan_deployment:
 }
 
 func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	// Verify deployment is in "planned" state
-	if deployment.Status.StatusCode != common.DeploymentStatusPlanned {
-		return fmt.Errorf("deployment %s is not in planned status", deployment.ID)
-	}
-
 	// Use loadName to create a unique container name
 	containerName := fmt.Sprintf("%s-%s", deployment.LoadName, uuid.New())
 	slog.Info("ContainerDriver.RunDeployment", "msg", "starting container", "container", containerName)
@@ -306,11 +298,6 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 }
 
 func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	// Verify deployment is in "running" state
-	if deployment.Status.StatusCode != common.DeploymentStatusRunning {
-		return fmt.Errorf("deployment %s is not in running state", deployment.ID)
-	}
-
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
 		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
@@ -362,9 +349,11 @@ func (c ContainerDriver) cleanupContainer(containerName string, signal syscall.S
 }
 
 func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+	slog.Info("ContainerDriver.UpdateDeploymentStatus", "deployment", d.ID)
+
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(d.Metadata); err != nil {
-		slog.Error("ContainerDriver.GetDeploymentStatus", "error", "error on retrieving metadata", "deployment", d.ID)
+		slog.Error("ContainerDriver.UpdateDeploymentStatus", "error", "error on retrieving metadata", "deployment", d.ID)
 		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
 	} else {
 		json.Unmarshal(tmp, &metadata)
@@ -372,11 +361,18 @@ func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, 
 
 	status, err := api.GetContainerStatus(metadata.ContainerName)
 	if err != nil {
-		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
+		slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "getting container status failed ", "deployment", d.ID, "err", err)
+
+		if errdefs.IsNotFound(err) {
+			if d.Status.StatusCode == common.DeploymentStatusPlanned || d.Status.StatusCode == common.DeploymentStatusStopped {
+				return d.Status, nil
+			} else {
+				return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
+			}
+		}
 	}
 
 	s := common.DeploymentStatus{}
-
 	switch status.Status {
 	case containerd.Pausing:
 	case containerd.Running:
@@ -393,7 +389,7 @@ func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, 
 		return common.DeploymentStatus{}, err
 	}
 
-	return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: fmt.Sprintf("container state is %v", status.Status)}, nil
+	return s, nil
 }
 
 func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {

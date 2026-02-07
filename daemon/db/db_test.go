@@ -131,14 +131,12 @@ func TestContainer_CreateAndGet(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "test-container", container.ContainerName)
 	assert.Equal(t, "nginx:latest", container.Image)
-	assert.Equal(t, dto.ContainerStart, container.LastState)
 
 	// Retrieve the container
 	retrieved, err := db.GetContainer("test-container")
 	assert.NoError(t, err)
 	assert.Equal(t, container.ContainerName, retrieved.ContainerName)
 	assert.Equal(t, container.Image, retrieved.Image)
-	assert.Equal(t, container.LastState, retrieved.LastState)
 }
 
 func TestContainer_GetNonExistent(t *testing.T) {

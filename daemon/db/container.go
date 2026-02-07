@@ -10,9 +10,8 @@ import (
 )
 
 type Container struct {
-	ContainerName string             `json:"container_name"`
-	Image         string             `json:"image"`
-	LastState     dto.ContainerState `json:"last_state"`
+	ContainerName string `json:"container_name"`
+	Image         string `json:"image"`
 }
 
 func (db *DaemonDB) GetAllContainers() ([]Container, error) {
@@ -63,7 +62,6 @@ func (db *DaemonDB) CreateContainer(containerName string, image string, state dt
 	container := Container{
 		ContainerName: containerName,
 		Image:         image,
-		LastState:     state,
 	}
 
 	value, err := json.Marshal(container)
