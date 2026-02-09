@@ -378,8 +378,6 @@ func (c ContainerDriver) cleanupContainer(containerName string, signal syscall.S
 }
 
 func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
-	slog.Info("ContainerDriver.UpdateDeploymentStatus", "deployment", d.ID)
-
 	metadata, err := getContainerMetadata(d)
 	if err != nil {
 		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
