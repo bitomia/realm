@@ -387,14 +387,15 @@ func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, 
 
 	status, err := api.GetContainerStatus(metadata.ContainerName)
 	if err != nil {
-		slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "getting container status failed ", "deployment", d.ID, "err", err)
-
 		if errdefs.IsNotFound(err) {
 			if d.Status.StatusCode == common.DeploymentStatusPlanned || d.Status.StatusCode == common.DeploymentStatusStopped {
 				return d.Status, nil
 			} else {
+				slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "not found container status", "deployment", d.ID, "err", err)
 				return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
 			}
+		} else {
+			slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "getting container status failed ", "deployment", d.ID, "err", err)
 		}
 	}
 
