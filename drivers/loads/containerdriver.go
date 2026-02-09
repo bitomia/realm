@@ -231,13 +231,14 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 	stderrPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stderr.log", containerName))
 	task, err := containers.StartContainer(containerName, stdoutPath, stderrPath)
 	if err != nil {
-		slog.Error("ContainerDriver.RunDeployment", "msg", "update container state failed. rolling back...", "error", err)
+		err = fmt.Errorf("update container state failed. rolling back: %s", err.Error())
+		slog.Error("ContainerDriver.RunDeployment", "msg", "rolling back update container", "error", err)
 
 		// Delete container if it failed
-		err := containers.DeleteContainer(containerName, syscall.SIGKILL, false)
-		if err != nil {
+		if err := containers.DeleteContainer(containerName, syscall.SIGKILL, false); err != nil {
 			slog.Error("ContainerDriver.RunDeployment", "msg", "delete container on rolling back failed", "error", err)
 		}
+
 		return err
 	}
 
@@ -249,7 +250,8 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 		slog.Info("ContainerDriver.RunDeployment", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
 
 		if err, _, gwAddress, ipAddress := network.StartNetwork(containerName, *c.Config.Network); err != nil {
-			slog.Error("ContainerDriver.RunDeployment", "msg", "failed to attach network. rolling back...", "error", err)
+			err = fmt.Errorf("failed to attach network. rolling back: %s", err.Error())
+			slog.Error("ContainerDriver.RunDeployment", "msg", "failed to attach network", "error", err)
 
 			// Kill the task
 			if task != nil {
@@ -268,7 +270,8 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 			if err := containers.DeleteContainer(containerName, syscall.SIGKILL, true); err != nil {
 				slog.Error("ContainerDriver.RunDeployment", "msg", "delete container on network rollback failed", "error", err)
 			}
-			return fmt.Errorf("failed to attach network: %w", err)
+
+			return err
 		}
 
 		slog.Info("ContainerDriver.RunDeployment", "msg", "network attached successfully", "container", containerName)
@@ -291,7 +294,6 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 	}
 
 	slog.Info("ContainerDriver.RunDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
-
 	return nil
 }
 

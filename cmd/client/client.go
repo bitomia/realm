@@ -510,6 +510,38 @@ func (c *Client) StopLoad(load *common.Load) error {
 	return nil
 }
 
+func (c *Client) KillLoad(load *common.Load) error {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s", string(body))
+	}
+
+	return nil
+}
+
 func (c *Client) UnplanLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,

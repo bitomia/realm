@@ -52,7 +52,7 @@ type LoadDriver interface {
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	StopDeployment(repository DeploymentsRepository, deployment Deployment) error
 
-	// KillDeployment stops immediatly  a running load execution within the daemon.
+	// KillDeployment stops immediately a running load execution within the daemon.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository

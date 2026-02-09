@@ -57,11 +57,23 @@ func StopLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func UnplanLoadHandler(w http.ResponseWriter, r *http.Request) {
+func KillLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("handlers.UnplanLoadHandler", "loadName", loadName)
+	slog.Info("handlers.KillLoadDeploymentsHandler", "loadName", loadName)
 
-	if err := api.UnplanLoad(loadName); err != nil {
+	if err := api.KillLoadDeployments(loadName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func UnplanLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+	slog.Info("handlers.UnplanLoadDeploymentsHandler", "loadName", loadName)
+
+	if err := api.UnplanLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

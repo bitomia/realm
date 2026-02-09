@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/oci"
 	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -227,27 +228,29 @@ func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVol
 	}
 
 	task, err := container.Task(ctx, nil)
-	if err != nil {
+	// skip not found errors because we want to delete the container and associated resources, and
+	// in this case we can ignore when the task is already not found
+	if err != nil && !errdefs.IsNotFound(err) {
 		return fmt.Errorf("failed to retrieve container task %s: %w", containerName, err)
 	}
 
 	if task != nil {
 		if err := task.Kill(ctx, signal); err != nil {
-			slog.Error("ContainerDriver.cleanupContainer", "msg", "failed to kill task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.DeleteContainer", "msg", "failed to kill task", "container", containerName, "error", err)
 		}
 
 		statusC, err := task.Wait(ctx)
 		if err != nil {
-			slog.Error("ContainerDriver.cleanupContainer", "msg", "failed to wait for task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.DeleteContainer", "msg", "failed to wait for task", "container", containerName, "error", err)
 		} else {
 			status := <-statusC
 			if status.Error() != nil {
-				slog.Error("ContainerDriver.cleanupContainer", "msg", "task exited with error", "container", containerName, "error", status.Error())
+				slog.Error("ContainerDriver.DeleteContainer", "msg", "task exited with error", "container", containerName, "error", status.Error())
 			}
 		}
 
 		if _, err := task.Delete(ctx); err != nil {
-			slog.Error("ContainerDriver.cleanupContainert", "msg", "failed to delete task", "container", containerName, "error", err)
+			slog.Error("ContainerDriver.DeleteContainert", "msg", "failed to delete task", "container", containerName, "error", err)
 		}
 	}
 

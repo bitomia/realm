@@ -8,11 +8,13 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
+	process "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/bitomia/realm/common"
 	configPkg "github.com/bitomia/realm/common/config"
@@ -217,7 +219,7 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
-	if err := proc.Signal(signal); err != nil {
+	if err := proc.SendSignal(signal); err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
@@ -284,7 +286,13 @@ func (p ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d 
 			}
 		}
 	} else {
-		status.StatusCode = common.DeploymentStatusRunning
+		// Process might be running or defunct
+		// Status code is stopped if it's defunct
+		if defunct, _ := isDefunct(proc); defunct == true {
+			status.StatusCode = common.DeploymentStatusStopped
+		} else {
+			status.StatusCode = common.DeploymentStatusRunning
+		}
 	}
 
 	if err := r.UpdateStatus(d.ID, status); err != nil {
@@ -347,7 +355,7 @@ func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deplo
 	return common.ReadFileAt(metadata.StderrPath, offset)
 }
 
-func retrieveProcess(deployment common.Deployment) (*os.Process, error) {
+func retrieveProcess(deployment common.Deployment) (*process.Process, error) {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
 		return nil, nil
@@ -356,7 +364,7 @@ func retrieveProcess(deployment common.Deployment) (*os.Process, error) {
 		return nil, nil
 	}
 
-	process, err := os.FindProcess(metadata.Pid)
+	p, err := os.FindProcess(metadata.Pid)
 	if err != nil {
 		return nil, err
 	}
@@ -366,12 +374,12 @@ func retrieveProcess(deployment common.Deployment) (*os.Process, error) {
 		// for the given pid, regardless of whether the process exists. To test whether
 		// the process actually exists, see whether p.Signal(syscall.Signal(0)) reports
 		// an error.
-		if err := process.Signal(syscall.Signal(0)); err != nil {
+		if err := p.Signal(syscall.Signal(0)); err != nil {
 			return nil, err
 		}
 	}
 
-	return process, nil
+	return process.NewProcess(int32(metadata.Pid))
 }
 
 func getProcessMetadata(d common.Deployment) (*ProcessEntryMetadata, error) {
@@ -386,4 +394,15 @@ func getProcessMetadata(d common.Deployment) (*ProcessEntryMetadata, error) {
 		}
 	}
 	return &metadata, nil
+}
+
+func isDefunct(p *process.Process) (bool, error) {
+	statuses, err := p.Status()
+	if err != nil {
+		return false, err
+	}
+	if slices.Contains(statuses, process.Zombie) {
+		return true, nil
+	}
+	return false, nil
 }

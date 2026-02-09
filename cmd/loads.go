@@ -198,6 +198,31 @@ var stopLoads = &cobra.Command{
 	},
 }
 
+var killLoads = &cobra.Command{
+	Use:                   "kill [--all | load...]",
+	Short:                 "Kill loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := config.GetLoadsFromConfig(loadNames...)
+		client := clientPkg.NewClient()
+		killed := make(map[string]bool)
+
+		for _, l := range loads {
+			stopChain := l.StopChain
+			for _, l := range stopChain {
+				if _, exists := killed[l.Name]; !exists {
+					killed[l.Name] = true
+					log.Info(" -> Killing load %s", color.CyanString(l.Name))
+					if err := client.KillLoad(l); err != nil {
+						log.Fatal("Killing load failed: %s", err.Error())
+					}
+				}
+			}
+		}
+	},
+}
+
 var unplanLoads = &cobra.Command{
 	Use:                   "unplan [--all | load...]",
 	Short:                 "Remove planned (not started) loads",
@@ -293,6 +318,7 @@ func init() {
 	planLoads.Flags().Bool("all", false, "All loads")
 	listLoads.Flags().Bool("all", false, "All loads")
 	stopLoads.Flags().Bool("all", false, "All loads")
+	killLoads.Flags().Bool("all", false, "All loads")
 	unplanLoads.Flags().Bool("all", false, "All loads")
 
 	loadsCmd.AddCommand(graphLoads)
@@ -302,6 +328,7 @@ func init() {
 	loadsCmd.AddCommand(stdoutLoad)
 	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)
+	loadsCmd.AddCommand(killLoads)
 	loadsCmd.AddCommand(unplanLoads)
 	rootCmd.AddCommand(loadsCmd)
 }
