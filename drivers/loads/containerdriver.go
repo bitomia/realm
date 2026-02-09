@@ -176,12 +176,10 @@ func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepositor
 
 	// Clean-up if error
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
-		var metadata ContainerEntryMetadata
-		if tmp, err := json.Marshal(deployment.Metadata); err != nil {
+		metadata, err := getContainerMetadata(deployment)
+		if err != nil {
 			slog.Warn("ContainerDriver.UnplanDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
 			goto unplan_deployment
-		} else {
-			json.Unmarshal(tmp, &metadata)
 		}
 
 		if len(metadata.ContainerName) > 0 {
@@ -326,6 +324,38 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	}
 
 	slog.Info("ContainerDriver.StopDeployment", "msg", "stop deployment", "deployment", deployment.ID)
+	return nil
+}
+
+func (c ContainerDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
+		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
+	}
+
+	if len(metadata.ContainerName) > 0 {
+		if err := c.cleanupContainer(metadata.ContainerName, syscall.SIGKILL, false); err != nil {
+			slog.Error("ContainerDriver.KillDeployment", "msg", "failed to clean-up container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
+			return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
+		} else {
+			slog.Info("ContainerDriver.KillDeployment", "msg", "container cleaned up", "container", metadata.ContainerName)
+		}
+	}
+
+	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+		metadata.ContainerName = ""
+		return nil
+	}); err != nil {
+		slog.Error("ContainerDriver.KillDeployment", "msg", "failed updating metadata", "deploymentID", deployment.ID, "error", err)
+		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
+	}
+
+	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}); err != nil {
+		slog.Error("ContainerDriver.KillDeployment", "msg", "failed on status update", "deploymentID", deployment.ID, "error", err)
+		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
+	}
+
+	slog.Info("ContainerDriver.KillDeployment", "msg", "kill deployment", "deployment", deployment.ID)
 	return nil
 }
 

@@ -7,8 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
-	"time"
+	"syscall"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
@@ -25,16 +26,11 @@ type ProcessConfig struct {
 	StartArgs  *string `json:"start_args,omitempty"`
 	WorkingDir *string `json:"working_dir,omitempty"`
 	StopSignal string  `json:"stop_signal"`
-	ForceKill  bool    `json:"force_kill"`
 }
 
 type ProcessDriver struct {
 	StopSignal int
 	Config     ProcessConfig
-}
-
-type ProcInfo struct {
-	Cmd *exec.Cmd
 }
 
 type ProcessEntryMetadata struct {
@@ -167,11 +163,10 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 	if config == nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", "cannot retrieve config")
 	}
-	logsPath := config.Daemon.LogsPath
 
+	logsPath := config.Daemon.LogsPath
 	stdoutPath := fmt.Sprintf("%s/%s_stdout.log", logsPath, deployment.LoadName)
 	stderrPath := fmt.Sprintf("%s/%s_stderr.log", logsPath, deployment.LoadName)
-
 	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_stdout.log", deployment.LoadName), 0755)
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
@@ -213,45 +208,34 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
-	forceKill := p.Config.ForceKill
-
-	procInfo, err := retrieveProcessInfo(deployment)
+	proc, err := retrieveProcess(deployment)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process info not found in store for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
 	}
 
-	cmd := procInfo.Cmd
-	if cmd.Process == nil {
+	if proc == nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
-	if err := cmd.Process.Signal(signal); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", cmd.Process.Pid, err))
+	if err := proc.Signal(signal); err != nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
+	return nil
+}
 
-	select {
-	case <-done:
-		slog.Info("ProcessDriver.StopDeployment", "msg", "process exited", "pid", cmd.Process.Pid)
-		if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}); err != nil {
-			return fmt.Errorf("failed to update load state: %w", err)
-		}
+func (p ProcessDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	proc, err := retrieveProcess(deployment)
+	if err != nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
+	}
 
-	case <-time.After(3 * time.Second):
-		slog.Error("ProcessDriver.StopDeployment", "msg", "process exit timeout", "pid", cmd.Process.Pid)
-		if forceKill {
-			slog.Info("ProcessDriver.StopDeployment", "msg", "force killing after timeout error", "pid", cmd.Process.Pid)
+	if proc == nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
+	}
 
-			cmd.Process.Kill()
-			if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}); err != nil {
-				return fmt.Errorf("failed to update load state after force kill: %w", err)
-			}
-		}
-		<-done
+	if err := proc.Kill(); err != nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
 	return nil
@@ -261,9 +245,9 @@ func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository,
 	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
 
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
-		procInfo, _ := retrieveProcessInfo(deployment)
-		if procInfo.Cmd != nil {
-			procInfo.Cmd.Process.Kill()
+		proc, _ := retrieveProcess(deployment)
+		if proc != nil {
+			proc.Kill()
 		}
 	}
 
@@ -286,17 +270,18 @@ func (p ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d 
 		return status, nil
 	}
 
-	procInfo, err := retrieveProcessInfo(d)
-	if procInfo.Cmd == nil {
+	proc, err := retrieveProcess(d)
+	if proc == nil {
 		if err != nil {
 			// Only log error and continue to update as stopped
 			slog.Error("ProcessDriver.UpdateDeploymentStatus", "msg", "retrieveProcessInfo failed", "error", err)
-		}
-
-		// At this point, it is planned, running or stopped
-		// so it should transition only to stop if it was running
-		if d.Status.StatusCode == common.DeploymentStatusRunning {
 			status.StatusCode = common.DeploymentStatusStopped
+		} else {
+			// At this point, it is planned, running or stopped
+			// so it should transition only to stop if it was running
+			if d.Status.StatusCode == common.DeploymentStatusRunning {
+				status.StatusCode = common.DeploymentStatusStopped
+			}
 		}
 	} else {
 		status.StatusCode = common.DeploymentStatusRunning
@@ -362,18 +347,31 @@ func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deplo
 	return common.ReadFileAt(metadata.StderrPath, offset)
 }
 
-func retrieveProcessInfo(deployment common.Deployment) (ProcInfo, error) {
+func retrieveProcess(deployment common.Deployment) (*os.Process, error) {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
-		return ProcInfo{nil}, nil
+		return nil, nil
 	}
-
 	if metadata.Pid == 0 {
-		return ProcInfo{nil}, nil
+		return nil, nil
 	}
 
-	cmd, err := findProcess(metadata.Pid)
-	return ProcInfo{cmd}, err
+	process, err := os.FindProcess(metadata.Pid)
+	if err != nil {
+		return nil, err
+	}
+
+	if runtime.GOOS != "windows" {
+		// On Unix systems, FindProcess always succeeds and returns a Process
+		// for the given pid, regardless of whether the process exists. To test whether
+		// the process actually exists, see whether p.Signal(syscall.Signal(0)) reports
+		// an error.
+		if err := process.Signal(syscall.Signal(0)); err != nil {
+			return nil, err
+		}
+	}
+
+	return process, nil
 }
 
 func getProcessMetadata(d common.Deployment) (*ProcessEntryMetadata, error) {
