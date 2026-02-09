@@ -298,12 +298,9 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 }
 
 func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.ContainerName) > 0 {
@@ -351,12 +348,9 @@ func (c ContainerDriver) cleanupContainer(containerName string, signal syscall.S
 func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
 	slog.Info("ContainerDriver.UpdateDeploymentStatus", "deployment", d.ID)
 
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(d.Metadata); err != nil {
-		slog.Error("ContainerDriver.UpdateDeploymentStatus", "error", "error on retrieving metadata", "deployment", d.ID)
+	metadata, err := getContainerMetadata(d)
+	if err != nil {
 		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	status, err := api.GetContainerStatus(metadata.ContainerName)
@@ -397,12 +391,9 @@ func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
 }
 
 func (c ContainerDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.StopDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
 		return err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StdoutPath) == 0 {
@@ -413,12 +404,9 @@ func (c ContainerDriver) StreamStdout(repository common.DeploymentsRepository, d
 }
 
 func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
 		return err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StderrPath) == 0 {
@@ -429,12 +417,9 @@ func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, d
 }
 
 func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
 		return nil, 0, err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StdoutPath) == 0 {
@@ -445,12 +430,9 @@ func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, dep
 }
 
 func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
-	var metadata ContainerEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ContainerDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getContainerMetadata(deployment)
+	if err != nil {
 		return nil, 0, err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StderrPath) == 0 {
@@ -458,4 +440,18 @@ func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, dep
 	}
 
 	return common.ReadFileAt(metadata.StderrPath, offset)
+}
+
+func getContainerMetadata(d common.Deployment) (*ContainerEntryMetadata, error) {
+	var metadata ContainerEntryMetadata
+	if tmp, err := json.Marshal(d.Metadata); err != nil {
+		slog.Error("ProcessDriver.getMetadata", "error", "error on marshalling metadata", "deployment", d.ID)
+		return nil, err
+	} else {
+		if err := json.Unmarshal(tmp, &metadata); err != nil {
+			slog.Error("ProcessDriver.getMetadata", "error", "error on unmarshalling metadata", "deployment", d.ID)
+			return nil, err
+		}
+	}
+	return &metadata, nil
 }

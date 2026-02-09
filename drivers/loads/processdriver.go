@@ -38,11 +38,10 @@ type ProcInfo struct {
 }
 
 type ProcessEntryMetadata struct {
+	Pid        int    `json:"pid,omitempty"`
 	StdoutPath string `json:"stdout_path,omitempty"`
 	StderrPath string `json:"stderr_path,omitempty"`
 }
-
-var procStore map[common.DeploymentID]ProcInfo = make(map[common.DeploymentID]ProcInfo)
 
 func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
 	var config ProcessConfig
@@ -194,11 +193,9 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
 	}
 
-	// Store process info
-	procStore[deployment.ID] = ProcInfo{Cmd: cmd}
-
-	// Update metadata with file paths
+	// Update metadata with PID and file paths
 	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
+		metadata.Pid = cmd.Process.Pid
 		metadata.StdoutPath = stdoutPath
 		metadata.StderrPath = stderrPath
 		return nil
@@ -217,7 +214,17 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
 	forceKill := p.Config.ForceKill
-	cmd := procStore[deployment.ID].Cmd
+
+	procInfo, err := retrieveProcessInfo(deployment)
+	if err != nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process info not found in store for deployment %s", deployment.ID))
+	}
+
+	cmd := procInfo.Cmd
+	if cmd.Process == nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
+	}
+
 	if err := cmd.Process.Signal(signal); err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", cmd.Process.Pid, err))
 	}
@@ -247,9 +254,6 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 		<-done
 	}
 
-	// Clean up procStore
-	delete(procStore, deployment.ID)
-
 	return nil
 }
 
@@ -257,8 +261,10 @@ func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository,
 	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
 
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
-		cmd := procStore[deployment.ID].Cmd
-		cmd.Process.Kill()
+		procInfo, _ := retrieveProcessInfo(deployment)
+		if procInfo.Cmd != nil {
+			procInfo.Cmd.Process.Kill()
+		}
 	}
 
 	if err := repository.DeleteDeployment(deployment.ID); err != nil {
@@ -272,19 +278,42 @@ func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
 }
 
-func (p ProcessDriver) UpdateDeploymentStatus(repository common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
-	// TODO
-	// Shall verify internal conditions and update status accordingly
-	return d.Status, nil
+func (p ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+	status := d.Status
+
+	// Keep on error if it was on error status before
+	if d.Status.StatusCode == common.DeploymentStatusError {
+		return status, nil
+	}
+
+	procInfo, err := retrieveProcessInfo(d)
+	if procInfo.Cmd == nil {
+		if err != nil {
+			// Only log error and continue to update as stopped
+			slog.Error("ProcessDriver.UpdateDeploymentStatus", "msg", "retrieveProcessInfo failed", "error", err)
+		}
+
+		// At this point, it is planned, running or stopped
+		// so it should transition only to stop if it was running
+		if d.Status.StatusCode == common.DeploymentStatusRunning {
+			status.StatusCode = common.DeploymentStatusStopped
+		}
+	} else {
+		status.StatusCode = common.DeploymentStatusRunning
+	}
+
+	if err := r.UpdateStatus(d.ID, status); err != nil {
+		slog.Error("ProcessDriver.UpdateDeploymentStatus", "msg", "failed to update deployment status", "error", err)
+		return common.DeploymentStatus{}, err
+	}
+
+	return status, nil
 }
 
 func (p ProcessDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	var metadata ProcessEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ProcessDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getProcessMetadata(deployment)
+	if err != nil {
 		return err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StdoutPath) == 0 {
@@ -295,12 +324,9 @@ func (p ProcessDriver) StreamStdout(repository common.DeploymentsRepository, dep
 }
 
 func (p ProcessDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
-	var metadata ProcessEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ProcessDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getProcessMetadata(deployment)
+	if err != nil {
 		return err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StderrPath) == 0 {
@@ -311,12 +337,9 @@ func (p ProcessDriver) StreamStderr(repository common.DeploymentsRepository, dep
 }
 
 func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
-	var metadata ProcessEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ProcessDriver.ReadStdout", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getProcessMetadata(deployment)
+	if err != nil {
 		return nil, 0, err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StdoutPath) == 0 {
@@ -327,12 +350,9 @@ func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deplo
 }
 
 func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
-	var metadata ProcessEntryMetadata
-	if tmp, err := json.Marshal(deployment.Metadata); err != nil {
-		slog.Error("ProcessDriver.ReadStderr", "error", "error on retrieving metadata", "deployment", deployment.ID)
+	metadata, err := getProcessMetadata(deployment)
+	if err != nil {
 		return nil, 0, err
-	} else {
-		json.Unmarshal(tmp, &metadata)
 	}
 
 	if len(metadata.StderrPath) == 0 {
@@ -340,4 +360,32 @@ func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deplo
 	}
 
 	return common.ReadFileAt(metadata.StderrPath, offset)
+}
+
+func retrieveProcessInfo(deployment common.Deployment) (ProcInfo, error) {
+	metadata, err := getProcessMetadata(deployment)
+	if err != nil {
+		return ProcInfo{nil}, nil
+	}
+
+	if metadata.Pid == 0 {
+		return ProcInfo{nil}, nil
+	}
+
+	cmd, err := findProcess(metadata.Pid)
+	return ProcInfo{cmd}, err
+}
+
+func getProcessMetadata(d common.Deployment) (*ProcessEntryMetadata, error) {
+	var metadata ProcessEntryMetadata
+	if tmp, err := json.Marshal(d.Metadata); err != nil {
+		slog.Error("ProcessDriver.getMetadata", "error", "error on marshalling metadata", "deployment", d.ID)
+		return nil, err
+	} else {
+		if err := json.Unmarshal(tmp, &metadata); err != nil {
+			slog.Error("ProcessDriver.getMetadata", "error", "error on unmarshalling metadata", "deployment", d.ID)
+			return nil, err
+		}
+	}
+	return &metadata, nil
 }
