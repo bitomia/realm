@@ -26,7 +26,7 @@ COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_C
 .PHONY: all
 all:
 	@echo "Building ($(GIT_COMMIT))..."
-	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
+	CGO_ENABLED=0 $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
 
 .PHONY: tidy
 tidy:
