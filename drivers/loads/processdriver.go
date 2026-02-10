@@ -42,7 +42,9 @@ type ProcessEntryMetadata struct {
 }
 
 func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
-	var config ProcessConfig
+	var config = ProcessConfig{
+		StopSignal: "SIGHUP",
+	}
 
 	// Configure mapstructure decoder to use 'json' tags
 	// because it has to work for config files (yaml)
