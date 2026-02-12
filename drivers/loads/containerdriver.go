@@ -150,14 +150,14 @@ func (c ContainerDriver) verify() error {
 func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		slog.Error("ContainerDriver.PlanAndRegister", "error", err)
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
 		return uuid.Nil, err
 	}
 	defer client.Close()
 
 	_, err = containers.TryPullAndGetImage(ctx, client, c.Config.Image)
 	if err != nil {
-		slog.Error("ContainerDriver.PlanAndRegister", "error", err)
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
 		return uuid.Nil, err
 	}
 

@@ -71,7 +71,7 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) PlanAndRegister(nodeName string, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Plan(nodeName string, repository common.NodesRepository) error {
 	return repository.Create(nodeName, m, nil)
 }
 

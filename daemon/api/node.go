@@ -49,10 +49,10 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func PlanAndRegisterNode(node *common.Node) error {
+func PlanNode(node *common.Node) error {
 	database := db.GetDB()
 
-	if err := node.Driver.PlanAndRegister(node.Name, database.NodesRepository); err != nil {
+	if err := node.Driver.Plan(node.Name, database.NodesRepository); err != nil {
 		return err
 	}
 

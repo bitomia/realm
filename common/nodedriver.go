@@ -30,14 +30,25 @@ type NodeDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// PlanAndRegister validates prerequisites and creates or replace the current database entry.
+	// Plan validates prerequisites and creates or replace the current database entry.
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the daemon and does not affect client behavior.
-	PlanAndRegister(nodeName string, repository NodesRepository) error
+	Plan(nodeName string, repository NodesRepository) error
 
+	// Startup starts the node
 	Startup() error
+
+	// Shutdown shuts down the node
+	// Message will be shown to users before shutdown on the time
+	// offset specified
 	Shutdown(message string, time uint32) error
+
+	// Restart restarts the node
+	// Message will be shown to users before shutdown on the time
+	// offset specified
 	Restart(message string, time uint32) error
+
+	// GetStatus returns the availability status of the node
 	GetStatus() (NodeStatus, error)
 
 	// GetDriverConfig returns the configuration for this node driver.

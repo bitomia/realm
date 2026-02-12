@@ -32,8 +32,8 @@ func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(info)
 }
 
-func PlanAndRegisterNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.PlanAndRegisterNodeHandler")
+func PlanNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.PlanNodeHandler")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -42,9 +42,9 @@ func PlanAndRegisterNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.PlanAndRegisterNodeHandler", "node", node.Name, "driver", node.Driver)
+	slog.Info("handlers.PlanNodeHandler", "node", node.Name, "driver", node.Driver)
 
-	if err := api.PlanAndRegisterNode(&node); err != nil {
+	if err := api.PlanNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

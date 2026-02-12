@@ -106,7 +106,7 @@ func (l LinuxDriver) Verify() error {
 	return nil
 }
 
-func (l LinuxDriver) PlanAndRegister(nodeName string, repository common.NodesRepository) error {
+func (l LinuxDriver) Plan(nodeName string, repository common.NodesRepository) error {
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
@@ -114,7 +114,7 @@ func (l LinuxDriver) PlanAndRegister(nodeName string, repository common.NodesRep
 	// Verify nodeName is not already registered and warn about replacing
 
 	if err := repository.Create(nodeName, l, nil); err != nil {
-		slog.Error("LinuxDriver.PlanAndRegister", "msg", "failed to plan node", "error", err)
+		slog.Error("LinuxDriver.Plan", "msg", "failed to plan node", "error", err)
 		return err
 	}
 
