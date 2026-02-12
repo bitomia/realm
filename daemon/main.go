@@ -15,6 +15,7 @@ import (
 
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/auth"
+	"github.com/bitomia/realm/daemon/capabilities"
 
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
@@ -26,17 +27,9 @@ import (
 
 var (
 	globalSignalChannel = make(chan os.Signal, 1)
-	globalCapabilities  = Capabilities{}
 )
 
 func Start(purgeDB bool) {
-	globalCapabilities = Capabilities{
-		ContainersEngine: false,
-		Volumes:          false,
-		VolumesZFS:       false,
-		CNI:              false,
-	}
-
 	cfg := config.Get()
 
 	// Configure slog handler based on log format
@@ -61,8 +54,9 @@ func Start(purgeDB bool) {
 	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", daemonId)
 	slog.Debug("Daemon configuration", "config", *cfg)
 
-	globalCapabilities.Evaluate(cfg)
-	globalCapabilities.Print()
+	caps := capabilities.Capabilities{}
+	caps.Evaluate(cfg)
+	caps.Print()
 
 	db := db.GetDB()
 	if db == nil {
@@ -149,6 +143,6 @@ func Stop() {
 	globalSignalChannel <- syscall.SIGINT
 }
 
-func GetCapabilities() Capabilities {
-	return globalCapabilities
+func GetCapabilities() capabilities.Capabilities {
+	return capabilities.Get()
 }

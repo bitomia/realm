@@ -18,7 +18,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
-	"github.com/bitomia/realm/daemon"
+	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -150,7 +150,7 @@ func (c ContainerDriver) verifyConfig() error {
 
 func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	// Check required daemon capabilities
-	daemonCaps := daemon.GetCapabilities()
+	daemonCaps := capabilities.Get()
 	if !daemonCaps.ContainersEngine {
 		err := fmt.Errorf("Containers engine capability required")
 		slog.Error("ContainerDriver.PlanDeployment", "error", err)

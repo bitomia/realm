@@ -13,30 +13,40 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/process"
 
+	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cruntime"
 
 	"github.com/bitomia/realm/common/dto"
 )
 
 func GetNodeState() (*dto.NodeStateResponse, error) {
-	ctx, client, err := cruntime.CreateClient()
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
+	var nodeState dto.NodeStateResponse
+	var cpuStat cpu.TimesStat
+	var cpuUsage float64
 
-	cpuStat, cpuUsage, containersState, err := CollectNodeState(ctx, client)
-	if err != nil {
-		return nil, err
+	if capabilities.Get().ContainersEngine {
+		ctx, client, err := cruntime.CreateClient()
+		if err != nil {
+			return nil, err
+		}
+		defer client.Close()
+
+		cpuStat, cpuUsage, nodeState.Containers, err = CollectNodeState(ctx, client)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cpuStats, err := cpu.Times(false)
+		if err != nil {
+			return nil, err
+		}
+		cpuStat = cpuStats[0]
 	}
 
 	cpuCount, err := cpu.Counts(true)
 	if err != nil {
 		return nil, err
 	}
-
-	var nodeState dto.NodeStateResponse
-	nodeState.Containers = containersState
 	nodeState.NumCPU = cpuCount
 	nodeState.UserCPU = uint64(cpuStat.User)
 	nodeState.IdleCPU = uint64(cpuStat.Idle)

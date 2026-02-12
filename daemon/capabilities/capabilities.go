@@ -1,4 +1,4 @@
-package daemon
+package capabilities
 
 import (
 	"log/slog"
@@ -9,11 +9,17 @@ import (
 	"github.com/bitomia/realm/daemon/volumes"
 )
 
+var globalCaps = Capabilities{}
+
 type Capabilities struct {
 	ContainersEngine bool
 	Volumes          bool
 	VolumesZFS       bool
 	CNI              bool
+}
+
+func Get() Capabilities {
+	return globalCaps
 }
 
 func (c Capabilities) Evaluate(cfg *config.Config) {
@@ -39,7 +45,7 @@ func (c Capabilities) reset() {
 
 func (c Capabilities) evalContainersEngine() {
 	containerdVersion, err := containers.GetContainerdVersion()
-	globalCapabilities.ContainersEngine = err == nil
+	globalCaps.ContainersEngine = err == nil
 
 	if err != nil {
 		slog.Warn("Cannot get containerd version", "error", err.Error())
@@ -66,8 +72,8 @@ func (c Capabilities) evalVolumes(cfg *config.Config) {
 		slog.Info("Volumes ready (directory-based)", "path", volumesPath)
 	}
 
-	globalCapabilities.Volumes = true
-	globalCapabilities.VolumesZFS = cfg.Daemon.ZFS
+	globalCaps.Volumes = true
+	globalCaps.VolumesZFS = cfg.Daemon.ZFS
 }
 
 func (c Capabilities) evalCNI() {
@@ -79,5 +85,5 @@ func (c Capabilities) evalCNI() {
 	}
 
 	slog.Info("CNI plugins validated successfully")
-	globalCapabilities.CNI = true
+	globalCaps.CNI = true
 }
