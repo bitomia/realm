@@ -225,13 +225,13 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-func (c *Client) GetNodeState(node string) (*dto.NodeStateResponse, error) {
-	var status dto.NodeStateResponse
+func (c *Client) GetNode(node string) (*dto.NodeResponse, error) {
+	var status dto.NodeResponse
 
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
-	url := fmt.Sprintf("%s/state", node)
+	url := fmt.Sprintf("%s/node", node)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -708,6 +708,38 @@ func (c *Client) PlanNode(node *common.Node) error {
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed planning node: %s", string(body))
+	}
+
+	return nil
+}
+
+func (c *Client) UnplanNode(node *common.Node) error {
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/node/unplan", node.Url)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed unplanning node: %s", string(body))
 	}
 
 	return nil

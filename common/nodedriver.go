@@ -7,12 +7,19 @@ type NodeDriverInfo struct {
 	New func(config *any) (NodeDriver, error)
 }
 
-type NodeStatus string
+type NodeStatusCode string
 
 const (
-	NodeNotAvailable NodeStatus = "not_available"
-	NodeAvailable    NodeStatus = "available"
+	NodeStatusUnreachable NodeStatusCode = "unreachable"
+	NodeStatusNotDeployed NodeStatusCode = "not deployed"
+	NodeStatusPlanned     NodeStatusCode = "planned"
+	NodeStatusError       NodeStatusCode = "error"
 )
+
+type NodeStatus struct {
+	StatusCode NodeStatusCode `json:"status"`
+	Reason     string         `json:"reason"`
+}
 
 type NodeDriver interface {
 	// GetNodeDriverID returns the unique identifier for this node driver.
@@ -35,6 +42,10 @@ type NodeDriver interface {
 	// This is invoked within the daemon and does not affect client behavior.
 	Plan(nodeName string, repository NodesRepository) error
 
+	// Unplan cleanup and removes the node
+	// Only operates on deployments in "planned" status.
+	Unplan(repository NodesRepository) error
+
 	// Startup starts the node
 	Startup() error
 
@@ -48,9 +59,12 @@ type NodeDriver interface {
 	// offset specified
 	Restart(message string, time uint32) error
 
-	// GetStatus returns the availability status of the node
-	GetStatus() (NodeStatus, error)
-
 	// GetDriverConfig returns the configuration for this node driver.
 	GetDriverConfig() NodeDriverConfig
+
+	// UpdateStatus update and returns current status based on internal drivers factors
+	UpdateStatus() (NodeStatus, error)
+
+	// GetCapabilities returns current node capabilities
+	GetCapabilities() (Capabilities, error)
 }

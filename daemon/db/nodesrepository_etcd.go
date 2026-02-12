@@ -19,7 +19,7 @@ type NodeValue struct {
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdNodesRepository) Create(nodeName string, driver common.NodeDriver, metadata any) error {
+func (r *EtcdNodesRepository) Set(nodeName string, driver common.NodeDriver, metadata any) error {
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
 		NodeDriverConfig: driver.GetDriverConfig(),

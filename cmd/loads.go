@@ -22,7 +22,7 @@ func doPlanLoads(client *clientPkg.Client, loads map[string]*common.Load) error 
 	for _, load := range loads {
 		log.Info(" -> Planning load %s", color.CyanString(load.Name))
 		if err := client.PlanLoad(load); err != nil {
-			return fmt.Errorf("Error planning load: %s", err.Error())
+			return err
 		}
 	}
 	return nil

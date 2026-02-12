@@ -131,6 +131,18 @@ func KillLoadDeployments(loadName string) error {
 func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	database := db.GetDB()
 
+	node, err := database.NodesRepository.GetSelf()
+	if err != nil {
+		return nil, fmt.Errorf("Node not planned")
+	}
+	nodeStatus, err := node.NodeDriver.UpdateStatus()
+	if err != nil {
+		return nil, fmt.Errorf("Cannot update node status: %s", err)
+	}
+	if nodeStatus.StatusCode != common.NodeStatusPlanned {
+		return nil, fmt.Errorf("Node not planned, current status %s", nodeStatus.StatusCode)
+	}
+
 	// Check if deployments already exist for this load
 	existingDeployments, err := database.DeploymentsRepository.GetByLoad(load.Name)
 	if err != nil {
@@ -144,7 +156,7 @@ func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 		return nil, err
 	}
 
-	deploymentID, err := load.Driver.PlanDeployment(database.DeploymentsRepository, load.Name)
+	deploymentID, err := load.Driver.PlanDeployment(node.NodeDriver, database.DeploymentsRepository, load.Name)
 	if err != nil {
 		return nil, err
 	}

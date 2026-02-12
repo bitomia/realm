@@ -9,43 +9,45 @@ import (
 	"github.com/bitomia/realm/daemon/volumes"
 )
 
-var globalCaps = Capabilities{}
+var globalCaps *HostDaemonCapabilities = nil
 
-type Capabilities struct {
-	ContainersEngine bool
-	Volumes          bool
-	VolumesZFS       bool
-	CNI              bool
+type HostDaemonCapabilities struct {
+	// Can use github.com/bitomia/realm/daemon/containers
+	HasContainersEngine bool `json:"containers_engine"`
+	// Can use github.com/bitomia/realm/daemon/network
+	HasContainersNetworking bool `json:"networking"`
+	// Can use github.com/bitomia/realm/daemon/volumes
+	HasVolumes bool `json:"volumes"`
+	// Can use github.com/bitomia/realm/daemon/volumes zfs
+	HasVolumesZFS bool `json:"volumes_zfs"`
 }
 
-func Get() Capabilities {
+func Get() *HostDaemonCapabilities {
 	return globalCaps
 }
 
-func (c Capabilities) Evaluate(cfg *config.Config) {
-	c.reset()
-	c.evalContainersEngine()
-	c.evalVolumes(cfg)
-	c.evalCNI()
+func Initialize(cfg *config.Config) {
+	if globalCaps != nil {
+		slog.Error("capabilitis.Initialize", "error", "capabilities already initialized")
+		return
+	}
+
+	globalCaps = &HostDaemonCapabilities{false, false, false, false}
+	globalCaps.evalContainersEngine()
+	globalCaps.evalContainersNetworking()
+	globalCaps.evalVolumes(cfg)
 }
 
-func (c Capabilities) Print() {
-	slog.Info("Capability", "type", "containers engine", "value", c.ContainersEngine)
-	slog.Info("Capability", "type", "volumes", "value", c.Volumes)
-	slog.Info("Capability", "type", "ZFS volumes", "value", c.VolumesZFS)
-	slog.Info("Capability", "type", "container network interfaces", "value", c.CNI)
+func (c HostDaemonCapabilities) Print() {
+	slog.Info("Capability", "type", "containers engine", "value", c.HasContainersEngine)
+	slog.Info("Capability", "type", "container network interfaces", "value", c.HasContainersNetworking)
+	slog.Info("Capability", "type", "volumes", "value", c.HasVolumes)
+	slog.Info("Capability", "type", "ZFS volumes", "value", c.HasVolumesZFS)
 }
 
-func (c Capabilities) reset() {
-	c.ContainersEngine = false
-	c.Volumes = false
-	c.VolumesZFS = false
-	c.CNI = false
-}
-
-func (c Capabilities) evalContainersEngine() {
+func (c HostDaemonCapabilities) evalContainersEngine() {
 	containerdVersion, err := containers.GetContainerdVersion()
-	globalCaps.ContainersEngine = err == nil
+	globalCaps.HasContainersEngine = err == nil
 
 	if err != nil {
 		slog.Warn("Cannot get containerd version", "error", err.Error())
@@ -54,7 +56,19 @@ func (c Capabilities) evalContainersEngine() {
 	}
 }
 
-func (c Capabilities) evalVolumes(cfg *config.Config) {
+func (c HostDaemonCapabilities) evalContainersNetworking() {
+	slog.Info("Checking containers networking availability")
+
+	if err := network.IsCNIAvailable(); err != nil {
+		slog.Warn("CNI validation failed", "error", err.Error())
+		return
+	}
+
+	slog.Info("CNI plugins validated successfully")
+	globalCaps.HasContainersNetworking = true
+}
+
+func (c HostDaemonCapabilities) evalVolumes(cfg *config.Config) {
 	if err := volumes.InitializeManager(cfg.Daemon.ZFS); err != nil {
 		slog.Warn("Cannot initialize volumes", "error", err.Error())
 		return
@@ -72,18 +86,22 @@ func (c Capabilities) evalVolumes(cfg *config.Config) {
 		slog.Info("Volumes ready (directory-based)", "path", volumesPath)
 	}
 
-	globalCaps.Volumes = true
-	globalCaps.VolumesZFS = cfg.Daemon.ZFS
+	globalCaps.HasVolumes = true
+	globalCaps.HasVolumesZFS = cfg.Daemon.ZFS
 }
 
-func (c Capabilities) evalCNI() {
-	slog.Info("Checking CNI availability")
+func (c HostDaemonCapabilities) ContainersEngine() bool {
+	return c.HasContainersEngine
+}
 
-	if err := network.IsCNIAvailable(); err != nil {
-		slog.Warn("CNI validation failed", "error", err.Error())
-		return
-	}
+func (c HostDaemonCapabilities) ContainersNetworking() bool {
+	return c.HasContainersNetworking
+}
 
-	slog.Info("CNI plugins validated successfully")
-	globalCaps.CNI = true
+func (c HostDaemonCapabilities) Volumes() bool {
+	return c.HasVolumes
+}
+
+func (c HostDaemonCapabilities) VolumesZFS() bool {
+	return c.HasVolumesZFS
 }

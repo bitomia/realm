@@ -12,10 +12,12 @@ type NodeEntry struct {
 // this repository might be stored in a distributed database
 // so no memory references must be used
 type NodesRepository interface {
-	Create(nodeName string, driver NodeDriver, metadata any) error
+	// Set creates or updates the node
+	Set(nodeName string, driver NodeDriver, metadata any) error
 
 	GetByDaemonId(daemonId string) (NodeEntry, error)
 	GetSelf() (NodeEntry, error)
 
+	// Delete callee node from repository
 	Delete() error
 }

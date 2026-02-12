@@ -37,6 +37,7 @@ type Deployment struct {
 }
 
 // Store interface for deployments
+// All methods are related to the deployments of the self node
 //
 // Notice all data is returned by an immutable copy because
 // this repository might be stored in a distributed database

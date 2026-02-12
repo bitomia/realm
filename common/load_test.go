@@ -35,7 +35,7 @@ func (m *MockLoadDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *MockLoadDriver) PlanDeployment(repository DeploymentsRepository, loadName string) (DeploymentID, error) {
+func (m *MockLoadDriver) PlanDeployment(node *NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error) {
 	return uuid.New(), nil
 }
 

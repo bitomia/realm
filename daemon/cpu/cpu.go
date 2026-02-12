@@ -19,33 +19,33 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
-func GetNodeState() (*dto.NodeStateResponse, error) {
-	var nodeState dto.NodeStateResponse
+func GetNodeState() (dto.NodeState, error) {
+	var nodeState dto.NodeState
 	var cpuStat cpu.TimesStat
 	var cpuUsage float64
 
-	if capabilities.Get().ContainersEngine {
+	if capabilities.Get().HasContainersEngine {
 		ctx, client, err := cruntime.CreateClient()
 		if err != nil {
-			return nil, err
+			return dto.NodeState{}, err
 		}
 		defer client.Close()
 
 		cpuStat, cpuUsage, nodeState.Containers, err = CollectNodeState(ctx, client)
 		if err != nil {
-			return nil, err
+			return dto.NodeState{}, err
 		}
 	} else {
 		cpuStats, err := cpu.Times(false)
 		if err != nil {
-			return nil, err
+			return dto.NodeState{}, err
 		}
 		cpuStat = cpuStats[0]
 	}
 
 	cpuCount, err := cpu.Counts(true)
 	if err != nil {
-		return nil, err
+		return nodeState, err
 	}
 	nodeState.NumCPU = cpuCount
 	nodeState.UserCPU = uint64(cpuStat.User)
@@ -56,7 +56,7 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 
 	memStat, err := mem.VirtualMemory()
 	if err != nil {
-		return nil, err
+		return dto.NodeState{}, err
 	}
 	nodeState.TotalMem = memStat.Total
 	nodeState.UsedMem = memStat.Used
@@ -131,7 +131,7 @@ func GetNodeState() (*dto.NodeStateResponse, error) {
 		nodeState.ProcThreadsCount = procCounts.threads
 	}
 
-	return &nodeState, nil
+	return nodeState, nil
 }
 
 // GetSystemInfo returns static system information about the host

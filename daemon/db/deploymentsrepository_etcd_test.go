@@ -71,7 +71,7 @@ func (m mockLoadDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (m mockLoadDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+func (m mockLoadDriver) PlanDeployment(node *common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	return uuid.New(), nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/daemon/capabilities"
 )
 
 const LinuxDriverID common.NodeDriverID = "linux"
@@ -57,22 +58,22 @@ func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 	return driver, nil
 }
 
-func (l LinuxDriver) DriverInfo() common.NodeDriverInfo {
+func (l *LinuxDriver) DriverInfo() common.NodeDriverInfo {
 	return common.NodeDriverInfo{
 		ID:  LinuxDriverID,
 		New: NewLinuxDriverFromConfig,
 	}
 }
 
-func (l LinuxDriver) GetNodeDriverID() common.NodeDriverID {
+func (l *LinuxDriver) GetNodeDriverID() common.NodeDriverID {
 	return LinuxDriverID
 }
 
-func (l LinuxDriver) MarshalJSON() ([]byte, error) {
+func (l *LinuxDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(l.GetDriverConfig())
 }
 
-func (l LinuxDriver) UnmarshalJSON(data []byte) error {
+func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
 	var config map[string]any
 	if err := json.Unmarshal(data, &config); err != nil {
 		return err
@@ -89,12 +90,12 @@ func (l LinuxDriver) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	} else {
-		l = nodeDriver.(LinuxDriver)
+		l = nodeDriver.(*LinuxDriver)
 		return nil
 	}
 }
 
-func (l LinuxDriver) Verify() error {
+func (l *LinuxDriver) Verify() error {
 	if l.Config.WakeOnLan {
 		if l.Config.MAC == "" {
 			return fmt.Errorf("mac address required when wol is enabled")
@@ -106,14 +107,11 @@ func (l LinuxDriver) Verify() error {
 	return nil
 }
 
-func (l LinuxDriver) Plan(nodeName string, repository common.NodesRepository) error {
+func (l *LinuxDriver) Plan(nodeName string, repository common.NodesRepository) error {
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
-	// TODO
-	// Verify nodeName is not already registered and warn about replacing
-
-	if err := repository.Create(nodeName, l, nil); err != nil {
+	if err := repository.Set(nodeName, l, nil); err != nil {
 		slog.Error("LinuxDriver.Plan", "msg", "failed to plan node", "error", err)
 		return err
 	}
@@ -121,12 +119,16 @@ func (l LinuxDriver) Plan(nodeName string, repository common.NodesRepository) er
 	return nil
 }
 
-func (l LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
+func (l *LinuxDriver) Unplan(repository common.NodesRepository) error {
+	return repository.Delete()
+}
+
+func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
 	var c any = l.Config
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l LinuxDriver) Startup() error {
+func (l *LinuxDriver) Startup() error {
 	if !l.Config.WakeOnLan {
 		return nil
 	}
@@ -162,7 +164,7 @@ func (l LinuxDriver) Startup() error {
 	return nil
 }
 
-func (l LinuxDriver) Shutdown(message string, time uint32) error {
+func (l *LinuxDriver) Shutdown(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -175,7 +177,7 @@ func (l LinuxDriver) Shutdown(message string, time uint32) error {
 	return nil
 }
 
-func (l LinuxDriver) Restart(message string, time uint32) error {
+func (l *LinuxDriver) Restart(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -188,8 +190,14 @@ func (l LinuxDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (l LinuxDriver) GetStatus() (common.NodeStatus, error) {
-	// If this method is being called, the daemon is running on this node,
-	// which means the node is available
-	return common.NodeAvailable, nil
+func (l *LinuxDriver) UpdateStatus() (common.NodeStatus, error) {
+	return common.NodeStatus{StatusCode: common.NodeStatusPlanned, Reason: ""}, nil
+}
+
+func (l *LinuxDriver) GetCapabilities() (common.Capabilities, error) {
+	daemonCaps := capabilities.Get()
+	if daemonCaps == nil {
+		return nil, fmt.Errorf("Daemon capabilities not initialized")
+	}
+	return daemonCaps, nil
 }

@@ -88,11 +88,11 @@ func (c ProcessDriver) GetLoadDriverID() common.LoadDriverID {
 	return ProcessDriverID
 }
 
-func (p ProcessDriver) MarshalJSON() ([]byte, error) {
+func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.GetDriverConfig())
 }
 
-func (p ProcessDriver) UnmarshalJSON(data []byte) error {
+func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 	var config map[string]any
 	if err := json.Unmarshal(data, &config); err != nil {
 		return err
@@ -101,12 +101,12 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 	if loadDriver, err := NewProcessDriver(config); err != nil {
 		return err
 	} else {
-		p = loadDriver.(ProcessDriver)
+		p = loadDriver.(*ProcessDriver)
 		return nil
 	}
 }
 
-func (p ProcessDriver) verifyConfig() error {
+func (p *ProcessDriver) verifyConfig() error {
 	if p.Config.StartCmd == "" {
 		return fmt.Errorf("StartCmd not specified")
 	}
@@ -119,7 +119,7 @@ func (p ProcessDriver) verifyConfig() error {
 	return nil
 }
 
-func (p ProcessDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+func (p *ProcessDriver) PlanDeployment(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.Config.StartCmd); err != nil {
 		return uuid.Nil, fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
@@ -152,7 +152,7 @@ func (p ProcessDriver) PlanDeployment(repository common.DeploymentsRepository, l
 	return did, nil
 }
 
-func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -210,7 +210,7 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 	return nil
 }
 
-func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
 	proc, err := retrieveProcess(deployment)
@@ -229,7 +229,7 @@ func (p ProcessDriver) StopDeployment(repository common.DeploymentsRepository, d
 	return nil
 }
 
-func (p ProcessDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	proc, err := retrieveProcess(deployment)
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
@@ -246,7 +246,7 @@ func (p ProcessDriver) KillDeployment(repository common.DeploymentsRepository, d
 	return nil
 }
 
-func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
 
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
@@ -263,11 +263,11 @@ func (p ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository,
 	return nil
 }
 
-func (p ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
+func (p *ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
 }
 
-func (p ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+func (p *ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
 	status := d.Status
 
 	// Keep on error if it was on error status before
@@ -306,7 +306,7 @@ func (p ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d 
 	return status, nil
 }
 
-func (p ProcessDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (p *ProcessDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
 		return err
@@ -319,7 +319,7 @@ func (p ProcessDriver) StreamStdout(repository common.DeploymentsRepository, dep
 	return common.TailFile(metadata.StdoutPath, w)
 }
 
-func (p ProcessDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (p *ProcessDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
 		return err
@@ -332,7 +332,7 @@ func (p ProcessDriver) StreamStderr(repository common.DeploymentsRepository, dep
 	return common.TailFile(metadata.StderrPath, w)
 }
 
-func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+func (p *ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
 		return nil, 0, err
@@ -345,7 +345,7 @@ func (p ProcessDriver) ReadStdout(repository common.DeploymentsRepository, deplo
 	return common.ReadFileAt(metadata.StdoutPath, offset)
 }
 
-func (p ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+func (p *ProcessDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
 	metadata, err := getProcessMetadata(deployment)
 	if err != nil {
 		return nil, 0, err

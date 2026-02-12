@@ -10,8 +10,8 @@ import (
 	"github.com/bitomia/realm/daemon/api"
 )
 
-func GetNodeStateHandler(w http.ResponseWriter, r *http.Request) {
-	state, err := api.GetNodeState()
+func GetNodeHandler(w http.ResponseWriter, r *http.Request) {
+	state, err := api.GetNode()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -45,6 +45,17 @@ func PlanNodeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.PlanNodeHandler", "node", node.Name, "driver", node.Driver)
 
 	if err := api.PlanNode(&node); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func UnplanNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.UnplanNodeHandler")
+
+	if err := api.UnplanNode(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

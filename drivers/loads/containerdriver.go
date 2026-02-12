@@ -18,7 +18,6 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
-	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -77,22 +76,22 @@ func NewContainerDriver(c any) (common.LoadDriver, error) {
 	return driver, nil
 }
 
-func (c ContainerDriver) DriverInfo() common.LoadDriverInfo {
+func (c *ContainerDriver) DriverInfo() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  ContainerDriverID,
 		New: NewContainerDriver,
 	}
 }
 
-func (c ContainerDriver) GetLoadDriverID() common.LoadDriverID {
+func (c *ContainerDriver) GetLoadDriverID() common.LoadDriverID {
 	return ContainerDriverID
 }
 
-func (c ContainerDriver) MarshalJSON() ([]byte, error) {
+func (c *ContainerDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.GetDriverConfig())
 }
 
-func (c ContainerDriver) UnmarshalJSON(data []byte) error {
+func (c *ContainerDriver) UnmarshalJSON(data []byte) error {
 	var config map[string]any
 	if err := json.Unmarshal(data, &config); err != nil {
 		return err
@@ -101,12 +100,12 @@ func (c ContainerDriver) UnmarshalJSON(data []byte) error {
 	if loadDriver, err := NewContainerDriver(config); err != nil {
 		return err
 	} else {
-		c = loadDriver.(ContainerDriver)
+		c = loadDriver.(*ContainerDriver)
 		return nil
 	}
 }
 
-func (c ContainerDriver) verifyConfig() error {
+func (c *ContainerDriver) verifyConfig() error {
 	if c.Config.Image == "" {
 		return fmt.Errorf("Container image not specified")
 	}
@@ -148,21 +147,30 @@ func (c ContainerDriver) verifyConfig() error {
 	return nil
 }
 
-func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
-	// Check required daemon capabilities
-	daemonCaps := capabilities.Get()
-	if !daemonCaps.ContainersEngine {
+func (c *ContainerDriver) PlanDeployment(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+	if nodeDriver == nil {
+		err := fmt.Errorf("Nil node driver")
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		return uuid.Nil, err
+	}
+	nodeCaps, err := nodeDriver.GetCapabilities()
+	if err != nil {
+		err := fmt.Errorf("Capabilities not initiliazed")
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		return uuid.Nil, err
+	}
+	if !nodeCaps.ContainersEngine() {
 		err := fmt.Errorf("Containers engine capability required")
 		slog.Error("ContainerDriver.PlanDeployment", "error", err)
 		return uuid.Nil, err
 	}
-	if !daemonCaps.Volumes {
-		err := fmt.Errorf("Volumes capability required")
+	if !nodeCaps.ContainersNetworking() {
+		err := fmt.Errorf("Containers networking capability required")
 		slog.Error("ContainerDriver.PlanDeployment", "error", err)
 		return uuid.Nil, err
 	}
-	if !daemonCaps.CNI {
-		err := fmt.Errorf("CNI capability required")
+	if !nodeCaps.Volumes() {
+		err := fmt.Errorf("Volumes capability required")
 		slog.Error("ContainerDriver.PlanDeployment", "error", err)
 		return uuid.Nil, err
 	}
@@ -190,7 +198,7 @@ func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository,
 	return did, nil
 }
 
-func (c ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	slog.Info("ContainerDriver.UnplanDeployment", "msg", "unplanning deployment", "deployment", deployment.ID)
 
 	// Clean-up if error
@@ -218,7 +226,7 @@ unplan_deployment:
 	return nil
 }
 
-func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Use loadName to create a unique container name
 	containerName := fmt.Sprintf("%s-%s", deployment.LoadName, uuid.New())
 	slog.Info("ContainerDriver.RunDeployment", "msg", "starting container", "container", containerName)
@@ -316,7 +324,7 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 	return nil
 }
 
-func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
@@ -348,7 +356,7 @@ func (c ContainerDriver) StopDeployment(repository common.DeploymentsRepository,
 	return nil
 }
 
-func (c ContainerDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
@@ -380,7 +388,7 @@ func (c ContainerDriver) KillDeployment(repository common.DeploymentsRepository,
 	return nil
 }
 
-func (c ContainerDriver) cleanupContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {
+func (c *ContainerDriver) cleanupContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {
 	// Detach network before killing the task (network needs the netns which requires the process to be alive)
 	// Only detach if not using host mode (host mode doesn't use CNI networking)
 	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
@@ -396,7 +404,7 @@ func (c ContainerDriver) cleanupContainer(containerName string, signal syscall.S
 	return containers.DeleteContainer(containerName, signal, shallRemoveVolume)
 }
 
-func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+func (c *ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
 	metadata, err := getContainerMetadata(d)
 	if err != nil {
 		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
@@ -436,11 +444,11 @@ func (c ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, 
 	return s, nil
 }
 
-func (c ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
+func (c *ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c.Config}
 }
 
-func (c ContainerDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (c *ContainerDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return err
@@ -453,7 +461,7 @@ func (c ContainerDriver) StreamStdout(repository common.DeploymentsRepository, d
 	return common.TailFile(metadata.StdoutPath, w)
 }
 
-func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
+func (c *ContainerDriver) StreamStderr(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return err
@@ -466,7 +474,7 @@ func (c ContainerDriver) StreamStderr(repository common.DeploymentsRepository, d
 	return common.TailFile(metadata.StderrPath, w)
 }
 
-func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+func (c *ContainerDriver) ReadStdout(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return nil, 0, err
@@ -479,7 +487,7 @@ func (c ContainerDriver) ReadStdout(repository common.DeploymentsRepository, dep
 	return common.ReadFileAt(metadata.StdoutPath, offset)
 }
 
-func (c ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
+func (c *ContainerDriver) ReadStderr(repository common.DeploymentsRepository, deployment common.Deployment, offset int64) ([]byte, int64, error) {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return nil, 0, err

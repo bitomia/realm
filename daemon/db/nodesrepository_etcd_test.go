@@ -72,7 +72,11 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 }
 
 func (m *mockNodeDriver) Plan(nodeName string, repository common.NodesRepository) error {
-	return repository.Create(nodeName, m, nil)
+	return repository.Set(nodeName, m, nil)
+}
+
+func (m *mockNodeDriver) Unplan(repository common.NodesRepository) error {
+	return repository.Delete()
 }
 
 func (m *mockNodeDriver) Startup() error {
@@ -87,8 +91,8 @@ func (m *mockNodeDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) GetStatus() (common.NodeStatus, error) {
-	return common.NodeAvailable, nil
+func (m *mockNodeDriver) UpdateStatus() (common.NodeStatus, error) {
+	return common.NodeStatus{StatusCode: common.NodeStatusPlanned}, nil
 }
 
 func (m *mockNodeDriver) GetDriverConfig() common.NodeDriverConfig {
@@ -106,13 +110,13 @@ func setupNodesRepository(t *testing.T) (*EtcdNodesRepository, func()) {
 	return repo, cleanup
 }
 
-// Tests for Create method
-func TestEtcdNodesRepository_Create(t *testing.T) {
+// Tests for Set method
+func TestEtcdNodesRepository_Set(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	err := repo.Create("test-node", driver, nil)
+	err := repo.Set("test-node", driver, nil)
 
 	assert.NoError(t, err)
 }

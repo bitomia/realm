@@ -9,13 +9,15 @@ import (
 
 func createRoutes(router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
-	router.Handle("/state", auth.WithAuth(handlers.GetNodeStateHandler)).Methods("GET")
+
 	router.Handle("/system", auth.WithAuth(handlers.GetSystemInfoHandler)).Methods("GET")
 	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
 	router.Handle("/containers", auth.WithAuth(handlers.ListContainersHandler)).Methods("GET")
 	router.Handle("/network", auth.WithAuth(handlers.ListNetworksHandler)).Methods("GET")
 
+	router.Handle("/node", auth.WithAuth(handlers.GetNodeHandler)).Methods("GET")
 	router.Handle("/node/plan", auth.WithAuth(handlers.PlanNodeHandler)).Methods("POST")
+	router.Handle("/node/unplan", auth.WithAuth(handlers.UnplanNodeHandler)).Methods("POST")
 	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNodeHandler)).Methods("POST")
 	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNodeHandler)).Methods("POST")
 

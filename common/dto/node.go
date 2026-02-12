@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/bitomia/realm/common"
+
 type ContainerStatesResponse map[string]ContainerStateResponse
 
 type ContainerStateResponse struct {
@@ -12,7 +14,7 @@ type ContainerStateResponse struct {
 	MemoryPercent float64 `json:"mem_percentage"` // Important (percentage)
 }
 
-type NodeStateResponse struct {
+type NodeState struct {
 	NumCPU          int     `json:"ncpu"`
 	UserCPU         uint64  `json:"cpu_user"`
 	IdleCPU         uint64  `json:"cpu_idle"`
@@ -45,6 +47,11 @@ type NodeStateResponse struct {
 	ProcThreadsCount  uint32 `json:"proc_threads_count"`  // Number of threads
 
 	Containers []ContainerStateResponse `json:"containers,omitempty"`
+}
+
+type NodeResponse struct {
+	State  NodeState         `json:"state"`
+	Status common.NodeStatus `json:"status"`
 }
 
 // OsKind represents the type of operating system

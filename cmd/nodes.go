@@ -2,12 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
 )
@@ -45,27 +47,32 @@ var nodeStates = &cobra.Command{
 		for id, node := range clientPkg.GetNodes() {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
-			state, err := client.GetNodeState(node.Url)
+			node, err := client.GetNode(node.Url)
 			if err != nil {
-				log.Info(" Node not available: %s", err.Error())
+				log.Info(" Status: %s [%s]", common.NodeStatusUnreachable, strings.TrimSpace(err.Error()))
 			} else {
-				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", state.NumCPU)))
-				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", state.UsageCPUPercent)))
-				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", state.UserCPU)))
-				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", state.SystemCPU)))
-				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", state.IdleCPU)))
-				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", state.TotalCPU)))
+				if len(node.Status.Reason) > 0 {
+					log.Info(" Status: %s [%s]", node.Status.StatusCode, node.Status.Reason)
+				} else {
+					log.Info(" Status: %s", node.Status.StatusCode)
+				}
+				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", node.State.NumCPU)))
+				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.UsageCPUPercent)))
+				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.UserCPU)))
+				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.SystemCPU)))
+				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.IdleCPU)))
+				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.TotalCPU)))
 
-				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(state.UsedMem)/float64(state.TotalMem)*100)))
-				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", state.FreeMemPercent)))
-				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.TotalMem)))))
-				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.UsedMem)))))
-				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.FreeMem)))))
-				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(state.FreeStorage)))))
+				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(node.State.UsedMem)/float64(node.State.TotalMem)*100)))
+				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.FreeMemPercent)))
+				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.TotalMem)))))
+				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.UsedMem)))))
+				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeMem)))))
+				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeStorage)))))
 
-				if len(state.Containers) > 0 {
-					log.Info("Containers (%d):", len(state.Containers))
-					for _, container := range state.Containers {
+				if len(node.State.Containers) > 0 {
+					log.Info("Containers (%d):", len(node.State.Containers))
+					for _, container := range node.State.Containers {
 						log.Info("  - %s:", color.YellowString(container.ContainerID))
 						log.Info("    CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", container.CPUUsage)))
 						log.Info("    Memory Usage: %s%% (%s MB)",
@@ -96,6 +103,24 @@ var planNodes = &cobra.Command{
 			log.Info(" -> Planning node %s", color.CyanString(n.Name))
 			if err := client.PlanNode(n); err != nil {
 				log.Fatal("Planning node '%s' failed: %s", n.Name, err.Error())
+			}
+		}
+	},
+}
+
+var unplanNodes = &cobra.Command{
+	Use:                   "unplan [--all | node...]",
+	Short:                 "Unplan nodes from the cluster",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := config.GetNodesFromConfig(nodeNames...)
+		client := clientPkg.NewClient()
+
+		for _, n := range nodes {
+			log.Info(" -> Unplanning node %s", color.CyanString(n.Name))
+			if err := client.UnplanNode(n); err != nil {
+				log.Fatal("Unplanning node '%s' failed: %s", n.Name, err.Error())
 			}
 		}
 	},
@@ -139,11 +164,13 @@ var shutdownNodes = &cobra.Command{
 
 func init() {
 	planNodes.Flags().Bool("all", false, "All nodes")
+	unplanNodes.Flags().Bool("all", false, "All nodes")
 	startNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
 
 	hostCmd.AddCommand(nodeStates)
 	hostCmd.AddCommand(planNodes)
+	hostCmd.AddCommand(unplanNodes)
 	hostCmd.AddCommand(startNodes)
 	hostCmd.AddCommand(shutdownNodes)
 	rootCmd.AddCommand(hostCmd)

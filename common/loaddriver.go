@@ -31,7 +31,7 @@ type LoadDriver interface {
 	// This is invoked within the daemon and does not affect client behavior.
 	//
 	// Returns the deployment ID for the planned deployment.
-	PlanDeployment(repository DeploymentsRepository, loadName string) (DeploymentID, error)
+	PlanDeployment(node NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error)
 
 	// UnplanDeployment removes a planned deployment with cleanup
 	// Only operates on deployments in "planned" status.
@@ -55,7 +55,7 @@ type LoadDriver interface {
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	KillDeployment(repository DeploymentsRepository, deployment Deployment) error
 
-	// UpdateDeploymentStatus update and returns current state based on internal drivers factors.
+	// UpdateDeploymentStatus update and returns current status based on internal drivers factors.
 	UpdateDeploymentStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error)
 
 	// GetDriverConfig returns the configuration for this load driver.

@@ -7,7 +7,7 @@ import (
 )
 
 func RegisterStdDrivers() {
-	common.RegisterLoadDriver(loads.ContainerDriver{})
-	common.RegisterLoadDriver(loads.ProcessDriver{})
-	common.RegisterNodeDriver(nodes.LinuxDriver{})
+	common.RegisterLoadDriver(&loads.ContainerDriver{})
+	common.RegisterLoadDriver(&loads.ProcessDriver{})
+	common.RegisterNodeDriver(&nodes.LinuxDriver{})
 }

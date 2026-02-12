@@ -31,13 +31,24 @@ func GetHealthStatus() (map[string]any, error) {
 	return result, nil
 }
 
-// GetNodeState returns the current node status (CPU, memory, etc) as a typed dto.NodeStateResponse
-func GetNodeState() (*dto.NodeStateResponse, error) {
+// GetNode returns the node state (CPU, memory, etc) and status (planned, error, etc..)
+func GetNode() (*dto.NodeResponse, error) {
 	state, err := cpu.GetNodeState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
-	return state, nil
+
+	node, err := db.GetDB().NodesRepository.GetSelf()
+	if err != nil {
+		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusNotDeployed, Reason: ""}}, nil
+	}
+
+	status, err := node.NodeDriver.UpdateStatus()
+	if err != nil {
+		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
+	}
+
+	return &dto.NodeResponse{State: state, Status: status}, nil
 }
 
 // GetSystemInfo returns static system information about the host
@@ -53,6 +64,34 @@ func PlanNode(node *common.Node) error {
 	database := db.GetDB()
 
 	if err := node.Driver.Plan(node.Name, database.NodesRepository); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UnplanNode() error {
+	database := db.GetDB()
+
+	node, err := database.NodesRepository.GetSelf()
+	if err != nil {
+		return err
+	}
+
+	// Unplan all deployments on this node before unplanning the node
+	deployments, err := database.DeploymentsRepository.GetAll()
+	if err != nil {
+		return fmt.Errorf("failed to get deployments: %w", err)
+	}
+
+	for _, deployment := range deployments {
+		if err := UnplanLoadDeployments(deployment.LoadName); err != nil {
+			return fmt.Errorf("failed to unplan deployment %s: %w", deployment.ID, err)
+		}
+	}
+
+	// if GetSelf() worked then node is planned
+	if err := node.NodeDriver.Unplan(database.NodesRepository); err != nil {
 		return err
 	}
 

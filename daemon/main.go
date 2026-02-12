@@ -54,8 +54,8 @@ func Start(purgeDB bool) {
 	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", daemonId)
 	slog.Debug("Daemon configuration", "config", *cfg)
 
-	caps := capabilities.Capabilities{}
-	caps.Evaluate(cfg)
+	capabilities.Initialize(cfg)
+	caps := capabilities.Get()
 	caps.Print()
 
 	db := db.GetDB()
@@ -141,8 +141,4 @@ func Start(purgeDB bool) {
 
 func Stop() {
 	globalSignalChannel <- syscall.SIGINT
-}
-
-func GetCapabilities() capabilities.Capabilities {
-	return capabilities.Get()
 }
