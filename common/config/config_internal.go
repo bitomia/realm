@@ -31,7 +31,7 @@ func getExeDir() string {
 
 func setDefaults(networkConfig NetworkConfig) {
 	// Set platform-specific default paths
-	var logsPath, containersLogPath, dataPath, containerdSock, cniPath string
+	var dataPath, containerdSock, cniPath string
 	if runtime.GOOS == "windows" {
 		// Windows default paths
 		programData := os.Getenv("ProgramData")
@@ -42,15 +42,11 @@ func setDefaults(networkConfig NetworkConfig) {
 		if programFiles == "" {
 			programFiles = "C:\\Program Files"
 		}
-		logsPath = filepath.Join(programData, "realm", "logs")
-		containersLogPath = filepath.Join(programData, "realm", "logs", "containers")
 		dataPath = filepath.Join(programData, "realm")
 		containerdSock = "npipe:////./pipe/containerd-containerd"
 		cniPath = filepath.Join(programFiles, "containerd", "cni", "bin")
 	} else {
 		// Linux/Unix default paths
-		logsPath = "/var/log/realm"
-		containersLogPath = "/var/log/realm/containers"
 		dataPath = "/var/lib/realm"
 		containerdSock = "/run/containerd/containerd.sock"
 		cniPath = "/usr/lib/cni"
@@ -66,14 +62,12 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
 	viper.SetDefault("daemon.listen_address", "127.0.0.1")
 	viper.SetDefault("daemon.listen_port", "9000")
-	viper.SetDefault("daemon.logs_path", logsPath)
 	viper.SetDefault("daemon.log_format", "text")
 	viper.SetDefault("daemon.proxy_enabled", false)
 	viper.SetDefault("daemon.local_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.master_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.containerd_sock", containerdSock)
 	viper.SetDefault("daemon.containerd_namespace", "realm")
-	viper.SetDefault("daemon.containers_log_path", containersLogPath)
 	viper.SetDefault("daemon.etcd_mode", "server")
 	viper.SetDefault("daemon.etcd_endpoints", []string{})
 	viper.SetDefault("daemon.etcd_name", "")

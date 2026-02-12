@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -168,22 +169,22 @@ func (p ProcessDriver) RunDeployment(repository common.DeploymentsRepository, de
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", "cannot retrieve config")
 	}
 
-	logsPath := config.Daemon.LogsPath
-	stdoutPath := fmt.Sprintf("%s/%s_stdout.log", logsPath, deployment.LoadName)
-	stderrPath := fmt.Sprintf("%s/%s_stderr.log", logsPath, deployment.LoadName)
-	outfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_stdout.log", deployment.LoadName), 0755)
+	stdoutPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stdout.log", deployment.LoadName))
+	stderrPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stderr.log", deployment.LoadName))
+
+	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
 	}
 
-	errfile, err := common.CreateLogFile(logsPath, fmt.Sprintf("%s_stderr.log", deployment.LoadName), 0755)
+	stderrFile, err := common.CreateLogFile(stderrPath, 0755)
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create error log file: %v", err))
 	}
 
 	cmd.Env = os.Environ()
-	cmd.Stdout = outfile
-	cmd.Stderr = errfile
+	cmd.Stdout = stdoutFile
+	cmd.Stderr = stderrFile
 
 	if p.Config.WorkingDir != nil {
 		cmd.Dir = *p.Config.WorkingDir

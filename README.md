@@ -126,7 +126,6 @@ daemon:
   volumes_pool: realm_volumes               # Name of the volumes pool (ZFS pool name or directory name) (default: realm_volumes)
   listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
   listen_port: 9000                         # Port to bind the daemon API (default: 9000)
-  logs_path: /var/log/realm                 # Path to store daemon logs (default: /var/log/realm on Linux)
   log_format: text                          # Log format: "text" or "json" (default: text)
   containers_log_path: /var/log/realm/containers  # Path to store container logs (default: platform-specific)
   proxy_enabled: false                      # Enable/disable the proxy (default: false)

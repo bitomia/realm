@@ -6,16 +6,14 @@ import (
 	"path/filepath"
 )
 
-type LogsPath string
-
 // Create a file and all the missing directories
-func CreateLogFile(logsPath LogsPath, filename string, perm os.FileMode) (*os.File, error) {
-	if err := os.MkdirAll(string(logsPath), perm); err != nil {
-		return nil, fmt.Errorf("Failed to create directories: %v", err)
+func CreateLogFile(filePath string, perm os.FileMode) (*os.File, error) {
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, perm); err != nil {
+		return nil, fmt.Errorf("Failed to create directory: %v", err)
 	}
 
-	filepath := filepath.Join(string(logsPath), filename)
-	file, err := os.Create(filepath)
+	file, err := os.Create(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create file: %v", err)
 	}

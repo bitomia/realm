@@ -149,7 +149,6 @@ daemon:
 | `listen_address` | string | `127.0.0.1` | Address to bind the daemon API |
 | `listen_port` | int | `9000` | Port to bind the daemon API |
 | `data_path` | string | `/var/lib/realm` | Path to store daemon data (ID file, etcd data) |
-| `logs_path` | string | `/var/log/realm` | Path to store daemon logs |
 | `log_format` | string | `text` | Log output format: `text` or `json` |
 
 ### Container Runtime

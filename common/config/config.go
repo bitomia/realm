@@ -22,7 +22,7 @@ type RegistryAuth struct {
 
 // RegistryConfig holds configuration for a container registry.
 type RegistryConfig struct {
-	Host     string       `json:"host"`              // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
+	Host     string       `json:"host"` // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
 	Auth     RegistryAuth `json:"auth"`
 	Insecure bool         `json:"insecure,omitempty"` // Allow HTTP instead of HTTPS
 }
@@ -30,7 +30,7 @@ type RegistryConfig struct {
 // DaemonConfig holds the configuration for the realm daemon.
 // All fields are optional and have platform-specific or sensible defaults.
 type DaemonConfig struct {
-	// Path to store daemon data (ID file and etcd data).
+	// Path to store daemon data (ID file, etcd data, and logs).
 	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
 	DataPath string `json:"data_path"`
 
@@ -55,10 +55,6 @@ type DaemonConfig struct {
 	// Port to bind the daemon API.
 	// Default: 9000
 	ListenPort int `json:"listen_port"`
-
-	// Path to store daemon logs.
-	// Default: /var/log/realm (Linux) or %ProgramData%\realm\logs (Windows)
-	LogsPath common.LogsPath `json:"logs_path"`
 
 	// Log output format.
 	// Valid values: "text", "json"

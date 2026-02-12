@@ -246,8 +246,8 @@ func (c ContainerDriver) RunDeployment(repository common.DeploymentsRepository, 
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
-	stdoutPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stdout.log", containerName))
-	stderrPath := path.Join(string(config.Get().Daemon.LogsPath), "containers", fmt.Sprintf("%s_stderr.log", containerName))
+	stdoutPath := path.Join(config.Get().Daemon.DataPath, "logs", "containers", fmt.Sprintf("%s_stdout.log", containerName))
+	stderrPath := path.Join(config.Get().Daemon.DataPath, "logs", "containers", fmt.Sprintf("%s_stderr.log", containerName))
 	task, err := containers.StartContainer(containerName, stdoutPath, stderrPath)
 	if err != nil {
 		err = fmt.Errorf("update container state failed. rolling back: %s", err.Error())
