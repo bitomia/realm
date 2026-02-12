@@ -1,4 +1,4 @@
-# Realm - Simple container orchestration service
+# Realm - Simple orchestration service
 
 Realm is a extendable, embeddable and simple orchestration service for different type of loads such as native processes or OCI containers.
 
@@ -287,17 +287,11 @@ The open-source version of Realm is licensed under the **GNU Affero General Publ
 
 If you cannot comply with AGPL-3.0 requirements, we offer **commercial licenses** that allow you to:
 
-- 🔓 Use Realm in proprietary/closed-source applications
-- 🔓 Embed Realm via the C API without open-sourcing your code
-- 🔓 Offer Realm-based services without releasing your source code
-- 🎯 Receive enterprise support and SLA guarantees
-- 🎯 Access professional services and custom development
-
-**Commercial licenses include**:
-- Freedom from AGPL-3.0 requirements
-- Enterprise support with SLA
-- Professional services options
-- Legal indemnification
+- Use Realm in proprietary/closed-source applications
+- Embed Realm via the C API without open-sourcing your code
+- Offer Realm-based services without releasing your source code
+- Receive enterprise support and SLA guarantees
+- Access professional services and custom development
 
 For commercial licensing options and pricing, contact **licensing@bitomia.com**.
 
