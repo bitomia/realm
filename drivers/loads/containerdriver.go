@@ -18,6 +18,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/daemon"
 	"github.com/bitomia/realm/daemon/api"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -70,7 +71,7 @@ func NewContainerDriver(c any) (common.LoadDriver, error) {
 		Config: config,
 	}
 
-	if err := driver.verify(); err != nil {
+	if err := driver.verifyConfig(); err != nil {
 		return nil, err
 	}
 	return driver, nil
@@ -105,7 +106,7 @@ func (c ContainerDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (c ContainerDriver) verify() error {
+func (c ContainerDriver) verifyConfig() error {
 	if c.Config.Image == "" {
 		return fmt.Errorf("Container image not specified")
 	}
@@ -148,6 +149,25 @@ func (c ContainerDriver) verify() error {
 }
 
 func (c ContainerDriver) PlanDeployment(repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+	// Check required daemon capabilities
+	daemonCaps := daemon.GetCapabilities()
+	if !daemonCaps.ContainersEngine {
+		err := fmt.Errorf("Containers engine capability required")
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		return uuid.Nil, err
+	}
+	if !daemonCaps.Volumes {
+		err := fmt.Errorf("Volumes capability required")
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		return uuid.Nil, err
+	}
+	if !daemonCaps.CNI {
+		err := fmt.Errorf("CNI capability required")
+		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		return uuid.Nil, err
+	}
+
+	// Try to pull and get image
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
 		slog.Error("ContainerDriver.PlanDeployment", "error", err)
