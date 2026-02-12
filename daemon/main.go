@@ -15,22 +15,28 @@ import (
 
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/auth"
-	"github.com/bitomia/realm/daemon/containers"
+
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
 	"github.com/bitomia/realm/daemon/health"
 	"github.com/bitomia/realm/daemon/id"
 	"github.com/bitomia/realm/daemon/mdns"
-	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/proxy"
-	"github.com/bitomia/realm/daemon/volumes"
 )
 
 var (
 	globalSignalChannel = make(chan os.Signal, 1)
+	globalCapabilities  = Capabilities{}
 )
 
 func Start(purgeDB bool) {
+	globalCapabilities = Capabilities{
+		ContainersEngine: false,
+		Volumes:          false,
+		VolumesZFS:       false,
+		CNI:              false,
+	}
+
 	cfg := config.Get()
 
 	// Configure slog handler based on log format
@@ -55,36 +61,8 @@ func Start(purgeDB bool) {
 	slog.Info("Initializing daemon", "version", config.GetVersion(), "id", daemonId)
 	slog.Debug("Daemon configuration", "config", *cfg)
 
-	slog.Info("Checking containerd version")
-	containerdVersion, err := containers.GetContainerdVersion()
-	if err != nil {
-		slog.Error("Cannot get volumes path", "error", err.Error())
-		os.Exit(1)
-	}
-	slog.Info("Containerd version", "version", containerdVersion)
-
-	slog.Info("Initializing volumes")
-	if err := volumes.InitializeManager(cfg.Daemon.ZFS); err != nil {
-		slog.Error("Volumes initialization failed", "error", err.Error())
-		os.Exit(1)
-	}
-	volumesPath, err := volumes.GetVolumesPath()
-	if err != nil {
-		slog.Error("Cannot get volumes path", "error", err.Error())
-		os.Exit(1)
-	}
-	if cfg.Daemon.ZFS {
-		slog.Info("Volumes ready (ZFS)", "path", volumesPath)
-	} else {
-		slog.Info("Volumes ready (directory-based)", "path", volumesPath)
-	}
-
-	slog.Info("Validating CNI availability")
-	if err := network.ValidateCNIAvailability(); err != nil {
-		slog.Error("CNI validation failed", "error", err.Error())
-		os.Exit(1)
-	}
-	slog.Info("CNI plugins validated successfully")
+	globalCapabilities.Evaluate(cfg)
+	globalCapabilities.Print()
 
 	db := db.GetDB()
 	if db == nil {
@@ -169,4 +147,8 @@ func Start(purgeDB bool) {
 
 func Stop() {
 	globalSignalChannel <- syscall.SIGINT
+}
+
+func GetCapabilities() Capabilities {
+	return globalCapabilities
 }

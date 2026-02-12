@@ -52,7 +52,6 @@ func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 		Config: config,
 	}
 	if err := driver.Verify(); err != nil {
-
 		return nil, err
 	}
 	return driver, nil

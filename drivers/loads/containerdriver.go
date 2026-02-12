@@ -50,13 +50,12 @@ type ContainerEntryMetadata struct {
 	StderrPath    string  `json:"stderr_path,omitempty"`
 }
 
-func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
+func NewContainerDriver(c any) (common.LoadDriver, error) {
 	var config ContainerConfig
-
-	// Configure mapstructure decoder to use 'json' tags
-	// because it has to work for config files (yaml)
-	// and for remote commands (json)
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		// Configure mapstructure decoder to use 'json' tags
+		// because it has to work for config files (yaml)
+		// and for remote commands (json)
 		TagName: "json",
 		Result:  &config,
 	})
@@ -80,7 +79,7 @@ func NewContainerDriverFromConfig(c any) (common.LoadDriver, error) {
 func (c ContainerDriver) DriverInfo() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  ContainerDriverID,
-		New: NewContainerDriverFromConfig,
+		New: NewContainerDriver,
 	}
 }
 
@@ -98,7 +97,7 @@ func (c ContainerDriver) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if loadDriver, err := NewContainerDriverFromConfig(config); err != nil {
+	if loadDriver, err := NewContainerDriver(config); err != nil {
 		return err
 	} else {
 		c = loadDriver.(ContainerDriver)

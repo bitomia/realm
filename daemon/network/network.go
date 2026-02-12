@@ -538,8 +538,8 @@ func PurgeBridgeNetwork(bridge *Bridge) error {
 	return netlink.LinkDel(bridge.Link)
 }
 
-// ValidateCNIAvailability checks if CNI path and all required plugins exist
-func ValidateCNIAvailability() error {
+// IsCNIAvailable checks if CNI path and all required plugins exist
+func IsCNIAvailable() error {
 	cniPath := config.Get().Daemon.CniPath
 
 	// Check if CNI path exists

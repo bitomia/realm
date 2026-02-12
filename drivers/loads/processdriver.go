@@ -41,7 +41,7 @@ type ProcessEntryMetadata struct {
 	StderrPath string `json:"stderr_path,omitempty"`
 }
 
-func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
+func NewProcessDriver(c any) (common.LoadDriver, error) {
 	var config = ProcessConfig{
 		StopSignal: "SIGHUP",
 	}
@@ -79,7 +79,7 @@ func NewProcessDriverFromConfig(c any) (common.LoadDriver, error) {
 func (c ProcessDriver) DriverInfo() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  ProcessDriverID,
-		New: NewProcessDriverFromConfig,
+		New: NewProcessDriver,
 	}
 }
 
@@ -97,7 +97,7 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if loadDriver, err := NewProcessDriverFromConfig(config); err != nil {
+	if loadDriver, err := NewProcessDriver(config); err != nil {
 		return err
 	} else {
 		p = loadDriver.(ProcessDriver)
