@@ -20,9 +20,6 @@ type LoadDriver interface {
 	// DriverInfo returns metadata describing the driver for internal factory use.
 	DriverInfo() LoadDriverInfo
 
-	// Verify checks whether the driver options are valid.
-	Verify() error
-
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)
 

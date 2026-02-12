@@ -27,10 +27,6 @@ func (m *MockLoadDriver) DriverInfo() LoadDriverInfo {
 	}
 }
 
-func (m *MockLoadDriver) Verify() error {
-	return nil
-}
-
 func (m *MockLoadDriver) MarshalJSON() ([]byte, error) {
 	return []byte("{}"), nil
 }

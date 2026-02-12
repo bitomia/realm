@@ -70,7 +70,7 @@ func NewContainerDriver(c any) (common.LoadDriver, error) {
 		Config: config,
 	}
 
-	if err := driver.Verify(); err != nil {
+	if err := driver.verify(); err != nil {
 		return nil, err
 	}
 	return driver, nil
@@ -105,7 +105,7 @@ func (c ContainerDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (c ContainerDriver) Verify() error {
+func (c ContainerDriver) verify() error {
 	if c.Config.Image == "" {
 		return fmt.Errorf("Container image not specified")
 	}

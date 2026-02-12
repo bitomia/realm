@@ -70,7 +70,7 @@ func NewProcessDriver(c any) (common.LoadDriver, error) {
 		Config:     config,
 	}
 
-	if err := driver.Verify(); err != nil {
+	if err := driver.verify(); err != nil {
 		return nil, err
 	}
 	return driver, nil
@@ -105,7 +105,7 @@ func (p ProcessDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (p ProcessDriver) Verify() error {
+func (p ProcessDriver) verify() error {
 	if p.Config.StartCmd == "" {
 		return fmt.Errorf("StartCmd not specified")
 	}

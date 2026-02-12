@@ -50,10 +50,6 @@ func (m mockLoadDriver) DriverInfo() common.LoadDriverInfo {
 	}
 }
 
-func (m mockLoadDriver) Verify() error {
-	return nil
-}
-
 func (m mockLoadDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"value":      m.Value,
