@@ -26,37 +26,37 @@ type LoadDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// PlanDeployment validates prerequisites and creates a deployment in "planned" status.
+	// Provision validates prerequisites and creates a deployment in "provisioned" status.
 	// It shall check load requirements but it won't check depending loads.
 	// This is invoked within the daemon and does not affect client behavior.
 	//
-	// Returns the deployment ID for the planned deployment.
-	PlanDeployment(node NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error)
+	// Returns the deployment ID for the provisioned deployment.
+	Provision(node NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error)
 
-	// UnplanDeployment removes a planned deployment with cleanup
-	// Only operates on deployments in "planned" status.
-	UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error
+	// Deprovision removes a provisioned deployment with cleanup
+	// Only operates on deployments in "provisioned" status.
+	Deprovision(repository DeploymentsRepository, deployment Deployment) error
 
-	// RunDeployment starts the load execution for an existing planned deployment.
+	// Run starts the load execution for an existing provisioned deployment.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	RunDeployment(repository DeploymentsRepository, deployment Deployment) error
+	Run(repository DeploymentsRepository, deployment Deployment) error
 
-	// StopDeployment stops a running load execution within the daemon.
+	// Stop stops a running load execution within the daemon.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	StopDeployment(repository DeploymentsRepository, deployment Deployment) error
+	Stop(repository DeploymentsRepository, deployment Deployment) error
 
-	// KillDeployment stops immediately a running load execution within the daemon.
+	// Kill stops immediately a running load execution within the daemon.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	KillDeployment(repository DeploymentsRepository, deployment Deployment) error
+	Kill(repository DeploymentsRepository, deployment Deployment) error
 
-	// UpdateDeploymentStatus update and returns current status based on internal drivers factors.
-	UpdateDeploymentStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error)
+	// UpdateStatus update and returns current status based on internal drivers factors.
+	UpdateStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error)
 
 	// GetDriverConfig returns the configuration for this load driver.
 	GetDriverConfig() LoadDriverConfig

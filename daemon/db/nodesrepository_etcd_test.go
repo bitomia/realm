@@ -50,10 +50,6 @@ func (m *mockNodeDriver) DriverInfo() common.NodeDriverInfo {
 	}
 }
 
-func (m *mockNodeDriver) Verify() error {
-	return nil
-}
-
 func (m *mockNodeDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]any{
 		"value":       m.Value,
@@ -71,11 +67,11 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Plan(nodeName string, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Provision(nodeName string, repository common.NodesRepository) error {
 	return repository.Set(nodeName, m, nil)
 }
 
-func (m *mockNodeDriver) Unplan(repository common.NodesRepository) error {
+func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.Delete()
 }
 
@@ -83,20 +79,24 @@ func (m *mockNodeDriver) Startup() error {
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown(message string, time uint32) error {
+func (m *mockNodeDriver) Shutdown(message string, time uint32, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Restart(message string, time uint32) error {
+func (m *mockNodeDriver) Restart(message string, time uint32, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) UpdateStatus() (common.NodeStatus, error) {
+func (m *mockNodeDriver) UpdateStatus(repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 
 func (m *mockNodeDriver) GetDriverConfig() common.NodeDriverConfig {
 	return m.config
+}
+
+func (m *mockNodeDriver) GetCapabilities() (common.Capabilities, error) {
+	return nil, nil
 }
 
 func init() {

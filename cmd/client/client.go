@@ -412,12 +412,12 @@ func (c *Client) Login(node string, username string, password string) (string, e
 	return loginResp.Token, nil
 }
 
-func (c *Client) PlanLoad(load *common.Load) error {
+func (c *Client) ProvisionLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/plan", load.Node.Url)
+	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(load)
@@ -440,7 +440,7 @@ func (c *Client) PlanLoad(load *common.Load) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed planning load: %s", string(body))
+		return fmt.Errorf("failed provisioning load: %s", string(body))
 	}
 
 	return nil
@@ -542,12 +542,12 @@ func (c *Client) KillLoad(load *common.Load) error {
 	return nil
 }
 
-func (c *Client) UnplanLoad(load *common.Load) error {
+func (c *Client) DeprovisionLoad(load *common.Load) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/loads/%s/unplan", load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {

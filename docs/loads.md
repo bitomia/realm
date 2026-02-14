@@ -1,14 +1,14 @@
 ```mermaid
 stateDiagram-v2
-    [*] --> Planned: PlanDeployment
-    
-    Planned --> Running: RunDeployment
-    Planned --> [*]: UnplanDeployment
+    [*] --> Ready: Provision
 
-    Stopped --> Running: RunDeployment
-    Stopped --> [*]: UnplanDeployment
+    Ready --> Running: Run
+    Ready --> [*]: Deprovision
 
-    Running --> Stopped: StopDeployment
+    Running --> Stopped: Stop
 
-    Error --> [*]: UnplanDeployment
+    Stopped --> Running: Run
+    Stopped --> [*]: Deprovision
+
+    Error --> [*]: Deprovision
 ```

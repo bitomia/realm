@@ -127,7 +127,7 @@ func (c *ContainerDriver) verifyConfig() error {
 			return fmt.Errorf("Network name is required when using bridge mode")
 		}
 
-		// Warn during planning if host mode has conflicting settings
+		// Warn during provisioning if host mode has conflicting settings
 		if mode == "host" {
 			if len(c.Config.Network.PortMap) > 0 {
 				slog.Warn("ContainerDriver.Verify", "msg", "port_map will be ignored in host network mode")
@@ -147,78 +147,78 @@ func (c *ContainerDriver) verifyConfig() error {
 	return nil
 }
 
-func (c *ContainerDriver) PlanDeployment(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+func (c *ContainerDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	if nodeDriver == nil {
 		err := fmt.Errorf("Nil node driver")
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	nodeCaps, err := nodeDriver.GetCapabilities()
 	if err != nil {
 		err := fmt.Errorf("Capabilities not initiliazed")
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.ContainersEngine() {
 		err := fmt.Errorf("Containers engine capability required")
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.ContainersNetworking() {
 		err := fmt.Errorf("Containers networking capability required")
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.Volumes() {
 		err := fmt.Errorf("Volumes capability required")
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 
 	// Try to pull and get image
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	defer client.Close()
 
 	_, err = containers.TryPullAndGetImage(ctx, client, c.Config.Image)
 	if err != nil {
-		slog.Error("ContainerDriver.PlanDeployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 
-	did, err := repository.Create(loadName, c, common.DeploymentStatus{StatusCode: common.DeploymentStatusPlanned}, ContainerEntryMetadata{})
+	did, err := repository.Create(loadName, c, common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}, ContainerEntryMetadata{})
 	if err != nil {
-		slog.Error("ContainerDriver.PlanDeployment", "msg", "failed to create deployment", "error", err)
+		slog.Error("ContainerDriver.Provision", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
 	}
 
 	return did, nil
 }
 
-func (c *ContainerDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	slog.Info("ContainerDriver.UnplanDeployment", "msg", "unplanning deployment", "deployment", deployment.ID)
+func (c *ContainerDriver) Deprovision(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	slog.Info("ContainerDriver.Deprovision", "msg", "deprovisioning deployment", "deployment", deployment.ID)
 
 	// Clean-up if error
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
 		metadata, err := getContainerMetadata(deployment)
 		if err != nil {
-			slog.Warn("ContainerDriver.UnplanDeployment", "error", "error on retrieving metadata", "deployment", deployment.ID)
-			goto unplan_deployment
+			slog.Warn("ContainerDriver.Deprovision", "error", "error on retrieving metadata", "deployment", deployment.ID)
+			goto deprovision_deployment
 		}
 
 		if len(metadata.ContainerName) > 0 {
 			if err := c.cleanupContainer(metadata.ContainerName, syscall.SIGKILL, false); err != nil {
-				slog.Warn("ContainerDriver.UnplanDeployment", "msg", "failed to clean-up container. possible orphan container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
+				slog.Warn("ContainerDriver.Deprovision", "msg", "failed to clean-up container. possible orphan container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
 			}
 		}
 	}
 
-unplan_deployment:
+deprovision_deployment:
 	if err := repository.DeleteDeployment(deployment.ID); err != nil {
-		slog.Error("ContainerDriver.UnplanDeployment", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.Deprovision", "msg", "failed to delete deployment", "deploymentID", deployment.ID, "error", err)
 
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: fmt.Sprintf("failed to delete deployment: %s", err.Error())})
 	}
@@ -226,10 +226,10 @@ unplan_deployment:
 	return nil
 }
 
-func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) Run(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	// Use loadName to create a unique container name
 	containerName := fmt.Sprintf("%s-%s", deployment.LoadName, uuid.New())
-	slog.Info("ContainerDriver.RunDeployment", "msg", "starting container", "container", containerName)
+	slog.Info("ContainerDriver.Run", "msg", "starting container", "container", containerName)
 
 	createOpts := dto.CreateContainerRequest{
 		Image:       c.Config.Image,
@@ -245,12 +245,12 @@ func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository,
 	// Prepare extra OCI spec options for host networking if needed
 	var extraSpecOpts []oci.SpecOpts
 	if c.Config.Network != nil && c.Config.Network.Mode == "host" {
-		slog.Info("ContainerDriver.RunDeployment", "msg", "using host network mode", "container", containerName)
+		slog.Info("ContainerDriver.Run", "msg", "using host network mode", "container", containerName)
 		extraSpecOpts = containers.GetHostNetworkSpecOpts()
 	}
 
 	if err := containers.CreateContainer(containerName, createOpts, extraSpecOpts); err != nil {
-		slog.Error("ContainerDriver.RunDeployment", "msg", "create container failed", "error", err)
+		slog.Error("ContainerDriver.Run", "msg", "create container failed", "error", err)
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
@@ -259,11 +259,11 @@ func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository,
 	task, err := containers.StartContainer(containerName, stdoutPath, stderrPath)
 	if err != nil {
 		err = fmt.Errorf("update container state failed. rolling back: %s", err.Error())
-		slog.Error("ContainerDriver.RunDeployment", "msg", "rolling back update container", "error", err)
+		slog.Error("ContainerDriver.Run", "msg", "rolling back update container", "error", err)
 
 		// Delete container if it failed
 		if err := containers.DeleteContainer(containerName, syscall.SIGKILL, false); err != nil {
-			slog.Error("ContainerDriver.RunDeployment", "msg", "delete container on rolling back failed", "error", err)
+			slog.Error("ContainerDriver.Run", "msg", "delete container on rolling back failed", "error", err)
 		}
 
 		return err
@@ -274,11 +274,11 @@ func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository,
 
 	// Attach network if configured (only for bridge mode, not host mode)
 	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
-		slog.Info("ContainerDriver.RunDeployment", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
+		slog.Info("ContainerDriver.Run", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
 
 		if err, _, gwAddress, ipAddress := network.StartNetwork(containerName, *c.Config.Network); err != nil {
 			err = fmt.Errorf("failed to attach network. rolling back: %s", err.Error())
-			slog.Error("ContainerDriver.RunDeployment", "msg", "failed to attach network", "error", err)
+			slog.Error("ContainerDriver.Run", "msg", "failed to attach network", "error", err)
 
 			// Kill the task
 			if task != nil {
@@ -295,13 +295,13 @@ func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository,
 			}
 
 			if err := containers.DeleteContainer(containerName, syscall.SIGKILL, true); err != nil {
-				slog.Error("ContainerDriver.RunDeployment", "msg", "delete container on network rollback failed", "error", err)
+				slog.Error("ContainerDriver.Run", "msg", "delete container on network rollback failed", "error", err)
 			}
 
 			return err
 		}
 
-		slog.Info("ContainerDriver.RunDeployment", "msg", "network attached successfully", "container", containerName)
+		slog.Info("ContainerDriver.Run", "msg", "network attached successfully", "container", containerName)
 	}
 
 	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
@@ -316,15 +316,15 @@ func (c *ContainerDriver) RunDeployment(repository common.DeploymentsRepository,
 	}
 
 	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusRunning}); err != nil {
-		slog.Error("ContainerDriver.RunDeployment", "msg", "failed to update deployment status", "error", err)
+		slog.Error("ContainerDriver.Run", "msg", "failed to update deployment status", "error", err)
 		return err
 	}
 
-	slog.Info("ContainerDriver.RunDeployment", "msg", "container started", "container", containerName, "taskPID", task.Pid())
+	slog.Info("ContainerDriver.Run", "msg", "container started", "container", containerName, "taskPID", task.Pid())
 	return nil
 }
 
-func (c *ContainerDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) Stop(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
@@ -332,10 +332,10 @@ func (c *ContainerDriver) StopDeployment(repository common.DeploymentsRepository
 
 	if len(metadata.ContainerName) > 0 {
 		if err := c.cleanupContainer(metadata.ContainerName, syscall.SIGTERM, false); err != nil {
-			slog.Error("ContainerDriver.StopDeployment", "msg", "failed to clean-up container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
+			slog.Error("ContainerDriver.Stop", "msg", "failed to clean-up container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
 			return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 		} else {
-			slog.Info("ContainerDriver.StopDeployment", "msg", "container cleaned up", "container", metadata.ContainerName)
+			slog.Info("ContainerDriver.Stop", "msg", "container cleaned up", "container", metadata.ContainerName)
 		}
 	}
 
@@ -343,20 +343,20 @@ func (c *ContainerDriver) StopDeployment(repository common.DeploymentsRepository
 		metadata.ContainerName = ""
 		return nil
 	}); err != nil {
-		slog.Error("ContainerDriver.StopDeployment", "msg", "failed updating metadata", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.Stop", "msg", "failed updating metadata", "deploymentID", deployment.ID, "error", err)
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
 	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}); err != nil {
-		slog.Error("ContainerDriver.StopDeployment", "msg", "failed on status update", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.Stop", "msg", "failed on status update", "deploymentID", deployment.ID, "error", err)
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
-	slog.Info("ContainerDriver.StopDeployment", "msg", "stop deployment", "deployment", deployment.ID)
+	slog.Info("ContainerDriver.Stop", "msg", "stop deployment", "deployment", deployment.ID)
 	return nil
 }
 
-func (c *ContainerDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (c *ContainerDriver) Kill(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	metadata, err := getContainerMetadata(deployment)
 	if err != nil {
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
@@ -364,10 +364,10 @@ func (c *ContainerDriver) KillDeployment(repository common.DeploymentsRepository
 
 	if len(metadata.ContainerName) > 0 {
 		if err := c.cleanupContainer(metadata.ContainerName, syscall.SIGKILL, false); err != nil {
-			slog.Error("ContainerDriver.KillDeployment", "msg", "failed to clean-up container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
+			slog.Error("ContainerDriver.Kill", "msg", "failed to clean-up container", "deploymentID", deployment.ID, "container", metadata.ContainerName, "error", err)
 			return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 		} else {
-			slog.Info("ContainerDriver.KillDeployment", "msg", "container cleaned up", "container", metadata.ContainerName)
+			slog.Info("ContainerDriver.Kill", "msg", "container cleaned up", "container", metadata.ContainerName)
 		}
 	}
 
@@ -375,16 +375,16 @@ func (c *ContainerDriver) KillDeployment(repository common.DeploymentsRepository
 		metadata.ContainerName = ""
 		return nil
 	}); err != nil {
-		slog.Error("ContainerDriver.KillDeployment", "msg", "failed updating metadata", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.Kill", "msg", "failed updating metadata", "deploymentID", deployment.ID, "error", err)
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
 	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}); err != nil {
-		slog.Error("ContainerDriver.KillDeployment", "msg", "failed on status update", "deploymentID", deployment.ID, "error", err)
+		slog.Error("ContainerDriver.Kill", "msg", "failed on status update", "deploymentID", deployment.ID, "error", err)
 		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
 	}
 
-	slog.Info("ContainerDriver.KillDeployment", "msg", "kill deployment", "deployment", deployment.ID)
+	slog.Info("ContainerDriver.Kill", "msg", "kill deployment", "deployment", deployment.ID)
 	return nil
 }
 
@@ -404,7 +404,7 @@ func (c *ContainerDriver) cleanupContainer(containerName string, signal syscall.
 	return containers.DeleteContainer(containerName, signal, shallRemoveVolume)
 }
 
-func (c *ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+func (c *ContainerDriver) UpdateStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
 	metadata, err := getContainerMetadata(d)
 	if err != nil {
 		return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
@@ -413,14 +413,14 @@ func (c *ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository,
 	status, err := api.GetContainerStatus(metadata.ContainerName)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
-			if d.Status.StatusCode == common.DeploymentStatusPlanned || d.Status.StatusCode == common.DeploymentStatusStopped {
+			if d.Status.StatusCode == common.DeploymentStatusReady || d.Status.StatusCode == common.DeploymentStatusStopped {
 				return d.Status, nil
 			} else {
-				slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "not found container status", "deployment", d.ID, "err", err)
+				slog.Warn("ContainerDriver.UpdateStatus", "msg", "not found container status", "deployment", d.ID, "err", err)
 				return common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()}, nil
 			}
 		} else {
-			slog.Warn("ContainerDriver.UpdateDeploymentStatus", "msg", "getting container status failed ", "deployment", d.ID, "err", err)
+			slog.Warn("ContainerDriver.UpdateStatus", "msg", "getting container status failed ", "deployment", d.ID, "err", err)
 		}
 	}
 
@@ -433,11 +433,11 @@ func (c *ContainerDriver) UpdateDeploymentStatus(r common.DeploymentsRepository,
 		s = common.DeploymentStatus{StatusCode: common.DeploymentStatusStopped}
 	case containerd.Paused:
 	case containerd.Created:
-		s = common.DeploymentStatus{StatusCode: common.DeploymentStatusPlanned}
+		s = common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}
 	}
 
 	if err := r.UpdateStatus(d.ID, s); err != nil {
-		slog.Error("ContainerDriver.UpdateDeploymentStatus", "msg", "failed to update deployment status", "error", err)
+		slog.Error("ContainerDriver.UpdateStatus", "msg", "failed to update deployment status", "error", err)
 		return common.DeploymentStatus{}, err
 	}
 

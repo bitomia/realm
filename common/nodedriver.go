@@ -40,7 +40,7 @@ type NodeDriver interface {
 	Provision(nodeName string, repository NodesRepository) error
 
 	// Deprovision cleanup and removes the node
-	// Only operates on deployments in "planned" status.
+	// Only operates on deployments in "provisioned" status.
 	Deprovision(repository NodesRepository) error
 
 	// Startup starts the node

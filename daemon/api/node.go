@@ -31,7 +31,7 @@ func GetHealthStatus() (map[string]any, error) {
 	return result, nil
 }
 
-// GetNode returns the node state (CPU, memory, etc) and status (planned, error, etc..)
+// GetNode returns the node state (CPU, memory, etc) and status (provisioned, error, etc..)
 func GetNode() (*dto.NodeResponse, error) {
 	state, err := cpu.GetNodeState()
 	if err != nil {
@@ -86,12 +86,12 @@ func DeprovisionNode() error {
 	}
 
 	for _, deployment := range deployments {
-		if err := UnplanLoadDeployments(deployment.LoadName); err != nil {
+		if err := DeprovisionLoadDeployments(deployment.LoadName); err != nil {
 			return fmt.Errorf("failed to deprovision deployment %s: %w", deployment.ID, err)
 		}
 	}
 
-	// if GetSelf() worked then node is planned
+	// if GetSelf() worked then node is provisioned
 	if err := node.NodeDriver.Deprovision(database.NodesRepository); err != nil {
 		return err
 	}

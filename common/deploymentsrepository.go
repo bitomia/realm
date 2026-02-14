@@ -11,11 +11,11 @@ type DeploymentID = uuid.UUID
 type DeploymentStatusCode string
 
 const (
-	DeploymentStatusNotDeployed DeploymentStatusCode = "not deployed"
-	DeploymentStatusPlanned     DeploymentStatusCode = "planned"
-	DeploymentStatusRunning     DeploymentStatusCode = "running"
-	DeploymentStatusStopped     DeploymentStatusCode = "stopped"
-	DeploymentStatusError       DeploymentStatusCode = "error"
+	DeploymentStatusNotReady DeploymentStatusCode = "not ready"
+	DeploymentStatusReady    DeploymentStatusCode = "ready"
+	DeploymentStatusRunning  DeploymentStatusCode = "running"
+	DeploymentStatusStopped  DeploymentStatusCode = "stopped"
+	DeploymentStatusError    DeploymentStatusCode = "error"
 )
 
 type DeploymentStatus struct {

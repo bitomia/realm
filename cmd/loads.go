@@ -15,13 +15,13 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
-func doPlanLoads(client *clientPkg.Client, loads map[string]*common.Load) error {
+func doProvisionLoads(client *clientPkg.Client, loads map[string]*common.Load) error {
 	if len(loads) == 0 {
 		return fmt.Errorf("No loads")
 	}
 	for _, load := range loads {
-		log.Info(" -> Planning load %s", color.CyanString(load.Name))
-		if err := client.PlanLoad(load); err != nil {
+		log.Info(" -> Provisioning load %s", color.CyanString(load.Name))
+		if err := client.ProvisionLoad(load); err != nil {
 			return err
 		}
 	}
@@ -52,16 +52,16 @@ var loadsCmd = &cobra.Command{
 	},
 }
 
-var planLoads = &cobra.Command{
-	Use:                   "plan [--all | load...]",
-	Short:                 "Plan loads on nodes",
+var provisionLoads = &cobra.Command{
+	Use:                   "provision [--all | load...]",
+	Short:                 "Provision loads on nodes",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
-		if err := doPlanLoads(&client, loads); err != nil {
-			log.Fatal("Error planning load: %s", err.Error())
+		if err := doProvisionLoads(&client, loads); err != nil {
+			log.Fatal("Error provisioning load: %s", err.Error())
 		}
 		log.Info("Successfully verified loads on cluster")
 	},
@@ -123,8 +123,8 @@ var listLoads = &cobra.Command{
 						switch d.DeploymentStatus.StatusCode {
 						case common.DeploymentStatusRunning:
 							deploymentStatusStr = fmt.Sprintf("%s", color.GreenString("running"))
-						case common.DeploymentStatusPlanned:
-							deploymentStatusStr = fmt.Sprintf("%s", color.HiBlueString("planned"))
+						case common.DeploymentStatusReady:
+							deploymentStatusStr = fmt.Sprintf("%s", color.HiBlueString("ready"))
 						case common.DeploymentStatusStopped:
 							deploymentStatusStr = fmt.Sprintf("%s", color.YellowString("stopped"))
 						case common.DeploymentStatusError:
@@ -148,14 +148,14 @@ var listLoads = &cobra.Command{
 
 var runLoads = &cobra.Command{
 	Use:                   "run [--all | load...]",
-	Short:                 "Run loads (must be planned first)",
+	Short:                 "Run loads (must be provisioned first)",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
 
-		// Planning must be done separately with 'plan' command
+		// Provisioning must be done separately with 'provision' command
 
 		loaded := make(map[string]bool)
 		for _, l := range loads {
@@ -223,22 +223,22 @@ var killLoads = &cobra.Command{
 	},
 }
 
-var unplanLoads = &cobra.Command{
-	Use:                   "unplan [--all | load...]",
-	Short:                 "Remove planned (not started) loads",
+var deprovisionLoads = &cobra.Command{
+	Use:                   "deprovision [--all | load...]",
+	Short:                 "Remove provisioned (not started) loads",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := config.GetLoadsFromConfig(loadNames...)
 		client := clientPkg.NewClient()
-		unplanned := make(map[string]bool)
+		deprovisioned := make(map[string]bool)
 
 		for _, l := range loads {
-			if _, exists := unplanned[l.Name]; !exists {
-				unplanned[l.Name] = true
-				log.Info(" -> Unplanning load %s", color.CyanString(l.Name))
-				if err := client.UnplanLoad(l); err != nil {
-					log.Fatal("Unplanning load failed: %s", err.Error())
+			if _, exists := deprovisioned[l.Name]; !exists {
+				deprovisioned[l.Name] = true
+				log.Info(" -> Deprovisioning load %s", color.CyanString(l.Name))
+				if err := client.DeprovisionLoad(l); err != nil {
+					log.Fatal("Deprovisioning load failed: %s", err.Error())
 				}
 			}
 		}
@@ -315,20 +315,20 @@ var stderrLoad = &cobra.Command{
 
 func init() {
 	runLoads.Flags().Bool("all", false, "All loads")
-	planLoads.Flags().Bool("all", false, "All loads")
+	provisionLoads.Flags().Bool("all", false, "All loads")
 	listLoads.Flags().Bool("all", false, "All loads")
 	stopLoads.Flags().Bool("all", false, "All loads")
 	killLoads.Flags().Bool("all", false, "All loads")
-	unplanLoads.Flags().Bool("all", false, "All loads")
+	deprovisionLoads.Flags().Bool("all", false, "All loads")
 
 	loadsCmd.AddCommand(graphLoads)
 	loadsCmd.AddCommand(listLoads)
-	loadsCmd.AddCommand(planLoads)
+	loadsCmd.AddCommand(provisionLoads)
 	loadsCmd.AddCommand(runLoads)
 	loadsCmd.AddCommand(stdoutLoad)
 	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)
 	loadsCmd.AddCommand(killLoads)
-	loadsCmd.AddCommand(unplanLoads)
+	loadsCmd.AddCommand(deprovisionLoads)
 	rootCmd.AddCommand(loadsCmd)
 }

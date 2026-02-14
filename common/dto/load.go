@@ -22,6 +22,6 @@ type LoadInfo struct {
 
 type LoadsInfo []LoadInfo
 
-type PlanLoadInfo struct {
+type ProvisionLoadInfo struct {
 	DeploymentId string `json:"deployment_id"`
 }

@@ -35,27 +35,27 @@ func (m *MockLoadDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *MockLoadDriver) PlanDeployment(node *NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error) {
+func (m *MockLoadDriver) Provision(node NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error) {
 	return uuid.New(), nil
 }
 
-func (m *MockLoadDriver) RunDeployment(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) Run(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 
-func (m *MockLoadDriver) StopDeployment(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) Stop(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 
-func (m *MockLoadDriver) UnplanDeployment(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) Deprovision(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 
-func (m *MockLoadDriver) KillDeployment(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) Kill(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 
-func (m *MockLoadDriver) UpdateDeploymentStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error) {
+func (m *MockLoadDriver) UpdateStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error) {
 	return DeploymentStatus{}, nil
 }
 

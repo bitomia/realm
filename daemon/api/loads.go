@@ -19,7 +19,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 
 	var response dto.LoadsDeployments
 	for _, d := range allDeployments {
-		status, err := d.LoadDriver.UpdateDeploymentStatus(database.DeploymentsRepository, d)
+		status, err := d.LoadDriver.UpdateStatus(database.DeploymentsRepository, d)
 		if err != nil {
 			slog.Error("GetLoadsDeployments", "error", err)
 			return nil, err
@@ -47,19 +47,19 @@ func RunLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No planned deployment found. Run 'plan' first.")
+		return fmt.Errorf("No provisioned deployment found. Run 'provision' first.")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
-		return s == common.DeploymentStatusPlanned || s == common.DeploymentStatusStopped
+		return s == common.DeploymentStatusReady || s == common.DeploymentStatusStopped
 	}, "RunLoadDeployments"); err != nil {
 		return err
 	}
 
-	// Start all planned deployments
+	// Start all provisioned deployments
 	for _, deployment := range deployments {
 		slog.Info("RunLoadDeployments", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
-		if err := deployment.LoadDriver.RunDeployment(database.DeploymentsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.Run(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 		slog.Info("RunLoadDeployments", "msg", "deployment started", "deploymentID", deployment.ID)
@@ -90,7 +90,7 @@ func StopLoadDeployments(loadName string) error {
 	// Stop deployments
 	for _, deployment := range deployments {
 		slog.Info("StopLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
-		if err := deployment.LoadDriver.StopDeployment(database.DeploymentsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.Stop(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 		slog.Info("StopLoadDeployments", "msg", "load deployments stopped", "deploymentID", deployment.ID)
@@ -120,7 +120,7 @@ func KillLoadDeployments(loadName string) error {
 	// Kill deployments
 	for _, deployment := range deployments {
 		slog.Info("KillLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
-		if err := deployment.LoadDriver.KillDeployment(database.DeploymentsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.Kill(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 		slog.Info("KillLoadDeployments", "msg", "load deployments killed", "deploymentID", deployment.ID)
@@ -128,19 +128,19 @@ func KillLoadDeployments(loadName string) error {
 	return nil
 }
 
-func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
+func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 	database := db.GetDB()
 
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
-		return nil, fmt.Errorf("Node not planned")
+		return nil, fmt.Errorf("Node not provisioned")
 	}
 	nodeStatus, err := node.NodeDriver.UpdateStatus(database.NodesRepository)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot update node status: %s", err)
 	}
 	if nodeStatus.StatusCode != common.NodeStatusReady {
-		return nil, fmt.Errorf("Node not planned, current status %s", nodeStatus.StatusCode)
+		return nil, fmt.Errorf("Node not provisioned, current status %s", nodeStatus.StatusCode)
 	}
 
 	// Check if deployments already exist for this load
@@ -150,21 +150,21 @@ func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	}
 
 	if len(existingDeployments) > 0 {
-		err := fmt.Errorf("Cannot plan load: deployment already exists for load '%s'. Run 'unplan' first.", load.Name)
-		slog.Error("PlanLoad", "error", err)
+		err := fmt.Errorf("Cannot provision load: deployment already exists for load '%s'. Run 'deprovision' first.", load.Name)
+		slog.Error("ProvisionLoad", "error", err)
 
 		return nil, err
 	}
 
-	deploymentID, err := load.Driver.PlanDeployment(node.NodeDriver, database.DeploymentsRepository, load.Name)
+	deploymentID, err := load.Driver.Provision(node.NodeDriver, database.DeploymentsRepository, load.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dto.PlanLoadInfo{DeploymentId: deploymentID.String()}, nil
+	return &dto.ProvisionLoadInfo{DeploymentId: deploymentID.String()}, nil
 }
 
-func UnplanLoadDeployments(loadName string) error {
+func DeprovisionLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
@@ -177,14 +177,14 @@ func UnplanLoadDeployments(loadName string) error {
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
-		return s == common.DeploymentStatusError || s == common.DeploymentStatusStopped || s == common.DeploymentStatusPlanned
-	}, "UnplanLoadDeployments"); err != nil {
+		return s == common.DeploymentStatusError || s == common.DeploymentStatusStopped || s == common.DeploymentStatusReady
+	}, "DeprovisionLoadDeployments"); err != nil {
 		return err
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("UnplanLoad", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
-		if err := deployment.LoadDriver.UnplanDeployment(database.DeploymentsRepository, deployment); err != nil {
+		slog.Info("DeprovisionLoad", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		if err := deployment.LoadDriver.Deprovision(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 	}
@@ -201,7 +201,7 @@ func StreamLoadStdout(loadName string, w io.Writer) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No planned deployments found")
+		return fmt.Errorf("No provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
@@ -220,7 +220,7 @@ func StreamLoadStderr(loadName string, w io.Writer) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No planned deployments found")
+		return fmt.Errorf("No provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
@@ -239,7 +239,7 @@ func ReadLoadStdout(loadName string, offset int64) ([]byte, int64, error) {
 	}
 
 	if len(deployments) == 0 {
-		return nil, 0, fmt.Errorf("No planned deployments found")
+		return nil, 0, fmt.Errorf("No provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
@@ -258,7 +258,7 @@ func ReadLoadStderr(loadName string, offset int64) ([]byte, int64, error) {
 	}
 
 	if len(deployments) == 0 {
-		return nil, 0, fmt.Errorf("No planned deployments found")
+		return nil, 0, fmt.Errorf("No provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
@@ -270,7 +270,7 @@ func ReadLoadStderr(loadName string, offset int64) ([]byte, int64, error) {
 
 func CheckDeploymentStatus(deployments []common.Deployment, repository *common.DeploymentsRepository, check func(common.DeploymentStatusCode) bool, msgContext string) error {
 	for _, d := range deployments {
-		status, err := d.LoadDriver.UpdateDeploymentStatus(*repository, d)
+		status, err := d.LoadDriver.UpdateStatus(*repository, d)
 		if err != nil {
 			err := fmt.Errorf("Cannot update deployment status %s", d.ID)
 			slog.Error(msgContext, "deployment", d.ID, "msg", err)

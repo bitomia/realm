@@ -119,7 +119,7 @@ func (p *ProcessDriver) verifyConfig() error {
 	return nil
 }
 
-func (p *ProcessDriver) PlanDeployment(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
+func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	// Check StartCmd exists and it is executable
 	if _, err := exec.LookPath(p.Config.StartCmd); err != nil {
 		return uuid.Nil, fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
@@ -135,24 +135,24 @@ func (p *ProcessDriver) PlanDeployment(nodeDriver common.NodeDriver, repository 
 	// Check for existing running deployments (only running ones should block)
 	deployments, err := repository.GetByLoadAndStatus(loadName, common.DeploymentStatusRunning)
 	if err != nil {
-		slog.Error("ProcessDriver.PlanDeployment", "msg", "Error on GetByLoadAndStatus", "error", err.Error())
+		slog.Error("ProcessDriver.Provision", "msg", "Error on GetByLoadAndStatus", "error", err.Error())
 		return uuid.Nil, err
 	}
 	if len(deployments) > 0 {
 		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already running: %s", loadName)
 	}
 
-	// Create deployment in "planned" state
-	did, err := repository.Create(loadName, p, common.DeploymentStatus{StatusCode: common.DeploymentStatusPlanned}, ProcessEntryMetadata{})
+	// Create deployment in "provisioned" state
+	did, err := repository.Create(loadName, p, common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}, ProcessEntryMetadata{})
 	if err != nil {
-		slog.Error("ProcessDriver.PlanDeployment", "msg", "failed to create deployment", "error", err)
+		slog.Error("ProcessDriver.Provision", "msg", "failed to create deployment", "error", err)
 		return uuid.Nil, err
 	}
 
 	return did, nil
 }
 
-func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -166,7 +166,7 @@ func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, d
 
 	config := configPkg.Get()
 	if config == nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", "cannot retrieve config")
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", "cannot retrieve config")
 	}
 
 	stdoutPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stdout.log", deployment.LoadName))
@@ -174,12 +174,12 @@ func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, d
 
 	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
 	}
 
 	stderrFile, err := common.CreateLogFile(stderrPath, 0755)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create error log file: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create error log file: %v", err))
 	}
 
 	cmd.Env = os.Environ()
@@ -190,7 +190,7 @@ func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, d
 		cmd.Dir = *p.Config.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
 	}
 
 	// Update metadata with PID and file paths
@@ -200,7 +200,7 @@ func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, d
 		metadata.StderrPath = stderrPath
 		return nil
 	}); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.RunDeployment", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to update metadata: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to update metadata: %v", err))
 	}
 
 	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusRunning}); err != nil {
@@ -210,44 +210,44 @@ func (p *ProcessDriver) RunDeployment(repository common.DeploymentsRepository, d
 	return nil
 }
 
-func (p *ProcessDriver) StopDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	signal := internal.IntToSyscallSignal(p.StopSignal)
 
 	proc, err := retrieveProcess(deployment)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
 	}
 
 	if proc == nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
 	if err := proc.SendSignal(signal); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
 	return nil
 }
 
-func (p *ProcessDriver) KillDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) Kill(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	proc, err := retrieveProcess(deployment)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
 	}
 
 	if proc == nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
 	if err := proc.Kill(); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
 	return nil
 }
 
-func (p *ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	slog.Info("ProcessDriver.UnplanDeployment", "msg", "removing planned deployment", "deployment", deployment.ID)
+func (p *ProcessDriver) Deprovision(repository common.DeploymentsRepository, deployment common.Deployment) error {
+	slog.Info("ProcessDriver.Deprovision", "msg", "removing provisioned deployment", "deployment", deployment.ID)
 
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
 		proc, _ := retrieveProcess(deployment)
@@ -257,7 +257,7 @@ func (p *ProcessDriver) UnplanDeployment(repository common.DeploymentsRepository
 	}
 
 	if err := repository.DeleteDeployment(deployment.ID); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.StopDeployment", "deployment", deployment.ID, "error", fmt.Errorf("failed to delete deployment: %w", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to delete deployment: %w", err))
 	}
 
 	return nil
@@ -267,7 +267,7 @@ func (p *ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
 	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
 }
 
-func (p *ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
+func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
 	status := d.Status
 
 	// Keep on error if it was on error status before
@@ -279,10 +279,10 @@ func (p *ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d
 	if proc == nil {
 		if err != nil {
 			// Only log error and continue to update as stopped
-			slog.Error("ProcessDriver.UpdateDeploymentStatus", "msg", "retrieveProcessInfo failed", "error", err)
+			slog.Error("ProcessDriver.UpdateStatus", "msg", "retrieveProcessInfo failed", "error", err)
 			status.StatusCode = common.DeploymentStatusStopped
 		} else {
-			// At this point, it is planned, running or stopped
+			// At this point, it is provisioned, running or stopped
 			// so it should transition only to stop if it was running
 			if d.Status.StatusCode == common.DeploymentStatusRunning {
 				status.StatusCode = common.DeploymentStatusStopped
@@ -299,7 +299,7 @@ func (p *ProcessDriver) UpdateDeploymentStatus(r common.DeploymentsRepository, d
 	}
 
 	if err := r.UpdateStatus(d.ID, status); err != nil {
-		slog.Error("ProcessDriver.UpdateDeploymentStatus", "msg", "failed to update deployment status", "error", err)
+		slog.Error("ProcessDriver.UpdateStatus", "msg", "failed to update deployment status", "error", err)
 		return common.DeploymentStatus{}, err
 	}
 
