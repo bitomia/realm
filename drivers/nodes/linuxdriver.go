@@ -49,13 +49,18 @@ func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 		}
 	}
 
-	driver := &LinuxDriver{
+	if config.WakeOnLan {
+		if config.MAC == "" {
+			return nil, fmt.Errorf("mac address required when wol is enabled")
+		}
+		if _, err := net.ParseMAC(config.MAC); err != nil {
+			return nil, fmt.Errorf("invalid mac address: %w", err)
+		}
+	}
+
+	return &LinuxDriver{
 		Config: config,
-	}
-	if err := driver.Verify(); err != nil {
-		return nil, err
-	}
-	return driver, nil
+	}, nil
 }
 
 func (l *LinuxDriver) DriverInfo() common.NodeDriverInfo {
@@ -93,18 +98,6 @@ func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
 		l = nodeDriver.(*LinuxDriver)
 		return nil
 	}
-}
-
-func (l *LinuxDriver) Verify() error {
-	if l.Config.WakeOnLan {
-		if l.Config.MAC == "" {
-			return fmt.Errorf("mac address required when wol is enabled")
-		}
-		if _, err := net.ParseMAC(l.Config.MAC); err != nil {
-			return fmt.Errorf("invalid mac address: %w", err)
-		}
-	}
-	return nil
 }
 
 func (l *LinuxDriver) Plan(nodeName string, repository common.NodesRepository) error {
@@ -164,7 +157,7 @@ func (l *LinuxDriver) Startup() error {
 	return nil
 }
 
-func (l *LinuxDriver) Shutdown(message string, time uint32) error {
+func (l *LinuxDriver) Shutdown(message string, time uint32, repository common.NodesRepository) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -177,7 +170,7 @@ func (l *LinuxDriver) Shutdown(message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) Restart(message string, time uint32) error {
+func (l *LinuxDriver) Restart(message string, time uint32, repository common.NodesRepository) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -190,7 +183,7 @@ func (l *LinuxDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) UpdateStatus() (common.NodeStatus, error) {
+func (l *LinuxDriver) UpdateStatus(repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusPlanned, Reason: ""}, nil
 }
 

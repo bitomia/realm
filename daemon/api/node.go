@@ -38,12 +38,13 @@ func GetNode() (*dto.NodeResponse, error) {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	node, err := db.GetDB().NodesRepository.GetSelf()
+	database := db.GetDB()
+	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusNotDeployed, Reason: ""}}, nil
 	}
 
-	status, err := node.NodeDriver.UpdateStatus()
+	status, err := node.NodeDriver.UpdateStatus(database.NodesRepository)
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
@@ -106,7 +107,7 @@ func ShutdownNode(message string, time uint32) error {
 		return fmt.Errorf("failed to get self node: %w", err)
 	}
 
-	if err := nodeEntry.NodeDriver.Shutdown(message, time); err != nil {
+	if err := nodeEntry.NodeDriver.Shutdown(message, time, database.NodesRepository); err != nil {
 		return fmt.Errorf("failed to shutdown self node: %w", err)
 	}
 
@@ -121,7 +122,7 @@ func RestartNode(message string, time uint32) error {
 		return fmt.Errorf("failed to get self node: %w", err)
 	}
 
-	if err := nodeEntry.NodeDriver.Restart(message, time); err != nil {
+	if err := nodeEntry.NodeDriver.Restart(message, time, database.NodesRepository); err != nil {
 		return fmt.Errorf("failed to restart self node: %w", err)
 	}
 

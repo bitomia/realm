@@ -135,7 +135,7 @@ func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Node not planned")
 	}
-	nodeStatus, err := node.NodeDriver.UpdateStatus()
+	nodeStatus, err := node.NodeDriver.UpdateStatus(database.NodesRepository)
 	if err != nil {
 		return nil, fmt.Errorf("Cannot update node status: %s", err)
 	}

@@ -28,9 +28,6 @@ type NodeDriver interface {
 	// DriverInfo returns metadata describing the driver for internal factory use.
 	DriverInfo() NodeDriverInfo
 
-	// Verify checks whether the driver options are valid.
-	Verify() error
-
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)
 
@@ -52,18 +49,18 @@ type NodeDriver interface {
 	// Shutdown shuts down the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
-	Shutdown(message string, time uint32) error
+	Shutdown(message string, time uint32, repository NodesRepository) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
-	Restart(message string, time uint32) error
+	Restart(message string, time uint32, repository NodesRepository) error
 
 	// GetDriverConfig returns the configuration for this node driver.
 	GetDriverConfig() NodeDriverConfig
 
 	// UpdateStatus update and returns current status based on internal drivers factors
-	UpdateStatus() (NodeStatus, error)
+	UpdateStatus(repository NodesRepository) (NodeStatus, error)
 
 	// GetCapabilities returns current node capabilities
 	GetCapabilities() (Capabilities, error)
