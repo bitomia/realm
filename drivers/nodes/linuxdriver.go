@@ -100,19 +100,19 @@ func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (l *LinuxDriver) Plan(nodeName string, repository common.NodesRepository) error {
+func (l *LinuxDriver) Provision(nodeName string, repository common.NodesRepository) error {
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
 	if err := repository.Set(nodeName, l, nil); err != nil {
-		slog.Error("LinuxDriver.Plan", "msg", "failed to plan node", "error", err)
+		slog.Error("LinuxDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (l *LinuxDriver) Unplan(repository common.NodesRepository) error {
+func (l *LinuxDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.Delete()
 }
 
@@ -184,7 +184,7 @@ func (l *LinuxDriver) Restart(message string, time uint32, repository common.Nod
 }
 
 func (l *LinuxDriver) UpdateStatus(repository common.NodesRepository) (common.NodeStatus, error) {
-	return common.NodeStatus{StatusCode: common.NodeStatusPlanned, Reason: ""}, nil
+	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
 func (l *LinuxDriver) GetCapabilities() (common.Capabilities, error) {

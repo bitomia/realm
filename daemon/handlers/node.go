@@ -32,8 +32,8 @@ func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(info)
 }
 
-func PlanNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.PlanNodeHandler")
+func ProvisionNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.ProvisionNodeHandler")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -42,9 +42,9 @@ func PlanNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.PlanNodeHandler", "node", node.Name, "driver", node.Driver)
+	slog.Info("handlers.ProvisionNodeHandler", "node", node.Name, "driver", node.Driver)
 
-	if err := api.PlanNode(&node); err != nil {
+	if err := api.ProvisionNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -52,10 +52,10 @@ func PlanNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func UnplanNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.UnplanNodeHandler")
+func DeprovisionNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.DeprovisionNodeHandler")
 
-	if err := api.UnplanNode(); err != nil {
+	if err := api.DeprovisionNode(); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

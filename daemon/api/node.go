@@ -41,7 +41,7 @@ func GetNode() (*dto.NodeResponse, error) {
 	database := db.GetDB()
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
-		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusNotDeployed, Reason: ""}}, nil
+		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusOnline, Reason: ""}}, nil
 	}
 
 	status, err := node.NodeDriver.UpdateStatus(database.NodesRepository)
@@ -61,17 +61,17 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func PlanNode(node *common.Node) error {
+func ProvisionNode(node *common.Node) error {
 	database := db.GetDB()
 
-	if err := node.Driver.Plan(node.Name, database.NodesRepository); err != nil {
+	if err := node.Driver.Provision(node.Name, database.NodesRepository); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func UnplanNode() error {
+func DeprovisionNode() error {
 	database := db.GetDB()
 
 	node, err := database.NodesRepository.GetSelf()
@@ -79,7 +79,7 @@ func UnplanNode() error {
 		return err
 	}
 
-	// Unplan all deployments on this node before unplanning the node
+	// Deprovision all deployments on this node before deprovisioning the node
 	deployments, err := database.DeploymentsRepository.GetAll()
 	if err != nil {
 		return fmt.Errorf("failed to get deployments: %w", err)
@@ -87,12 +87,12 @@ func UnplanNode() error {
 
 	for _, deployment := range deployments {
 		if err := UnplanLoadDeployments(deployment.LoadName); err != nil {
-			return fmt.Errorf("failed to unplan deployment %s: %w", deployment.ID, err)
+			return fmt.Errorf("failed to deprovision deployment %s: %w", deployment.ID, err)
 		}
 	}
 
 	// if GetSelf() worked then node is planned
-	if err := node.NodeDriver.Unplan(database.NodesRepository); err != nil {
+	if err := node.NodeDriver.Deprovision(database.NodesRepository); err != nil {
 		return err
 	}
 

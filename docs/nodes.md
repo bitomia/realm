@@ -1,6 +1,8 @@
 ```mermaid
 stateDiagram-v2
-    [*] --> Planned: Plan
-    Planned --> [*]: Unplan
-    Error --> [*]: Unplan
+    [*] --> Online: Startup
+    Online --> Ready: Provision
+    Ready --> Online: Deprovision
+    Online --> [*]: Shutdown
+    Error --> [*]: Deprovision
 ```

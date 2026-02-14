@@ -11,8 +11,8 @@ type NodeStatusCode string
 
 const (
 	NodeStatusUnreachable NodeStatusCode = "unreachable"
-	NodeStatusNotDeployed NodeStatusCode = "not deployed"
-	NodeStatusPlanned     NodeStatusCode = "planned"
+	NodeStatusOnline      NodeStatusCode = "online"
+	NodeStatusReady       NodeStatusCode = "ready"
 	NodeStatusError       NodeStatusCode = "error"
 )
 
@@ -34,14 +34,14 @@ type NodeDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// Plan validates prerequisites and creates or replace the current database entry.
+	// Provision validates prerequisites and creates or replace the current database entry.
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the daemon and does not affect client behavior.
-	Plan(nodeName string, repository NodesRepository) error
+	Provision(nodeName string, repository NodesRepository) error
 
-	// Unplan cleanup and removes the node
+	// Deprovision cleanup and removes the node
 	// Only operates on deployments in "planned" status.
-	Unplan(repository NodesRepository) error
+	Deprovision(repository NodesRepository) error
 
 	// Startup starts the node
 	Startup() error

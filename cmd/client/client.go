@@ -679,12 +679,12 @@ func (c *Client) ReadLoadStderr(load *common.Load) error {
 	return nil
 }
 
-func (c *Client) PlanNode(node *common.Node) error {
+func (c *Client) ProvisionNode(node *common.Node) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/node/plan", node.Url)
+	url := fmt.Sprintf("%s/node/provision", node.Url)
 
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(node)
@@ -707,18 +707,18 @@ func (c *Client) PlanNode(node *common.Node) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed planning node: %s", string(body))
+		return fmt.Errorf("failed provisioning node: %s", string(body))
 	}
 
 	return nil
 }
 
-func (c *Client) UnplanNode(node *common.Node) error {
+func (c *Client) DeprovisionNode(node *common.Node) error {
 	client := &http.Client{
 		Timeout: 60 * time.Second,
 	}
 
-	url := fmt.Sprintf("%s/node/unplan", node.Url)
+	url := fmt.Sprintf("%s/node/deprovision", node.Url)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
@@ -739,7 +739,7 @@ func (c *Client) UnplanNode(node *common.Node) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed unplanning node: %s", string(body))
+		return fmt.Errorf("failed deprovisioning node: %s", string(body))
 	}
 
 	return nil

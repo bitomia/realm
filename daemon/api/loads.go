@@ -139,7 +139,7 @@ func PlanLoad(load *common.Load) (*dto.PlanLoadInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Cannot update node status: %s", err)
 	}
-	if nodeStatus.StatusCode != common.NodeStatusPlanned {
+	if nodeStatus.StatusCode != common.NodeStatusReady {
 		return nil, fmt.Errorf("Node not planned, current status %s", nodeStatus.StatusCode)
 	}
 

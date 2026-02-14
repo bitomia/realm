@@ -90,9 +90,9 @@ var nodeStates = &cobra.Command{
 	},
 }
 
-var planNodes = &cobra.Command{
-	Use:                   "plan [--all | node...]",
-	Short:                 "Plan nodes on the cluster",
+var provisionNodes = &cobra.Command{
+	Use:                   "provision [--all | node...]",
+	Short:                 "Provision nodes on the cluster",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
@@ -100,17 +100,17 @@ var planNodes = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		for _, n := range nodes {
-			log.Info(" -> Planning node %s", color.CyanString(n.Name))
-			if err := client.PlanNode(n); err != nil {
-				log.Fatal("Planning node '%s' failed: %s", n.Name, err.Error())
+			log.Info(" -> Provisioning node %s", color.CyanString(n.Name))
+			if err := client.ProvisionNode(n); err != nil {
+				log.Fatal("Provisioning node '%s' failed: %s", n.Name, err.Error())
 			}
 		}
 	},
 }
 
-var unplanNodes = &cobra.Command{
-	Use:                   "unplan [--all | node...]",
-	Short:                 "Unplan nodes from the cluster",
+var deprovisionNodes = &cobra.Command{
+	Use:                   "deprovision [--all | node...]",
+	Short:                 "Deprovision nodes from the cluster",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
@@ -118,9 +118,9 @@ var unplanNodes = &cobra.Command{
 		client := clientPkg.NewClient()
 
 		for _, n := range nodes {
-			log.Info(" -> Unplanning node %s", color.CyanString(n.Name))
-			if err := client.UnplanNode(n); err != nil {
-				log.Fatal("Unplanning node '%s' failed: %s", n.Name, err.Error())
+			log.Info(" -> Deprovisioning node %s", color.CyanString(n.Name))
+			if err := client.DeprovisionNode(n); err != nil {
+				log.Fatal("Deprovisioning node '%s' failed: %s", n.Name, err.Error())
 			}
 		}
 	},
@@ -163,14 +163,14 @@ var shutdownNodes = &cobra.Command{
 }
 
 func init() {
-	planNodes.Flags().Bool("all", false, "All nodes")
-	unplanNodes.Flags().Bool("all", false, "All nodes")
+	provisionNodes.Flags().Bool("all", false, "All nodes")
+	deprovisionNodes.Flags().Bool("all", false, "All nodes")
 	startNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
 
 	hostCmd.AddCommand(nodeStates)
-	hostCmd.AddCommand(planNodes)
-	hostCmd.AddCommand(unplanNodes)
+	hostCmd.AddCommand(provisionNodes)
+	hostCmd.AddCommand(deprovisionNodes)
 	hostCmd.AddCommand(startNodes)
 	hostCmd.AddCommand(shutdownNodes)
 	rootCmd.AddCommand(hostCmd)

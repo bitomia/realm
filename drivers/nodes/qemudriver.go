@@ -95,7 +95,7 @@ func (q *QemuDriver) GetNodeDriverID() common.NodeDriverID {
 	return QemuDriverID
 }
 
-func (q *QemuDriver) Plan(nodeName string, repository common.NodesRepository) error {
+func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepository) error {
 	if _, err := exec.LookPath(q.Config.Emulator); err != nil {
 		return fmt.Errorf("qemu: emulator binary not found: %w", err)
 	}
@@ -130,7 +130,7 @@ func (q *QemuDriver) Plan(nodeName string, repository common.NodesRepository) er
 	cmd.Stdout = stdoutFile
 	cmd.Stderr = stderrFile
 
-	slog.Info("QemuDriver.Plan", "emulator", q.Config.Emulator, "args", args)
+	slog.Info("QemuDriver.Provision", "emulator", q.Config.Emulator, "args", args)
 
 	if err := cmd.Start(); err != nil {
 		stdoutFile.Close()
@@ -143,17 +143,17 @@ func (q *QemuDriver) Plan(nodeName string, repository common.NodesRepository) er
 		QMPSocket: qmpSocketPath,
 	}
 
-	slog.Info("QemuDriver.Plan", "pid", meta.Pid, "qmp_socket", qmpSocketPath)
+	slog.Info("QemuDriver.Provision", "pid", meta.Pid, "qmp_socket", qmpSocketPath)
 
 	if err := repository.Set(nodeName, q, meta); err != nil {
-		slog.Error("QemuDriver.Plan", "msg", "failed to plan node", "error", err)
+		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (q *QemuDriver) Unplan(repository common.NodesRepository) error {
+func (q *QemuDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.Delete()
 }
 
@@ -365,7 +365,7 @@ func (q *QemuDriver) UpdateStatus(repository common.NodesRepository) (common.Nod
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, nil
 	}
 	if meta.QMPSocket == "" {
-		return common.NodeStatus{StatusCode: common.NodeStatusPlanned, Reason: "not started"}, nil
+		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: "not started"}, nil
 	}
 
 	running, err := qmpQueryStatus(meta.QMPSocket)
@@ -373,7 +373,7 @@ func (q *QemuDriver) UpdateStatus(repository common.NodesRepository) (common.Nod
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, nil
 	}
 	if running {
-		return common.NodeStatus{StatusCode: common.NodeStatusPlanned, Reason: ""}, nil
+		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 	}
 	return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: "VM is not running"}, nil
 }
