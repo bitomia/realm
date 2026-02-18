@@ -105,3 +105,8 @@ func (c HostDaemonCapabilities) Volumes() bool {
 func (c HostDaemonCapabilities) VolumesZFS() bool {
 	return c.HasVolumesZFS
 }
+
+func (c HostDaemonCapabilities) VMM() bool {
+	// TODO
+	return true
+}

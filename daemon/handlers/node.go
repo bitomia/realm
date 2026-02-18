@@ -63,6 +63,24 @@ func DeprovisionNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func StartupNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.StartupNodeHandler")
+
+	var request dto.StartupNodeRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.StartupNode(&request.Node); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.ShutdownNodeHandler")
 
@@ -73,7 +91,7 @@ func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.ShutdownNode(request.WallMessage, request.Time); err != nil {
+	if err := api.ShutdownNode(&request.Node, request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -91,7 +109,7 @@ func RestartNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.RestartNode(request.WallMessage, request.Time); err != nil {
+	if err := api.RestartNode(&request.Node, request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

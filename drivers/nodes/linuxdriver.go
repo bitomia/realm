@@ -63,11 +63,12 @@ func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 	}, nil
 }
 
-func (l *LinuxDriver) DriverInfo() common.NodeDriverInfo {
-	return common.NodeDriverInfo{
-		ID:  LinuxDriverID,
-		New: NewLinuxDriverFromConfig,
-	}
+func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
+	return common.NewNodeDriverInfo(
+		LinuxDriverID,
+		NewLinuxDriverFromConfig,
+		common.WithStartupMode(common.ClientMode),
+	)
 }
 
 func (l *LinuxDriver) GetNodeDriverID() common.NodeDriverID {
@@ -121,7 +122,7 @@ func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) Startup() error {
+func (l *LinuxDriver) Startup(repository common.NodesRepository) error {
 	if !l.Config.WakeOnLan {
 		return nil
 	}
@@ -153,7 +154,6 @@ func (l *LinuxDriver) Startup() error {
 	if _, err := conn.Write(packet); err != nil {
 		return fmt.Errorf("failed to send wol packet: %w", err)
 	}
-
 	return nil
 }
 

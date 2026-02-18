@@ -18,6 +18,7 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/node", auth.WithAuth(handlers.GetNodeHandler)).Methods("GET")
 	router.Handle("/node/provision", auth.WithAuth(handlers.ProvisionNodeHandler)).Methods("POST")
 	router.Handle("/node/deprovision", auth.WithAuth(handlers.DeprovisionNodeHandler)).Methods("POST")
+	router.Handle("/node/startup", auth.WithAuth(handlers.StartupNodeHandler)).Methods("POST")
 	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNodeHandler)).Methods("POST")
 	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNodeHandler)).Methods("POST")
 

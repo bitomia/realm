@@ -746,7 +746,39 @@ func (c *Client) DeprovisionNode(node *common.Node) error {
 }
 
 func (c *Client) StartupNode(node *common.Node) error {
-	return node.Driver.Startup()
+	client := &http.Client{
+		Timeout: 60 * time.Second,
+	}
+
+	url := fmt.Sprintf("%s/node/startup", node.Url)
+
+	request := dto.StartupNodeRequest{Node: *node}
+	payload := new(bytes.Buffer)
+	json.NewEncoder(payload).Encode(request)
+
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed starting node: %s", string(body))
+	}
+
+	return nil
 }
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
@@ -754,7 +786,7 @@ func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime 
 		Timeout: 60 * time.Second,
 	}
 
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 
@@ -790,7 +822,7 @@ func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime u
 		Timeout: 60 * time.Second,
 	}
 
-	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
 	payload := new(bytes.Buffer)
 	json.NewEncoder(payload).Encode(request)
 

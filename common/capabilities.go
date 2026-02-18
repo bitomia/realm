@@ -5,4 +5,5 @@ type Capabilities interface {
 	ContainersNetworking() bool
 	Volumes() bool
 	VolumesZFS() bool
+	VMM() bool
 }

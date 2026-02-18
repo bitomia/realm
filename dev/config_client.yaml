@@ -1,6 +1,17 @@
 nodes:
   lab1:
     url: http://192.168.105.2:9000
+    driver: linux
+    driver_config:
+      wol: true
+      MAC: 12:23:44:55:66:77
+
+  vm1:
+    url: http://192.168.105.2:9000
+    driver: linux
+    driver_config:
+      qemu:
+
   lab2:
     url: http://192.168.105.3:9000
 

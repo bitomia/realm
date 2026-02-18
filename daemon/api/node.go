@@ -99,31 +99,52 @@ func DeprovisionNode() error {
 	return nil
 }
 
-func ShutdownNode(message string, time uint32) error {
-	database := db.GetDB()
-
-	nodeEntry, err := database.NodesRepository.GetSelf()
+func StartupNode(node *common.Node) error {
+	driverInfo, err := node.Driver.DriverInfo()
 	if err != nil {
-		return fmt.Errorf("failed to get self node: %w", err)
+		return fmt.Errorf("failed to startup node: %w", err)
 	}
 
-	if err := nodeEntry.NodeDriver.Shutdown(message, time, database.NodesRepository); err != nil {
-		return fmt.Errorf("failed to shutdown self node: %w", err)
+	if driverInfo.StartupMode != common.DaemonMode {
+		return fmt.Errorf("startup expects daemon mode")
+	}
+
+	if err := node.Driver.Startup(db.GetDB().NodesRepository); err != nil {
+		return fmt.Errorf("failed to startup node: %w", err)
 	}
 
 	return nil
 }
 
-func RestartNode(message string, time uint32) error {
-	database := db.GetDB()
-
-	nodeEntry, err := database.NodesRepository.GetSelf()
+func ShutdownNode(node *common.Node, message string, time uint32) error {
+	driverInfo, err := node.Driver.DriverInfo()
 	if err != nil {
-		return fmt.Errorf("failed to get self node: %w", err)
+		return fmt.Errorf("cannot retrieve driver info for %s", node.Name)
 	}
 
-	if err := nodeEntry.NodeDriver.Restart(message, time, database.NodesRepository); err != nil {
-		return fmt.Errorf("failed to restart self node: %w", err)
+	if driverInfo.ShutdownMode != common.DaemonMode {
+		return fmt.Errorf("shutdown expects daemon mode")
+	}
+
+	if err := node.Driver.Shutdown(message, time, db.GetDB().NodesRepository); err != nil {
+		return fmt.Errorf("failed to shutdown node: %w", err)
+	}
+
+	return nil
+}
+
+func RestartNode(node *common.Node, message string, time uint32) error {
+	driverInfo, err := node.Driver.DriverInfo()
+	if err != nil {
+		return fmt.Errorf("cannot retrieve driver info for %s", node.Name)
+	}
+
+	if driverInfo.RestartMode != common.DaemonMode {
+		return fmt.Errorf("restart expects daemon mode")
+	}
+
+	if err := node.Driver.Restart(message, time, db.GetDB().NodesRepository); err != nil {
+		return fmt.Errorf("failed to restart node: %w", err)
 	}
 
 	return nil

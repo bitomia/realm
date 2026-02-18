@@ -2,9 +2,59 @@ package common
 
 type NodeDriverID string
 
+type Mode int
+
+const (
+	ClientMode Mode = iota
+	DaemonMode
+)
+
+type NodeDriverBuilder func(config *any) (NodeDriver, error)
 type NodeDriverInfo struct {
-	ID  NodeDriverID
-	New func(config *any) (NodeDriver, error)
+	ID           NodeDriverID
+	New          NodeDriverBuilder
+	StartupMode  Mode
+	ShutdownMode Mode
+	RestartMode  Mode
+}
+
+type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
+
+func WithStartupMode(m Mode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.StartupMode = m
+		return nil
+	}
+}
+
+func WithShutdownMode(m Mode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.ShutdownMode = m
+		return nil
+	}
+}
+
+func WithRestartMode(m Mode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.RestartMode = m
+		return nil
+	}
+}
+
+func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
+	info := NodeDriverInfo{
+		ID:           id,
+		New:          builder,
+		StartupMode:  DaemonMode,
+		ShutdownMode: DaemonMode,
+		RestartMode:  DaemonMode,
+	}
+	for _, o := range opts {
+		if err := o(&info); err != nil {
+			return NodeDriverInfo{}, err
+		}
+	}
+	return info, nil
 }
 
 type NodeStatusCode string
@@ -26,7 +76,7 @@ type NodeDriver interface {
 	GetNodeDriverID() NodeDriverID
 
 	// DriverInfo returns metadata describing the driver for internal factory use.
-	DriverInfo() NodeDriverInfo
+	DriverInfo() (NodeDriverInfo, error)
 
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)
@@ -44,7 +94,7 @@ type NodeDriver interface {
 	Deprovision(repository NodesRepository) error
 
 	// Startup starts the node
-	Startup() error
+	Startup(repository NodesRepository) error
 
 	// Shutdown shuts down the node
 	// Message will be shown to users before shutdown on the time

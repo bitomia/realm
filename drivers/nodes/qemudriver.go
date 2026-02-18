@@ -84,11 +84,12 @@ func NewQemuDriverFromConfig(c *any) (common.NodeDriver, error) {
 	}, nil
 }
 
-func (q *QemuDriver) DriverInfo() common.NodeDriverInfo {
-	return common.NodeDriverInfo{
-		ID:  QemuDriverID,
-		New: NewQemuDriverFromConfig,
-	}
+func (q *QemuDriver) DriverInfo() (common.NodeDriverInfo, error) {
+	return common.NewNodeDriverInfo(
+		QemuDriverID,
+		NewQemuDriverFromConfig,
+		common.WithStartupMode(common.DaemonMode),
+	)
 }
 
 func (q *QemuDriver) GetNodeDriverID() common.NodeDriverID {
@@ -333,7 +334,8 @@ func (q *QemuDriver) buildArgs() []string {
 	return args
 }
 
-func (q *QemuDriver) Startup() error {
+func (q *QemuDriver) Startup(repository common.NodesRepository) error {
+	fmt.Println("HERE")
 	return nil
 }
 

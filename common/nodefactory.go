@@ -12,10 +12,15 @@ type NodeDriverConfig struct {
 var nodeDrivers = make(map[NodeDriverID]NodeDriverInfo)
 
 func RegisterNodeDriver(d NodeDriver) error {
-	info := d.DriverInfo()
+	info, err := d.DriverInfo()
+	if err != nil {
+		return err
+	}
+
 	if _, exists := nodeDrivers[info.ID]; exists {
 		return fmt.Errorf("NodeDriverID '%s' already registered", info.ID)
 	}
+
 	nodeDrivers[info.ID] = info
 	return nil
 }
