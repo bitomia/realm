@@ -60,10 +60,10 @@ func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNo
 type NodeStatusCode string
 
 const (
-	NodeStatusUnreachable NodeStatusCode = "unreachable"
-	NodeStatusOnline      NodeStatusCode = "online"
-	NodeStatusReady       NodeStatusCode = "ready"
-	NodeStatusError       NodeStatusCode = "error"
+	NodeStatusOffline NodeStatusCode = "offline"
+	NodeStatusOnline  NodeStatusCode = "online"
+	NodeStatusReady   NodeStatusCode = "ready"
+	NodeStatusError   NodeStatusCode = "error"
 )
 
 type NodeStatus struct {

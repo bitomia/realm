@@ -49,7 +49,7 @@ var nodeStates = &cobra.Command{
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
 			node, err := client.GetNode(node.Url)
 			if err != nil {
-				log.Info(" Status: %s [%s]", common.NodeStatusUnreachable, strings.TrimSpace(err.Error()))
+				log.Info(" Status: %s [%s]", common.NodeStatusOffline, strings.TrimSpace(err.Error()))
 			} else {
 				if len(node.Status.Reason) > 0 {
 					log.Info(" Status: %s [%s]", node.Status.StatusCode, node.Status.Reason)

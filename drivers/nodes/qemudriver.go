@@ -394,7 +394,7 @@ func (q *QemuDriver) UpdateStatus(nodeName *string, repository common.NodesRepos
 		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 	}
 
-	return common.NodeStatus{StatusCode: common.NodeStatusUnreachable, Reason: "VM is not running"}, nil
+	return common.NodeStatus{StatusCode: common.NodeStatusOffline, Reason: "VM is not running"}, nil
 }
 
 func (q *QemuDriver) GetCapabilities() (common.Capabilities, error) {
