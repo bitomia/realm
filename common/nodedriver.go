@@ -78,20 +78,17 @@ type NodeDriver interface {
 	// DriverInfo returns metadata describing the driver for internal factory use.
 	DriverInfo() (NodeDriverInfo, error)
 
+	// GetDriverConfig returns the configuration for this node driver.
+	GetDriverConfig() NodeDriverConfig
+
+	// GetCapabilities returns current node capabilities
+	GetCapabilities() (Capabilities, error)
+
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)
 
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
-
-	// Provision validates prerequisites and creates or replace the current database entry.
-	// It shall check node requirements but it won't check depending nodes.
-	// This is invoked within the daemon and does not affect client behavior.
-	Provision(nodeName string, repository NodesRepository) error
-
-	// Deprovision cleanup and removes the node
-	// Only operates on deployments in "provisioned" status.
-	Deprovision(repository NodesRepository) error
 
 	// Startup starts the node
 	Startup(repository NodesRepository) error
@@ -106,12 +103,16 @@ type NodeDriver interface {
 	// offset specified
 	Restart(message string, time uint32, repository NodesRepository) error
 
-	// GetDriverConfig returns the configuration for this node driver.
-	GetDriverConfig() NodeDriverConfig
+	// Provision validates prerequisites and creates or replace the current database entry.
+	// Notice that nodes are nameless, provisioning is also the action of naming them.
+	// It shall check node requirements but it won't check depending nodes.
+	// This is invoked within the daemon and does not affect client behavior.
+	Provision(nodeName string, repository NodesRepository) error
+
+	// Deprovision cleanup and removes the node
+	// Only operates on deployments in "provisioned" status.
+	Deprovision(repository NodesRepository) error
 
 	// UpdateStatus update and returns current status based on internal drivers factors
 	UpdateStatus(repository NodesRepository) (NodeStatus, error)
-
-	// GetCapabilities returns current node capabilities
-	GetCapabilities() (Capabilities, error)
 }
