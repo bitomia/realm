@@ -122,7 +122,7 @@ func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) Startup(repository common.NodesRepository) error {
+func (l *LinuxDriver) Startup(_ *string, repository common.NodesRepository) error {
 	if !l.Config.WakeOnLan {
 		return nil
 	}
@@ -157,7 +157,7 @@ func (l *LinuxDriver) Startup(repository common.NodesRepository) error {
 	return nil
 }
 
-func (l *LinuxDriver) Shutdown(message string, time uint32, repository common.NodesRepository) error {
+func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32, repository common.NodesRepository) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -170,7 +170,7 @@ func (l *LinuxDriver) Shutdown(message string, time uint32, repository common.No
 	return nil
 }
 
-func (l *LinuxDriver) Restart(message string, time uint32, repository common.NodesRepository) error {
+func (l *LinuxDriver) Restart(_ *string, message string, time uint32, repository common.NodesRepository) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -183,7 +183,7 @@ func (l *LinuxDriver) Restart(message string, time uint32, repository common.Nod
 	return nil
 }
 
-func (l *LinuxDriver) UpdateStatus(repository common.NodesRepository) (common.NodeStatus, error) {
+func (l *LinuxDriver) UpdateStatus(_ *string, repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 

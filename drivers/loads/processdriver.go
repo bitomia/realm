@@ -194,7 +194,7 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 	}
 
 	// Update metadata with PID and file paths
-	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
+	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
 		metadata.Pid = cmd.Process.Pid
 		metadata.StdoutPath = stdoutPath
 		metadata.StderrPath = stderrPath

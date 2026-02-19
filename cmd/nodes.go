@@ -142,7 +142,7 @@ var startNodes = &cobra.Command{
 			}
 
 			if driverInfo.StartupMode == common.ClientMode {
-				if err := n.Driver.Startup(nil); err != nil {
+				if err := n.Driver.Startup(nil, nil); err != nil {
 					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
@@ -171,7 +171,7 @@ var restartNodes = &cobra.Command{
 
 			log.Info(" -> Restarting node %s", color.CyanString(n.Name))
 			if driverInfo.RestartMode == common.ClientMode {
-				if err := n.Driver.Restart("", 0, nil); err != nil {
+				if err := n.Driver.Restart(nil, "", 0, nil); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
@@ -200,7 +200,7 @@ var shutdownNodes = &cobra.Command{
 
 			log.Info(" -> Shutting down node %s", color.CyanString(n.Name))
 			if driverInfo.ShutdownMode == common.ClientMode {
-				if err := n.Driver.Shutdown("", 0, nil); err != nil {
+				if err := n.Driver.Shutdown(nil, "", 0, nil); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {

@@ -304,7 +304,7 @@ func (c *ContainerDriver) Run(repository common.DeploymentsRepository, deploymen
 		slog.Info("ContainerDriver.Run", "msg", "network attached successfully", "container", containerName)
 	}
 
-	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
 		metadata.ContainerName = containerName
 		metadata.GWAddress = gwAddressPtr
 		metadata.IPAddress = ipAddressPtr
@@ -339,7 +339,7 @@ func (c *ContainerDriver) Stop(repository common.DeploymentsRepository, deployme
 		}
 	}
 
-	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
 		metadata.ContainerName = ""
 		return nil
 	}); err != nil {
@@ -371,7 +371,7 @@ func (c *ContainerDriver) Kill(repository common.DeploymentsRepository, deployme
 		}
 	}
 
-	if err := common.UpdateMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
+	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ContainerEntryMetadata) error {
 		metadata.ContainerName = ""
 		return nil
 	}); err != nil {

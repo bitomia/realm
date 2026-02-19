@@ -44,7 +44,7 @@ func GetNode() (*dto.NodeResponse, error) {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusOnline, Reason: ""}}, nil
 	}
 
-	status, err := node.NodeDriver.UpdateStatus(database.NodesRepository)
+	status, err := node.NodeDriver.UpdateStatus(&node.NodeName, database.NodesRepository)
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
@@ -109,7 +109,7 @@ func StartupNode(node *common.Node) error {
 		return fmt.Errorf("startup expects daemon mode")
 	}
 
-	if err := node.Driver.Startup(db.GetDB().NodesRepository); err != nil {
+	if err := node.Driver.Startup(&node.Name, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to startup node: %w", err)
 	}
 
@@ -126,7 +126,11 @@ func ShutdownNode(node *common.Node, message string, time uint32) error {
 		return fmt.Errorf("shutdown expects daemon mode")
 	}
 
-	if err := node.Driver.Shutdown(message, time, db.GetDB().NodesRepository); err != nil {
+	var nodeName *string = nil
+	if node != nil {
+		nodeName = &node.Name
+	}
+	if err := node.Driver.Shutdown(nodeName, message, time, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to shutdown node: %w", err)
 	}
 
@@ -143,7 +147,11 @@ func RestartNode(node *common.Node, message string, time uint32) error {
 		return fmt.Errorf("restart expects daemon mode")
 	}
 
-	if err := node.Driver.Restart(message, time, db.GetDB().NodesRepository); err != nil {
+	var nodeName *string = nil
+	if node != nil {
+		nodeName = &node.Name
+	}
+	if err := node.Driver.Restart(nodeName, message, time, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to restart node: %w", err)
 	}
 

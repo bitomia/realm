@@ -168,3 +168,37 @@ func (r *EtcdNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver 
 
 	return nil
 }
+
+func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEntry, error) {
+	slog.Info("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName)
+
+	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
+		return common.NodeEntry{}, err
+	}
+
+	nodeStr, err := r.db.get(guestNodeKey)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "getting node", "error", err.Error())
+		return common.NodeEntry{}, err
+	}
+
+	var nodeValue NodeValue
+	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
+		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "unmarshalling node", "error", err.Error())
+		return common.NodeEntry{}, err
+	}
+
+	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
+		return common.NodeEntry{}, err
+	}
+
+	return common.NodeEntry{
+		NodeName:   nodeValue.NodeName,
+		NodeDriver: nodeDriver,
+		Metadata:   nodeValue.Metadata,
+	}, nil
+}

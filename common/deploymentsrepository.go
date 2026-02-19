@@ -56,9 +56,9 @@ type DeploymentsRepository interface {
 	DeleteDeployment(deploymentID uuid.UUID) error
 }
 
-// UpdateMetadata is a generic helper that provides type-safe metadata updates.
+// UpdateDeploymentMetadata is a generic helper that provides type-safe metadata updates.
 // It handles the JSON marshal/unmarshal internally so callers get a typed pointer.
-func UpdateMetadata[T any](repo DeploymentsRepository, deploymentID DeploymentID, updateFn func(metadata *T) error) error {
+func UpdateDeploymentMetadata[T any](repo DeploymentsRepository, deploymentID DeploymentID, updateFn func(metadata *T) error) error {
 	return repo.UpdateMetadata(deploymentID, func(metadataPtr any) error {
 		ptr := metadataPtr.(*any)
 

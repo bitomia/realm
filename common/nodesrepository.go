@@ -27,6 +27,9 @@ type NodesRepository interface {
 	// SetGuestNode creates or update the guest node entry for the caller host node
 	SetGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
 
+	// GetGuestNode returns a guest node of the caller host node
+	GetGuestNode(guestNodeName string) (NodeEntry, error)
+
 	// DeleteGuestNode deletes the guest node entry for the caller host node
 	DeleteGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
 }

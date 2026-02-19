@@ -91,28 +91,37 @@ type NodeDriver interface {
 	UnmarshalJSON(data []byte) error
 
 	// Startup starts the node
-	Startup(repository NodesRepository) error
+	//
+	// nodeName as nil for self-node
+	Startup(nodeName *string, repository NodesRepository) error
 
 	// Shutdown shuts down the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
-	Shutdown(message string, time uint32, repository NodesRepository) error
+	//
+	// nodeName as nil for self-node
+	Shutdown(nodeName *string, message string, time uint32, repository NodesRepository) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
-	Restart(message string, time uint32, repository NodesRepository) error
+	//
+	// nodeName as nil for self-node
+	Restart(nodeName *string, message string, time uint32, repository NodesRepository) error
 
-	// Provision validates prerequisites and creates or replace the current database entry.
-	// Notice that nodes are nameless, provisioning is also the action of naming them.
+	// UpdateStatus update and returns current status based on internal drivers factors
+	//
+	// nodeName as nil for self-node
+	UpdateStatus(nodeName *string, repository NodesRepository) (NodeStatus, error)
+
+	// Provision validates self-node prerequisites and creates or replace the current
+	// database entry.
+	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the daemon and does not affect client behavior.
 	Provision(nodeName string, repository NodesRepository) error
 
-	// Deprovision cleanup and removes the node
+	// Deprovision cleanup and removes the self-node
 	// Only operates on deployments in "provisioned" status.
 	Deprovision(repository NodesRepository) error
-
-	// UpdateStatus update and returns current status based on internal drivers factors
-	UpdateStatus(repository NodesRepository) (NodeStatus, error)
 }

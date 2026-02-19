@@ -75,19 +75,19 @@ func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.DeleteSelf()
 }
 
-func (m *mockNodeDriver) Startup(repository common.NodesRepository) error {
+func (m *mockNodeDriver) Startup(nodeName *string, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown(message string, time uint32, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Restart(message string, time uint32, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Restart(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) UpdateStatus(repository common.NodesRepository) (common.NodeStatus, error) {
+func (m *mockNodeDriver) UpdateStatus(nodeName *string, repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 
