@@ -157,7 +157,7 @@ var startNodes = &cobra.Command{
 
 var restartNodes = &cobra.Command{
 	Use:                   "restart [--all | node...]",
-	Short:                 "Stop nodes",
+	Short:                 "Restart nodes",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
@@ -169,7 +169,7 @@ var restartNodes = &cobra.Command{
 				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
 			}
 
-			log.Info(" -> Shutting down node %s", color.CyanString(n.Name))
+			log.Info(" -> Restarting node %s", color.CyanString(n.Name))
 			if driverInfo.RestartMode == common.ClientMode {
 				if err := n.Driver.Restart("", 0, nil); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
@@ -177,7 +177,7 @@ var restartNodes = &cobra.Command{
 			} else {
 				client := clientPkg.NewClient()
 				if err := client.RestartNode(n, "", 0); err != nil {
-					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
+					log.Fatal("Restarting node '%s' failed: %s", n.Name, err.Error())
 				}
 			}
 		}
