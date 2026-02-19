@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,23 +41,6 @@ func getAuthToken() string {
 	return strings.TrimSpace(string(tokenBytes))
 }
 
-func checkStatus(rep *http.Response) error {
-	if rep == nil {
-		return errors.New("nil request")
-	}
-
-	switch rep.StatusCode {
-	case 200:
-		return nil
-	case 401:
-		return errors.New("Unauthorized")
-	case 400:
-		return errors.New("Bad request")
-	default:
-		return fmt.Errorf("Request failed: %d %s", rep.StatusCode, rep.Body)
-	}
-}
-
 func NewClient() Client {
 	token := getAuthToken()
 	if token == "" {
@@ -84,35 +66,72 @@ func NewUnauthClient() Client {
 	}
 }
 
+// doRequest executes an HTTP request and returns the response body.
+func (c *Client) doRequest(method, url string, payload io.Reader, timeout time.Duration) ([]byte, error) {
+	client := &http.Client{Timeout: timeout}
+	req, err := http.NewRequest(method, url, payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%s", string(body))
+	}
+	return body, nil
+}
+
+// doJSONRequest JSON-encodes the payload and executes an HTTP request.
+func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Duration) ([]byte, error) {
+	var body io.Reader
+	if payload != nil {
+		buf := new(bytes.Buffer)
+		json.NewEncoder(buf).Encode(payload)
+		body = buf
+	}
+	return c.doRequest(method, url, body, timeout)
+}
+
+// doStreamRequest executes an HTTP request and returns the raw response for streaming.
+func (c *Client) doStreamRequest(method, url string) (*http.Response, error) {
+	client := &http.Client{Timeout: 0}
+	req, err := http.NewRequest(method, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header = c.header
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		return nil, fmt.Errorf("%s", string(body))
+	}
+	return resp, nil
+}
+
 func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
 	nodes := GetNodes()
 	var nodeImagesMap dto.NodeImagesMapResponse
 
 	for _, node := range nodes {
-		client := &http.Client{
-			Timeout: 10 * time.Second,
-		}
 		url := fmt.Sprintf("%s/images", node.Url)
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
-			continue
-		}
-		req.Header = c.header
-
-		resp, err := client.Do(req)
-		if err != nil {
-			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
-			continue
-		}
-		defer resp.Body.Close()
-
-		if err := checkStatus(resp); err != nil {
-			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
-			continue
-		}
-
-		body, err := io.ReadAll(resp.Body)
+		body, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
@@ -143,33 +162,11 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 	containersPerNode := make(map[string]map[string]Container)
 
 	for _, node := range nodes {
-		client := &http.Client{
-			Timeout: 10 * time.Second,
-		}
 		url := fmt.Sprintf("%s/containers", node.Url)
-		req, err := http.NewRequest("GET", url, nil)
+		body, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
-			log.Error("Failed to create request: %v", err)
+			log.Error("Failed to get containers from %s: %v", node.Name, err)
 			continue
-
-		}
-		req.Header = c.header
-
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Error("Failed to make request: %v", err)
-			continue
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Error("Failed to read response body: %v", err)
-			continue
-		}
-
-		if err := checkStatus(resp); err != nil {
-			return nil, errors.New(string(body))
 		}
 
 		var containers map[string]Container
@@ -183,34 +180,14 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 }
 
 func (c *Client) ListNetworks() (map[string]any, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
-
 	nodes := GetNodes()
 	networksPerNode := make(map[string]any)
 
 	for _, node := range nodes {
 		url := fmt.Sprintf("%s/network", node.Url)
-		req, err := http.NewRequest("GET", url, nil)
+		body, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
-			log.Fatal("Failed to create request: %v", err)
-		}
-		req.Header = c.header
-
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatal("Failed to make request: %v", err)
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Fatal("Failed to read response body: %v", err)
-		}
-
-		if err := checkStatus(resp); err != nil {
-			return nil, errors.New(string(body))
+			log.Fatal("Failed to get networks from %s: %v", node.Name, err)
 		}
 
 		var networkConfig any
@@ -226,34 +203,13 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 }
 
 func (c *Client) GetNode(node string) (*dto.NodeResponse, error) {
-	var status dto.NodeResponse
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	url := fmt.Sprintf("%s/node", node)
-
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
-		log.Fatal("Failed to create request: %v", err)
-	}
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read response body: %v", err)
+		return nil, err
 	}
 
-	if err := checkStatus(resp); err != nil {
-		return &status, errors.New(string(body))
-	}
-
+	var status dto.NodeResponse
 	if err := json.Unmarshal(body, &status); err != nil {
 		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
 	}
@@ -262,34 +218,13 @@ func (c *Client) GetNode(node string) (*dto.NodeResponse, error) {
 }
 
 func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
-	var info dto.SystemInfo
-
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	url := fmt.Sprintf("%s/system", node)
-
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
-		log.Fatal("Failed to create request: %v", err)
-	}
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read response body: %v", err)
+		return nil, err
 	}
 
-	if err := checkStatus(resp); err != nil {
-		return &info, errors.New(string(body))
-	}
-
+	var info dto.SystemInfo
 	if err := json.Unmarshal(body, &info); err != nil {
 		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
 	}
@@ -298,30 +233,10 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 }
 
 func (c *Client) GetContainerLogs(node string, container string) error {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
 	url := fmt.Sprintf("%s/containers/%s/logs", node, container)
-
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := c.doRequest("GET", url, nil, 30*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to get logs: %s", string(body))
+		return err
 	}
 
 	fmt.Println(string(body))
@@ -329,30 +244,10 @@ func (c *Client) GetContainerLogs(node string, container string) error {
 }
 
 func (c *Client) GetProxyConfig(node string, container string) error {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
 	url := fmt.Sprintf("%s/containers/%s/server", node, container)
-
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to get proxy config: %s", string(body))
+		return err
 	}
 
 	fmt.Println(string(body))
@@ -413,194 +308,40 @@ func (c *Client) Login(node string, username string, password string) (string, e
 }
 
 func (c *Client) ProvisionLoad(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
-
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(load)
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed provisioning load: %s", string(body))
-	}
-
-	return nil
+	_, err := c.doJSONRequest("POST", url, load, 60*time.Second)
+	return err
 }
 
 func (c *Client) RunLoad(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/run", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	return err
 }
 
 func (c *Client) StopLoad(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	return err
 }
 
 func (c *Client) KillLoad(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	return err
 }
 
 func (c *Client) DeprovisionLoad(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	return err
 }
 
 func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/loads", nodeUrl)
-
-	req, err := http.NewRequest("GET", url, nil)
+	body, err := c.doRequest("GET", url, nil, 60*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s", string(body))
+		return nil, err
 	}
 
 	var loadDeployments dto.LoadsDeployments
@@ -612,243 +353,64 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 }
 
 func (c *Client) ReadLoadStdout(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 0, // No timeout for streaming
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/stdout", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("GET", url, nil)
+	resp, err := c.doStreamRequest("GET", url)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to read stdout: %s", string(body))
-	}
-
-	// Stream the response body to stdout
 	_, err = io.Copy(os.Stdout, resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to stream stdout: %v", err)
 	}
-
 	return nil
 }
 
 func (c *Client) ReadLoadStderr(load *common.Load) error {
-	client := &http.Client{
-		Timeout: 0, // No timeout for streaming
-	}
-
 	url := fmt.Sprintf("%s/loads/%s/stderr", load.Node.Url, load.Name)
-
-	req, err := http.NewRequest("GET", url, nil)
+	resp, err := c.doStreamRequest("GET", url)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
+		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("failed to read stderr: %s", string(body))
-	}
-
-	// Stream the response body to stdout
 	_, err = io.Copy(os.Stdout, resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to stream stderr: %v", err)
 	}
-
 	return nil
 }
 
 func (c *Client) ProvisionNode(node *common.Node) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/node/provision", node.Url)
-
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(node)
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed provisioning node: %s", string(body))
-	}
-
-	return nil
+	_, err := c.doJSONRequest("POST", url, node, 60*time.Second)
+	return err
 }
 
 func (c *Client) DeprovisionNode(node *common.Node) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/node/deprovision", node.Url)
-
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed deprovisioning node: %s", string(body))
-	}
-
-	return nil
+	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	return err
 }
 
 func (c *Client) StartupNode(node *common.Node) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
 	url := fmt.Sprintf("%s/node/startup", node.Url)
-
 	request := dto.StartupNodeRequest{Node: *node}
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(request)
-
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed starting node: %s", string(body))
-	}
-
-	return nil
+	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	return err
 }
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(request)
-
 	url := fmt.Sprintf("%s/node/shutdown", node.Url)
-
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
+	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	return err
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	client := &http.Client{
-		Timeout: 60 * time.Second,
-	}
-
-	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
-	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(request)
-
 	url := fmt.Sprintf("%s/node/restart", node.Url)
-
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header = c.header
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", string(body))
-	}
-
-	return nil
+	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
+	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	return err
 }
