@@ -9,13 +9,13 @@ import (
 )
 
 type HealthStatus struct {
-	Hostname  string                 `json:"hostname"`
-	Status    string                 `json:"status"`
-	Timestamp time.Time              `json:"timestamp"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Hostname  string         `json:"hostname"`
+	Status    string         `json:"status"`
+	Timestamp time.Time      `json:"timestamp"`
+	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
-func (db *DaemonDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID, status string, metadata map[string]interface{}) error {
+func (db *DaemonDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID, status string, metadata map[string]any) error {
 	healthStatus := HealthStatus{
 		Hostname:  hostname,
 		Status:    status,

@@ -448,7 +448,7 @@ func RepairNetwork(containerName string) error {
 		if err != nil {
 			return err
 		}
-		var networkConfigs = make(map[string][]interface{})
+		var networkConfigs = make(map[string][]any)
 		networkConfigs[containerName] = append(networkConfigs[containerName], result)
 		networkCNIConfig := networkConfigs[containerName][0].(*types100.Result)
 		if len(networkCNIConfig.IPs) > 0 {
@@ -604,9 +604,9 @@ func PurgeNetworks() error {
 	}
 	for bridgeName, bridge := range bridges {
 		if !slices.Contains(hostIfaces, bridgeName) {
-			slog.Info("Purging %s orphaned bridge network", bridgeName)
+			slog.Info("Purging orphaned bridge network", "bridge", bridgeName)
 			if err := PurgeBridgeNetwork(bridge); err != nil {
-				slog.Info("Ignoring puring bridge error: %s", err.Error())
+				slog.Info("Ignoring purging bridge error", "error", err.Error())
 			} else {
 				result.Bridges = append(result.Bridges, bridge.Link.Attrs().Name)
 			}

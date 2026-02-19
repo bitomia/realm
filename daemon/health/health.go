@@ -98,7 +98,7 @@ func (hp *HealthPublisher) Stop() {
 	slog.Info("Health publisher stopped")
 }
 
-func (hp *HealthPublisher) PublishStatus(status string, metadata map[string]interface{}) error {
+func (hp *HealthPublisher) PublishStatus(status string, metadata map[string]any) error {
 	db := db.GetDB()
 
 	err := db.PublishHealthStatus(hp.hostname, hp.leaseID, status, metadata)
@@ -165,8 +165,8 @@ func (hp *HealthPublisher) publishHealthLoop() {
 	}
 }
 
-func (hp *HealthPublisher) collectMetadata() map[string]interface{} {
-	return map[string]interface{}{
+func (hp *HealthPublisher) collectMetadata() map[string]any {
+	return map[string]any{
 		"version": config.GetVersion(),
 	}
 }

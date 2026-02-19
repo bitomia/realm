@@ -311,8 +311,8 @@ func getDNSServers() []string {
 	}
 
 	var dns []string
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(data), "\n")
+	for line := range lines {
 		if strings.HasPrefix(line, "nameserver") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {

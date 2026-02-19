@@ -509,7 +509,7 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 	ids := make(chan uuid.UUID, numDeployments)
 	errs := make(chan error, numDeployments)
 
-	for i := 0; i < numDeployments; i++ {
+	for i := range numDeployments {
 		go func(pid int) {
 			id, err := repo.Create("concurrent-load", driver, common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}, nil)
 			ids <- id
@@ -519,7 +519,7 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 
 	// Collect results
 	var deploymentIDs []uuid.UUID
-	for i := 0; i < numDeployments; i++ {
+	for range numDeployments {
 		err := <-errs
 		assert.NoError(t, err)
 		id := <-ids

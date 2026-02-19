@@ -134,10 +134,10 @@ func (l *LinuxDriver) Startup(repository common.NodesRepository) error {
 
 	// Build the magic packet: 6 bytes of 0xFF followed by 16 repetitions of the MAC address
 	packet := make([]byte, 102)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		packet[i] = 0xFF
 	}
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		copy(packet[6+i*6:], mac)
 	}
 

@@ -412,7 +412,7 @@ func TestHealthStatus_PublishAndGet(t *testing.T) {
 	leaseID, err := db.CreateLease(10)
 	require.NoError(t, err)
 
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"cpu":    "50%",
 		"memory": "2GB",
 	}

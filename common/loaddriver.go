@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 )
 
 type LoadDriverID string
@@ -75,6 +76,11 @@ type LoadDriver interface {
 }
 
 func SetDeploymentError(repository DeploymentsRepository, deployment Deployment, msg string, args ...any) error {
-	slog.Error(msg, args)
-	return repository.UpdateStatus(deployment.ID, DeploymentStatus{StatusCode: DeploymentStatusError, Reason: fmt.Sprintf(msg, args)})
+	slog.Error(msg, args...)
+	var reason strings.Builder
+	reason.WriteString(msg)
+	for i := 0; i+1 < len(args); i += 2 {
+		reason.WriteString(fmt.Sprintf(" %v=%v", args[i], args[i+1]))
+	}
+	return repository.UpdateStatus(deployment.ID, DeploymentStatus{StatusCode: DeploymentStatusError, Reason: reason.String()})
 }

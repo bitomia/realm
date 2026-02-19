@@ -87,7 +87,7 @@ var listLoads = &cobra.Command{
 			if _, exists := nodeLoadsDeployments[load.Node.Url]; !exists {
 				loadsDeployments, err := client.GetLoadsDeployments(load.Node.Url)
 				if err != nil {
-					log.Error(err.Error())
+					log.Error("%s", err.Error())
 					nodeLoadsDeployments[load.Node.Url] = nil // Mark as failed
 				} else {
 					nodeLoadsDeployments[load.Node.Url] = make(map[string]dto.LoadsDeployments)

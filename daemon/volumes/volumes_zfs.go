@@ -1,5 +1,4 @@
 //go:build linux && zfs
-// +build linux,zfs
 
 package volumes
 

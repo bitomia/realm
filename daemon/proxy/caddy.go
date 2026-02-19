@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -131,7 +130,7 @@ func HttpCaddyRequest(url string, method string, data *string) (int, []byte, err
 		}
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 
 	return resp.StatusCode, body, err
 }
@@ -164,7 +163,7 @@ func DeleteReverseProxy(containerName string) CaddyError {
 		}
 		return CaddyError{nil, nil}
 	} else {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return CaddyError{errors.New(fmt.Sprintf("Error reading body response: %v", err)), nil}
 		} else {
@@ -199,7 +198,7 @@ func SetReverseProxy(containerName string, opts ProxyOpts) CaddyError {
 		return CaddyError{errors.New(fmt.Sprintf("Error sending request: %v\n", err)), nil}
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == 200 {
 		slog.Info("SetReverseProxy. Local proxy route created. Creating master route", "container", containerName)
@@ -237,7 +236,7 @@ func GetReverseProxyConfig(caddyID string) (int, []byte, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return -1, nil, errors.New(fmt.Sprintf("Error readng response: %v\n", err))
 	}

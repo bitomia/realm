@@ -43,11 +43,11 @@ func (m *mockNodeDriver) GetNodeDriverID() common.NodeDriverID {
 	return MockNodeDriverID
 }
 
-func (m *mockNodeDriver) DriverInfo() common.NodeDriverInfo {
+func (m *mockNodeDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NodeDriverInfo{
 		ID:  MockNodeDriverID,
 		New: NewMockNodeDriverFromConfig,
-	}
+	}, nil
 }
 
 func (m *mockNodeDriver) MarshalJSON() ([]byte, error) {
@@ -75,7 +75,7 @@ func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.Delete()
 }
 
-func (m *mockNodeDriver) Startup() error {
+func (m *mockNodeDriver) Startup(repository common.NodesRepository) error {
 	return nil
 }
 
