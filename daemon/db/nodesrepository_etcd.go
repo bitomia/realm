@@ -19,29 +19,29 @@ type NodeValue struct {
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdNodesRepository) Set(nodeName string, driver common.NodeDriver, metadata any) error {
+func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
+	slog.Info("EtcdNodesRepository.SetSelf", "nodeName", nodeName)
+
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
 		NodeDriverConfig: driver.GetDriverConfig(),
 		Metadata:         metadata,
 	}
 
-	slog.Info("EtcdNodesRepository.Create", "nodeName", nodeName)
-
 	nodeJson, err := json.Marshal(nodeValue)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.Create", "nodeName", nodeName, "msg", "Marshalling node", "error", err.Error())
+		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshalling node", "error", err.Error())
 		return err
 	}
 
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
-		slog.Error("EtcdNodesRepository.Create", "nodeName", nodeName, "msg", "creating node key", "error", err.Error())
+		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "creating node key", "error", err.Error())
 		return err
 	}
 
 	if err := r.db.put(nodeKey, string(nodeJson)); err != nil {
-		slog.Error("EtcdNodesRepository.Create", "nodeName", nodeName, "msg", "db put", "error", err.Error())
+		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "db put", "error", err.Error())
 		return err
 	}
 
@@ -49,6 +49,8 @@ func (r *EtcdNodesRepository) Set(nodeName string, driver common.NodeDriver, met
 }
 
 func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
+	slog.Info("EtcdNodesRepository.GetSelf")
+
 	if daemonId, err := id.GetDaemonId(); err != nil {
 		return common.NodeEntry{}, err
 	} else {
@@ -57,6 +59,8 @@ func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
 }
 
 func (r *EtcdNodesRepository) GetByDaemonId(daemonId string) (common.NodeEntry, error) {
+	slog.Info("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId)
+
 	nodeKey, err := r.db.nodeKeyByDaemonId(daemonId)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId, "msg", "nodeKey failed", "error", err.Error())
@@ -71,13 +75,13 @@ func (r *EtcdNodesRepository) GetByDaemonId(daemonId string) (common.NodeEntry, 
 
 	var nodeValue NodeValue
 	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
-		slog.Error("EtcdNodesRepository.GetByName", "daemonId", daemonId, "msg", "unmarshalling node", "error", err.Error())
+		slog.Error("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId, "msg", "unmarshalling node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetByName", "daemonId", daemonId, "msg", "building node driver", "error", err.Error())
+		slog.Error("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
@@ -88,22 +92,77 @@ func (r *EtcdNodesRepository) GetByDaemonId(daemonId string) (common.NodeEntry, 
 	}, nil
 }
 
-func (r *EtcdNodesRepository) Delete() error {
+func (r *EtcdNodesRepository) DeleteSelf() error {
+	slog.Info("EtcdNodesRepository.DeleteSelf")
+
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
-		slog.Error("EtcdNodesRepository.Delete", "nodeKey", nodeKey, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "nodeKey failed", "error", err.Error())
 		return err
 	}
 
 	// Check if node exists first
 	_, err = r.db.get(nodeKey)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.Delete", "nodeKey", nodeKey, "msg", "node not found", "error", err.Error())
+		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "node not found", "error", err.Error())
 		return fmt.Errorf("node key '%s' not found", nodeKey)
 	}
 
 	if err := r.db.delete(nodeKey); err != nil {
-		slog.Error("EtcdNodesRepository.Delete", "nodeKey", nodeKey, "msg", "deleting node", "error", err.Error())
+		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "deleting node", "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+	slog.Info("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
+
+	guestNodeValue := NodeValue{
+		NodeName:         guestNodeName,
+		NodeDriverConfig: guestDriver.GetDriverConfig(),
+		Metadata:         metadata,
+	}
+
+	guestNodeJson, err := json.Marshal(guestNodeValue)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshalling node", "error", err.Error())
+		return err
+	}
+
+	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
+		return err
+	}
+
+	if err := r.db.put(guestNodeKey, string(guestNodeJson)); err != nil {
+		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "db put", "error", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+func (r *EtcdNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+	slog.Info("EtcdNodesRepository.DeleteGuestNode", "guestNodeName", guestNodeName)
+
+	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "nodeKey failed", "error", err.Error())
+		return err
+	}
+
+	// Check if node exists first
+	_, err = r.db.get(guestNodeKey)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "node not found", "error", err.Error())
+		return fmt.Errorf("node key '%s' not found", guestNodeKey)
+	}
+
+	if err := r.db.delete(guestNodeKey); err != nil {
+		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "deleting node", "error", err.Error())
 		return err
 	}
 

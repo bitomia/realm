@@ -68,11 +68,11 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 }
 
 func (m *mockNodeDriver) Provision(nodeName string, repository common.NodesRepository) error {
-	return repository.Set(nodeName, m, nil)
+	return repository.SetSelf(nodeName, m, nil)
 }
 
 func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
-	return repository.Delete()
+	return repository.DeleteSelf()
 }
 
 func (m *mockNodeDriver) Startup(repository common.NodesRepository) error {
@@ -116,7 +116,7 @@ func TestEtcdNodesRepository_Set(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	err := repo.Set("test-node", driver, nil)
+	err := repo.SetSelf("test-node", driver, nil)
 
 	assert.NoError(t, err)
 }

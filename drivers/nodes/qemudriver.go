@@ -146,7 +146,7 @@ func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepositor
 
 	slog.Info("QemuDriver.Provision", "pid", meta.Pid, "qmp_socket", qmpSocketPath)
 
-	if err := repository.Set(nodeName, q, meta); err != nil {
+	if err := repository.SetSelf(nodeName, q, meta); err != nil {
 		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}
@@ -155,7 +155,7 @@ func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepositor
 }
 
 func (q *QemuDriver) Deprovision(repository common.NodesRepository) error {
-	return repository.Delete()
+	return repository.DeleteSelf()
 }
 
 func (q *QemuDriver) GetDriverConfig() common.NodeDriverConfig {

@@ -105,7 +105,7 @@ func (l *LinuxDriver) Provision(nodeName string, repository common.NodesReposito
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
-	if err := repository.Set(nodeName, l, nil); err != nil {
+	if err := repository.SetSelf(nodeName, l, nil); err != nil {
 		slog.Error("LinuxDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}
@@ -114,7 +114,7 @@ func (l *LinuxDriver) Provision(nodeName string, repository common.NodesReposito
 }
 
 func (l *LinuxDriver) Deprovision(repository common.NodesRepository) error {
-	return repository.Delete()
+	return repository.DeleteSelf()
 }
 
 func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
