@@ -11,6 +11,7 @@ ifeq ($(OS),Windows_NT)
 	SEP = \\
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
+	SET_CGO = set CGO_ENABLED=0 &&
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	RM = rm -rf
@@ -18,6 +19,7 @@ else
 	SEP = /
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
+	SET_CGO = CGO_ENABLED=0
 endif
 
 
@@ -26,7 +28,7 @@ COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_C
 .PHONY: all
 all:
 	@echo "Building ($(GIT_COMMIT))..."
-	CGO_ENABLED=0 $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
+	$(SET_CGO) $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
 
 .PHONY: tidy
 tidy:
