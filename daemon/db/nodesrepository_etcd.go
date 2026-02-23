@@ -49,7 +49,7 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 }
 
 func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
-	slog.Info("EtcdNodesRepository.GetSelf")
+	slog.Debug("EtcdNodesRepository.GetSelf")
 
 	if daemonId, err := id.GetDaemonId(); err != nil {
 		return common.NodeEntry{}, err
@@ -59,7 +59,7 @@ func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
 }
 
 func (r *EtcdNodesRepository) GetByDaemonId(daemonId string) (common.NodeEntry, error) {
-	slog.Info("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId)
+	slog.Debug("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId)
 
 	nodeKey, err := r.db.nodeKeyByDaemonId(daemonId)
 	if err != nil {
@@ -69,7 +69,7 @@ func (r *EtcdNodesRepository) GetByDaemonId(daemonId string) (common.NodeEntry, 
 
 	nodeStr, err := r.db.get(nodeKey)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId, "msg", "getting node", "error", err.Error())
+		slog.Debug("EtcdNodesRepository.GetByDaemonId", "daemonId", daemonId, "msg", "getting node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
