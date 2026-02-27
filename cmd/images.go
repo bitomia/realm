@@ -23,7 +23,7 @@ var listImages = &cobra.Command{
 	Use:   "ls",
 	Short: "List all available images",
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 
 		nodeImagesMap, err := client.GetAllImages()
 		if err != nil {

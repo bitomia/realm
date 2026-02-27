@@ -11,11 +11,11 @@ import (
 	"github.com/bitomia/realm/internal"
 )
 
-func GetNodes() map[string]*common.NodeConfig {
+func GetNodes(cfg *config.Config) map[string]*common.NodeConfig {
 	nodes := make(map[string]*common.NodeConfig)
 	seenUrls := make(map[string]string)
 
-	for name, node := range config.Get().Nodes {
+	for name, node := range cfg.Nodes {
 		if existingName, exists := seenUrls[node.Url]; exists {
 			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
 			delete(nodes, existingName)
@@ -25,7 +25,7 @@ func GetNodes() map[string]*common.NodeConfig {
 		seenUrls[node.Url] = node.Name
 	}
 
-	if config.Get().Discovery.MdnsEnabled {
+	if cfg.Discovery.MdnsEnabled {
 		services, err := internal.QueryServices("_realm._tcp.local")
 		if err != nil {
 			log.Warn("mDNS discovery failed: %v", err)
@@ -67,8 +67,8 @@ func addDiscoveredServices(services map[string]*internal.ServiceInfo, nodes map[
 	}
 }
 
-func GetNode(nodeName string) *common.NodeConfig {
-	nodes := GetNodes()
+func GetNode(cfg *config.Config, nodeName string) *common.NodeConfig {
+	nodes := GetNodes(cfg)
 	node, exists := nodes[nodeName]
 	if !exists {
 		log.Fatal("Node %s not found", nodeName)

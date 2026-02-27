@@ -25,7 +25,7 @@ var listNetworks = &cobra.Command{
 	Short:                 "List all available network",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 		color.Blue("Listing networks...\n")
 		networksPerHost, err := client.ListNetworks()
 

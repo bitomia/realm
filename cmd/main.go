@@ -10,7 +10,10 @@ import (
 	"github.com/bitomia/realm/drivers"
 )
 
-var rootCmd = &cobra.Command{}
+var (
+	rootCmd = &cobra.Command{}
+	cfg     *config.Config
+)
 
 func main() {
 	drivers.RegisterStdDrivers()
@@ -25,12 +28,12 @@ func main() {
 		}
 
 		configFile, _ := cmd.Flags().GetString("config")
-		var configError error = nil
+		var configError error
 
 		if configFile == "" {
-			configError = config.Init(nil)
+			cfg, configError = config.Init(nil)
 		} else {
-			configError = config.Init(&configFile)
+			cfg, configError = config.Init(&configFile)
 		}
 		if configError != nil {
 			log.Error("Config error: %s", configError)

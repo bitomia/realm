@@ -10,7 +10,6 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/internal"
 )
 
@@ -42,9 +41,9 @@ var nodeStates = &cobra.Command{
 	Short:                 "List and retrieve all node states",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 
-		for id, node := range clientPkg.GetNodes() {
+		for id, node := range clientPkg.GetNodes(cfg) {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
 			node, err := client.GetNode(node.Url)
@@ -96,8 +95,8 @@ var provisionNodes = &cobra.Command{
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := config.GetNodesFromConfig(nodeNames...)
-		client := clientPkg.NewClient()
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
 
 		for _, n := range nodes {
 			log.Info(" -> Provisioning node %s", color.CyanString(n.Name))
@@ -114,8 +113,8 @@ var deprovisionNodes = &cobra.Command{
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := config.GetNodesFromConfig(nodeNames...)
-		client := clientPkg.NewClient()
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
 
 		for _, n := range nodes {
 			log.Info(" -> Deprovisioning node %s", color.CyanString(n.Name))
@@ -132,7 +131,7 @@ var startNodes = &cobra.Command{
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := config.GetNodesFromConfig(nodeNames...)
+		nodes := cfg.GetNodes(nodeNames...)
 
 		for _, n := range nodes {
 			log.Info(" -> Starting up node %s", color.CyanString(n.Name))
@@ -146,7 +145,7 @@ var startNodes = &cobra.Command{
 					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
-				client := clientPkg.NewClient()
+				client := clientPkg.NewClient(cfg)
 				if err := client.StartupNode(n); err != nil {
 					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
 				}
@@ -161,7 +160,7 @@ var restartNodes = &cobra.Command{
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := config.GetNodesFromConfig(nodeNames...)
+		nodes := cfg.GetNodes(nodeNames...)
 
 		for _, n := range nodes {
 			driverInfo, err := n.Driver.DriverInfo()
@@ -175,7 +174,7 @@ var restartNodes = &cobra.Command{
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
-				client := clientPkg.NewClient()
+				client := clientPkg.NewClient(cfg)
 				if err := client.RestartNode(n, "", 0); err != nil {
 					log.Fatal("Restarting node '%s' failed: %s", n.Name, err.Error())
 				}
@@ -190,7 +189,7 @@ var shutdownNodes = &cobra.Command{
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := config.GetNodesFromConfig(nodeNames...)
+		nodes := cfg.GetNodes(nodeNames...)
 
 		for _, n := range nodes {
 			driverInfo, err := n.Driver.DriverInfo()
@@ -204,7 +203,7 @@ var shutdownNodes = &cobra.Command{
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
-				client := clientPkg.NewClient()
+				client := clientPkg.NewClient(cfg)
 				if err := client.ShutdownNode(n, "", 0); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}

@@ -77,7 +77,7 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("daemon.etcd_cluster_state", "new")
 }
 
-func readInConfig(configFilePath string) error {
+func readInConfig(configFilePath string) (*Config, error) {
 	return readConfig(func() (*Config, error) {
 		if err := viper.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -95,7 +95,7 @@ func readInConfig(configFilePath string) error {
 	}, configFilePath)
 }
 
-func readConfigFromReader(in io.Reader) error {
+func readConfigFromReader(in io.Reader) (*Config, error) {
 	return readConfig(func() (*Config, error) {
 		err := viper.ReadConfig(in)
 		if err == nil {
@@ -162,7 +162,7 @@ func checkForCycles(l map[string]*common.Load) error {
 	return nil
 }
 
-func readConfig(unmarshall func() (*Config, error), configFilePath string) error {
+func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Config, error) {
 	networkConfig := autodetectNetworkConfig()
 	setDefaults(networkConfig)
 
@@ -183,7 +183,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 	config, err := unmarshall()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// If listen_address is configured with a specific IP (not 127.0.0.1 or 0.0.0.0), use it to find the network interface
@@ -214,11 +214,11 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 	for nodeName, node := range config.Nodes {
 		node.Name = nodeName
 		if len(node.Driver) == 0 {
-			return fmt.Errorf("driver required for node '%s'", nodeName)
+			return nil, fmt.Errorf("driver required for node '%s'", nodeName)
 		} else {
 			driver, err := common.BuildNodeDriver(common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
 			if err != nil {
-				return fmt.Errorf("Error building node driver '%s': %s", nodeName, err.Error())
+				return nil, fmt.Errorf("Error building node driver '%s': %s", nodeName, err.Error())
 			}
 			newNodeConfig(nodeName, node, driver)
 		}
@@ -233,7 +233,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 	for loadName, loadConfig := range config.Loads {
 		if loadConfig.Node == "" {
-			return fmt.Errorf("load '%s' with empty node field", loadName)
+			return nil, fmt.Errorf("load '%s' with empty node field", loadName)
 		}
 
 		env := map[string]any{
@@ -256,7 +256,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 			if node, ok := output.(*common.NodeConfig); ok {
 				loadConfig.Node = node.Name
 			} else {
-				return fmt.Errorf("node '%s' evaluated as expression doesn't return a node", loadConfig.Node)
+				return nil, fmt.Errorf("node '%s' evaluated as expression doesn't return a node", loadConfig.Node)
 			}
 		} else if !strings.Contains(err.Error(), "unknown name") {
 			panic(err)
@@ -264,14 +264,14 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 		node, exists := config.Nodes[loadConfig.Node]
 		if !exists {
-			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
+			return nil, fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
 		}
 		if len(loadConfig.Driver) == 0 {
-			return fmt.Errorf("driver required for load '%s'", loadName)
+			return nil, fmt.Errorf("driver required for load '%s'", loadName)
 		}
 		driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: loadConfig.Driver, DriverConfig: loadConfig.DriverConfig})
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		newLoadConfig(loadName, node, driver)
@@ -291,12 +291,12 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 
 	// Check for cycles in the dependency graph
 	if err := checkForCycles(loadsConfig); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Build the loads graph
 	if err = newLoadsConfigGraph(); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Create chain loads
@@ -304,5 +304,16 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) error
 		load.UpdateLoadChains(loadsConfigGraph, loadsConfig)
 	}
 
-	return nil
+	// Populate instance fields
+	config.processedNodes = make(map[string]*common.Node, len(nodesConfig))
+	for k, v := range nodesConfig {
+		config.processedNodes[k] = v
+	}
+	config.processedLoads = make(map[string]*common.Load, len(loadsConfig))
+	for k, v := range loadsConfig {
+		config.processedLoads[k] = v
+	}
+	config.loadsGraph = loadsConfigGraph
+
+	return config, nil
 }

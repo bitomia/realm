@@ -11,7 +11,6 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 )
 
@@ -58,8 +57,8 @@ var provisionLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
-		client := clientPkg.NewClient()
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
 		if err := doProvisionLoads(&client, loads); err != nil {
 			log.Fatal("Error provisioning load: %s", err.Error())
 		}
@@ -74,12 +73,12 @@ var listLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
+		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Error("No loads")
 			return
 		}
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 
 		// Collect load deployments from all nodes
 		nodeLoadsDeployments := make(map[string]map[string]dto.LoadsDeployments)
@@ -152,8 +151,8 @@ var runLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
-		client := clientPkg.NewClient()
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
 
 		// Provisioning must be done separately with 'provision' command
 
@@ -179,8 +178,8 @@ var stopLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
-		client := clientPkg.NewClient()
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
 		stopped := make(map[string]bool)
 
 		for _, l := range loads {
@@ -204,8 +203,8 @@ var killLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
-		client := clientPkg.NewClient()
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
 		killed := make(map[string]bool)
 
 		for _, l := range loads {
@@ -229,8 +228,8 @@ var deprovisionLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
-		client := clientPkg.NewClient()
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
 		deprovisioned := make(map[string]bool)
 
 		for _, l := range loads {
@@ -250,7 +249,7 @@ var graphLoads = &cobra.Command{
 	Short:                 "Print the dependency graph",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		g := config.GetLoadsConfigGraph()
+		g := cfg.GetLoadsGraph()
 		adjacencyMap, err := g.AdjacencyMap()
 		if err != nil {
 			log.Fatal("%s", err.Error())
@@ -275,7 +274,7 @@ var stdoutLoad = &cobra.Command{
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
+		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Fatal("Load not found")
 		}
@@ -284,7 +283,7 @@ var stdoutLoad = &cobra.Command{
 		}
 
 		load := loads[loadNames[0]]
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 		if err := client.ReadLoadStdout(load); err != nil {
 			log.Fatal("Failed to read stdout: %s", err.Error())
 		}
@@ -297,7 +296,7 @@ var stderrLoad = &cobra.Command{
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := config.GetLoadsFromConfig(loadNames...)
+		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Fatal("Load not found")
 		}
@@ -306,7 +305,7 @@ var stderrLoad = &cobra.Command{
 		}
 
 		load := loads[loadNames[0]]
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 		if err := client.ReadLoadStderr(load); err != nil {
 			log.Fatal("Failed to read stderr: %s", err.Error())
 		}

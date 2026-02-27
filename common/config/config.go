@@ -5,7 +5,10 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
+
+	"github.com/dominikbraun/graph"
 
 	"github.com/bitomia/realm/common"
 )
@@ -134,6 +137,11 @@ type Config struct {
 
 	// Autoconfigured network Config
 	NetworkConfig NetworkConfig `json:"-"`
+
+	// Processed state (populated during Init)
+	processedNodes map[string]*common.Node     `json:"-"`
+	processedLoads map[string]*common.Load     `json:"-"`
+	loadsGraph     graph.Graph[string, string]  `json:"-"`
 }
 
 // Get returns the global configuration instance.
@@ -165,36 +173,52 @@ func ResetConfig() {
 	resetNodesConfig()
 }
 
-func InitFromBuffer(buffer string) error {
-	if config != nil {
-		return fmt.Errorf("Configuration already initialized")
-	}
-
+func InitFromBuffer(buffer string) (*Config, error) {
 	reader := strings.NewReader(buffer)
-	err := readConfigFromReader(reader)
+	cfg, err := readConfigFromReader(reader)
 	if err != nil {
-		return fmt.Errorf("%s", err.Error())
+		return nil, fmt.Errorf("%s", err.Error())
 	}
-	return nil
+	return cfg, nil
 }
 
 // Init reads configuration from file or environment variables.
 // If configFilePath is provided, it will be used instead of the default locations.
-func Init(configFilePath *string) error {
-	if config != nil {
-		return fmt.Errorf("Configuration already initialized")
-	}
-
+func Init(configFilePath *string) (*Config, error) {
 	var path string
 	if configFilePath != nil {
 		path = *configFilePath
 	}
 
-	err := readInConfig(path)
+	cfg, err := readInConfig(path)
 	if err != nil {
-		return fmt.Errorf("%s", err.Error())
+		return nil, fmt.Errorf("%s", err.Error())
 	}
-	return nil
+	return cfg, nil
+}
+
+func (c *Config) GetNodes(nodesFilter ...string) map[string]*common.Node {
+	nodes := make(map[string]*common.Node)
+	for _, node := range c.processedNodes {
+		if len(nodesFilter) == 0 || slices.Contains(nodesFilter, node.Name) {
+			nodes[node.Name] = node
+		}
+	}
+	return nodes
+}
+
+func (c *Config) GetLoads(loadsFilter ...string) map[string]*common.Load {
+	loads := make(map[string]*common.Load)
+	for _, load := range c.processedLoads {
+		if len(loadsFilter) == 0 || slices.Contains(loadsFilter, load.Name) {
+			loads[load.Name] = load
+		}
+	}
+	return loads
+}
+
+func (c *Config) GetLoadsGraph() graph.Graph[string, string] {
+	return c.loadsGraph
 }
 
 func findNetworkInterface(targetIP net.IP, interfaces []net.Interface) (NetworkConfig, error) {

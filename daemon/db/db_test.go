@@ -37,7 +37,7 @@ loads:
 `
 
 func init() {
-	config.InitFromBuffer(testConfig)
+	_, _ = config.InitFromBuffer(testConfig)
 }
 
 // getFreePort returns a free port on localhost

@@ -49,12 +49,12 @@ loads:
         - web
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := config.GetLoadsFromConfig()
+	loads := cfg.GetLoads()
 	assert.NotNil(t, loads)
-	assert.Len(t, config.GetLoadsFromConfig(), 3)
+	assert.Len(t, cfg.GetLoads(), 3)
 
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")
@@ -99,7 +99,7 @@ loads:
       - web
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	_, err := config.InitFromBuffer(yamlConfig)
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "cycle detected"))
 }
@@ -129,10 +129,10 @@ loads:
           destination: /opt/terrainData
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := config.GetLoadsFromConfig()
+	loads := cfg.GetLoads()
 	assert.NotNil(t, loads)
 	assert.Len(t, loads, 1)
 
@@ -180,10 +180,10 @@ loads:
       image: docker.io/nginx
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := config.GetLoadsFromConfig()
+	loads := cfg.GetLoads()
 	assert.NotNil(t, loads)
 
 	webLoad := loads["nomount_web"]
@@ -209,10 +209,10 @@ loads:
       bind_mounts: []
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
-	loads := config.GetLoadsFromConfig()
+	loads := cfg.GetLoads()
 	assert.NotNil(t, loads)
 
 	webLoad := loads["emptymount_web"]
@@ -241,48 +241,6 @@ loads:
         - web
 `
 	config.ResetConfig()
-	err := config.InitFromBuffer(yamlConfig)
+	_, err := config.InitFromBuffer(yamlConfig)
 	assert.Error(t, err)
 }
-
-// func TestProcessDriverValidCmd(t *testing.T) {
-// 	yamlConfig := `
-// nodes:
-//   lab1:
-//     url: http://192.168.1.54:9000
-
-// loads:
-//   processes:
-//     netcat:
-//       node: lab1
-//       start_cmd: cmd
-//       stop_signal: SIGHUP
-// `
-// 	resetConfig()
-// 	err := readConfigFromReader(strings.NewReader(yamlConfig))
-
-// 	loads := GetLoads()
-// 	assert.NoError(t, err)
-// 	assert.NotNil(t, loads)
-// 	assert.Len(t, loads, 1)
-// }
-
-// func TestProcessDriverInvalidStopSignal(t *testing.T) {
-// 	yamlConfig := `
-// nodes:
-//   lab1:
-//     url: http://192.168.1.54:9000
-
-// loads:
-//   processes:
-//     netcat:
-//       node: lab1
-//       start_cmd: cmd
-//       stop_signal: INVALID
-// `
-// 	resetConfig()
-// 	err := readConfigFromReader(strings.NewReader(yamlConfig))
-
-// 	assert.Error(t, err)
-// 	assert.Len(t, GetLoads(), 0)
-// }

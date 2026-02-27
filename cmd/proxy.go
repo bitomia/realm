@@ -23,7 +23,7 @@ var getProxyConfig = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 		color.Blue("Getting proxy config for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetProxyConfig(args[0], args[1]); err != nil {
 			color.Red("Error getting proxy config: %v\n", err)

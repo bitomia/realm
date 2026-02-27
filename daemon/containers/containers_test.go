@@ -17,7 +17,7 @@ nodes:
 `
 
 func init() {
-	config.InitFromBuffer(testConfig)
+	_, _ = config.InitFromBuffer(testConfig)
 }
 
 // This test verifies that CreateContainer handles nil Quotas gracefully without panicking.

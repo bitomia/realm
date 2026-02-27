@@ -25,7 +25,7 @@ var listContainers = &cobra.Command{
 	Short:                 "List all available containers",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
+		client := clientPkg.NewClient(cfg)
 		containersPerNode, err := client.GetAllContainers()
 		if err != nil {
 			log.Error("Error %v\n", err)
@@ -46,8 +46,8 @@ var getLogs = &cobra.Command{
 	Args:                  cobra.ExactArgs(2),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := clientPkg.NewClient()
-		node := clientPkg.GetNode(args[0])
+		client := clientPkg.NewClient(cfg)
+		node := clientPkg.GetNode(cfg, args[0])
 
 		color.Blue("Getting logs for container %s on %s\n", color.CyanString(args[1]), color.CyanString(args[0]))
 		if err := client.GetContainerLogs(node.Url, args[1]); err != nil {

@@ -13,11 +13,13 @@ import (
 
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 )
 
 type Client struct {
 	header http.Header
+	cfg    *config.Config
 }
 
 func getAuthToken() string {
@@ -41,26 +43,28 @@ func getAuthToken() string {
 	return strings.TrimSpace(string(tokenBytes))
 }
 
-func NewClient() Client {
+func NewClient(cfg *config.Config) Client {
 	token := getAuthToken()
 	if token == "" {
 		return Client{
-			http.Header{
+			header: http.Header{
 				"ContentType": []string{"application/json"},
 			},
+			cfg: cfg,
 		}
 	}
 	return Client{
-		http.Header{
+		header: http.Header{
 			"ContentType":   []string{"application/json"},
 			"Authorization": []string{fmt.Sprintf("Bearer %s", token)},
 		},
+		cfg: cfg,
 	}
 }
 
 func NewUnauthClient() Client {
 	return Client{
-		http.Header{
+		header: http.Header{
 			"ContentType": []string{"application/json"},
 		},
 	}
@@ -126,7 +130,7 @@ func (c *Client) doStreamRequest(method, url string) (*http.Response, error) {
 }
 
 func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
-	nodes := GetNodes()
+	nodes := GetNodes(c.cfg)
 	var nodeImagesMap dto.NodeImagesMapResponse
 
 	for _, node := range nodes {
@@ -158,7 +162,7 @@ type Container struct {
 }
 
 func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
-	nodes := GetNodes()
+	nodes := GetNodes(c.cfg)
 	containersPerNode := make(map[string]map[string]Container)
 
 	for _, node := range nodes {
@@ -180,7 +184,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 }
 
 func (c *Client) ListNetworks() (map[string]any, error) {
-	nodes := GetNodes()
+	nodes := GetNodes(c.cfg)
 	networksPerNode := make(map[string]any)
 
 	for _, node := range nodes {
