@@ -121,13 +121,13 @@ type StartupNodeRequest struct {
 }
 
 type ShutdownNodeRequest struct {
-	WallMessage string      `json:"wall_message"`
-	Time        uint32      `json:"time"`
-	Node        common.Node `json:"node"`
+	WallMessage string  `json:"wall_message"`
+	Time        uint32  `json:"time"`
+	NodeName    *string `json:"node_name,omitempty"`
 }
 
 type RestartNodeRequest struct {
-	WallMessage string      `json:"wall_message"`
-	Time        uint32      `json:"time"`
-	Node        common.Node `json:"node"`
+	WallMessage string  `json:"wall_message"`
+	Time        uint32  `json:"time"`
+	NodeName    *string `json:"node_name,omitempty"`
 }

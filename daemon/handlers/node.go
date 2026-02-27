@@ -91,7 +91,7 @@ func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.ShutdownNode(&request.Node, request.WallMessage, request.Time); err != nil {
+	if err := api.ShutdownNode(request.NodeName, request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -109,7 +109,7 @@ func RestartNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.RestartNode(&request.Node, request.WallMessage, request.Time); err != nil {
+	if err := api.RestartNode(request.NodeName, request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

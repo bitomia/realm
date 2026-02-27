@@ -403,14 +403,14 @@ func (c *Client) StartupNode(node *common.Node) error {
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	url := fmt.Sprintf("%s/node/shutdown", node.Url)
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
 	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	url := fmt.Sprintf("%s/node/restart", node.Url)
-	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, Node: *node}
+	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
 	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }

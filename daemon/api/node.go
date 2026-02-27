@@ -116,42 +116,65 @@ func StartupNode(node *common.Node) error {
 	return nil
 }
 
-func ShutdownNode(node *common.Node, message string, time uint32) error {
-	driverInfo, err := node.Driver.DriverInfo()
+// Return self node if nodename is nil, or try to return guest node otherwise
+func getNode(nodeName *string) (*common.NodeEntry, error) {
+	database := db.GetDB()
+
+	if nodeName == nil {
+		node, err := database.NodesRepository.GetSelf()
+		if err != nil {
+			return nil, err
+		} else {
+			return &node, err
+		}
+	} else {
+		node, err := database.NodesRepository.GetGuestNode(*nodeName)
+		if err != nil {
+			return nil, err
+		} else {
+			return &node, err
+		}
+	}
+}
+
+func ShutdownNode(nodeName *string, message string, time uint32) error {
+	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("cannot retrieve driver info for %s", node.Name)
+		return fmt.Errorf("Node not provisioned")
+	}
+
+	driverInfo, err := node.NodeDriver.DriverInfo()
+	if err != nil {
+		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
 	}
 
 	if driverInfo.ShutdownMode != common.DaemonMode {
 		return fmt.Errorf("shutdown expects daemon mode")
 	}
 
-	var nodeName *string = nil
-	if node != nil {
-		nodeName = &node.Name
-	}
-	if err := node.Driver.Shutdown(nodeName, message, time, db.GetDB().NodesRepository); err != nil {
+	if err := node.NodeDriver.Shutdown(&node.NodeName, message, time, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to shutdown node: %w", err)
 	}
 
 	return nil
 }
 
-func RestartNode(node *common.Node, message string, time uint32) error {
-	driverInfo, err := node.Driver.DriverInfo()
+func RestartNode(nodeName *string, message string, time uint32) error {
+	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("cannot retrieve driver info for %s", node.Name)
+		return fmt.Errorf("Node not provisioned")
+	}
+
+	driverInfo, err := node.NodeDriver.DriverInfo()
+	if err != nil {
+		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
 	}
 
 	if driverInfo.RestartMode != common.DaemonMode {
 		return fmt.Errorf("restart expects daemon mode")
 	}
 
-	var nodeName *string = nil
-	if node != nil {
-		nodeName = &node.Name
-	}
-	if err := node.Driver.Restart(nodeName, message, time, db.GetDB().NodesRepository); err != nil {
+	if err := node.NodeDriver.Restart(&node.NodeName, message, time, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to restart node: %w", err)
 	}
 
