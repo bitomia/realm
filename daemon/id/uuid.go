@@ -19,7 +19,7 @@ func GetDaemonId() (string, error) {
 	if dataPath == "" {
 		return "", fmt.Errorf("Invalid data path")
 	}
-	idPath := filepath.Join(dataPath, "realm.id")
+	idPath := filepath.Join(dataPath, "node.id")
 
 	if internal.FileExists(idPath) {
 		data, err := os.ReadFile(idPath)
