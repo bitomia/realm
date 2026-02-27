@@ -14,7 +14,7 @@ var (
 	loadsConfigGraph graph.Graph[string, string]
 )
 
-func resetLoadsConfig() {
+func ResetLoadsConfig() {
 	loadsConfig = make(map[string]*common.Load)
 	loadsConfigGraph = nil
 }

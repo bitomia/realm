@@ -11,7 +11,7 @@ var (
 	nodesConfig map[string]*common.Node = make(map[string]*common.Node)
 )
 
-func resetNodesConfig() {
+func ResetNodesConfig() {
 	nodesConfig = make(map[string]*common.Node)
 }
 

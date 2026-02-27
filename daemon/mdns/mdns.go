@@ -9,7 +9,7 @@ import (
 
 	"github.com/grandcat/zeroconf"
 
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/config"
 )
 
 type MDNSService struct {

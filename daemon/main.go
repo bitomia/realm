@@ -16,7 +16,7 @@ import (
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/auth"
 	"github.com/bitomia/realm/daemon/capabilities"
-
+	daemonConfig "github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/daemon/db"
 	"github.com/bitomia/realm/daemon/dns"
 	"github.com/bitomia/realm/daemon/health"
@@ -29,8 +29,8 @@ var (
 	globalSignalChannel = make(chan os.Signal, 1)
 )
 
-func Start(purgeDB bool) {
-	cfg := config.Get()
+func Start(cfg *config.Config, purgeDB bool) {
+	daemonConfig.Set(cfg)
 
 	// Configure slog handler based on log format
 	var handler slog.Handler

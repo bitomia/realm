@@ -18,7 +18,7 @@ import (
 	process "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/bitomia/realm/common"
-	configPkg "github.com/bitomia/realm/common/config"
+	configPkg "github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/internal"
 )
 

@@ -14,6 +14,11 @@ func init() {
 	RegisterStdDrivers()
 }
 
+func resetConfigs() {
+	config.ResetLoadsConfig()
+	config.ResetNodesConfig()
+}
+
 func TestConfig(t *testing.T) {
 	yamlConfig := `
 nodes:
@@ -48,7 +53,8 @@ loads:
       depends_on:
         - web
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
@@ -98,7 +104,8 @@ loads:
     depends_on:
       - web
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	_, err := config.InitFromBuffer(yamlConfig)
 	assert.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "cycle detected"))
@@ -128,7 +135,8 @@ loads:
         - source: /opt/terrainData
           destination: /opt/terrainData
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
@@ -179,7 +187,8 @@ loads:
     driver_config:
       image: docker.io/nginx
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
@@ -208,7 +217,8 @@ loads:
       image: docker.io/nginx
       bind_mounts: []
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	cfg, err := config.InitFromBuffer(yamlConfig)
 	assert.NoError(t, err)
 
@@ -240,7 +250,8 @@ loads:
       depends_on:
         - web
 `
-	config.ResetConfig()
+	resetConfigs()
+
 	_, err := config.InitFromBuffer(yamlConfig)
 	assert.Error(t, err)
 }

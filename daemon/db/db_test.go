@@ -18,26 +18,17 @@ import (
 
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	daemonConfig "github.com/bitomia/realm/daemon/config"
 )
 
 const testConfig = `
 daemon:
   data_path: .
-
-nodes:
-  lab1:
-    url: http://localhost:9000
-
-loads:
-  web:
-    node: lab1
-    driver: container
-    driver_config:
-      image: docker.io/nginx
 `
 
 func init() {
-	_, _ = config.InitFromBuffer(testConfig)
+	cfg, _ := config.InitFromBuffer(testConfig)
+	daemonConfig.Set(cfg)
 }
 
 // getFreePort returns a free port on localhost

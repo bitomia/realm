@@ -14,7 +14,7 @@ import (
 	"go.etcd.io/etcd/server/v3/embed"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/daemon/id"
 )
 

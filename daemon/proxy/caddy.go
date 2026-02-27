@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/config"
 )
 
 type CaddyMatch struct {

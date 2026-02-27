@@ -10,7 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/internal"
 )
 

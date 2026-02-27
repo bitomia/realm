@@ -11,8 +11,8 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/capabilities"
+	"github.com/bitomia/realm/daemon/config"
 )
 
 const QemuDriverID common.NodeDriverID = "qemu"

@@ -5,19 +5,17 @@ import (
 
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	daemonConfig "github.com/bitomia/realm/daemon/config"
 )
 
 const testConfig = `
 daemon:
   data_path: .
-
-nodes:
-  test:
-    url: http://localhost:9000
 `
 
 func init() {
-	_, _ = config.InitFromBuffer(testConfig)
+	cfg, _ := config.InitFromBuffer(testConfig)
+	daemonConfig.Set(cfg)
 }
 
 // This test verifies that CreateContainer handles nil Quotas gracefully without panicking.

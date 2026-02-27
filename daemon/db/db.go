@@ -13,7 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/daemon/id"
 )
 

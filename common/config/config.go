@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 	"net"
 	"slices"
@@ -141,44 +140,21 @@ type Config struct {
 	// Processed state (populated during Init)
 	processedNodes map[string]*common.Node     `json:"-"`
 	processedLoads map[string]*common.Load     `json:"-"`
-	loadsGraph     graph.Graph[string, string]  `json:"-"`
-}
-
-// Get returns the global configuration instance.
-//
-// This function should be called only after config.Init() or config.InitFromBuffer()
-// have successfully initialized the configuration. If the configuration has not been
-// initialized,  Get will terminate the program with a fatal log message.
-//
-// Returns:
-//   - *Config: the initialized global configuration.
-//
-// Panics/Fatal:
-//   - Logs a fatal error and exits the program if the configuration has not
-//     been initialized before calling Get().
-func Get() *Config {
-	if config == nil {
-		log.Fatal("Configuration not initialized with config.Init()")
-	}
-	return config
+	loadsGraph     graph.Graph[string, string] `json:"-"`
 }
 
 func GetVersion() string {
 	return BuildGitCommit
 }
 
-func ResetConfig() {
-	config = nil
-	resetLoadsConfig()
-	resetNodesConfig()
-}
-
 func InitFromBuffer(buffer string) (*Config, error) {
 	reader := strings.NewReader(buffer)
 	cfg, err := readConfigFromReader(reader)
+	fmt.Printf("%v %v", cfg, err)
 	if err != nil {
 		return nil, fmt.Errorf("%s", err.Error())
 	}
+
 	return cfg, nil
 }
 

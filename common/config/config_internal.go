@@ -79,9 +79,10 @@ func setDefaults(networkConfig NetworkConfig) {
 
 func readInConfig(configFilePath string) (*Config, error) {
 	return readConfig(func() (*Config, error) {
+		var config Config
 		if err := viper.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-				return config, err
+				return &config, err
 			} else {
 				log.Println("Config file not found. Continuing using default configuration.")
 			}
@@ -91,25 +92,22 @@ func readInConfig(configFilePath string) (*Config, error) {
 			c.TagName = "json"
 		})
 
-		return config, err
+		return &config, err
 	}, configFilePath)
 }
 
 func readConfigFromReader(in io.Reader) (*Config, error) {
 	return readConfig(func() (*Config, error) {
+		var config Config
 		err := viper.ReadConfig(in)
 		if err == nil {
 			err = viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
 				c.TagName = "json"
 			})
 		}
-		return config, err
+		return &config, err
 	}, "")
 }
-
-var (
-	config *Config = nil
-)
 
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
 	for nodeName := range values {
