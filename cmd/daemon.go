@@ -23,7 +23,7 @@ var startDaemon = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		purgeDB, _ := cmd.Flags().GetBool("purge-db")
-		daemon.Start(cfg, purgeDB)
+		daemon.Start(cfg, purgeDB, nil)
 	},
 }
 

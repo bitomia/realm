@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -29,7 +30,7 @@ var (
 	globalSignalChannel = make(chan os.Signal, 1)
 )
 
-func Start(cfg *config.Config, purgeDB bool) {
+func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	daemonConfig.Set(cfg)
 
 	// Configure slog handler based on log format
@@ -102,16 +103,26 @@ func Start(cfg *config.Config, purgeDB bool) {
 	auth.Initialize()
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Daemon.ListenAddress, cfg.Daemon.ListenPort)
+
+	listener, err := net.Listen("tcp", serverAddr)
+	if err != nil {
+		slog.Error("Failed to listen", "addr", serverAddr, "error", err)
+		os.Exit(1)
+	}
+
 	server := &http.Server{
-		Addr:    serverAddr,
 		Handler: router,
 	}
 
 	go func() {
 		slog.Info("Daemon running", "addr", serverAddr)
-		server.ListenAndServe()
+		server.Serve(listener)
 		slog.Info("HTTP server stopped", "addr", serverAddr)
 	}()
+
+	if onReady != nil {
+		onReady()
+	}
 
 	err = healthPublisher.PublishHealthy()
 	if err != nil {
