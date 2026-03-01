@@ -55,17 +55,25 @@ func GetHealthPublisher() *HealthPublisher {
 	return instance
 }
 
-func (hp *HealthPublisher) Start() error {
-	slog.Info("Starting health publisher for node", "hostname", hp.hostname)
-
+func (hp *HealthPublisher) createLease() error {
 	leaseID, err := hp.db.CreateLease(DEFAULT_TTL)
 	if err != nil {
 		slog.Error("Failed to create lease", "error", err.Error())
 		return err
 	}
 	hp.leaseID = leaseID
+	return nil
+}
 
-	keepAliveChan, err := hp.db.KeepAlive(leaseID)
+func (hp *HealthPublisher) Start() error {
+	slog.Info("Starting health publisher for node", "hostname", hp.hostname)
+
+	if err := hp.createLease(); err != nil {
+		slog.Error("Failed to create lease", "error", err.Error())
+		return err
+	}
+
+	keepAliveChan, err := hp.db.KeepAlive(hp.leaseID)
 	if err != nil {
 		slog.Error("Failed to start lease keep-alive", "error", err.Error())
 		return err
@@ -134,8 +142,31 @@ func (hp *HealthPublisher) keepAliveHandler(keepAliveChan <-chan *clientv3.Lease
 			return
 		case resp := <-keepAliveChan:
 			if resp == nil {
-				slog.Warn("Health publisher lease keep-alive channel closed")
-				return
+				slog.Warn("Health publisher lease keep-alive channel closed, recreating lease")
+				for {
+					select {
+					case <-hp.stopChan:
+						return
+					default:
+					}
+
+					if err := hp.createLease(); err != nil {
+						slog.Error("Failed to recreate lease, retrying...", "error", err.Error())
+						time.Sleep(5 * time.Second)
+						continue
+					}
+
+					newChan, err := hp.db.KeepAlive(hp.leaseID)
+					if err != nil {
+						slog.Error("Failed to restart keep-alive, retrying...", "error", err.Error())
+						time.Sleep(5 * time.Second)
+						continue
+					}
+
+					slog.Info("Lease and keep-alive restored successfully")
+					keepAliveChan = newChan
+					break
+				}
 			}
 		}
 	}

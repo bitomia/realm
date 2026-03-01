@@ -25,13 +25,11 @@ func (db *DaemonDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseI
 
 	value, err := json.Marshal(healthStatus)
 	if err != nil {
-		slog.Error("Error marshaling health status", "error", err.Error())
 		return err
 	}
 
 	healthKey, err := db.healthKey(hostname)
 	if err != nil {
-		slog.Error("Error getting health key", "error", err.Error())
 		return err
 	}
 
