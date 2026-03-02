@@ -152,14 +152,22 @@ func (hp *HealthPublisher) keepAliveHandler(keepAliveChan <-chan *clientv3.Lease
 
 					if err := hp.createLease(); err != nil {
 						slog.Error("Failed to recreate lease, retrying...", "error", err.Error())
-						time.Sleep(5 * time.Second)
+						select {
+						case <-hp.stopChan:
+							return
+						case <-time.After(5 * time.Second):
+						}
 						continue
 					}
 
 					newChan, err := hp.db.KeepAlive(hp.leaseID)
 					if err != nil {
 						slog.Error("Failed to restart keep-alive, retrying...", "error", err.Error())
-						time.Sleep(5 * time.Second)
+						select {
+						case <-hp.stopChan:
+							return
+						case <-time.After(5 * time.Second):
+						}
 						continue
 					}
 
