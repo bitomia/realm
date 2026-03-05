@@ -120,10 +120,11 @@ func (p *ProcessDriver) verifyConfig() error {
 }
 
 func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
-	// Check StartCmd exists and it is executable
-	if _, err := exec.LookPath(p.Config.StartCmd); err != nil {
-		return uuid.Nil, fmt.Errorf("Executable %q not found in PATH\n", p.Config.StartCmd)
+	resolved, err := p.resolveStartCmdPath()
+	if err != nil {
+		return uuid.Nil, err
 	}
+	p.Config.StartCmd = resolved
 
 	// Check WorkingDir exists
 	if p.Config.WorkingDir != nil {
@@ -356,6 +357,26 @@ func (p *ProcessDriver) ReadStderr(repository common.DeploymentsRepository, depl
 	}
 
 	return common.ReadFileAt(metadata.StderrPath, offset)
+}
+
+// Resolve StartCmd by priority: absolute path, working directory, PATH env var
+func (p *ProcessDriver) resolveStartCmdPath() (string, error) {
+	if filepath.IsAbs(p.Config.StartCmd) {
+		if _, err := os.Stat(p.Config.StartCmd); err == nil {
+			return p.Config.StartCmd, nil
+		}
+	}
+	if p.Config.WorkingDir != nil {
+		workingDirCmdPath := filepath.Join(*p.Config.WorkingDir, p.Config.StartCmd)
+		if _, err := os.Stat(workingDirCmdPath); err == nil {
+			return workingDirCmdPath, nil
+		}
+	}
+	if path, err := exec.LookPath(p.Config.StartCmd); err == nil {
+		return path, nil
+	}
+
+	return "", fmt.Errorf("Executable %q not found", p.Config.StartCmd)
 }
 
 func retrieveProcess(deployment common.Deployment) (*process.Process, error) {

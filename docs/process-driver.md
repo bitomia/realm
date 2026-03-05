@@ -49,7 +49,7 @@ When `force_kill` is enabled, if the process doesn't exit within 3 seconds after
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `start_cmd` | string | Yes | Executable name or path. Must be in PATH or absolute path. Cannot contain arguments (use `start_args` instead). |
+| `start_cmd` | string | Yes | Executable name or path. Resolved in priority order: (1) absolute path, (2) relative to `working_dir`, (3) PATH lookup. Cannot contain arguments (use `start_args` instead). |
 | `start_args` | string | No | Command-line arguments passed to the executable. Arguments are split by whitespace. |
 | `working_dir` | string | No | Working directory for the process. Must exist before starting. |
 | `stop_signal` | string | No | Signal sent to stop the process gracefully. Default: SIGHUP |
