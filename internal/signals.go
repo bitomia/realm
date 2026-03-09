@@ -3,6 +3,7 @@ package internal
 import "syscall"
 
 const (
+	// Unix
 	SIGABRT = 0x6
 	SIGALRM = 0xe
 	SIGHUP  = 0x1
@@ -16,23 +17,26 @@ const (
 	SIGTRAP = 0x5
 	SIGUSR1 = 0xa
 	SIGUSR2 = 0xc
+	// Windows
+	WM_CLOSE = 0x10
 )
 
 func StringToSignal(s string) (int, bool) {
 	signals := map[string]int{
-		"SIGABRT": SIGABRT,
-		"SIGALRM": SIGALRM,
-		"SIGHUP":  SIGHUP,
-		"SIGILL":  SIGILL,
-		"SIGINT":  SIGINT,
-		"SIGKILL": SIGKILL,
-		"SIGPWR":  SIGPWR,
-		"SIGQUIT": SIGQUIT,
-		"SIGSTOP": SIGSTOP,
-		"SIGTERM": SIGTERM,
-		"SIGTRAP": SIGTRAP,
-		"SIGUSR1": SIGUSR1,
-		"SIGUSR2": SIGUSR2,
+		"SIGABRT":  SIGABRT,
+		"SIGALRM":  SIGALRM,
+		"SIGHUP":   SIGHUP,
+		"SIGILL":   SIGILL,
+		"SIGINT":   SIGINT,
+		"SIGKILL":  SIGKILL,
+		"SIGPWR":   SIGPWR,
+		"SIGQUIT":  SIGQUIT,
+		"SIGSTOP":  SIGSTOP,
+		"SIGTERM":  SIGTERM,
+		"SIGTRAP":  SIGTRAP,
+		"SIGUSR1":  SIGUSR1,
+		"SIGUSR2":  SIGUSR2,
+		"WM_CLOSE": WM_CLOSE,
 	}
 
 	sig, ok := signals[s]
@@ -41,19 +45,20 @@ func StringToSignal(s string) (int, bool) {
 
 func SignalToString(sig int) string {
 	signals := map[int]string{
-		SIGABRT: "SIGABRT",
-		SIGALRM: "SIGALRM",
-		SIGHUP:  "SIGHUP",
-		SIGILL:  "SIGILL",
-		SIGINT:  "SIGINT",
-		SIGKILL: "SIGKILL",
-		SIGPWR:  "SIGPWR",
-		SIGQUIT: "SIGQUIT",
-		SIGSTOP: "SIGSTOP",
-		SIGTERM: "SIGTERM",
-		SIGTRAP: "SIGTRAP",
-		SIGUSR1: "SIGUSR1",
-		SIGUSR2: "SIGUSR2",
+		SIGABRT:  "SIGABRT",
+		SIGALRM:  "SIGALRM",
+		SIGHUP:   "SIGHUP",
+		SIGILL:   "SIGILL",
+		SIGINT:   "SIGINT",
+		SIGKILL:  "SIGKILL",
+		SIGPWR:   "SIGPWR",
+		SIGQUIT:  "SIGQUIT",
+		SIGSTOP:  "SIGSTOP",
+		SIGTERM:  "SIGTERM",
+		SIGTRAP:  "SIGTRAP",
+		SIGUSR1:  "SIGUSR1",
+		SIGUSR2:  "SIGUSR2",
+		WM_CLOSE: "WM_CLOSE",
 	}
 
 	if s, ok := signals[sig]; ok {

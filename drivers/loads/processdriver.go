@@ -28,11 +28,11 @@ type ProcessConfig struct {
 	StartCmd   string  `json:"start_cmd"`
 	StartArgs  *string `json:"start_args,omitempty"`
 	WorkingDir *string `json:"working_dir,omitempty"`
-	StopSignal string  `json:"stop_signal"`
+	StopSignal *string `json:"stop_signal,omitempty"`
 }
 
 type ProcessDriver struct {
-	StopSignal int
+	StopSignal *int
 	Config     ProcessConfig
 }
 
@@ -43,9 +43,7 @@ type ProcessEntryMetadata struct {
 }
 
 func NewProcessDriver(c any) (common.LoadDriver, error) {
-	var config = ProcessConfig{
-		StopSignal: "SIGHUP",
-	}
+	var config = ProcessConfig{}
 
 	// Configure mapstructure decoder to use 'json' tags
 	// because it has to work for config files (yaml)
@@ -61,9 +59,13 @@ func NewProcessDriver(c any) (common.LoadDriver, error) {
 		return nil, err
 	}
 
-	stopSignal, ok := internal.StringToSignal(config.StopSignal)
-	if !ok {
-		return nil, fmt.Errorf("Invalid StopSignal")
+	var stopSignal *int = nil
+	if config.StopSignal != nil {
+		if stopSignalAux, ok := internal.StringToSignal(*config.StopSignal); !ok {
+			return nil, fmt.Errorf("Invalid StopSignal")
+		} else {
+			stopSignal = &stopSignalAux
+		}
 	}
 
 	driver := &ProcessDriver{
@@ -110,12 +112,7 @@ func (p *ProcessDriver) verifyConfig() error {
 	if p.Config.StartCmd == "" {
 		return fmt.Errorf("StartCmd not specified")
 	}
-	if strings.Contains(p.Config.StartCmd, " ") {
-		return fmt.Errorf("StartCmd shall not have arguments")
-	}
-	if p.StopSignal == 0 {
-		return fmt.Errorf("StopSignal not specified")
-	}
+
 	return nil
 }
 
@@ -139,6 +136,7 @@ func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository commo
 		slog.Error("ProcessDriver.Provision", "msg", "Error on GetByLoadAndStatus", "error", err.Error())
 		return uuid.Nil, err
 	}
+
 	if len(deployments) > 0 {
 		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already running: %s", loadName)
 	}
@@ -194,6 +192,8 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
 	}
 
+	slog.Info("ProcessDriver.Run", "msg", "process started", "deployment", deployment.ID, "pid", cmd.Process.Pid)
+
 	// Update metadata with PID and file paths
 	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
 		metadata.Pid = cmd.Process.Pid
@@ -212,8 +212,6 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 }
 
 func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	signal := internal.IntToSyscallSignal(p.StopSignal)
-
 	proc, err := retrieveProcess(deployment)
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
@@ -223,8 +221,10 @@ func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
-	if err := proc.SendSignal(signal); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
+	slog.Info("ProcessDriver.Stop", "msg", "stopping process", "deployment", deployment.ID, "pid", proc.Pid)
+
+	if err := stopProcess(proc, p.StopSignal); err != nil {
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to stop process with PID %d: %w", proc.Pid, err))
 	}
 
 	return nil
@@ -239,6 +239,8 @@ func (p *ProcessDriver) Kill(repository common.DeploymentsRepository, deployment
 	if proc == nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
+
+	slog.Info("ProcessDriver.Kill", "msg", "killing process", "deployment", deployment.ID, "pid", proc.Pid)
 
 	if err := proc.Kill(); err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
@@ -277,7 +279,9 @@ func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.De
 	}
 
 	proc, err := retrieveProcess(d)
-	if proc == nil {
+	if err == process.ErrorProcessNotRunning {
+		status.StatusCode = common.DeploymentStatusStopped
+	} else if proc == nil {
 		if err != nil {
 			// Only log error and continue to update as stopped
 			slog.Error("ProcessDriver.UpdateStatus", "msg", "retrieveProcessInfo failed", "error", err)

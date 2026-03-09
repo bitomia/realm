@@ -41,7 +41,7 @@ loads:
       force_kill: true
 ```
 
-When `force_kill` is enabled, if the process doesn't exit within 3 seconds after receiving the stop signal, it will be forcefully killed with SIGKILL.
+When `force_kill` is enabled, if the process doesn't exit within 3 seconds after receiving the stop signal, it will be forcefully killed.
 
 ## Configuration Reference
 
@@ -52,12 +52,14 @@ When `force_kill` is enabled, if the process doesn't exit within 3 seconds after
 | `start_cmd` | string | Yes | Executable name or path. Resolved in priority order: (1) absolute path, (2) relative to `working_dir`, (3) PATH lookup. Cannot contain arguments (use `start_args` instead). |
 | `start_args` | string | No | Command-line arguments passed to the executable. Arguments are split by whitespace. |
 | `working_dir` | string | No | Working directory for the process. Must exist before starting. |
-| `stop_signal` | string | No | Signal sent to stop the process gracefully. Default: SIGHUP |
-| `force_kill` | bool | No | If true, sends SIGKILL after 3 second timeout. Default: false |
+| `stop_signal` | string | No | Signal sent to stop the process. Default: SIGTERM(unix) or kill(windows)|
+| `force_kill` | bool | No | If true, sends kill after 3 second timeout. Default: false |
 
 ### Supported Signals
 
 The following signals can be used for `stop_signal`:
+
+#### Unix systems
 
 | Signal | Description |
 |--------|-------------|
@@ -74,3 +76,10 @@ The following signals can be used for `stop_signal`:
 | `SIGPWR` | Power failure |
 | `SIGSTOP` | Stop signal |
 | `SIGTRAP` | Trap signal |
+
+
+#### Windows systems
+
+| Signal | Description |
+|--------|-------------|
+| `WM_CLOSE` | Send WM_CLOSE to the process window (window apps only) |

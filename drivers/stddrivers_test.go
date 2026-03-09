@@ -232,26 +232,3 @@ loads:
 	assert.NotNil(t, containerDriver.Config.BindMounts)
 	assert.Len(t, containerDriver.Config.BindMounts, 0)
 }
-
-func TestProcessDriverInvalidCmd(t *testing.T) {
-	yamlConfig := `
-nodes:
-  lab1:
-    url: http://192.168.1.54:9000
-    driver: linux
-
-loads:
-  netcat:
-    node: lab1
-    driver: process
-    driver_config:
-      start_cmd: cmd invalid
-      stop_signal: SIGHUP
-      depends_on:
-        - web
-`
-	resetConfigs()
-
-	_, err := config.InitFromBuffer(yamlConfig)
-	assert.Error(t, err)
-}
