@@ -100,7 +100,8 @@ type NodeDriver interface {
 	// offset specified
 	//
 	// nodeName as nil for self-node
-	Shutdown(nodeName *string, message string, time uint32, repository NodesRepository) error
+	// force can be used for hard-stops like pulling the plug of a VM, it can be ignored otherwise
+	Shutdown(nodeName *string, message string, time uint32, repository NodesRepository, force bool) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time

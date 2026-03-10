@@ -130,7 +130,7 @@ func (l *LinuxDriver) Startup(_ *string, repository common.NodesRepository) erro
 	return launchWakeOnLan(l.Config.MAC)
 }
 
-func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32, repository common.NodesRepository) error {
+func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)

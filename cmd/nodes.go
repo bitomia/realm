@@ -184,12 +184,13 @@ var restartNodes = &cobra.Command{
 }
 
 var shutdownNodes = &cobra.Command{
-	Use:                   "shutdown [--all | node...]",
+	Use:                   "shutdown [--all | node...] [--force]",
 	Short:                 "Stop nodes",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
+		force, _ := cmd.Flags().GetBool("force")
 
 		for _, n := range nodes {
 			driverInfo, err := n.Driver.DriverInfo()
@@ -199,12 +200,12 @@ var shutdownNodes = &cobra.Command{
 
 			log.Info(" -> Shutting down node %s", color.CyanString(n.Name))
 			if driverInfo.ShutdownMode == common.ClientMode {
-				if err := n.Driver.Shutdown(nil, "", 0, nil); err != nil {
+				if err := n.Driver.Shutdown(nil, "", 0, nil, force); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
 				client := clientPkg.NewClient(cfg)
-				if err := client.ShutdownNode(n, "", 0); err != nil {
+				if err := client.ShutdownNode(n, "", 0, force); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			}
@@ -218,6 +219,7 @@ func init() {
 	startNodes.Flags().Bool("all", false, "All nodes")
 	restartNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
+	shutdownNodes.Flags().Bool("force", false, "Force shutdown")
 
 	hostCmd.AddCommand(nodeStates)
 	hostCmd.AddCommand(provisionNodes)

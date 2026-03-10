@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
+	"net"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/go-viper/mapstructure/v2"
 
@@ -39,7 +40,6 @@ type QemuNetdev struct {
 }
 
 type QemuConfig struct {
-	HostURL  string       `json:"host_url"`
 	Emulator string       `json:"emulator"`
 	Machine  string       `json:"machine,omitempty"`
 	CPU      string       `json:"cpu,omitempty"`
@@ -52,8 +52,8 @@ type QemuConfig struct {
 }
 
 type QemuNodeMetadata struct {
-	Pid       int    `json:"pid,omitempty"`
-	QMPSocket string `json:"qmp_socket,omitempty"`
+	Pid     int `json:"pid,omitempty"`
+	QMPPort int `json:"qmp_port,omitempty"`
 }
 
 type QemuDriver struct {
@@ -73,10 +73,6 @@ func NewQemuDriverFromConfig(c *any) (common.NodeDriver, error) {
 		if err := decoder.Decode(*c); err != nil {
 			return nil, err
 		}
-	}
-
-	if cfg.HostURL == "" {
-		return nil, fmt.Errorf("qemu: host_url is required")
 	}
 
 	if cfg.Emulator == "" {
@@ -138,14 +134,11 @@ func (q *QemuDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (q *QemuDriver) buildArgs(nodeName string) []string {
-	dataPath := config.Get().Daemon.DataPath
-	qmpSocketPath := filepath.Join(dataPath, "qemu", nodeName+".qmp")
-
+func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
 	var args []string
 
 	args = append(args, "-name", nodeName)
-	args = append(args, "-qmp", fmt.Sprintf("unix:%s,server,nowait", qmpSocketPath))
+	args = append(args, "-qmp", fmt.Sprintf("tcp:127.0.0.1:%d,server,nowait", qmpPort))
 
 	if q.Config.Machine != "" {
 		args = append(args, "-machine", q.Config.Machine)
@@ -276,18 +269,17 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 	}
 
 	dataPath := config.Get().Daemon.DataPath
-	qmpSocketPath := filepath.Join(dataPath, "qemu", *nodeName+".qmp")
 
-	// Ensure QMP socket directory exists
-	if err := os.MkdirAll(filepath.Dir(qmpSocketPath), 0755); err != nil {
-		return fmt.Errorf("qemu: failed to create qmp socket directory: %w", err)
+	qmpPort, err := getFreePort()
+	if err != nil {
+		return fmt.Errorf("qemu: failed to find free port for QMP: %w", err)
 	}
 
-	// Build QEMU command
-	args := q.buildArgs(*nodeName)
+	args := q.buildArgs(*nodeName, qmpPort)
 	cmd := exec.Command(q.Config.Emulator, args...)
 
-	// Set up stdout/stderr log files
+	slog.Info("QemuDriver.Startup", "msg", "launching qemu", "node", nodeName, "cmd", q.Config.Emulator, "args", args)
+
 	stdoutPath := filepath.Join(dataPath, "logs", "qemu", *nodeName+"_stdout.log")
 	stderrPath := filepath.Join(dataPath, "logs", "qemu", *nodeName+"_stderr.log")
 
@@ -313,11 +305,11 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 	}
 
 	metadata := QemuNodeMetadata{
-		Pid:       cmd.Process.Pid,
-		QMPSocket: qmpSocketPath,
+		Pid:     cmd.Process.Pid,
+		QMPPort: qmpPort,
 	}
 
-	slog.Info("QemuDriver.Startup", "pid", metadata.Pid, "qmp_socket", qmpSocketPath)
+	slog.Info("QemuDriver.Startup", "pid", metadata.Pid, "qmp_port", qmpPort)
 
 	if err := repository.SetGuestNode(*nodeName, q, metadata); err != nil {
 		slog.Error("QemuDriver.Startup", "msg", "failed to set guest node", "error", err)
@@ -327,30 +319,55 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 	return nil
 }
 
-func (q *QemuDriver) Shutdown(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
+func (q *QemuDriver) Shutdown(nodeName *string, _ string, _ uint32, repository common.NodesRepository, force bool) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
-
 	metadata, err := q.getMetadata(*nodeName, repository)
 	if err != nil {
 		return fmt.Errorf("getMetadata on Shutdown failed: %s", err.Error())
 	}
-
-	if metadata.QMPSocket == "" {
-		return fmt.Errorf("qemu: no QMP socket path available")
+	if metadata.QMPPort == 0 {
+		return fmt.Errorf("qemu: no QMP port available")
 	}
-
-	if err := qmpSystemPowerdown(metadata.QMPSocket); err != nil {
-		return err
+	if force {
+		if err := qmpQuit(metadata.QMPPort); err != nil {
+			return err
+		}
+	} else {
+		if err := qmpSystemPowerdown(metadata.QMPPort); err != nil {
+			return err
+		}
+		if err := q.waitForShutdown(metadata.QMPPort); err != nil {
+			return err
+		}
 	}
-
 	if err := repository.DeleteGuestNode(*nodeName, q, metadata); err != nil {
 		slog.Error("QemuDriver.Shutdown", "msg", "failed to delete guest node", "error", err)
 		return err
 	}
-
 	return nil
+}
+
+func (q *QemuDriver) waitForShutdown(qmpPort int) error {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	deadline := time.After(5 * 60 * time.Second)
+	for {
+		select {
+		case <-deadline:
+			return fmt.Errorf("qemu: shutdown timed out, VM still running")
+		case <-ticker.C:
+			running, err := qmpQueryStatus(qmpPort)
+			if err != nil {
+				return nil
+			}
+			if !running {
+				return nil
+			}
+		}
+	}
 }
 
 func (q *QemuDriver) Restart(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
@@ -363,11 +380,11 @@ func (q *QemuDriver) Restart(nodeName *string, message string, time uint32, repo
 		return fmt.Errorf("getMetadata on Shutdown failed: %s", err.Error())
 	}
 
-	if metadata.QMPSocket == "" {
-		return fmt.Errorf("qemu: no QMP socket path available")
+	if metadata.QMPPort == 0 {
+		return fmt.Errorf("qemu: no QMP port available")
 	}
 
-	return qmpSystemReset(metadata.QMPSocket)
+	return qmpSystemReset(metadata.QMPPort)
 }
 
 func (q *QemuDriver) UpdateStatus(nodeName *string, repository common.NodesRepository) (common.NodeStatus, error) {
@@ -382,11 +399,11 @@ func (q *QemuDriver) UpdateStatus(nodeName *string, repository common.NodesRepos
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: error.Error()}, error
 	}
 
-	if metadata.QMPSocket == "" {
+	if metadata.QMPPort == 0 {
 		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: "not started"}, nil
 	}
 
-	running, err := qmpQueryStatus(metadata.QMPSocket)
+	running, err := qmpQueryStatus(metadata.QMPPort)
 	if err != nil {
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
 	}
@@ -411,10 +428,25 @@ func (q *QemuDriver) getMetadata(nodeName string, repository common.NodesReposit
 		return nil, err
 	}
 
-	metadata, ok := node.Metadata.(*QemuNodeMetadata)
-	if !ok {
-		return nil, fmt.Errorf("qemu metadata cast failed")
+	var metadata QemuNodeMetadata
+	if tmp, err := json.Marshal(node.Metadata); err != nil {
+		slog.Error("QemuDriver.getMetadata", "error", "error on marshalling metadata", "node", nodeName)
+		return nil, err
+	} else {
+		if err := json.Unmarshal(tmp, &metadata); err != nil {
+			slog.Error("QemuDriver.getMetadata", "error", "error on unmarshalling metadata", "node", nodeName)
+			return nil, err
+		}
 	}
 
-	return metadata, nil
+	return &metadata, nil
+}
+
+func getFreePort() (int, error) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }

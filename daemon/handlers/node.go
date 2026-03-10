@@ -66,14 +66,14 @@ func DeprovisionNodeHandler(w http.ResponseWriter, r *http.Request) {
 func StartupNodeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.StartupNodeHandler")
 
-	var request dto.StartupNodeRequest
-	err := json.NewDecoder(r.Body).Decode(&request)
+	var node common.Node
+	err := json.NewDecoder(r.Body).Decode(&node)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := api.StartupNode(&request.Node); err != nil {
+	if err := api.StartupNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -91,7 +91,7 @@ func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.ShutdownNode(request.NodeName, request.WallMessage, request.Time); err != nil {
+	if err := api.ShutdownNode(request.NodeName, request.WallMessage, request.Time, request.Force); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

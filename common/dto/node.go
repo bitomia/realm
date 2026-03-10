@@ -116,14 +116,11 @@ type SystemInfo struct {
 	RamTotal          uint64  `json:"ram_total"`            // Total available RAM in bytes
 }
 
-type StartupNodeRequest struct {
-	Node common.Node `json:"node"`
-}
-
 type ShutdownNodeRequest struct {
 	WallMessage string  `json:"wall_message"`
 	Time        uint32  `json:"time"`
 	NodeName    *string `json:"node_name,omitempty"`
+	Force       bool    `json:"force"`
 }
 
 type RestartNodeRequest struct {

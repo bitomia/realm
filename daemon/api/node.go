@@ -104,15 +104,12 @@ func StartupNode(node *common.Node) error {
 	if err != nil {
 		return fmt.Errorf("failed to startup node: %w", err)
 	}
-
 	if driverInfo.StartupMode != common.DaemonMode {
 		return fmt.Errorf("startup expects daemon mode")
 	}
-
 	if err := node.Driver.Startup(&node.Name, db.GetDB().NodesRepository); err != nil {
 		return fmt.Errorf("failed to startup node: %w", err)
 	}
-
 	return nil
 }
 
@@ -137,7 +134,7 @@ func getNode(nodeName *string) (*common.NodeEntry, error) {
 	}
 }
 
-func ShutdownNode(nodeName *string, message string, time uint32) error {
+func ShutdownNode(nodeName *string, message string, time uint32, force bool) error {
 	node, err := getNode(nodeName)
 	if err != nil {
 		return fmt.Errorf("Node not provisioned")
@@ -152,7 +149,7 @@ func ShutdownNode(nodeName *string, message string, time uint32) error {
 		return fmt.Errorf("shutdown expects daemon mode")
 	}
 
-	if err := node.NodeDriver.Shutdown(&node.NodeName, message, time, db.GetDB().NodesRepository); err != nil {
+	if err := node.NodeDriver.Shutdown(&node.NodeName, message, time, db.GetDB().NodesRepository, force); err != nil {
 		return fmt.Errorf("failed to shutdown node: %w", err)
 	}
 

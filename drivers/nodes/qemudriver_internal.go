@@ -10,12 +10,13 @@ import (
 const qmpDialTimeout = 5 * time.Second
 const qmpReadTimeout = 5 * time.Second
 
-// qmpConnect connects to the QMP unix socket, reads the greeting,
+// qmpConnect connects to the QMP TCP port, reads the greeting,
 // and sends qmp_capabilities to enter command mode.
-func qmpConnect(socketPath string) (net.Conn, error) {
-	conn, err := net.DialTimeout("unix", socketPath, qmpDialTimeout)
+func qmpConnect(port int) (net.Conn, error) {
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	conn, err := net.DialTimeout("tcp", addr, qmpDialTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("qmp: failed to connect to %s: %w", socketPath, err)
+		return nil, fmt.Errorf("qmp: failed to connect to %s: %w", addr, err)
 	}
 
 	// Read greeting
@@ -52,10 +53,10 @@ func qmpConnect(socketPath string) (net.Conn, error) {
 	return conn, nil
 }
 
-// qmpExecCommand connects to the QMP socket, executes a command,
+// qmpExecCommand connects to the QMP TCP port, executes a command,
 // skips any event messages, and returns the command response.
-func qmpExecCommand(socketPath string, command string) (map[string]any, error) {
-	conn, err := qmpConnect(socketPath)
+func qmpExecCommand(port int, command string) (map[string]any, error) {
+	conn, err := qmpConnect(port)
 	if err != nil {
 		return nil, err
 	}
@@ -85,8 +86,8 @@ func qmpExecCommand(socketPath string, command string) (map[string]any, error) {
 	}
 }
 
-func qmpSystemPowerdown(socketPath string) error {
-	resp, err := qmpExecCommand(socketPath, "system_powerdown")
+func qmpSystemPowerdown(port int) error {
+	resp, err := qmpExecCommand(port, "system_powerdown")
 	if err != nil {
 		return err
 	}
@@ -96,8 +97,8 @@ func qmpSystemPowerdown(socketPath string) error {
 	return nil
 }
 
-func qmpSystemReset(socketPath string) error {
-	resp, err := qmpExecCommand(socketPath, "system_reset")
+func qmpSystemReset(port int) error {
+	resp, err := qmpExecCommand(port, "system_reset")
 	if err != nil {
 		return err
 	}
@@ -107,8 +108,8 @@ func qmpSystemReset(socketPath string) error {
 	return nil
 }
 
-func qmpQuit(socketPath string) error {
-	resp, err := qmpExecCommand(socketPath, "quit")
+func qmpQuit(port int) error {
+	resp, err := qmpExecCommand(port, "quit")
 	if err != nil {
 		return err
 	}
@@ -119,8 +120,8 @@ func qmpQuit(socketPath string) error {
 }
 
 // qmpQueryStatus queries the VM status and returns whether the VM is running.
-func qmpQueryStatus(socketPath string) (bool, error) {
-	resp, err := qmpExecCommand(socketPath, "query-status")
+func qmpQueryStatus(port int) (bool, error) {
+	resp, err := qmpExecCommand(port, "query-status")
 	if err != nil {
 		return false, err
 	}

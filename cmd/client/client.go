@@ -400,14 +400,13 @@ func (c *Client) DeprovisionNode(node *common.Node) error {
 
 func (c *Client) StartupNode(node *common.Node) error {
 	url := fmt.Sprintf("%s/node/startup", node.Url)
-	request := dto.StartupNodeRequest{Node: *node}
-	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	_, err := c.doJSONRequest("POST", url, node, 60*time.Second)
 	return err
 }
 
-func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
+func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32, force bool) error {
 	url := fmt.Sprintf("%s/node/shutdown", node.Url)
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name, Force: force}
 	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }
