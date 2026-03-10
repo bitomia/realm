@@ -79,7 +79,7 @@ func (m *mockNodeDriver) Startup(nodeName *string, repository common.NodesReposi
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32, repository common.NodesRepository, force bool) error {
 	return nil
 }
 
