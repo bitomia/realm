@@ -99,16 +99,16 @@ func DeprovisionNode() error {
 	return nil
 }
 
-func StartupNode(node *common.Node) error {
+func StartNode(node *common.Node) error {
 	driverInfo, err := node.Driver.DriverInfo()
 	if err != nil {
 		return fmt.Errorf("failed to startup node: %w", err)
 	}
-	if driverInfo.StartupMode != common.DaemonMode {
-		return fmt.Errorf("startup expects daemon mode")
+	if driverInfo.StartMode != common.DaemonMode {
+		return fmt.Errorf("start expects daemon mode")
 	}
-	if err := node.Driver.Startup(&node.Name, db.GetDB().NodesRepository); err != nil {
-		return fmt.Errorf("failed to startup node: %w", err)
+	if err := node.Driver.Start(&node.Name, db.GetDB().NodesRepository); err != nil {
+		return fmt.Errorf("failed to start node: %w", err)
 	}
 	return nil
 }
@@ -145,11 +145,11 @@ func StopNode(nodeName *string, message string, time uint32, force bool) error {
 		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
 	}
 
-	if driverInfo.ShutdownMode != common.DaemonMode {
+	if driverInfo.StopMode != common.DaemonMode {
 		return fmt.Errorf("stop expects daemon mode")
 	}
 
-	if err := node.NodeDriver.Shutdown(&node.NodeName, message, time, db.GetDB().NodesRepository, force); err != nil {
+	if err := node.NodeDriver.Stop(&node.NodeName, message, time, db.GetDB().NodesRepository, force); err != nil {
 		return fmt.Errorf("failed to stop node: %w", err)
 	}
 

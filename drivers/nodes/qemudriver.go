@@ -88,7 +88,7 @@ func (q *QemuDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		QemuDriverID,
 		NewQemuDriverFromConfig,
-		common.WithStartupMode(common.DaemonMode),
+		common.WithStartMode(common.DaemonMode),
 	)
 }
 
@@ -259,7 +259,7 @@ func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
 	return args
 }
 
-func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository) error {
+func (q *QemuDriver) Start(nodeName *string, repository common.NodesRepository) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
@@ -278,7 +278,7 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 	args := q.buildArgs(*nodeName, qmpPort)
 	cmd := exec.Command(q.Config.Emulator, args...)
 
-	slog.Info("QemuDriver.Startup", "msg", "launching qemu", "node", nodeName, "cmd", q.Config.Emulator, "args", args)
+	slog.Info("QemuDriver.Start", "msg", "launching qemu", "node", nodeName, "cmd", q.Config.Emulator, "args", args)
 
 	stdoutPath := filepath.Join(dataPath, "logs", "qemu", *nodeName+"_stdout.log")
 	stderrPath := filepath.Join(dataPath, "logs", "qemu", *nodeName+"_stderr.log")
@@ -296,7 +296,7 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 	cmd.Stdout = stdoutFile
 	cmd.Stderr = stderrFile
 
-	slog.Info("QemuDriver.Startup", "emulator", q.Config.Emulator, "args", args)
+	slog.Info("QemuDriver.Start", "emulator", q.Config.Emulator, "args", args)
 
 	if err := cmd.Start(); err != nil {
 		stdoutFile.Close()
@@ -309,17 +309,17 @@ func (q *QemuDriver) Startup(nodeName *string, repository common.NodesRepository
 		QMPPort: qmpPort,
 	}
 
-	slog.Info("QemuDriver.Startup", "pid", metadata.Pid, "qmp_port", qmpPort)
+	slog.Info("QemuDriver.Start", "pid", metadata.Pid, "qmp_port", qmpPort)
 
 	if err := repository.SetGuestNode(*nodeName, q, metadata); err != nil {
-		slog.Error("QemuDriver.Startup", "msg", "failed to set guest node", "error", err)
+		slog.Error("QemuDriver.Start", "msg", "failed to set guest node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (q *QemuDriver) Shutdown(nodeName *string, _ string, _ uint32, repository common.NodesRepository, force bool) error {
+func (q *QemuDriver) Stop(nodeName *string, _ string, _ uint32, repository common.NodesRepository, force bool) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
@@ -343,7 +343,7 @@ func (q *QemuDriver) Shutdown(nodeName *string, _ string, _ uint32, repository c
 		}
 	}
 	if err := repository.DeleteGuestNode(*nodeName, q, metadata); err != nil {
-		slog.Error("QemuDriver.Shutdown", "msg", "failed to delete guest node", "error", err)
+		slog.Error("QemuDriver.Stop", "msg", "failed to delete guest node", "error", err)
 		return err
 	}
 	return nil

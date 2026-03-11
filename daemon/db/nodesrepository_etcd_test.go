@@ -75,11 +75,11 @@ func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
 	return repository.DeleteSelf()
 }
 
-func (m *mockNodeDriver) Startup(nodeName *string, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Start(nodeName *string, repository common.NodesRepository) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32, repository common.NodesRepository, force bool) error {
+func (m *mockNodeDriver) Stop(nodeName *string, message string, time uint32, repository common.NodesRepository, force bool) error {
 	return nil
 }
 

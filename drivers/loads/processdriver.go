@@ -152,7 +152,7 @@ func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository commo
 	return did, nil
 }
 
-func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (p *ProcessDriver) Start(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	var args []string
 	if p.Config.StartArgs != nil {
 		args = strings.Fields(*p.Config.StartArgs)
@@ -166,7 +166,7 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 
 	config := configPkg.Get()
 	if config == nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", "cannot retrieve config")
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", "cannot retrieve config")
 	}
 
 	stdoutPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stdout.log", deployment.LoadName))
@@ -174,12 +174,12 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 
 	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create output log file: %v", err))
 	}
 
 	stderrFile, err := common.CreateLogFile(stderrPath, 0755)
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create error log file: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to create error log file: %v", err))
 	}
 
 	cmd.Env = os.Environ()
@@ -190,10 +190,10 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 		cmd.Dir = *p.Config.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
 	}
 
-	slog.Info("ProcessDriver.Run", "msg", "process started", "deployment", deployment.ID, "pid", cmd.Process.Pid)
+	slog.Info("ProcessDriver.Start", "msg", "process started", "deployment", deployment.ID, "pid", cmd.Process.Pid)
 
 	// Update metadata with PID and file paths
 	if err := common.UpdateDeploymentMetadata(repository, deployment.ID, func(metadata *ProcessEntryMetadata) error {
@@ -202,7 +202,7 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 		metadata.StderrPath = stderrPath
 		return nil
 	}); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Run", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to update metadata: %v", err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to update metadata: %v", err))
 	}
 
 	if err := repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusRunning}); err != nil {

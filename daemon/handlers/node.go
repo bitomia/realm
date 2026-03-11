@@ -63,8 +63,8 @@ func DeprovisionNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func StartupNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.StartupNodeHandler")
+func StartNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.StartNodeHandler")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -73,7 +73,7 @@ func StartupNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.StartupNode(&node); err != nil {
+	if err := api.StartNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

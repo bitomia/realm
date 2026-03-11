@@ -59,7 +59,7 @@ func StartLoadDeployments(loadName string) error {
 	// Start all provisioned deployments
 	for _, deployment := range deployments {
 		slog.Info("StartLoadDeployments", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
-		if err := deployment.LoadDriver.Run(database.DeploymentsRepository, deployment); err != nil {
+		if err := deployment.LoadDriver.Start(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 		slog.Info("StartLoadDeployments", "msg", "deployment started", "deploymentID", deployment.ID)

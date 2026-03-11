@@ -75,7 +75,7 @@ func (m mockLoadDriver) Provision(node common.NodeDriver, repository common.Depl
 	return uuid.New(), nil
 }
 
-func (m mockLoadDriver) Run(repository common.DeploymentsRepository, deployment common.Deployment) error {
+func (m mockLoadDriver) Start(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	return nil
 }
 

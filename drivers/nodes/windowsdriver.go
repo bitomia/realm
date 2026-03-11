@@ -62,7 +62,7 @@ func (w *WindowsDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		WindowsDriverID,
 		NewWindowsDriverFromConfig,
-		common.WithStartupMode(common.ClientMode),
+		common.WithStartMode(common.ClientMode),
 	)
 }
 
@@ -114,7 +114,7 @@ func (w *WindowsDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: WindowsDriverID, DriverConfig: &c}
 }
 
-func (w *WindowsDriver) Startup(_ *string, repository common.NodesRepository) error {
+func (w *WindowsDriver) Start(_ *string, repository common.NodesRepository) error {
 	if !w.Config.WakeOnLan {
 		return nil
 	}
@@ -122,7 +122,7 @@ func (w *WindowsDriver) Startup(_ *string, repository common.NodesRepository) er
 	return launchWakeOnLan(w.Config.MAC)
 }
 
-func (w *WindowsDriver) Shutdown(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
+func (w *WindowsDriver) Stop(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
 	args := []string{"/s", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)

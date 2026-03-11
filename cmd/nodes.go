@@ -127,7 +127,7 @@ var deprovisionNodes = &cobra.Command{
 
 var startNodes = &cobra.Command{
 	Use:                   "start [--all | node...]",
-	Short:                 "Startup nodes",
+	Short:                 "Start nodes",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
@@ -140,13 +140,13 @@ var startNodes = &cobra.Command{
 				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
 			}
 
-			if driverInfo.StartupMode == common.ClientMode {
-				if err := n.Driver.Startup(nil, nil); err != nil {
+			if driverInfo.StartMode == common.ClientMode {
+				if err := n.Driver.Start(nil, nil); err != nil {
 					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
 				client := clientPkg.NewClient(cfg)
-				if err := client.StartupNode(n); err != nil {
+				if err := client.StartNode(n); err != nil {
 					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
 				}
 			}
@@ -199,8 +199,8 @@ var stopNodes = &cobra.Command{
 			}
 
 			log.Info(" -> Stopping node %s", color.CyanString(n.Name))
-			if driverInfo.ShutdownMode == common.ClientMode {
-				if err := n.Driver.Shutdown(nil, "", 0, nil, force); err != nil {
+			if driverInfo.StopMode == common.ClientMode {
+				if err := n.Driver.Stop(nil, "", 0, nil, force); err != nil {
 					log.Fatal("Stopping node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {

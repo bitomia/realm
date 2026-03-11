@@ -39,7 +39,7 @@ func (m *MockLoadDriver) Provision(node NodeDriver, repository DeploymentsReposi
 	return uuid.New(), nil
 }
 
-func (m *MockLoadDriver) Run(repository DeploymentsRepository, deployment Deployment) error {
+func (m *MockLoadDriver) Start(repository DeploymentsRepository, deployment Deployment) error {
 	return nil
 }
 

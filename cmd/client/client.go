@@ -398,8 +398,8 @@ func (c *Client) DeprovisionNode(node *common.Node) error {
 	return err
 }
 
-func (c *Client) StartupNode(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/startup", node.Url)
+func (c *Client) StartNode(node *common.Node) error {
+	url := fmt.Sprintf("%s/node/start", node.Url)
 	_, err := c.doJSONRequest("POST", url, node, 60*time.Second)
 	return err
 }

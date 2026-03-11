@@ -67,7 +67,7 @@ func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
-		common.WithStartupMode(common.ClientMode),
+		common.WithStartMode(common.ClientMode),
 	)
 }
 
@@ -122,7 +122,7 @@ func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) Startup(_ *string, repository common.NodesRepository) error {
+func (l *LinuxDriver) Start(_ *string, repository common.NodesRepository) error {
 	if !l.Config.WakeOnLan {
 		return nil
 	}
@@ -130,7 +130,7 @@ func (l *LinuxDriver) Startup(_ *string, repository common.NodesRepository) erro
 	return launchWakeOnLan(l.Config.MAC)
 }
 
-func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
+func (l *LinuxDriver) Stop(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)

@@ -13,23 +13,23 @@ type NodeDriverBuilder func(config *any) (NodeDriver, error)
 type NodeDriverInfo struct {
 	ID           NodeDriverID
 	New          NodeDriverBuilder
-	StartupMode  Mode
-	ShutdownMode Mode
+	StartMode  Mode
+	StopMode Mode
 	RestartMode  Mode
 }
 
 type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
 
-func WithStartupMode(m Mode) NewNodeDriverInfoOpts {
+func WithStartMode(m Mode) NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
-		i.StartupMode = m
+		i.StartMode = m
 		return nil
 	}
 }
 
-func WithShutdownMode(m Mode) NewNodeDriverInfoOpts {
+func WithStopMode(m Mode) NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
-		i.ShutdownMode = m
+		i.StopMode = m
 		return nil
 	}
 }
@@ -45,8 +45,8 @@ func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNo
 	info := NodeDriverInfo{
 		ID:           id,
 		New:          builder,
-		StartupMode:  DaemonMode,
-		ShutdownMode: DaemonMode,
+		StartMode:  DaemonMode,
+		StopMode: DaemonMode,
 		RestartMode:  DaemonMode,
 	}
 	for _, o := range opts {
@@ -90,18 +90,18 @@ type NodeDriver interface {
 	// UnmarshalJSON deserializes the driver from JSON.
 	UnmarshalJSON(data []byte) error
 
-	// Startup starts the node
+	// Start starts the node
 	//
 	// nodeName as nil for self-node
-	Startup(nodeName *string, repository NodesRepository) error
+	Start(nodeName *string, repository NodesRepository) error
 
-	// Shutdown shuts down the node
-	// Message will be shown to users before shutdown on the time
+	// Stop stops the node
+	// Message will be shown to users before stop on the time
 	// offset specified
 	//
 	// nodeName as nil for self-node
 	// force can be used for hard-stops like pulling the plug of a VM, it can be ignored otherwise
-	Shutdown(nodeName *string, message string, time uint32, repository NodesRepository, force bool) error
+	Stop(nodeName *string, message string, time uint32, repository NodesRepository, force bool) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time

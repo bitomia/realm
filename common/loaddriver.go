@@ -38,11 +38,11 @@ type LoadDriver interface {
 	// Only operates on deployments in "provisioned" status.
 	Deprovision(repository DeploymentsRepository, deployment Deployment) error
 
-	// Run starts the load execution for an existing provisioned deployment.
+	// Start starts the load execution for a provisioned deployment.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
-	Run(repository DeploymentsRepository, deployment Deployment) error
+	Start(repository DeploymentsRepository, deployment Deployment) error
 
 	// Stop stops a running load execution within the daemon.
 	// This has no effect when called from the client.
