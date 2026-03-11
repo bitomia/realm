@@ -1,6 +1,6 @@
 ```mermaid
 stateDiagram-v2
-    [*] --> Online: Startup
+    [*] --> Online: Start
     Online --> Ready: Provision
     Ready --> Online: Deprovision
     Online --> [*]: Shutdown
