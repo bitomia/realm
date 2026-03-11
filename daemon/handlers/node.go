@@ -81,17 +81,17 @@ func StartupNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.ShutdownNodeHandler")
+func StopNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.StopNodeHandler")
 
-	var request dto.ShutdownNodeRequest
+	var request dto.StopNodeRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := api.ShutdownNode(request.NodeName, request.WallMessage, request.Time, request.Force); err != nil {
+	if err := api.StopNode(request.NodeName, request.WallMessage, request.Time, request.Force); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

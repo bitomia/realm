@@ -116,7 +116,7 @@ type SystemInfo struct {
 	RamTotal          uint64  `json:"ram_total"`            // Total available RAM in bytes
 }
 
-type ShutdownNodeRequest struct {
+type StopNodeRequest struct {
 	WallMessage string  `json:"wall_message"`
 	Time        uint32  `json:"time"`
 	NodeName    *string `json:"node_name,omitempty"`

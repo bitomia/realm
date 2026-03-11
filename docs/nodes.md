@@ -3,6 +3,6 @@ stateDiagram-v2
     [*] --> Online: Start
     Online --> Ready: Provision
     Ready --> Online: Deprovision
-    Online --> [*]: Shutdown
+    Online --> [*]: Stop
     Error --> [*]: Deprovision
 ```

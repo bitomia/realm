@@ -404,9 +404,9 @@ func (c *Client) StartupNode(node *common.Node) error {
 	return err
 }
 
-func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32, force bool) error {
-	url := fmt.Sprintf("%s/node/shutdown", node.Url)
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name, Force: force}
+func (c *Client) StopNode(node *common.Node, wallMessage string, offsetTime uint32, force bool) error {
+	url := fmt.Sprintf("%s/node/stop", node.Url)
+	request := dto.StopNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name, Force: force}
 	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }
