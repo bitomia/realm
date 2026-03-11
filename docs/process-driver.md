@@ -53,6 +53,7 @@ When `force_kill` is enabled, if the process doesn't exit within 3 seconds after
 | `start_args` | string | No | Command-line arguments passed to the executable. Arguments are split by whitespace. |
 | `working_dir` | string | No | Working directory for the process. Must exist before starting. |
 | `stop_signal` | string | No | Signal sent to stop the process. Default: SIGTERM(unix) or kill(windows)|
+| `use_process_name` | bool | No | If true, identifies the process by executable name instead of PID (for stop and status checks). Useful for UWP apps. Default: false |
 | `force_kill` | bool | No | If true, sends kill after 3 second timeout. Default: false |
 
 ### Supported Signals

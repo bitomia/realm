@@ -25,10 +25,11 @@ import (
 const ProcessDriverID common.LoadDriverID = "process"
 
 type ProcessConfig struct {
-	StartCmd   string  `json:"start_cmd"`
-	StartArgs  *string `json:"start_args,omitempty"`
-	WorkingDir *string `json:"working_dir,omitempty"`
-	StopSignal *string `json:"stop_signal,omitempty"`
+	StartCmd       string  `json:"start_cmd"`
+	StartArgs      *string `json:"start_args,omitempty"`
+	WorkingDir     *string `json:"working_dir,omitempty"`
+	StopSignal     *string `json:"stop_signal,omitempty"`
+	UseProcessName *bool   `json:"use_process_name,omitempty"`
 }
 
 type ProcessDriver struct {
@@ -212,7 +213,16 @@ func (p *ProcessDriver) Run(repository common.DeploymentsRepository, deployment 
 }
 
 func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	proc, err := retrieveProcess(deployment)
+	var proc *process.Process
+	var err error
+
+	if p.shallUseProcessName() {
+		name := filepath.Base(p.Config.StartCmd)
+		proc, err = retrieveProcessByName(name)
+	} else {
+		proc, err = retrieveProcess(deployment)
+	}
+
 	if err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
 	}
@@ -231,19 +241,28 @@ func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment
 }
 
 func (p *ProcessDriver) Kill(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	proc, err := retrieveProcess(deployment)
+	var proc *process.Process
+	var err error
+
+	if p.shallUseProcessName() {
+		name := filepath.Base(p.Config.StartCmd)
+		proc, err = retrieveProcessByName(name)
+	} else {
+		proc, err = retrieveProcess(deployment)
+	}
+
 	if err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Kill", "deployment", deployment.ID, "error", fmt.Errorf("process not found in store for deployment %s", deployment.ID))
 	}
 
 	if proc == nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Kill", "deployment", deployment.ID, "error", fmt.Errorf("process handle is nil for deployment %s", deployment.ID))
 	}
 
 	slog.Info("ProcessDriver.Kill", "msg", "killing process", "deployment", deployment.ID, "pid", proc.Pid)
 
 	if err := proc.Kill(); err != nil {
-		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Stop", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
+		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Kill", "deployment", deployment.ID, "error", fmt.Errorf("failed to send signal to process with PID %d: %w", proc.Pid, err))
 	}
 
 	return nil
@@ -278,13 +297,22 @@ func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.De
 		return status, nil
 	}
 
-	proc, err := retrieveProcess(d)
+	var proc *process.Process
+	var err error
+
+	if p.shallUseProcessName() {
+		name := filepath.Base(p.Config.StartCmd)
+		proc, err = retrieveProcessByName(name)
+	} else {
+		proc, err = retrieveProcess(d)
+	}
+
 	if err == process.ErrorProcessNotRunning {
 		status.StatusCode = common.DeploymentStatusStopped
 	} else if proc == nil {
 		if err != nil {
 			// Only log error and continue to update as stopped
-			slog.Error("ProcessDriver.UpdateStatus", "msg", "retrieveProcessInfo failed", "error", err)
+			slog.Warn("ProcessDriver.UpdateStatus", "msg", "retrieve process failed", "error", err)
 			status.StatusCode = common.DeploymentStatusStopped
 		} else {
 			// At this point, it is provisioned, running or stopped

@@ -3,6 +3,8 @@
 package loads
 
 import (
+	"fmt"
+	"strings"
 	"syscall"
 
 	process "github.com/shirou/gopsutil/v4/process"

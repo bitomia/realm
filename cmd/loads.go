@@ -60,7 +60,7 @@ var provisionLoads = &cobra.Command{
 		loads := cfg.GetLoads(loadNames...)
 		client := clientPkg.NewClient(cfg)
 		if err := doProvisionLoads(&client, loads); err != nil {
-			log.Fatal("Error provisioning load: %s", err.Error())
+			log.Warn("Error provisioning load: %s", err.Error())
 		}
 		log.Info("Successfully verified loads on cluster")
 	},
@@ -85,13 +85,14 @@ var listLoads = &cobra.Command{
 		for _, load := range loads {
 			if _, exists := nodeLoadsDeployments[load.Node.Url]; !exists {
 				loadsDeployments, err := client.GetLoadsDeployments(load.Node.Url)
+
 				if err != nil {
 					log.Error("%s", err.Error())
 					nodeLoadsDeployments[load.Node.Url] = nil // Mark as failed
 				} else {
 					nodeLoadsDeployments[load.Node.Url] = make(map[string]dto.LoadsDeployments)
 					for _, s := range loadsDeployments {
-						nodeLoadsDeployments[load.Node.Url][s.LoadName] = loadsDeployments
+						nodeLoadsDeployments[load.Node.Url][s.LoadName] = append(nodeLoadsDeployments[load.Node.Url][s.LoadName], s)
 					}
 				}
 			}
@@ -164,7 +165,7 @@ var runLoads = &cobra.Command{
 					loaded[l.Name] = true
 					log.Info(" -> Running load %s", color.CyanString(l.Name))
 					if err := client.RunLoad(l); err != nil {
-						log.Fatal("Running load failed: %s", err.Error())
+						log.Warn("Running load failed: %s", err.Error())
 					}
 				}
 			}
@@ -189,7 +190,7 @@ var stopLoads = &cobra.Command{
 					stopped[l.Name] = true
 					log.Info(" -> Stopping load %s", color.CyanString(l.Name))
 					if err := client.StopLoad(l); err != nil {
-						log.Fatal("Stopping load failed: %s", err.Error())
+						log.Warn("Stopping load failed: %s", err.Error())
 					}
 				}
 			}
@@ -214,7 +215,7 @@ var killLoads = &cobra.Command{
 					killed[l.Name] = true
 					log.Info(" -> Killing load %s", color.CyanString(l.Name))
 					if err := client.KillLoad(l); err != nil {
-						log.Fatal("Killing load failed: %s", err.Error())
+						log.Warn("Killing load failed: %s", err.Error())
 					}
 				}
 			}
@@ -237,7 +238,7 @@ var deprovisionLoads = &cobra.Command{
 				deprovisioned[l.Name] = true
 				log.Info(" -> Deprovisioning load %s", color.CyanString(l.Name))
 				if err := client.DeprovisionLoad(l); err != nil {
-					log.Fatal("Deprovisioning load failed: %s", err.Error())
+					log.Warn("Deprovisioning load failed: %s", err.Error())
 				}
 			}
 		}
