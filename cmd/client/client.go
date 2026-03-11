@@ -317,8 +317,8 @@ func (c *Client) ProvisionLoad(load *common.Load) error {
 	return err
 }
 
-func (c *Client) RunLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/run", load.Node.Url, load.Name)
+func (c *Client) StartLoad(load *common.Load) error {
+	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
 	_, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }

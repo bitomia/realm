@@ -2,12 +2,12 @@
 stateDiagram-v2
     [*] --> Ready: Provision
 
-    Ready --> Running: Run
+    Ready --> Running: Start
     Ready --> [*]: Deprovision
 
     Running --> Stopped: Stop
 
-    Stopped --> Running: Run
+    Stopped --> Running: Start
     Stopped --> [*]: Deprovision
 
     Error --> [*]: Deprovision

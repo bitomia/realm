@@ -33,11 +33,11 @@ func ProvisionLoadHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(provisionLoadInfo)
 }
 
-func RunLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
+func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
-	slog.Info("handlers.RunLoadDeploymentsHandler", "loadName", loadName)
+	slog.Info("handlers.StartLoadDeploymentsHandler", "loadName", loadName)
 
-	if err := api.RunLoadDeployments(loadName); err != nil {
+	if err := api.StartLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

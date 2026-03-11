@@ -37,7 +37,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 	return &response, nil
 }
 
-func RunLoadDeployments(loadName string) error {
+func StartLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	// Get deployments for this load
@@ -52,17 +52,17 @@ func RunLoadDeployments(loadName string) error {
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
 		return s == common.DeploymentStatusReady || s == common.DeploymentStatusStopped
-	}, "RunLoadDeployments"); err != nil {
+	}, "StartLoadDeployments"); err != nil {
 		return err
 	}
 
 	// Start all provisioned deployments
 	for _, deployment := range deployments {
-		slog.Info("RunLoadDeployments", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
+		slog.Info("StartLoadDeployments", "load", loadName, "deployment", deployment.ID, "msg", "starting deployment")
 		if err := deployment.LoadDriver.Run(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
-		slog.Info("RunLoadDeployments", "msg", "deployment started", "deploymentID", deployment.ID)
+		slog.Info("StartLoadDeployments", "msg", "deployment started", "deploymentID", deployment.ID)
 	}
 
 	return nil

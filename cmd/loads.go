@@ -146,9 +146,9 @@ var listLoads = &cobra.Command{
 	},
 }
 
-var runLoads = &cobra.Command{
-	Use:                   "run [--all | load...]",
-	Short:                 "Run loads (must be provisioned first)",
+var startLoads = &cobra.Command{
+	Use:                   "start [--all | load...]",
+	Short:                 "Start loads (must be provisioned first)",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -163,9 +163,9 @@ var runLoads = &cobra.Command{
 			for _, l := range startChain {
 				if _, exists := loaded[l.Name]; !exists {
 					loaded[l.Name] = true
-					log.Info(" -> Running load %s", color.CyanString(l.Name))
-					if err := client.RunLoad(l); err != nil {
-						log.Warn("Running load failed: %s", err.Error())
+					log.Info(" -> Starting load %s", color.CyanString(l.Name))
+					if err := client.StartLoad(l); err != nil {
+						log.Warn("Starting load failed: %s", err.Error())
 					}
 				}
 			}
@@ -314,7 +314,7 @@ var stderrLoad = &cobra.Command{
 }
 
 func init() {
-	runLoads.Flags().Bool("all", false, "All loads")
+	startLoads.Flags().Bool("all", false, "All loads")
 	provisionLoads.Flags().Bool("all", false, "All loads")
 	listLoads.Flags().Bool("all", false, "All loads")
 	stopLoads.Flags().Bool("all", false, "All loads")
@@ -324,7 +324,7 @@ func init() {
 	loadsCmd.AddCommand(graphLoads)
 	loadsCmd.AddCommand(listLoads)
 	loadsCmd.AddCommand(provisionLoads)
-	loadsCmd.AddCommand(runLoads)
+	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stdoutLoad)
 	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)
