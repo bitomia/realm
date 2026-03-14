@@ -11,6 +11,7 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/capabilities"
+	"github.com/bitomia/realm/daemon/cpu"
 )
 
 const LinuxDriverID common.NodeDriverID = "linux"
@@ -67,6 +68,7 @@ func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
+		false,
 		common.WithStartMode(common.ClientMode),
 	)
 }
@@ -113,7 +115,7 @@ func (l *LinuxDriver) Provision(nodeName string, repository common.NodesReposito
 	return nil
 }
 
-func (l *LinuxDriver) Deprovision(repository common.NodesRepository) error {
+func (l *LinuxDriver) Deprovision(_ *string, repository common.NodesRepository) error {
 	return repository.DeleteSelf()
 }
 
@@ -158,6 +160,10 @@ func (l *LinuxDriver) Restart(_ *string, message string, time uint32, repository
 
 func (l *LinuxDriver) UpdateStatus(_ *string, repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
+}
+
+func (l *LinuxDriver) GetState() (common.NodeState, error) {
+	return cpu.GetNodeState()
 }
 
 func (l *LinuxDriver) GetCapabilities() (common.Capabilities, error) {

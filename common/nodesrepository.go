@@ -30,6 +30,9 @@ type NodesRepository interface {
 	// GetGuestNode returns a guest node of the caller host node
 	GetGuestNode(guestNodeName string) (NodeEntry, error)
 
+	// GetAllGuestNodes returns all guest nodes of the self node
+	GetAllGuestNodes() ([]NodeEntry, error)
+
 	// DeleteGuestNode deletes the guest node entry for the caller host node
 	DeleteGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
 }

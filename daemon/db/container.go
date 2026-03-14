@@ -58,7 +58,7 @@ func (db *DaemonDB) GetContainer(containerName string) (Container, error) {
 	return container, nil
 }
 
-func (db *DaemonDB) CreateContainer(containerName string, image string, state dto.ContainerState) (Container, error) {
+func (db *DaemonDB) CreateContainer(containerName string, image string, state dto.ContainerStatus) (Container, error) {
 	container := Container{
 		ContainerName: containerName,
 		Image:         image,

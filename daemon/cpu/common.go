@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/shirou/gopsutil/v4/cpu"
 
-	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/common"
 )
 
 func getCgroupMemLimit(memLimit float64) float64 {
@@ -26,13 +26,13 @@ func getMemUsage(memStat *cgroupstats.MemoryStat) float64 {
 	return float64(memStat.Usage)
 }
 
-func getContainersState(ctx context.Context, client *containerd.Client) (dto.ContainerStatesResponse, error) {
+func getContainersState(ctx context.Context, client *containerd.Client) (common.ContainerStates, error) {
 	containers, err := client.Containers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var stats = make(dto.ContainerStatesResponse)
+	var stats = make(common.ContainerStates)
 	for _, container := range containers {
 		id := container.ID()
 		task, err := container.Task(ctx, nil)
@@ -56,7 +56,7 @@ func getContainersState(ctx context.Context, client *containerd.Client) (dto.Con
 		memLimit := getCgroupMemLimit(float64(statsMetrics.Memory.UsageLimit))
 		memPercent := memUsage / memLimit * 100
 
-		stats[id] = dto.ContainerStateResponse{
+		stats[id] = common.ContainerState{
 			ContainerID:   id,
 			CPUUsage:      float64(statsMetrics.CPU.UsageUsec),
 			CPUSystem:     float64(statsMetrics.CPU.SystemUsec),
@@ -87,7 +87,7 @@ func getContainersState(ctx context.Context, client *containerd.Client) (dto.Con
 //   - error: Any error encountered during metric collection, nil on success
 //
 // Note: Memory statistics are point-in-time values from the second snapshot, not deltas.
-func CollectNodeState(ctx context.Context, client *containerd.Client) (cpu.TimesStat, float64, []dto.ContainerStateResponse, error) {
+func CollectNodeState(ctx context.Context, client *containerd.Client) (cpu.TimesStat, float64, []common.ContainerState, error) {
 	statsATime := time.Now()
 	statsA, err := getContainersState(ctx, client)
 	if err != nil {
@@ -112,14 +112,14 @@ func CollectNodeState(ctx context.Context, client *containerd.Client) (cpu.Times
 	}
 	cpuStatB := cpuStatsB[0]
 
-	var containers []dto.ContainerStateResponse
+	var containers []common.ContainerState
 	for container, statB := range statsB {
 		statA := statsA[container]
 		cpuUsage := (statB.CPUUsage*1000 - statA.CPUUsage*1000) / float64(timeDelta.Nanoseconds()) * 100
 		cpuSystem := (statB.CPUSystem*1000 - statA.CPUSystem*1000) / float64(timeDelta.Nanoseconds()) * 100
 		cpuUser := (statB.CPUUser*1000 - statA.CPUUser*1000) / float64(timeDelta.Nanoseconds()) * 100
 
-		stat := dto.ContainerStateResponse{
+		stat := common.ContainerState{
 			ContainerID:   container,
 			CPUUsage:      cpuUsage,
 			CPUSystem:     cpuSystem,

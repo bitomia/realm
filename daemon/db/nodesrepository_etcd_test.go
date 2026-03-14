@@ -71,7 +71,7 @@ func (m *mockNodeDriver) Provision(nodeName string, repository common.NodesRepos
 	return repository.SetSelf(nodeName, m, nil)
 }
 
-func (m *mockNodeDriver) Deprovision(repository common.NodesRepository) error {
+func (m *mockNodeDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
 	return repository.DeleteSelf()
 }
 
@@ -97,6 +97,10 @@ func (m *mockNodeDriver) GetDriverConfig() common.NodeDriverConfig {
 
 func (m *mockNodeDriver) GetCapabilities() (common.Capabilities, error) {
 	return nil, nil
+}
+
+func (m *mockNodeDriver) GetState() (common.NodeState, error) {
+	return common.NodeState{}, nil
 }
 
 func init() {

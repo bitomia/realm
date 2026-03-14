@@ -16,29 +16,30 @@ import (
 	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cruntime"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 )
 
-func GetNodeState() (dto.NodeState, error) {
-	var nodeState dto.NodeState
+func GetNodeState() (common.NodeState, error) {
+	var nodeState common.NodeState
 	var cpuStat cpu.TimesStat
 	var cpuUsage float64
 
 	if capabilities.Get().HasContainersEngine {
 		ctx, client, err := cruntime.CreateClient()
 		if err != nil {
-			return dto.NodeState{}, err
+			return common.NodeState{}, err
 		}
 		defer client.Close()
 
 		cpuStat, cpuUsage, nodeState.Containers, err = CollectNodeState(ctx, client)
 		if err != nil {
-			return dto.NodeState{}, err
+			return common.NodeState{}, err
 		}
 	} else {
 		cpuStats, err := cpu.Times(false)
 		if err != nil {
-			return dto.NodeState{}, err
+			return common.NodeState{}, err
 		}
 		cpuStat = cpuStats[0]
 	}
@@ -56,7 +57,7 @@ func GetNodeState() (dto.NodeState, error) {
 
 	memStat, err := mem.VirtualMemory()
 	if err != nil {
-		return dto.NodeState{}, err
+		return common.NodeState{}, err
 	}
 	nodeState.TotalMem = memStat.Total
 	nodeState.UsedMem = memStat.Used

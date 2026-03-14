@@ -11,6 +11,7 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/capabilities"
+	"github.com/bitomia/realm/daemon/cpu"
 )
 
 const WindowsDriverID common.NodeDriverID = "windows"
@@ -62,6 +63,7 @@ func (w *WindowsDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		WindowsDriverID,
 		NewWindowsDriverFromConfig,
+		false,
 		common.WithStartMode(common.ClientMode),
 	)
 }
@@ -105,7 +107,7 @@ func (w *WindowsDriver) Provision(nodeName string, repository common.NodesReposi
 	return nil
 }
 
-func (w *WindowsDriver) Deprovision(repository common.NodesRepository) error {
+func (w *WindowsDriver) Deprovision(_ *string, repository common.NodesRepository) error {
 	return repository.DeleteSelf()
 }
 
@@ -150,6 +152,10 @@ func (w *WindowsDriver) Restart(_ *string, message string, time uint32, reposito
 
 func (w *WindowsDriver) UpdateStatus(_ *string, repository common.NodesRepository) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
+}
+
+func (l *WindowsDriver) GetState() (common.NodeState, error) {
+	return cpu.GetNodeState()
 }
 
 func (w *WindowsDriver) GetCapabilities() (common.Capabilities, error) {

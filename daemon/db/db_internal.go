@@ -183,6 +183,14 @@ func (db *DaemonDB) guestNodeKey(guestNodeName string) (string, error) {
 	return path.Join(daemonId, guestNodesPrefix, guestNodeName), nil
 }
 
+func (db *DaemonDB) guestNodesKeyPrefix() (string, error) {
+	daemonId, err := id.GetDaemonId()
+	if err != nil {
+		return "", err
+	}
+	return path.Join(daemonId, guestNodesPrefix) + "/", nil
+}
+
 func (db *DaemonDB) nodeKeyByDaemonId(daemonId string) (string, error) {
 	return path.Join(daemonId, nodePrefix), nil
 }

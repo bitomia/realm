@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path"
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/id"
@@ -201,4 +202,30 @@ func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEnt
 		NodeDriver: nodeDriver,
 		Metadata:   nodeValue.Metadata,
 	}, nil
+}
+
+func (r *EtcdNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
+	slog.Debug("EtcdNodesRepository.GetAllGuestNodes")
+
+	prefix, err := r.db.guestNodesKeyPrefix()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build guest nodes prefix: %w", err)
+	}
+
+	entries, err := r.db.getKey(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list guest nodes: %w", err)
+	}
+
+	var nodes []common.NodeEntry
+	for key := range entries {
+		guestName := path.Base(key)
+		node, err := r.GetGuestNode(guestName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get guest node %s: %w", guestName, err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	return nodes, nil
 }

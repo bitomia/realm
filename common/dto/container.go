@@ -33,11 +33,11 @@ type CreateContainerRequest struct {
 	WorkingDir  *string        `json:"working_dir,omitempty"`
 }
 
-type ContainerState string
+type ContainerStatus string
 
 const (
-	ContainerStart       ContainerState = "start"
-	ContainerStartFailed ContainerState = "start_failed"
-	ContainerStop        ContainerState = "stop"
-	ContainerStopFailed  ContainerState = "stop_failed"
+	ContainerStatusStart        ContainerStatus = "start"
+	ContainerStatusStartFaailed ContainerStatus = "start_failed"
+	ContainerStatusStop         ContainerStatus = "stop"
+	ContainerStatusStopFailed   ContainerStatus = "stop_failed"
 )

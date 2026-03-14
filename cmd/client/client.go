@@ -206,8 +206,17 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-func (c *Client) GetNode(node string) (*dto.NodeResponse, error) {
-	url := fmt.Sprintf("%s/node", node)
+func (c *Client) GetNode(node *common.Node) (*dto.NodeResponse, error) {
+	driverInfo, err := node.Driver.DriverInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("%s/node", node.Url)
+	if driverInfo.GuestMode {
+		url += fmt.Sprintf("?guest=%s", node.Name)
+	}
+
 	body, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
 		return nil, err
@@ -393,8 +402,17 @@ func (c *Client) ProvisionNode(node *common.Node) error {
 }
 
 func (c *Client) DeprovisionNode(node *common.Node) error {
+	driverInfo, err := node.Driver.DriverInfo()
+	if err != nil {
+		return err
+	}
+
 	url := fmt.Sprintf("%s/node/deprovision", node.Url)
-	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	if driverInfo.GuestMode {
+		url += fmt.Sprintf("?guest=%s", node.Name)
+	}
+
+	_, err = c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 

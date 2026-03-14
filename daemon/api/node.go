@@ -32,24 +32,38 @@ func GetHealthStatus() (map[string]any, error) {
 }
 
 // GetNode returns the node state (CPU, memory, etc) and status (provisioned, error, etc..)
-func GetNode() (*dto.NodeResponse, error) {
-	state, err := cpu.GetNodeState()
+// If a node is provided, it will be used to query the node state. Otherwise, the self node is used.
+func GetNode(nodeName *string) (*dto.NodeResponse, error) {
+	database := db.GetDB()
+
+	var nodeEntry common.NodeEntry
+	if nodeName == nil {
+		var err error
+		nodeEntry, err = database.NodesRepository.GetSelf()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get self node: %w", err)
+		}
+	} else {
+		var err error
+		nodeEntry, err = database.NodesRepository.GetGuestNode(*nodeName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get guest node: %w", err)
+		}
+
+	}
+
+	state, err := nodeEntry.NodeDriver.GetState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	database := db.GetDB()
-	node, err := database.NodesRepository.GetSelf()
-	if err != nil {
-		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusOnline, Reason: ""}}, nil
-	}
-
-	status, err := node.NodeDriver.UpdateStatus(&node.NodeName, database.NodesRepository)
+	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName, database.NodesRepository)
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
 
 	return &dto.NodeResponse{State: state, Status: status}, nil
+
 }
 
 // GetSystemInfo returns static system information about the host
@@ -71,12 +85,31 @@ func ProvisionNode(node *common.Node) error {
 	return nil
 }
 
-func DeprovisionNode() error {
+func DeprovisionNode(nodeName *string) error {
 	database := db.GetDB()
+	var node common.NodeEntry
 
-	node, err := database.NodesRepository.GetSelf()
-	if err != nil {
-		return err
+	if nodeName == nil {
+		var err error
+		if node, err = database.NodesRepository.GetSelf(); err != nil {
+			return err
+		}
+
+		// Deprovision all guest nodes if they exist
+		if nodes, err := database.NodesRepository.GetAllGuestNodes(); err != nil {
+			return err
+		} else {
+			for _, node := range nodes {
+				if err := DeprovisionNode(&node.NodeName); err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		var err error
+		if node, err = database.NodesRepository.GetGuestNode(*nodeName); err != nil {
+			return err
+		}
 	}
 
 	// Deprovision all deployments on this node before deprovisioning the node
@@ -92,7 +125,7 @@ func DeprovisionNode() error {
 	}
 
 	// if GetSelf() worked then node is provisioned
-	if err := node.NodeDriver.Deprovision(database.NodesRepository); err != nil {
+	if err := node.NodeDriver.Deprovision(&node.NodeName, database.NodesRepository); err != nil {
 		return err
 	}
 

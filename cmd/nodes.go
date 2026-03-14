@@ -40,13 +40,15 @@ var nodeStates = &cobra.Command{
 	Use:                   "ls",
 	Short:                 "List and retrieve all node states",
 	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, nodeNames []string) {
 		client := clientPkg.NewClient(cfg)
+		nodes := cfg.GetNodes(nodeNames...)
 
-		for id, node := range clientPkg.GetNodes(cfg) {
+		for id, node := range nodes {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
 			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
-			node, err := client.GetNode(node.Url)
+			node, err := client.GetNode(node)
+
 			if err != nil {
 				log.Info(" Status: %s [%s]", common.NodeStatusOffline, strings.TrimSpace(err.Error()))
 			} else {

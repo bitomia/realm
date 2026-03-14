@@ -117,7 +117,7 @@ func TestContainer_CreateAndGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	container, err := db.CreateContainer("test-container", "nginx:latest", dto.ContainerStart)
+	container, err := db.CreateContainer("test-container", "nginx:latest", dto.ContainerStatusStart)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "test-container", container.ContainerName)
@@ -157,10 +157,10 @@ func TestContainer_GetAll(t *testing.T) {
 	assert.Len(t, containers, 0)
 
 	// Create multiple containers
-	_, err = db.CreateContainer("container1", "nginx:1", dto.ContainerStart)
+	_, err = db.CreateContainer("container1", "nginx:1", dto.ContainerStatusStart)
 	assert.NoError(t, err)
 
-	_, err = db.CreateContainer("container2", "nginx:2", dto.ContainerStop)
+	_, err = db.CreateContainer("container2", "nginx:2", dto.ContainerStatusStop)
 	assert.NoError(t, err)
 
 	containers, err = db.GetAllContainers()

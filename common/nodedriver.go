@@ -11,11 +11,12 @@ const (
 
 type NodeDriverBuilder func(config *any) (NodeDriver, error)
 type NodeDriverInfo struct {
-	ID           NodeDriverID
-	New          NodeDriverBuilder
-	StartMode  Mode
-	StopMode Mode
-	RestartMode  Mode
+	ID          NodeDriverID
+	New         NodeDriverBuilder
+	StartMode   Mode
+	StopMode    Mode
+	RestartMode Mode
+	GuestMode   bool
 }
 
 type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
@@ -41,13 +42,14 @@ func WithRestartMode(m Mode) NewNodeDriverInfoOpts {
 	}
 }
 
-func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
+func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, guestMode bool, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
 	info := NodeDriverInfo{
-		ID:           id,
-		New:          builder,
-		StartMode:  DaemonMode,
-		StopMode: DaemonMode,
-		RestartMode:  DaemonMode,
+		ID:          id,
+		New:         builder,
+		StartMode:   DaemonMode,
+		StopMode:    DaemonMode,
+		RestartMode: DaemonMode,
+		GuestMode:   guestMode,
 	}
 	for _, o := range opts {
 		if err := o(&info); err != nil {
@@ -115,6 +117,9 @@ type NodeDriver interface {
 	// nodeName as nil for self-node
 	UpdateStatus(nodeName *string, repository NodesRepository) (NodeStatus, error)
 
+	// GetState returns current node state like cpu, mem, etc..
+	GetState() (NodeState, error)
+
 	// Provision validates self-node prerequisites and creates or replace the current
 	// database entry.
 	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
@@ -122,7 +127,8 @@ type NodeDriver interface {
 	// This is invoked within the daemon and does not affect client behavior.
 	Provision(nodeName string, repository NodesRepository) error
 
-	// Deprovision cleanup and removes the self-node
+	// Deprovision cleanup and removes the self-node if node name is nil or guest node
+	// otherwise
 	// Only operates on deployments in "provisioned" status.
-	Deprovision(repository NodesRepository) error
+	Deprovision(nodeName *string, repository NodesRepository) error
 }
