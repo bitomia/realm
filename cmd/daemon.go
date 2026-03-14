@@ -10,6 +10,7 @@ import (
 
 var daemonCmd = &cobra.Command{
 	Use:                   "daemon",
+	Aliases:               []string{"d"},
 	Short:                 "Interface with daemon",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {

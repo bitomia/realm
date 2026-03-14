@@ -2,10 +2,13 @@ package common
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"time"
 )
 
@@ -109,4 +112,24 @@ func TailFile(filepath string, w io.Writer) error {
 	}
 
 	return nil
+}
+
+// Resolve execFile by priority: absolute path, working directory, PATH env var
+func ResolveExecPath(execFile string, workingDir *string) (string, error) {
+	if filepath.IsAbs(execFile) {
+		if _, err := os.Stat(execFile); err == nil {
+			return execFile, nil
+		}
+	}
+	if workingDir != nil {
+		workingDirCmdPath := filepath.Join(*workingDir, execFile)
+		if _, err := os.Stat(workingDirCmdPath); err == nil {
+			return workingDirCmdPath, nil
+		}
+	}
+	if path, err := exec.LookPath(execFile); err == nil {
+		return path, nil
+	}
+
+	return "", fmt.Errorf("Executable %q not found", execFile)
 }

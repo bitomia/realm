@@ -118,7 +118,7 @@ func (p *ProcessDriver) verifyConfig() error {
 }
 
 func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
-	resolved, err := p.resolveStartCmdPath()
+	resolved, err := common.ResolveExecPath(p.Config.StartCmd, p.Config.WorkingDir)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -389,26 +389,6 @@ func (p *ProcessDriver) ReadStderr(repository common.DeploymentsRepository, depl
 	}
 
 	return common.ReadFileAt(metadata.StderrPath, offset)
-}
-
-// Resolve StartCmd by priority: absolute path, working directory, PATH env var
-func (p *ProcessDriver) resolveStartCmdPath() (string, error) {
-	if filepath.IsAbs(p.Config.StartCmd) {
-		if _, err := os.Stat(p.Config.StartCmd); err == nil {
-			return p.Config.StartCmd, nil
-		}
-	}
-	if p.Config.WorkingDir != nil {
-		workingDirCmdPath := filepath.Join(*p.Config.WorkingDir, p.Config.StartCmd)
-		if _, err := os.Stat(workingDirCmdPath); err == nil {
-			return workingDirCmdPath, nil
-		}
-	}
-	if path, err := exec.LookPath(p.Config.StartCmd); err == nil {
-		return path, nil
-	}
-
-	return "", fmt.Errorf("Executable %q not found", p.Config.StartCmd)
 }
 
 func retrieveProcess(deployment common.Deployment) (*process.Process, error) {

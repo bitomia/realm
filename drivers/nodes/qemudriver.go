@@ -97,11 +97,22 @@ func (q *QemuDriver) GetNodeDriverID() common.NodeDriverID {
 }
 
 func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepository) error {
+	resolved, err := common.ResolveExecPath(q.Config.Emulator, nil)
+	if err != nil {
+		return err
+	}
+	q.Config.Emulator = resolved
+
+	if err := repository.SetSelf(nodeName, q, nil); err != nil {
+		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
+		return err
+	}
+
 	return nil
 }
 
 func (q *QemuDriver) Deprovision(repository common.NodesRepository) error {
-	return nil
+	return repository.DeleteSelf()
 }
 
 func (q *QemuDriver) GetDriverConfig() common.NodeDriverConfig {
@@ -262,10 +273,6 @@ func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
 func (q *QemuDriver) Start(nodeName *string, repository common.NodesRepository) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
-	}
-
-	if _, err := exec.LookPath(q.Config.Emulator); err != nil {
-		return fmt.Errorf("qemu: emulator binary not found: %w", err)
 	}
 
 	dataPath := config.Get().Daemon.DataPath
