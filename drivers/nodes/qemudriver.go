@@ -41,6 +41,7 @@ type QemuNetdev struct {
 type QemuConfig struct {
 	Emulator string       `json:"emulator"`
 	Machine  string       `json:"machine,omitempty"`
+	Accel    string       `json:"accel,omitempty"`
 	CPU      string       `json:"cpu,omitempty"`
 	Memory   int          `json:"memory,omitempty"`
 	SMP      string       `json:"smp,omitempty"`
@@ -239,6 +240,9 @@ func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
 
 	if q.Config.Machine != "" {
 		args = append(args, "-machine", q.Config.Machine)
+	}
+	if q.Config.Accel != "" {
+		args = append(args, "-accel", q.Config.Accel)
 	}
 	if q.Config.CPU != "" {
 		args = append(args, "-cpu", q.Config.CPU)
