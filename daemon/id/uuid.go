@@ -15,7 +15,7 @@ import (
 )
 
 func GetDaemonId() (string, error) {
-	dataPath := config.Get().Daemon.DataPath
+	dataPath := config.Get().DataPath
 	if dataPath == "" {
 		return "", fmt.Errorf("Invalid data path")
 	}

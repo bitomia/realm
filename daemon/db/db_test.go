@@ -22,8 +22,7 @@ import (
 )
 
 const testConfig = `
-daemon:
-  data_path: .
+data_path: .
 `
 
 func init() {

@@ -1,6 +1,7 @@
+data_path: .
+
 daemon:
   listen_address: 0.0.0.0
-  data_path: .
 
 nodes:
   vps-1:

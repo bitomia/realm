@@ -169,8 +169,8 @@ func (p *ProcessDriver) Start(repository common.DeploymentsRepository, deploymen
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", "cannot retrieve config")
 	}
 
-	stdoutPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stdout.log", deployment.LoadName))
-	stderrPath := filepath.Join(config.Daemon.DataPath, "logs", "ps", fmt.Sprintf("%s_stderr.log", deployment.LoadName))
+	stdoutPath := filepath.Join(config.DataPath, "logs", "ps", fmt.Sprintf("%s_stdout.log", deployment.LoadName))
+	stderrPath := filepath.Join(config.DataPath, "logs", "ps", fmt.Sprintf("%s_stderr.log", deployment.LoadName))
 
 	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
 	if err != nil {

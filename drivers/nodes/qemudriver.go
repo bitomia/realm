@@ -105,7 +105,7 @@ func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepositor
 	}
 	q.Config.Emulator = resolved
 
-	dataPath := config.Get().Daemon.DataPath
+	dataPath := config.Get().DataPath
 
 	qmpPort, err := getFreePort()
 	if err != nil {

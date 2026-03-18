@@ -57,7 +57,7 @@ func setDefaults(networkConfig NetworkConfig) {
 		etcdListenIPAdddress = networkConfig.IPAddress.String()
 	}
 
-	viper.SetDefault("daemon.data_path", dataPath)
+	viper.SetDefault("data_path", dataPath)
 	viper.SetDefault("daemon.cni_path", cniPath)
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
 	viper.SetDefault("daemon.listen_address", "127.0.0.1")

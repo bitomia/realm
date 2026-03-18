@@ -32,7 +32,7 @@ const (
 )
 
 func getEtcdDataDir() string {
-	dataPath := config.Get().Daemon.DataPath
+	dataPath := config.Get().DataPath
 	if dataPath == "" {
 		dataPath = "/var/lib/realm"
 	}

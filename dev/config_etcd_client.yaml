@@ -1,5 +1,6 @@
+data_path: /opt/realm_data
+
 daemon:
-  data_path: /opt/realm_data
   etcd_mode: client
   etcd_listen_client_url: http://192.168.105.3:2379
   etcd_endpoints: ["http://192.168.105.2:2379"]

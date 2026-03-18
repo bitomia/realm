@@ -126,7 +126,7 @@ func GetVolumesPath() (string, error) {
 	if config.Get().Daemon.ZFS {
 		return volumesPath, nil
 	} else {
-		return filepath.Join(config.Get().Daemon.DataPath, volumesPath), nil
+		return filepath.Join(config.Get().DataPath, volumesPath), nil
 	}
 
 }

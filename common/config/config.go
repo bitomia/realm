@@ -32,10 +32,6 @@ type RegistryConfig struct {
 // DaemonConfig holds the configuration for the realm daemon.
 // All fields are optional and have platform-specific or sensible defaults.
 type DaemonConfig struct {
-	// Path to store daemon data (ID file, etcd data, and logs).
-	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
-	DataPath string `json:"data_path"`
-
 	// Path to CNI plugins.
 	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)
 	CniPath string `json:"cni_path"`
@@ -126,6 +122,10 @@ type NetworkConfig struct {
 }
 
 type Config struct {
+	// Path to store realm data (ID file, etcd data, logs, mesh configs...).
+	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
+	DataPath string `json:"data_path"`
+
 	// Client config
 	Nodes     map[string]*common.NodeConfig `json:"nodes"`
 	Discovery DiscoveryConfig               `json:"discovery"`
