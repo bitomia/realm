@@ -130,15 +130,21 @@ loads:
       image: docker.io/nginx:latest
 ```
 
+## Root config
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `data_path` | string | `/var/lib/realm` | Path to store daemon data (ID file, etcd data) |
+
 ## Daemon
 
 The `daemon` section configures the Realm daemon. All fields are optional and have sensible defaults.
 
 ```yaml
+data_path: /var/lib/realm
 daemon:
   listen_address: 0.0.0.0
   listen_port: 9000
-  data_path: /var/lib/realm
   log_format: text
 ```
 
@@ -148,7 +154,6 @@ daemon:
 |-------|------|---------|-------------|
 | `listen_address` | string | `127.0.0.1` | Address to bind the daemon API |
 | `listen_port` | int | `9000` | Port to bind the daemon API |
-| `data_path` | string | `/var/lib/realm` | Path to store daemon data (ID file, etcd data) |
 | `log_format` | string | `text` | Log output format: `text` or `json` |
 
 ### Container Runtime
@@ -250,7 +255,7 @@ All daemon configuration fields can be set via environment variables using the `
 ```bash
 REALM_DAEMON_LISTEN_ADDRESS=0.0.0.0
 REALM_DAEMON_LISTEN_PORT=9000
-REALM_DAEMON_DATA_PATH=/opt/realm
+REALM_DATA_PATH=/opt/realm
 REALM_DAEMON_ETCD_MODE=client
 ```
 
@@ -259,9 +264,9 @@ Environment variables take priority over config file values but are overridden b
 ## Complete Example
 
 ```yaml
+data_path: /opt/realm_data
 daemon:
   listen_address: 0.0.0.0
-  data_path: /opt/realm_data
   zfs: false
   registries:
     - host: ghcr.io
