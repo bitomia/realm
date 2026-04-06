@@ -1,5 +1,7 @@
 package common
 
+import "github.com/bitomia/realm/common/cloudinit"
+
 type NodeDriverID string
 
 type Mode int
@@ -125,7 +127,7 @@ type NodeDriver interface {
 	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the daemon and does not affect client behavior.
-	Provision(nodeName string, repository NodesRepository) error
+	Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository NodesRepository) error
 
 	// Deprovision cleanup and removes the self-node if node name is nil or guest node
 	// otherwise

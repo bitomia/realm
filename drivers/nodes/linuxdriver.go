@@ -10,6 +10,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/cloudinit"
 	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cpu"
 )
@@ -103,11 +104,11 @@ func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (l *LinuxDriver) Provision(nodeName string, repository common.NodesRepository) error {
+func (l *LinuxDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
-	if err := repository.SetSelf(nodeName, l, nil); err != nil {
+	if err := repository.SetSelf(nodeName, l, cloudInit, nil); err != nil {
 		slog.Error("LinuxDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}

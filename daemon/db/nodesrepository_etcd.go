@@ -7,6 +7,7 @@ import (
 	"path"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/cloudinit"
 	"github.com/bitomia/realm/daemon/id"
 )
 
@@ -17,15 +18,17 @@ type EtcdNodesRepository struct {
 type NodeValue struct {
 	NodeName         string                  `json:"node_name"`
 	NodeDriverConfig common.NodeDriverConfig `json:"node_driver_config"`
+	CloudInit        *cloudinit.CloudInit    `json:"cloud_init,omitempty"`
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
+func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error {
 	slog.Info("EtcdNodesRepository.SetSelf", "nodeName", nodeName)
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
 		NodeDriverConfig: driver.GetDriverConfig(),
+		CloudInit:        cloudInit,
 		Metadata:         metadata,
 	}
 
@@ -117,12 +120,13 @@ func (r *EtcdNodesRepository) DeleteSelf() error {
 	return nil
 }
 
-func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error {
 	slog.Info("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeValue := NodeValue{
 		NodeName:         guestNodeName,
 		NodeDriverConfig: guestDriver.GetDriverConfig(),
+		CloudInit:        cloudInit,
 		Metadata:         metadata,
 	}
 
@@ -228,4 +232,46 @@ func (r *EtcdNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
 	}
 
 	return nodes, nil
+}
+
+func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) error) error {
+	nodeKey, err := r.db.nodeKey()
+	if err != nil {
+		slog.Error("EtcdNodesRepository.UpdateSelfMetadata", "msg", "creating node key", "error", err.Error())
+		return err
+	}
+
+	r.db.OptimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
+		var value NodeValue
+		if err := json.Unmarshal(valueData, &value); err != nil {
+			return nil, err
+		}
+		if err := updateFn(&value.Metadata); err != nil {
+			return nil, err
+		}
+		return json.Marshal(value)
+	})
+	return nil
+}
+
+func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error {
+	slog.Info("EtcdNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName)
+
+	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
+	if err != nil {
+		slog.Error("EtcdNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
+		return err
+	}
+
+	r.db.OptimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
+		var value NodeValue
+		if err := json.Unmarshal(valueData, &value); err != nil {
+			return nil, err
+		}
+		if err := updateFn(&value.Metadata); err != nil {
+			return nil, err
+		}
+		return json.Marshal(value)
+	})
+	return nil
 }

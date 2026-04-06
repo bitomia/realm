@@ -2,6 +2,7 @@ package nodes
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os/exec"
@@ -11,13 +12,17 @@ import (
 const qmpDialTimeout = 5 * time.Second
 const qmpReadTimeout = 5 * time.Second
 
+var (
+	QmpErrConnectionFailed = errors.New("qmp: failed to connect")
+)
+
 // qmpConnect connects to the QMP TCP port, reads the greeting,
 // and sends qmp_capabilities to enter command mode.
 func qmpConnect(port int) (net.Conn, error) {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	conn, err := net.DialTimeout("tcp", addr, qmpDialTimeout)
 	if err != nil {
-		return nil, fmt.Errorf("qmp: failed to connect to %s: %w", addr, err)
+		return nil, QmpErrConnectionFailed
 	}
 
 	// Read greeting
@@ -205,25 +210,25 @@ func qmpCont(port int) error {
 	return nil
 }
 
-// qmpQueryStatus queries the VM status and returns whether the VM is running.
-func qmpQueryStatus(port int) (bool, error) {
+// qmpQueryStatus queries the VM status
+func qmpQueryStatus(port int) (string, error) {
 	resp, err := qmpExecCommand(port, "query-status")
 	if err != nil {
-		return false, err
+		return "error", err
 	}
 	ret, ok := resp["return"]
 	if !ok {
-		return false, fmt.Errorf("qmp: query-status failed: %v", resp)
+		return "error", fmt.Errorf("qmp: query-status failed: %v", resp)
 	}
 	retMap, ok := ret.(map[string]any)
 	if !ok {
-		return false, fmt.Errorf("qmp: unexpected query-status return type: %v", ret)
+		return "error", fmt.Errorf("qmp: unexpected query-status return type: %v", ret)
 	}
-	running, ok := retMap["running"].(bool)
+	status, ok := retMap["status"].(string)
 	if !ok {
-		return false, fmt.Errorf("qmp: unexpected running field type: %v", retMap["running"])
+		return "error", fmt.Errorf("qmp: unexpected running field type: %v", retMap["status"])
 	}
-	return running, nil
+	return status, nil
 }
 
 func waitForQMP(qmpPort int, cmd *exec.Cmd) error {

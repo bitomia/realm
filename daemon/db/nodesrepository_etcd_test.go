@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/cloudinit"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,8 +68,8 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Provision(nodeName string, repository common.NodesRepository) error {
-	return repository.SetSelf(nodeName, m, nil)
+func (m *mockNodeDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
+	return repository.SetSelf(nodeName, m, cloudInit, nil)
 }
 
 func (m *mockNodeDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
@@ -120,7 +121,7 @@ func TestEtcdNodesRepository_Set(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	err := repo.SetSelf("test-node", driver, nil)
+	err := repo.SetSelf("test-node", driver, nil, nil)
 
 	assert.NoError(t, err)
 }

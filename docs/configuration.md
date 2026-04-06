@@ -7,10 +7,10 @@ Realm is configured through a YAML file. By default, Realm looks for a `config.y
 A Realm configuration file has four top-level sections:
 
 ```yaml
-daemon:       # Daemon settings (paths, etcd, registries)
-nodes:        # Remote nodes to manage
-loads:        # Workloads to deploy
-discovery:    # Discovery settings
+daemon: # Daemon settings (paths, etcd, registries)
+nodes: # Remote nodes to manage
+loads: # Workloads to deploy
+discovery: # Discovery settings
 ```
 
 ## Nodes
@@ -28,11 +28,58 @@ nodes:
     driver: linux
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `url` | string | Yes | URL of the node's daemon API |
-| `driver` | string | Yes | Node driver type. Currently supported: `linux` |
-| `driver_config` | object | No | Driver-specific configuration |
+| Field           | Type   | Required | Description                                    |
+| --------------- | ------ | -------- | ---------------------------------------------- |
+| `url`           | string | Yes      | URL of the node's daemon API                   |
+| `driver`        | string | Yes      | Node driver type. Currently supported: `linux` |
+| `driver_config` | object | No       | Driver-specific configuration                  |
+| `cloud_init`    | object | No       | Cloud init configuration                       |
+
+**Cloud init **
+
+Realm serves cloud-init configurations for any node with a `cloud_init` configuration. Currently Realm supports `meta-data`and `user-data` structures.
+
+An usage example using the Qemu node driver:
+
+```yaml
+nodes:
+  vm:
+    url: http://localhost:9000
+    cloud_init:
+      meta_data:
+        instance-id: test01
+        local-hostname: testvm
+      user_data:
+        hostname: lab1
+        fqdn: lab1.local
+        preserve_hostname: false
+        apt:
+          sources:
+            bookworm-backports:
+              source: "deb http://deb.debian.org/debian bookworm-backports main contrib non-free-firmware"
+        runcmd:
+          - apt-get update
+    driver: qemu
+    driver_config:
+      emulator: qemu-system-x86_64
+      machine: q35
+      accel: hvf
+      memory: 2048
+      smp: "2"
+      serial: telnet:localhost:4444,server,nowait
+      netdevs:
+        - type: user
+          id: net0
+      drives:
+        - file: /Users/juan/repos/vlab/debian-12-generic-amd64.qcow2
+          format: qcow2
+          if: virtio
+      params:
+        - -display
+        - none
+        - -device
+        - virtio-net-pci,netdev=net0
+```
 
 ### Linux Node Driver
 
@@ -48,9 +95,9 @@ nodes:
       MAC: "00:11:22:33:44:55"
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `wol` | bool | Enable Wake-On-LAN |
+| Field | Type   | Description                               |
+| ----- | ------ | ----------------------------------------- |
+| `wol` | bool   | Enable Wake-On-LAN                        |
 | `MAC` | string | MAC address (required when `wol` is true) |
 
 ## Loads
@@ -74,12 +121,12 @@ loads:
       stop_signal: SIGTERM
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `node` | string | Yes | Target node name or [expression](#dynamic-node-selection) |
-| `driver` | string | Yes | Load driver: `container` or `process` |
-| `driver_config` | object | Yes | Driver-specific configuration |
-| `depends_on` | list | No | List of load names this load depends on |
+| Field           | Type   | Required | Description                                               |
+| --------------- | ------ | -------- | --------------------------------------------------------- |
+| `node`          | string | Yes      | Target node name or [expression](#dynamic-node-selection) |
+| `driver`        | string | Yes      | Load driver: `container` or `process`                     |
+| `driver_config` | object | Yes      | Driver-specific configuration                             |
+| `depends_on`    | list   | No       | List of load names this load depends on                   |
 
 For detailed driver configuration, see [Container Driver](container-driver.md) and [Process Driver](process-driver.md).
 
@@ -132,8 +179,8 @@ loads:
 
 ## Root config
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| Field       | Type   | Default          | Description                                    |
+| ----------- | ------ | ---------------- | ---------------------------------------------- |
 | `data_path` | string | `/var/lib/realm` | Path to store daemon data (ID file, etcd data) |
 
 ## Daemon
@@ -150,41 +197,41 @@ daemon:
 
 ### General
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `listen_address` | string | `127.0.0.1` | Address to bind the daemon API |
-| `listen_port` | int | `9000` | Port to bind the daemon API |
-| `log_format` | string | `text` | Log output format: `text` or `json` |
+| Field            | Type   | Default   | Description                         |
+| ---------------- | ------ | --------- | ----------------------------------- |
+| `listen_address` | string | `0.0.0.0` | Address to bind the daemon API      |
+| `listen_port`    | int    | `9000`    | Port to bind the daemon API         |
+| `log_format`     | string | `text`    | Log output format: `text` or `json` |
 
 ### Container Runtime
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `containerd_sock` | string | `/run/containerd/containerd.sock` | Containerd socket path |
-| `containerd_namespace` | string | `realm` | Containerd namespace |
-| `cni_path` | string | `/usr/lib/cni` | Path to CNI plugins |
-| `volumes_pool` | string | `realm_volumes` | ZFS pool name for container volumes |
-| `zfs` | bool | `false` | Enable ZFS for volume management |
+| Field                  | Type   | Default                           | Description                         |
+| ---------------------- | ------ | --------------------------------- | ----------------------------------- |
+| `containerd_sock`      | string | `/run/containerd/containerd.sock` | Containerd socket path              |
+| `containerd_namespace` | string | `realm`                           | Containerd namespace                |
+| `cni_path`             | string | `/usr/lib/cni`                    | Path to CNI plugins                 |
+| `volumes_pool`         | string | `realm_volumes`                   | ZFS pool name for container volumes |
+| `zfs`                  | bool   | `false`                           | Enable ZFS for volume management    |
 
 ### Reverse Proxy
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `proxy_enabled` | bool | `false` | Enable the reverse proxy |
-| `local_caddy_url` | string | `localhost:2019` | Local Caddy proxy URL |
-| `master_caddy_url` | string | `localhost:2019` | Master Caddy proxy URL |
+| Field              | Type   | Default          | Description              |
+| ------------------ | ------ | ---------------- | ------------------------ |
+| `proxy_enabled`    | bool   | `false`          | Enable the reverse proxy |
+| `local_caddy_url`  | string | `localhost:2019` | Local Caddy proxy URL    |
+| `master_caddy_url` | string | `localhost:2019` | Master Caddy proxy URL   |
 
 ### Etcd
 
 Realm uses etcd for cluster state. It can run an embedded etcd server or connect as a client to an external cluster.
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `etcd_mode` | string | `server` | Etcd mode: `server` (embedded) or `client` (external) |
-| `etcd_endpoints` | list | `[]` | Etcd endpoints for client mode |
-| `etcd_listen_client_url` | string | `http://<auto-detected-ip>:2379` | Etcd client URL |
-| `etcd_listen_peer_url` | string | `http://<auto-detected-ip>:2380` | Etcd peer URL |
-| `etcd_initial_cluster` | string | `""` | Initial cluster members (empty for single-node) |
+| Field                    | Type   | Default                          | Description                                           |
+| ------------------------ | ------ | -------------------------------- | ----------------------------------------------------- |
+| `etcd_mode`              | string | `server`                         | Etcd mode: `server` (embedded) or `client` (external) |
+| `etcd_endpoints`         | list   | `[]`                             | Etcd endpoints for client mode                        |
+| `etcd_listen_client_url` | string | `http://<auto-detected-ip>:2379` | Etcd client URL                                       |
+| `etcd_listen_peer_url`   | string | `http://<auto-detected-ip>:2380` | Etcd peer URL                                         |
+| `etcd_initial_cluster`   | string | `""`                             | Initial cluster members (empty for single-node)       |
 
 **Single-node (default):**
 
@@ -229,13 +276,13 @@ daemon:
         password: secret
 ```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `host` | string | Registry host (e.g., `ghcr.io`, `docker.io`) |
-| `insecure` | bool | Allow HTTP instead of HTTPS |
-| `auth.username` | string | Username (use with `password`) |
-| `auth.password` | string | Password (use with `username`) |
-| `auth.token` | string | Authentication token (alternative to username/password) |
+| Field           | Type   | Description                                             |
+| --------------- | ------ | ------------------------------------------------------- |
+| `host`          | string | Registry host (e.g., `ghcr.io`, `docker.io`)            |
+| `insecure`      | bool   | Allow HTTP instead of HTTPS                             |
+| `auth.username` | string | Username (use with `password`)                          |
+| `auth.password` | string | Password (use with `username`)                          |
+| `auth.token`    | string | Authentication token (alternative to username/password) |
 
 ## Discovery
 
@@ -244,8 +291,8 @@ discovery:
   mdns: true
 ```
 
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
+| Field  | Type | Default | Description           |
+| ------ | ---- | ------- | --------------------- |
 | `mdns` | bool | `false` | Enable mDNS discovery |
 
 ## Environment Variables
@@ -326,3 +373,11 @@ loads:
 discovery:
   mdns: true
 ```
+
+### QEMU Node Driver
+
+TBD
+
+### Windows Node Driver
+
+TBD

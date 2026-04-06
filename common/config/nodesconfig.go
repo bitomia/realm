@@ -19,7 +19,7 @@ func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeD
 	if _, exists := nodesConfig[nodeName]; exists {
 		return nil, fmt.Errorf("Node name not unique")
 	}
-	nodesConfig[nodeName] = &common.Node{Name: nodeName, Url: node.Url, Driver: driver}
+	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Url: node.Url, Driver: driver}
 	return nodesConfig[nodeName], nil
 }
 

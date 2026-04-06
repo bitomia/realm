@@ -150,7 +150,7 @@ func GetVersion() string {
 func InitFromBuffer(buffer string) (*Config, error) {
 	reader := strings.NewReader(buffer)
 	cfg, err := readConfigFromReader(reader)
-	fmt.Printf("%v %v", cfg, err)
+
 	if err != nil {
 		return nil, fmt.Errorf("%s", err.Error())
 	}
@@ -195,6 +195,15 @@ func (c *Config) GetLoads(loadsFilter ...string) map[string]*common.Load {
 
 func (c *Config) GetLoadsGraph() graph.Graph[string, string] {
 	return c.loadsGraph
+}
+
+func (c Config) NeedsCloudInit() bool {
+	for _, nodeConfig := range c.Nodes {
+		if nodeConfig.CloudInit != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func findNetworkInterface(targetIP net.IP, interfaces []net.Interface) (NetworkConfig, error) {
