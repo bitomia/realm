@@ -6,6 +6,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/daemon/cloudinit"
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
 )
@@ -78,7 +79,13 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 func ProvisionNode(node *common.Node) error {
 	database := db.GetDB()
 
-	if err := node.Driver.Provision(node.Name, database.NodesRepository); err != nil {
+	if node.CloudInit != nil {
+		if err := cloudinit.RegisterNode(node); err != nil {
+			return err
+		}
+	}
+
+	if err := node.Driver.Provision(node.Name, node.CloudInit, database.NodesRepository); err != nil {
 		return err
 	}
 
@@ -128,6 +135,8 @@ func DeprovisionNode(nodeName *string) error {
 	if err := node.NodeDriver.Deprovision(&node.NodeName, database.NodesRepository); err != nil {
 		return err
 	}
+
+	_ = cloudinit.UnregisterNode(*nodeName)
 
 	return nil
 }

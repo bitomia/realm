@@ -4,10 +4,11 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/bitomia/realm/daemon/auth"
+	"github.com/bitomia/realm/daemon/cloudinit"
 	"github.com/bitomia/realm/daemon/handlers"
 )
 
-func createRoutes(router *mux.Router) {
+func createRoutes(withCloudInit bool, router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
 
 	router.Handle("/system", auth.WithAuth(handlers.GetSystemInfoHandler)).Methods("GET")
@@ -30,4 +31,8 @@ func createRoutes(router *mux.Router) {
 	router.Handle("/loads/{loadName}/kill", auth.WithAuth(handlers.KillLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/stdout", auth.WithAuth(handlers.ReadLoadStdoutHandler)).Methods("GET")
 	router.Handle("/loads/{loadName}/stderr", auth.WithAuth(handlers.ReadLoadStderrHandler)).Methods("GET")
+
+	if withCloudInit {
+		router.HandleFunc("/cloudinit/{nodeName}/{dataType:meta-data|user-data}", cloudinit.RequestHandler).Methods("GET")
+	}
 }

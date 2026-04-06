@@ -98,7 +98,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	}
 
 	router := mux.NewRouter()
-	createRoutes(router)
+	createRoutes(cfg.NeedsCloudInit(), router)
 
 	auth.Initialize()
 

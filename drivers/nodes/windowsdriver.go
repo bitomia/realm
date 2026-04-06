@@ -10,6 +10,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/cloudinit"
 	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cpu"
 )
@@ -98,8 +99,8 @@ func (w *WindowsDriver) UnmarshalJSON(data []byte) error {
 	}
 }
 
-func (w *WindowsDriver) Provision(nodeName string, repository common.NodesRepository) error {
-	if err := repository.SetSelf(nodeName, w, nil); err != nil {
+func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
+	if err := repository.SetSelf(nodeName, w, cloudInit, nil); err != nil {
 		slog.Error("WindowsDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}

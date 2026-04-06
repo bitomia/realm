@@ -11,6 +11,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/cloudinit"
 	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/config"
 )
@@ -49,12 +50,14 @@ type QemuConfig struct {
 	Params   []string     `json:"params,omitempty"`
 	Drives   []QemuDrive  `json:"drives,omitempty"`
 	Netdevs  []QemuNetdev `json:"netdevs,omitempty"`
-	QMPPort  int          `json:"qmp_port,omitempty"`
+	QMPPort  int          `json:"qmp_port"`
 }
 
 type QemuNodeMetadata struct {
-	Pid     int `json:"pid,omitempty"`
-	QMPPort int `json:"qmp_port,omitempty"`
+	Pid      int      `json:"pid,omitempty"`
+	QMPPort  int      `json:"qmp_port,omitempty"`
+	QemuPath string   `json:"qemu_path"`
+	QemuArgs []string `json:"qemu_args"`
 }
 
 type QemuDriver struct {
@@ -98,75 +101,44 @@ func (q *QemuDriver) GetNodeDriverID() common.NodeDriverID {
 	return QemuDriverID
 }
 
-func (q *QemuDriver) Provision(nodeName string, repository common.NodesRepository) error {
-	resolved, err := common.ResolveExecPath(q.Config.Emulator, nil)
-	if err != nil {
+func (q *QemuDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
+	slog.Info("QemuDriver.Provision", "msg", "launching qemu", "node", nodeName)
+
+	var err error
+	if q.Config.Emulator, err = common.ResolveExecPath(q.Config.Emulator, nil); err != nil {
 		return err
 	}
-	q.Config.Emulator = resolved
-
-	dataPath := config.Get().DataPath
-
-	qmpPort, err := getFreePort()
-	if err != nil {
+	if q.Config.QMPPort, err = getFreePort(); err != nil {
 		return fmt.Errorf("qemu: failed to find free port for QMP: %w", err)
 	}
 
-	args := q.buildArgs(nodeName, qmpPort)
-	args = append(args, "-S")
-	cmd := exec.Command(q.Config.Emulator, args...)
-
-	slog.Info("QemuDriver.Provision", "msg", "launching qemu", "node", nodeName, "cmd", q.Config.Emulator, "args", args)
-
-	stdoutPath := filepath.Join(dataPath, "logs", "qemu", nodeName+"_stdout.log")
-	stderrPath := filepath.Join(dataPath, "logs", "qemu", nodeName+"_stderr.log")
-
-	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
-	if err != nil {
-		return fmt.Errorf("qemu: failed to create stdout log: %w", err)
+	var cmd *exec.Cmd
+	qemuArgs := q.buildArgs(nodeName, cloudInit)
+	if cmd, err = startVM(nodeName, q.Config.QMPPort, q.Config.Emulator, qemuArgs); err != nil {
+		return err
 	}
-	stderrFile, err := common.CreateLogFile(stderrPath, 0755)
-	if err != nil {
-		stdoutFile.Close()
-		return fmt.Errorf("qemu: failed to create stderr log: %w", err)
-	}
-
-	cmd.Stdout = stdoutFile
-	cmd.Stderr = stderrFile
-
-	if err := cmd.Start(); err != nil {
-		stdoutFile.Close()
-		stderrFile.Close()
-		return fmt.Errorf("qemu: failed to start emulator: %w", err)
-	}
-
-	if err := waitForQMP(qmpPort, cmd); err != nil {
-		cmd.Process.Kill()
-		cmd.Wait()
-		stdoutFile.Close()
-		stderrFile.Close()
-		stderrContent, readErr := os.ReadFile(stderrPath)
-		if readErr == nil && len(stderrContent) > 0 {
-			return fmt.Errorf("qemu: VM failed to start: %w\nstderr: %s", err, string(stderrContent))
-		}
-		return fmt.Errorf("qemu: VM failed to start: %w", err)
-	}
-
-	q.Config.QMPPort = qmpPort
 
 	metadata := QemuNodeMetadata{
-		Pid:     cmd.Process.Pid,
-		QMPPort: qmpPort,
+		Pid:      cmd.Process.Pid,
+		QMPPort:  q.Config.QMPPort,
+		QemuPath: q.Config.Emulator,
+		QemuArgs: qemuArgs,
 	}
 
-	slog.Info("QemuDriver.Provision", "msg", "qemu started in paused state", "pid", metadata.Pid, "qmp_port", qmpPort)
+	slog.Info("QemuDriver.Provision", "msg", "qemu started in paused state", "pid", metadata.Pid, "qmp_port", q.Config.QMPPort)
 
-	if err := repository.SetGuestNode(nodeName, q, metadata); err != nil {
+	if err := repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
+		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
+
 		cmd.Process.Kill()
 		cmd.Wait()
-		stdoutFile.Close()
-		stderrFile.Close()
-		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
+		if cmd.Stdout != nil {
+			cmd.Stdout.(*os.File).Close()
+		}
+		if cmd.Stderr != nil {
+			cmd.Stderr.(*os.File).Close()
+		}
+
 		return err
 	}
 
@@ -232,11 +204,10 @@ func (q *QemuDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
+func (q *QemuDriver) buildArgs(nodeName string, cloudInit *cloudinit.CloudInit) []string {
 	var args []string
 
 	args = append(args, "-name", nodeName)
-	args = append(args, "-qmp", fmt.Sprintf("tcp:127.0.0.1:%d,server,nowait", qmpPort))
 
 	if q.Config.Machine != "" {
 		args = append(args, "-machine", q.Config.Machine)
@@ -356,6 +327,13 @@ func (q *QemuDriver) buildArgs(nodeName string, qmpPort int) []string {
 	}
 
 	args = append(args, q.Config.Params...)
+	args = append(args, "-S")
+
+	if cloudInit != nil {
+		cfg := config.Get()
+		smbiosSerial := fmt.Sprintf("ds=nocloud-net;s=http://10.0.2.2:%d/cloudinit/%s/", cfg.Daemon.ListenPort, nodeName)
+		args = append(args, "-smbios", fmt.Sprintf("type=1,serial=%s", smbiosSerial))
+	}
 
 	return args
 }
@@ -365,22 +343,56 @@ func (q *QemuDriver) Start(nodeName *string, repository common.NodesRepository) 
 		return fmt.Errorf("nodeName cannot be nil")
 	}
 
-	metadata, err := q.getMetadata(*nodeName, repository)
-	if err != nil {
-		return fmt.Errorf("qemu: failed to get metadata: %w", err)
+	status, err := q.queryStatus(*nodeName, repository)
+	if err != nil && err != QmpErrConnectionFailed {
+		return err
 	}
 
-	if metadata.QMPPort == 0 {
-		return fmt.Errorf("qemu: no QMP port available, VM may not be provisioned")
+	if status == "prelaunch" {
+		// Resume VM
+		slog.Info("QemuDriver.Start", "msg", "resuming paused VM", "node", *nodeName)
+
+		metadata, err := q.getMetadata(*nodeName, repository)
+		if err != nil {
+			return fmt.Errorf("qemu: failed to get metadata: %w", err)
+		}
+
+		if metadata.QMPPort == 0 {
+			return fmt.Errorf("qemu: no QMP port available, VM may not be provisioned")
+		}
+
+		if err := qmpCont(metadata.QMPPort); err != nil {
+			return fmt.Errorf("qemu: failed to resume VM: %w", err)
+		}
+
+		slog.Info("QemuDriver.Start", "msg", "VM resumed", "node", *nodeName)
+	} else {
+		// Restart VM
+		slog.Info("QemuDriver.Start", "msg", "restarting VM", "node", *nodeName)
+		metadata, err := q.getMetadata(*nodeName, repository)
+		if err != nil {
+			return fmt.Errorf("qemu: failed to get metadata: %w", err)
+		}
+
+		var qemuPort int = 0
+		if qemuPort, err = getFreePort(); err != nil {
+			return fmt.Errorf("qemu: failed to find free port for QMP: %w", err)
+		}
+
+		var cmd *exec.Cmd
+		if cmd, err = startVM(*nodeName, qemuPort, metadata.QemuPath, metadata.QemuArgs); err != nil {
+			return err
+		}
+
+		common.UpdateGuestNodeMetadata(*nodeName, repository, func(metadata *QemuNodeMetadata) error {
+			metadata.Pid = cmd.Process.Pid
+			metadata.QMPPort = qemuPort
+			if err := qmpCont(metadata.QMPPort); err != nil {
+				return fmt.Errorf("qemu: failed to resume VM: %w", err)
+			}
+			return nil
+		})
 	}
-
-	slog.Info("QemuDriver.Start", "msg", "resuming paused VM", "node", *nodeName, "qmp_port", metadata.QMPPort)
-
-	if err := qmpCont(metadata.QMPPort); err != nil {
-		return fmt.Errorf("qemu: failed to resume VM: %w", err)
-	}
-
-	slog.Info("QemuDriver.Start", "msg", "VM resumed", "node", *nodeName)
 
 	return nil
 }
@@ -401,7 +413,7 @@ func (q *QemuDriver) Stop(nodeName *string, _ string, _ uint32, repository commo
 			return err
 		}
 	} else {
-		if err := qmpStop(metadata.QMPPort); err != nil {
+		if err := qmpSystemPowerdown(metadata.QMPPort); err != nil {
 			return err
 		}
 	}
@@ -441,11 +453,16 @@ func (q *QemuDriver) UpdateStatus(nodeName *string, repository common.NodesRepos
 		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: "not started"}, nil
 	}
 
-	running, err := qmpQueryStatus(metadata.QMPPort)
+	status, err := qmpQueryStatus(metadata.QMPPort)
 	if err != nil {
-		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
+		if err == QmpErrConnectionFailed {
+			return common.NodeStatus{StatusCode: common.NodeStatusOffline, Reason: "VM is not running"}, nil
+		} else {
+			return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
+		}
 	}
-	if running {
+
+	if status == "running" {
 		return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 	}
 
@@ -518,4 +535,59 @@ func (q *QemuDriver) getMetadata(nodeName string, repository common.NodesReposit
 	}
 
 	return &metadata, nil
+}
+
+func (q *QemuDriver) queryStatus(nodeName string, repository common.NodesRepository) (string, error) {
+	metadata, err := q.getMetadata(nodeName, repository)
+	if err != nil {
+		return "", fmt.Errorf("getMetadata on UpdateStatus failed: %s", err.Error())
+	}
+
+	if metadata.QMPPort == 0 {
+		return "not_started", nil
+	}
+
+	return qmpQueryStatus(metadata.QMPPort)
+}
+
+func startVM(nodeName string, qemuPort int, qemuPath string, qemuArgs []string) (*exec.Cmd, error) {
+	qemuArgs = append(qemuArgs, "-qmp", fmt.Sprintf("tcp:127.0.0.1:%d,server,nowait", qemuPort))
+
+	slog.Info("QemuDriver.startVM", "msg", "starting VM", "node", nodeName, "cmd", qemuPath, "args", qemuArgs)
+	cmd := exec.Command(qemuPath, qemuArgs...)
+
+	dataPath := config.Get().DataPath
+	stdoutPath := filepath.Join(dataPath, "logs", "qemu", nodeName+"_stdout.log")
+	stderrPath := filepath.Join(dataPath, "logs", "qemu", nodeName+"_stderr.log")
+	stdoutFile, err := common.CreateLogFile(stdoutPath, 0755)
+	if err != nil {
+		return nil, fmt.Errorf("qemu: failed to create stdout log: %w", err)
+	}
+	stderrFile, err := common.CreateLogFile(stderrPath, 0755)
+	if err != nil {
+		stdoutFile.Close()
+		return nil, fmt.Errorf("qemu: failed to create stderr log: %w", err)
+	}
+	cmd.Stdout = stdoutFile
+	cmd.Stderr = stderrFile
+
+	if err := cmd.Start(); err != nil {
+		stdoutFile.Close()
+		stderrFile.Close()
+		return nil, fmt.Errorf("qemu: failed to start emulator: %w", err)
+	}
+
+	if err := waitForQMP(qemuPort, cmd); err != nil {
+		cmd.Process.Kill()
+		cmd.Wait()
+		stdoutFile.Close()
+		stderrFile.Close()
+		stderrContent, readErr := os.ReadFile(stderrPath)
+		if readErr == nil && len(stderrContent) > 0 {
+			return nil, fmt.Errorf("qemu: VM failed to start: %w\nstderr: %s", err, string(stderrContent))
+		}
+		return nil, fmt.Errorf("qemu: VM failed to start: %w", err)
+	}
+
+	return cmd, nil
 }

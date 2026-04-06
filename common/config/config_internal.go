@@ -60,7 +60,7 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("data_path", dataPath)
 	viper.SetDefault("daemon.cni_path", cniPath)
 	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
-	viper.SetDefault("daemon.listen_address", "127.0.0.1")
+	viper.SetDefault("daemon.listen_address", "0.0.0.0")
 	viper.SetDefault("daemon.listen_port", "9000")
 	viper.SetDefault("daemon.log_format", "text")
 	viper.SetDefault("daemon.proxy_enabled", false)
