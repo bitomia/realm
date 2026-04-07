@@ -37,8 +37,8 @@ var hostCmd = &cobra.Command{
 }
 
 var nodeStates = &cobra.Command{
-	Use:                   "ls",
-	Short:                 "List and retrieve all node states",
+	Use:                   "state",
+	Short:                 "Show state of nodes",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		client := clientPkg.NewClient(cfg)
