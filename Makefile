@@ -6,6 +6,7 @@ ROOT:=$(realpath .)
 
 ifeq ($(OS),Windows_NT)
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>nul || echo Unknown)
+	GIT_TAG := $(shell git describe --tags --abbrev=0 2>nul || echo dev)
 	RM = del
 	MKDIR = if not exist "$(1)" mkdir "$(1)"
 	SEP = \\
@@ -14,6 +15,7 @@ ifeq ($(OS),Windows_NT)
 	SET_CGO = set CGO_ENABLED=0 &&
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
+	GIT_TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
 	RM = rm -rf
 	MKDIR = mkdir -p $(1)
 	SEP = /
@@ -22,12 +24,13 @@ else
 	SET_CGO = CGO_ENABLED=0
 endif
 
+VERSION := $(GIT_TAG)-$(GIT_COMMIT)
 
-COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)'
+COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'main.version=$(VERSION)'
 
 .PHONY: all
 all:
-	@echo "Building ($(GIT_COMMIT))..."
+	@echo "Building $(VERSION)..."
 	$(SET_CGO) $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
 
 .PHONY: tidy
