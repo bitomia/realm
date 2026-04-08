@@ -53,6 +53,19 @@ type UserData struct {
 	PowerState              *PowerState          `json:"power_state,omitempty" yaml:"power_state,omitempty"`
 	Chef                    *Chef                `json:"chef,omitempty" yaml:"chef,omitempty"`
 	Puppet                  *Puppet              `json:"puppet,omitempty" yaml:"puppet,omitempty"`
+	Chpasswd                *Chpasswd            `json:"chpasswd,omitempty" yaml:"chpasswd,omitempty"`
+}
+
+type Chpasswd struct {
+	Expire *bool          `json:"expire,omitempty" yaml:"expire,omitempty"`
+	Users  []ChpasswdUser `json:"users,omitempty" yaml:"users,omitempty"`
+	List   interface{}    `json:"list,omitempty" yaml:"list,omitempty"`
+}
+
+type ChpasswdUser struct {
+	Name     string  `json:"name" yaml:"name"`
+	Password string  `json:"password" yaml:"password"`
+	Type     *string `json:"type,omitempty" yaml:"type,omitempty"`
 }
 
 type User struct {
