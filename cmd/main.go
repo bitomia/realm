@@ -13,9 +13,6 @@ import (
 var (
 	rootCmd = &cobra.Command{}
 	cfg     *config.Config
-
-	// version is set at build time via -ldflags "-X main.version=..."
-	version = "dev"
 )
 
 func main() {
@@ -23,7 +20,7 @@ func main() {
 
 	rootCmd.Use = "realm"
 	rootCmd.Short = "Realm command-line interface"
-	rootCmd.Version = version
+	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if cmd == rootCmd && len(args) == 0 {

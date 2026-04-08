@@ -26,7 +26,7 @@ endif
 
 VERSION := $(GIT_TAG)-$(GIT_COMMIT)
 
-COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'main.version=$(VERSION)'
+COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'
 
 .PHONY: all
 all:

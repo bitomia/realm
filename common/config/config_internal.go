@@ -20,15 +20,6 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-func getExeDir() string {
-	execPath, err := os.Executable()
-	if err != nil {
-		slog.Error(err.Error())
-	}
-
-	return filepath.Dir(execPath)
-}
-
 func setDefaults(networkConfig NetworkConfig) {
 	// Set platform-specific default paths
 	var dataPath, containerdSock, cniPath string
@@ -63,6 +54,7 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("daemon.listen_address", "0.0.0.0")
 	viper.SetDefault("daemon.listen_port", "9000")
 	viper.SetDefault("daemon.log_format", "text")
+	viper.SetDefault("daemon.containers", true)
 	viper.SetDefault("daemon.proxy_enabled", false)
 	viper.SetDefault("daemon.local_caddy_url", "localhost:2019")
 	viper.SetDefault("daemon.master_caddy_url", "localhost:2019")
@@ -174,7 +166,9 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 	} else if configFile := viper.GetString("config_file"); configFile != "" {
 		viper.SetConfigFile(configFile)
 	} else {
-		viper.AddConfigPath(getExeDir())
+		if cwd, err := os.Getwd(); err == nil {
+			viper.AddConfigPath(cwd)
+		}
 		viper.SetConfigType("yaml")
 		viper.SetConfigName("config")
 	}

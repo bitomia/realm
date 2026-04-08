@@ -39,7 +39,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p bin
-          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}'"
+          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
 
       - name: Compress binary (Unix)
         if: matrix.goos != 'windows'

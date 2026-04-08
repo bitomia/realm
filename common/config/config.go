@@ -12,7 +12,10 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-var BuildGitCommit string
+var (
+	BuildGitCommit string
+	Version        = "dev"
+)
 
 // RegistryAuth holds authentication credentials for a container registry.
 // Token OR Username/Password should be set, not both.
@@ -58,6 +61,10 @@ type DaemonConfig struct {
 	// Valid values: "text", "json"
 	// Default: text
 	LogFormat string `json:"log_format"`
+
+	// Enables containers support.
+	// Default: true
+	Containers bool `json:"containers"`
 
 	// Enables or disables the reverse proxy.
 	// Default: false
@@ -144,7 +151,7 @@ type Config struct {
 }
 
 func GetVersion() string {
-	return BuildGitCommit
+	return Version + "-" + BuildGitCommit
 }
 
 func InitFromBuffer(buffer string) (*Config, error) {

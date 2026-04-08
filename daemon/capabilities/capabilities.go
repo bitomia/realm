@@ -33,8 +33,12 @@ func Initialize(cfg *config.Config) {
 	}
 
 	globalCaps = &HostDaemonCapabilities{false, false, false, false}
-	globalCaps.evalContainersEngine()
-	globalCaps.evalContainersNetworking()
+	if cfg.Daemon.Containers {
+		globalCaps.evalContainersEngine()
+		globalCaps.evalContainersNetworking()
+	} else {
+		slog.Info("Containers support disabled")
+	}
 	globalCaps.evalVolumes(cfg)
 }
 
