@@ -33,6 +33,6 @@ func createRoutes(withCloudInit bool, router *mux.Router) {
 	router.Handle("/loads/{loadName}/stderr", auth.WithAuth(handlers.ReadLoadStderrHandler)).Methods("GET")
 
 	if withCloudInit {
-		router.HandleFunc("/cloudinit/{nodeName}/{dataType:meta-data|user-data}", cloudinit.RequestHandler).Methods("GET")
+		router.HandleFunc("/cloudinit/{nodeName}/{dataType:meta-data|user-data|network-config}", cloudinit.RequestHandler).Methods("GET")
 	}
 }

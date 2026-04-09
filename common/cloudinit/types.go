@@ -1,8 +1,9 @@
 package cloudinit
 
 type CloudInit struct {
-	MetaData *MetaData `json:"meta_data,omitempty" yaml:"meta_data,omitempty"`
-	UserData *UserData `json:"user_data,omitempty" yaml:"user_data,omitempty"`
+	MetaData      *MetaData      `json:"meta_data,omitempty" yaml:"meta_data,omitempty"`
+	UserData      *UserData      `json:"user_data,omitempty" yaml:"user_data,omitempty"`
+	NetworkConfig *NetworkConfig `json:"network_config,omitempty" yaml:"network_config,omitempty"`
 }
 
 type MetaData struct {
@@ -151,4 +152,68 @@ type Puppet struct {
 	Cleanup        *bool   `json:"cleanup,omitempty" yaml:"cleanup,omitempty"`
 	StartService   *bool   `json:"start_service,omitempty" yaml:"start_service,omitempty"`
 	ServerName     *string `json:"server,omitempty" yaml:"server,omitempty"`
+}
+
+type NetworkConfig struct {
+	Version   int                      `json:"version" yaml:"version"`
+	Config    []NetworkConfigEntry     `json:"config,omitempty" yaml:"config,omitempty"`         // version 1
+	Ethernets map[string]NetworkDevice `json:"ethernets,omitempty" yaml:"ethernets,omitempty"`   // version 2
+	Wifis     map[string]NetworkDevice `json:"wifis,omitempty" yaml:"wifis,omitempty"`           // version 2
+	Bonds     map[string]NetworkDevice `json:"bonds,omitempty" yaml:"bonds,omitempty"`           // version 2
+	Bridges   map[string]NetworkDevice `json:"bridges,omitempty" yaml:"bridges,omitempty"`       // version 2
+	Vlans     map[string]NetworkDevice `json:"vlans,omitempty" yaml:"vlans,omitempty"`           // version 2
+	Routes    []NetworkRoute           `json:"routes,omitempty" yaml:"routes,omitempty"`         // version 2
+}
+
+type NetworkConfigEntry struct {
+	Type       string              `json:"type" yaml:"type"`
+	Name       *string             `json:"name,omitempty" yaml:"name,omitempty"`
+	MacAddress *string             `json:"mac_address,omitempty" yaml:"mac_address,omitempty"`
+	MTU        *int                `json:"mtu,omitempty" yaml:"mtu,omitempty"`
+	Subnets    []NetworkSubnet     `json:"subnets,omitempty" yaml:"subnets,omitempty"`
+	Params     map[string]any      `json:"params,omitempty" yaml:"params,omitempty"`
+}
+
+type NetworkSubnet struct {
+	Type           string   `json:"type" yaml:"type"`
+	Address        *string  `json:"address,omitempty" yaml:"address,omitempty"`
+	Gateway        *string  `json:"gateway,omitempty" yaml:"gateway,omitempty"`
+	DNSNameservers []string `json:"dns_nameservers,omitempty" yaml:"dns_nameservers,omitempty"`
+	DNSSearch      []string `json:"dns_search,omitempty" yaml:"dns_search,omitempty"`
+}
+
+type NetworkDevice struct {
+	DHCP4       *bool            `json:"dhcp4,omitempty" yaml:"dhcp4,omitempty"`
+	DHCP6       *bool            `json:"dhcp6,omitempty" yaml:"dhcp6,omitempty"`
+	Addresses   []string         `json:"addresses,omitempty" yaml:"addresses,omitempty"`
+	Gateway4    *string          `json:"gateway4,omitempty" yaml:"gateway4,omitempty"`
+	Gateway6    *string          `json:"gateway6,omitempty" yaml:"gateway6,omitempty"`
+	MTU         *int             `json:"mtu,omitempty" yaml:"mtu,omitempty"`
+	Nameservers *Nameservers     `json:"nameservers,omitempty" yaml:"nameservers,omitempty"`
+	Routes      []NetworkRoute   `json:"routes,omitempty" yaml:"routes,omitempty"`
+	MacAddress  *string          `json:"macaddress,omitempty" yaml:"macaddress,omitempty"`
+	Match       *NetworkMatch    `json:"match,omitempty" yaml:"match,omitempty"`
+	Optional    *bool            `json:"optional,omitempty" yaml:"optional,omitempty"`
+	Interfaces  []string         `json:"interfaces,omitempty" yaml:"interfaces,omitempty"`
+	Parameters  map[string]any   `json:"parameters,omitempty" yaml:"parameters,omitempty"`
+	ID          *int             `json:"id,omitempty" yaml:"id,omitempty"`
+	Link        *string          `json:"link,omitempty" yaml:"link,omitempty"`
+	AccessPoints map[string]any  `json:"access-points,omitempty" yaml:"access-points,omitempty"`
+}
+
+type Nameservers struct {
+	Addresses []string `json:"addresses,omitempty" yaml:"addresses,omitempty"`
+	Search    []string `json:"search,omitempty" yaml:"search,omitempty"`
+}
+
+type NetworkRoute struct {
+	To     string  `json:"to" yaml:"to"`
+	Via    string  `json:"via" yaml:"via"`
+	Metric *int    `json:"metric,omitempty" yaml:"metric,omitempty"`
+}
+
+type NetworkMatch struct {
+	MacAddress *string `json:"macaddress,omitempty" yaml:"macaddress,omitempty"`
+	Driver     *string `json:"driver,omitempty" yaml:"driver,omitempty"`
+	Name       *string `json:"name,omitempty" yaml:"name,omitempty"`
 }

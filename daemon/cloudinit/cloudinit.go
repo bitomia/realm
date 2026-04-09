@@ -74,6 +74,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		data = ci.UserData
+	case "network-config":
+		if ci.NetworkConfig == nil {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		data = ci.NetworkConfig
 	}
 
 	out, err := yaml.Marshal(data)
