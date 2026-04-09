@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 
 	"github.com/go-viper/mapstructure/v2"
 
@@ -42,7 +43,7 @@ type QemuNetdev struct {
 type QemuConfig struct {
 	Emulator string       `json:"emulator"`
 	Machine  string       `json:"machine,omitempty"`
-	Accel    string       `json:"accel,omitempty"`
+	Accel    []string     `json:"accel,omitempty"`
 	CPU      string       `json:"cpu,omitempty"`
 	Memory   int          `json:"memory,omitempty"`
 	SMP      string       `json:"smp,omitempty"`
@@ -64,12 +65,20 @@ type QemuDriver struct {
 	Config QemuConfig
 }
 
+func stringToSliceHook(from reflect.Type, to reflect.Type, data interface{}) (interface{}, error) {
+	if from.Kind() == reflect.String && to == reflect.TypeOf([]string{}) {
+		return []string{data.(string)}, nil
+	}
+	return data, nil
+}
+
 func NewQemuDriverFromConfig(c *any) (common.NodeDriver, error) {
 	var cfg QemuConfig
 	if c != nil {
 		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			TagName: "json",
-			Result:  &cfg,
+			TagName:    "json",
+			Result:     &cfg,
+			DecodeHook: stringToSliceHook,
 		})
 		if err != nil {
 			return nil, err
@@ -212,8 +221,8 @@ func (q *QemuDriver) buildArgs(nodeName string, cloudInit *cloudinit.CloudInit) 
 	if q.Config.Machine != "" {
 		args = append(args, "-machine", q.Config.Machine)
 	}
-	if q.Config.Accel != "" {
-		args = append(args, "-accel", q.Config.Accel)
+	for _, accel := range q.Config.Accel {
+		args = append(args, "-accel", accel)
 	}
 	if q.Config.CPU != "" {
 		args = append(args, "-cpu", q.Config.CPU)
