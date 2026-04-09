@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
+	commonconfig "github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/config"
 )
@@ -340,7 +342,8 @@ func (q *QemuDriver) buildArgs(nodeName string, cloudInit *cloudinit.CloudInit) 
 
 	if cloudInit != nil {
 		cfg := config.Get()
-		smbiosSerial := fmt.Sprintf("ds=nocloud-net;s=http://10.0.2.2:%d/cloudinit/%s/", cfg.Daemon.ListenPort, nodeName)
+		host := q.resolveCloudInitHost(cfg)
+		smbiosSerial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", host, cfg.Daemon.ListenPort, nodeName)
 		args = append(args, "-smbios", fmt.Sprintf("type=1,serial=%s", smbiosSerial))
 	}
 
@@ -524,6 +527,51 @@ func (q *QemuDriver) GetCapabilities() (common.Capabilities, error) {
 		return nil, fmt.Errorf("Daemon capabilities not initialized")
 	}
 	return daemonCaps, nil
+}
+
+func (q *QemuDriver) resolveCloudInitHost(cfg *commonconfig.Config) string {
+	// Find first bridged netdev
+	var bridgeName string
+	hasBridgedNetdev := false
+	for _, nd := range q.Config.Netdevs {
+		if nd.Type != "" && nd.Type != "user" {
+			hasBridgedNetdev = true
+			bridgeName = nd.BR
+			break
+		}
+	}
+
+	if !hasBridgedNetdev {
+		return "10.0.2.2"
+	}
+
+	// Try to get IP from the bridge interface
+	if bridgeName != "" {
+		if iface, err := net.InterfaceByName(bridgeName); err == nil {
+			if addrs, err := iface.Addrs(); err == nil {
+				for _, addr := range addrs {
+					if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.To4() != nil {
+						return ipNet.IP.String()
+					}
+				}
+			}
+		}
+		slog.Warn("QemuDriver.resolveCloudInitHost", "msg", "could not get IP from bridge interface", "bridge", bridgeName)
+	}
+
+	// Fallback: auto-detected host IP
+	if cfg.NetworkConfig.IPAddress != nil {
+		return cfg.NetworkConfig.IPAddress.String()
+	}
+
+	// Fallback: configured listen address
+	if cfg.Daemon.ListenAddress != "" && cfg.Daemon.ListenAddress != "0.0.0.0" {
+		return cfg.Daemon.ListenAddress
+	}
+
+	slog.Warn("QemuDriver.resolveCloudInitHost",
+		"msg", "bridged networking detected but could not determine host IP; falling back to 10.0.2.2 which may not be reachable from the guest")
+	return "10.0.2.2"
 }
 
 func (q *QemuDriver) getMetadata(nodeName string, repository common.NodesRepository) (*QemuNodeMetadata, error) {
