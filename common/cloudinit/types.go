@@ -43,8 +43,8 @@ type UserData struct {
 	PackageRebootIfRequired *bool                `json:"package_reboot_if_required,omitempty" yaml:"package_reboot_if_required,omitempty"`
 	Packages                []string             `json:"packages,omitempty" yaml:"packages,omitempty"`
 	WriteFiles              []WriteFile          `json:"write_files,omitempty" yaml:"write_files,omitempty"`
-	BootCMD                 [][]string           `json:"bootcmd,omitempty" yaml:"bootcmd,omitempty"`
-	RunCMD                  [][]string           `json:"runcmd,omitempty" yaml:"runcmd,omitempty"`
+	BootCMD                 []interface{}        `json:"bootcmd,omitempty" yaml:"bootcmd,omitempty"`
+	RunCMD                  []interface{}        `json:"runcmd,omitempty" yaml:"runcmd,omitempty"`
 	FinalMessage            *string              `json:"final_message,omitempty" yaml:"final_message,omitempty"`
 	Mounts                  [][]string           `json:"mounts,omitempty" yaml:"mounts,omitempty"`
 	DiskSetup               map[string]DiskSetup `json:"disk_setup,omitempty" yaml:"disk_setup,omitempty"`
