@@ -101,7 +101,7 @@ var provisionNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		for _, n := range nodes {
-			log.Info(" -> Provisioning node %s", color.CyanString(n.Name))
+			log.Info("Provisioning node %s", color.CyanString(n.Name))
 			if err := client.ProvisionNode(n); err != nil {
 				log.Fatal("Provisioning node '%s' failed: %s", n.Name, err.Error())
 			}
@@ -119,7 +119,7 @@ var deprovisionNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		for _, n := range nodes {
-			log.Info(" -> Deprovisioning node %s", color.CyanString(n.Name))
+			log.Info("Deprovisioning node %s", color.CyanString(n.Name))
 			if err := client.DeprovisionNode(n); err != nil {
 				log.Fatal("Deprovisioning node '%s' failed: %s", n.Name, err.Error())
 			}
@@ -136,7 +136,7 @@ var startNodes = &cobra.Command{
 		nodes := cfg.GetNodes(nodeNames...)
 
 		for _, n := range nodes {
-			log.Info(" -> Starting up node %s", color.CyanString(n.Name))
+			log.Info("Starting up node %s", color.CyanString(n.Name))
 			driverInfo, err := n.Driver.DriverInfo()
 			if err != nil {
 				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
@@ -170,7 +170,7 @@ var restartNodes = &cobra.Command{
 				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
 			}
 
-			log.Info(" -> Restarting node %s", color.CyanString(n.Name))
+			log.Info("Restarting node %s", color.CyanString(n.Name))
 			if driverInfo.RestartMode == common.ClientMode {
 				if err := n.Driver.Restart(nil, "", 0, nil); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
@@ -200,7 +200,7 @@ var stopNodes = &cobra.Command{
 				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
 			}
 
-			log.Info(" -> Stopping node %s", color.CyanString(n.Name))
+			log.Info("Stopping node %s", color.CyanString(n.Name))
 			if driverInfo.StopMode == common.ClientMode {
 				if err := n.Driver.Stop(nil, "", 0, nil, force); err != nil {
 					log.Fatal("Stopping node '%s' failed: %s", n.Name, err.Error())

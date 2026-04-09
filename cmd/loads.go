@@ -19,7 +19,7 @@ func doProvisionLoads(client *clientPkg.Client, loads map[string]*common.Load) e
 		return fmt.Errorf("No loads")
 	}
 	for _, load := range loads {
-		log.Info(" -> Provisioning load %s", color.CyanString(load.Name))
+		log.Info("Provisioning load %s", color.CyanString(load.Name))
 		if err := client.ProvisionLoad(load); err != nil {
 			return err
 		}
@@ -163,7 +163,7 @@ var startLoads = &cobra.Command{
 			for _, l := range startChain {
 				if _, exists := loaded[l.Name]; !exists {
 					loaded[l.Name] = true
-					log.Info(" -> Starting load %s", color.CyanString(l.Name))
+					log.Info("Starting load %s", color.CyanString(l.Name))
 					if err := client.StartLoad(l); err != nil {
 						log.Warn("Starting load failed: %s", err.Error())
 					}
@@ -188,7 +188,7 @@ var stopLoads = &cobra.Command{
 			for _, l := range stopChain {
 				if _, exists := stopped[l.Name]; !exists {
 					stopped[l.Name] = true
-					log.Info(" -> Stopping load %s", color.CyanString(l.Name))
+					log.Info("Stopping load %s", color.CyanString(l.Name))
 					if err := client.StopLoad(l); err != nil {
 						log.Warn("Stopping load failed: %s", err.Error())
 					}
@@ -213,7 +213,7 @@ var killLoads = &cobra.Command{
 			for _, l := range stopChain {
 				if _, exists := killed[l.Name]; !exists {
 					killed[l.Name] = true
-					log.Info(" -> Killing load %s", color.CyanString(l.Name))
+					log.Info("Killing load %s", color.CyanString(l.Name))
 					if err := client.KillLoad(l); err != nil {
 						log.Warn("Killing load failed: %s", err.Error())
 					}
@@ -236,7 +236,7 @@ var deprovisionLoads = &cobra.Command{
 		for _, l := range loads {
 			if _, exists := deprovisioned[l.Name]; !exists {
 				deprovisioned[l.Name] = true
-				log.Info(" -> Deprovisioning load %s", color.CyanString(l.Name))
+				log.Info("Deprovisioning load %s", color.CyanString(l.Name))
 				if err := client.DeprovisionLoad(l); err != nil {
 					log.Warn("Deprovisioning load failed: %s", err.Error())
 				}
