@@ -13,6 +13,16 @@ loads: # Workloads to deploy
 discovery: # Discovery settings
 ```
 
+## Root config
+
+| Field       | Type   | Default          | Description                                              |
+| ----------- | ------ | ---------------- | -------------------------------------------------------- |
+| `data_path` | string | `/var/lib/realm` | Path to store client or daemon data (ID file, etcd data) |
+
+```yaml
+data_path: ./data
+```
+
 ## Nodes
 
 Nodes represent the machines where loads are deployed. Each node has a name (the map key), a URL pointing to its daemon API, and a driver.
@@ -177,18 +187,11 @@ loads:
       image: docker.io/nginx:latest
 ```
 
-## Root config
-
-| Field       | Type   | Default          | Description                                    |
-| ----------- | ------ | ---------------- | ---------------------------------------------- |
-| `data_path` | string | `/var/lib/realm` | Path to store daemon data (ID file, etcd data) |
-
 ## Daemon
 
 The `daemon` section configures the Realm daemon. All fields are optional and have sensible defaults.
 
 ```yaml
-data_path: /var/lib/realm
 daemon:
   listen_address: 0.0.0.0
   listen_port: 9000

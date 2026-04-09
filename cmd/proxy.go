@@ -10,7 +10,7 @@ import (
 
 var proxyCmd = &cobra.Command{
 	Use:                   "proxy",
-	Short:                 "Interface with reverse proxy/server",
+	Short:                 "Interface with reverse proxy",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")

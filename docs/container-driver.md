@@ -54,12 +54,14 @@ loads:
 ```
 
 **How It Works:**
+
 - **`entrypoint` only**: Runs the specified entrypoint with no additional arguments
 - **`args` only**: Passes arguments to the image's default entrypoint (or becomes the command if no entrypoint exists)
 - **Both `entrypoint` and `args`**: The entrypoint is executed with the args appended as arguments
 - **Neither set**: Uses the image's default entrypoint and CMD
 
 **Important Notes:**
+
 - The `entrypoint` field is an array of strings (first element is the executable, rest are its arguments)
 - The `args` field is an array of strings that are appended after the entrypoint
 - These override the image's default ENTRYPOINT and CMD respectively
@@ -82,6 +84,7 @@ loads:
 ```
 
 **Notes:**
+
 - If not specified, the image's default working directory (WORKDIR) is used
 - The path must be an absolute path inside the container
 - The directory must exist in the container image or be created by the entrypoint
@@ -117,11 +120,11 @@ loads:
 
 #### Bind Mount Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `source` | string | Yes | Path on the host machine (absolute or relative) |
-| `destination` | string | Yes | Path inside the container |
-| `readonly` | bool | No | Mount as read-only. Default: false |
+| Field         | Type   | Required | Description                                     |
+| ------------- | ------ | -------- | ----------------------------------------------- |
+| `source`      | string | Yes      | Path on the host machine (absolute or relative) |
+| `destination` | string | Yes      | Path inside the container                       |
+| `readonly`    | bool   | No       | Mount as read-only. Default: false              |
 
 ### Managed Volumes
 
@@ -141,16 +144,18 @@ loads:
 
 #### Managed Volume Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `volume_mount_point` | string | Yes | Path inside the container where the volume is mounted |
-| `volume_size` | string | No | Size quota for the volume (e.g., "10G", "500M"). Only enforced with ZFS volumes. |
+| Field                | Type   | Required | Description                                                                      |
+| -------------------- | ------ | -------- | -------------------------------------------------------------------------------- |
+| `volume_mount_point` | string | Yes      | Path inside the container where the volume is mounted                            |
+| `volume_size`        | string | No       | Size quota for the volume (e.g., "10G", "500M"). Only enforced with ZFS volumes. |
 
 **Note on `volume_size`:**
+
 - **With ZFS volumes** (built with `make TAGS=zfs`): Quota is enforced at the ZFS dataset level
 - **With directory volumes** (default build): Quota is ignored with a warning logged. The volume is still created and mounted, but without size restrictions
 
 To use ZFS quotas, ensure:
+
 1. Realm is built with ZFS support: `make TAGS=zfs`
 2. ZFS pool is configured: `daemon.zfs: true` in config
 3. ZFS pool exists and is accessible
@@ -181,6 +186,7 @@ loads:
 ## Network Configuration
 
 The container load driver supports two network modes:
+
 1. **Bridge Mode** (default) - CNI-based isolated networking with port mapping
 2. **Host Mode** - Container shares the host's network stack
 
@@ -207,6 +213,7 @@ loads:
 ```
 
 **Host Mode Behavior:**
+
 - Container uses host's network interfaces directly
 - All ports opened by the container are directly accessible on the host
 - No port mapping needed or allowed
@@ -215,6 +222,7 @@ loads:
 - Similar to Docker's `--network host`
 
 **Important:** When using `mode: "host"`, the following fields are ignored (with warnings):
+
 - `network` (network name)
 - `port_map`
 - `ip_masq`
@@ -232,9 +240,9 @@ loads:
     driver_config:
       image: docker.io/nginx:latest
       network:
-        network: my-network    # Network name
-        ip_masq: true          # Enable IP masquerading (NAT)
-        dns: true              # Enable DNS registration
+        network: my-network # Network name
+        ip_masq: true # Enable IP masquerading (NAT)
+        dns: true # Enable DNS registration
 ```
 
 ### Network with Port Mapping
@@ -284,7 +292,7 @@ loads:
     driver_config:
       image: docker.io/myapi:latest
       env:
-        - DB_HOST=database.realm  # Use DNS name
+        - DB_HOST=database.realm # Use DNS name
       network:
         network: backend-network
         dns: true
@@ -300,21 +308,21 @@ loads:
 
 ### NetworkConfig Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `mode` | string | No | Network mode: "bridge" (default) or "host". Host mode shares the host's network stack. |
-| `network` | string | Conditional | Network name. Required for bridge mode. Ignored in host mode. |
-| `ip_masq` | bool | No | Enable IP masquerading (NAT) for outbound traffic. Default: false. Ignored in host mode. |
-| `dns` | bool | No | Register container in DNS for `.realm.` domain resolution. Default: false. Ignored in host mode. |
-| `port_map` | []Portmap | No | Port mappings from host to container. Ignored in host mode. |
+| Field      | Type      | Required    | Description                                                                                      |
+| ---------- | --------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| `mode`     | string    | No          | Network mode: "bridge" (default) or "host". Host mode shares the host's network stack.           |
+| `network`  | string    | Conditional | Network name. Required for bridge mode. Ignored in host mode.                                    |
+| `ip_masq`  | bool      | No          | Enable IP masquerading (NAT) for outbound traffic. Default: false. Ignored in host mode.         |
+| `dns`      | bool      | No          | Register container in DNS for `.realm.` domain resolution. Default: false. Ignored in host mode. |
+| `port_map` | []Portmap | No          | Port mappings from host to container. Ignored in host mode.                                      |
 
 ### Portmap Fields
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `host_port` | uint16 | Yes | Port on the host machine |
-| `container_port` | uint16 | Yes | Port inside the container |
-| `protocol` | string | Yes | Protocol: "tcp" or "udp" |
+| Field            | Type   | Required | Description               |
+| ---------------- | ------ | -------- | ------------------------- |
+| `host_port`      | uint16 | Yes      | Port on the host machine  |
+| `container_port` | uint16 | Yes      | Port inside the container |
+| `protocol`       | string | Yes      | Protocol: "tcp" or "udp"  |
 
 ### DNS Resolution
 
@@ -341,7 +349,7 @@ Ensure `ip_masq: true` is set in the network configuration:
 ```yaml
 network:
   network: my-network
-  ip_masq: true  # Required for internet access
+  ip_masq: true # Required for internet access
 ```
 
 ### Port mapping not working
@@ -364,3 +372,7 @@ If networks aren't being cleaned up properly, you can manually purge orphaned ne
 # Using the daemon API
 curl -X POST http://daemon:9000/network
 ```
+
+### Security
+
+All containers shall not have any capabilities. For example we don't set NET_ADMIN (https://man7.org/linux/man-pages/man7/capabilities.7.html) to prevent containers modifying routing tables what could allow them to have access to other containers outside of its internal network.

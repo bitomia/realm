@@ -101,8 +101,9 @@ var logoutCmd = &cobra.Command{
 	},
 }
 
+// TODO auth module has been temporary disabled
 func init() {
-	authCmd.AddCommand(initCmd)
-	authCmd.AddCommand(logoutCmd)
-	rootCmd.AddCommand(authCmd)
+	// authCmd.AddCommand(initCmd)
+	// authCmd.AddCommand(logoutCmd)
+	// rootCmd.AddCommand(authCmd)
 }

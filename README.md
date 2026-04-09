@@ -4,275 +4,43 @@ Realm is a extendable, embeddable and simple orchestration service for different
 
 It's simple because it is just one executable to command the cluster where Realm runs as daemon on each one of the cluster nodes. It's also extendable because it uses a driver systems to extend it with custom loads or node drivers. Managing the cluster can be commanded from command-line interface or using the REST API that each daemon exposes. It's embeddable because Realm provides a C API to interface with clusters.
 
-## Development setup
+## Getting Started
 
-Recommended setup is Debian 12 or Windows 11 Pro with Go >=1.24 installed. 
+Realm running as client does not require any external dependencies. For daemon installation on Linux or Windows, see the [Getting Started Guide](docs/getting-started.md).
 
-### Windows 11 Pro setup
+## Documentation
 
-We recommend to use only Powershell and check that you don't use msys2 or have another unix shell installed, **make** can conflicts with these shells.
-
-Install building dependencies (required for CGO):
-
-```powershell
-choco install mingw
-```
-
-Install golang: https://go.dev/doc/install
-
-Install containerd:
-
-```powershell
-Enable-WindowsOptionalFeature -Online -FeatureName containers -All
-mkdir "c:\Program Files\containerd"
-cd "c:\Program Files\containerd"
-curl.exe -L https://github.com/containerd/containerd/releases/download/v2.2.1/containerd-2.2.1-windows-amd64.tar.gz -o containerd-windows-amd64.tar.gz
-tar.exe xvf .\containerd-windows-amd64.tar.gz -C "c:\Program Files\containerd"
-$Path = [Environment]::GetEnvironmentVariable("PATH", "Machine") + [IO.Path]::PathSeparator + "$Env:ProgramFiles\containerd\bin"
-[Environment]::SetEnvironmentVariable("Path", $Path, "Machine")
-containerd.exe config default | Out-File "c:\Program Files\containerd\config.toml" -Encoding ascii
-containerd --register-service
-net start containerd
-```
-
-### Debian 12 setup
-
-Install ansible:
-
-```shell
-apt update
-apt install ansible -y
-```
-
-#### Building with ZFS support (optional)
-
-ZFS volume support is optional and enabled at build time with the `zfs` build tag. To build with ZFS, you will need to install the ZFS development libraries from [Debian Bookworm Backports](https://backports.debian.org/Instructions/).
-
-Install backports as follows:
-
-```shell
-cat > /etc/apt/sources.list.d/bookworm-backports.list << EOF
-deb http://deb.debian.org/debian bookworm-backports main contrib non-free-firmware
-EOF
-```
-
-Now install the ZFS development dependencies:
-
-```shell
-apt update
-apt install zfsutils-linux libzfslinux-dev -y
-```
-
-Then build with:
-
-```shell
-make TAGS=zfs
-```
-
-Before starting the daemon with ZFS support, create the ZFS pool:
-
-```shell
-sudo zpool create realm_volumes /dev/sdX  # Replace /dev/sdX with your device
-```
-
-Without the `zfs` tag, Realm uses directory-based volumes which work on all platforms with no extra dependencies.
+- [Getting Started](docs/getting-started.md) - Installation and setup for Linux and Windows
+- [Configuration](docs/configuration.md) - Configuration reference (daemon, nodes, loads, etcd, registries, discovery, environment variables)
+- [Container Driver](docs/container-driver.md) - Container driver: entrypoint, volumes, networking
+- [Process Driver](docs/process-driver.md) - Process driver: commands, signals, lifecycle
+- [Development Guide](docs/development-guide.md) - Development environment setup
+- [Contributing](docs/contributing.md) - Contributing guidelines
 
 ## Configuration
 
-Realm can be configured using a YAML configuration file (`config.yaml`) or environment variables.
-
-### Etcd configuration
-
-Realm always starts a etcd client but it can also start an embedded etcd server. Basically a Realm cluster always expect at least one realm daemon with the embedded etcd server running.
-
-A typical scenario is setting up a single-node cluster as follows:
-
-1. A selected realm daemon shall start as etcd server. For example:
-
-```
-daemon:
-  etcd_listen_client_urL: http://192.168.105.2:2379
-  etcd_listen_peer_url: http://192.168.105.2:2380
-```
-
-In this configuration, embedded etcd will listen for client requests on http://192.168.105.2:2379 and will listen for other etcd cluster peers on http://192.168.105.2:2380. **It's important to notice that these URLs are also the ones advertise to the rest of the cluster**. Have in mind also that another cluster peers can join later to the formation, that's why we need to set `etcd_listen_peer_url` even in a single-node formation.
-
-2. Others realm daemons will be configured as etcd clients. Following the example:
-
-```
-daemon:
-  data_path: ./realm_data
-  etcd_mode: client
-  etcd_listen_client_url: http://192.168.105.3:2379
-  etcd_endpoints: ["http://192.168.105.2:2379"]
-```
-
-`etcd_endpoints` is a list of client URLs of etcd members and it works as a bootstrap list.
-
-You can use etcdctl to list the member states. Following the example:
-
-```shell
-etcdctl --write-out=table --endpoints=192.168.105.2:2379 member list
-```
-
-### Daemon Configuration
-
-The daemon section configures the realm daemon behavior. All fields are optional and have default values:
-
-```yaml
-daemon:
-  data_path: /var/lib/realm                 # Path to store daemon data (ID and etcd) (default: /var/lib/realm on Linux)
-  cni_path: /usr/lib/cni                    # Path to CNI plugins (default: /usr/lib/cni on Linux)
-  volumes_pool: realm_volumes               # Name of the volumes pool (ZFS pool name or directory name) (default: realm_volumes)
-  listen_address: 127.0.0.1                 # Address to bind the daemon API (default: 127.0.0.1)
-  listen_port: 9000                         # Port to bind the daemon API (default: 9000)
-  log_format: text                          # Log format: "text" or "json" (default: text)
-  containers_log_path: /var/log/realm/containers  # Path to store container logs (default: platform-specific)
-  proxy_enabled: false                      # Enable/disable the proxy (default: false)
-  local_caddy_url: localhost:2019           # Local Caddy admin URL (default: localhost:2019)
-  master_caddy_url: localhost:2019          # Master Caddy admin URL (default: localhost:2019)
-  github_registry_token: ""                 # Token for GitHub registry (default: empty)
-  containerd_sock: /run/containerd/containerd.sock  # Containerd socket path (default: platform-specific)
-  containerd_namespace: realm               # Containerd namespace (default: realm)
-  etcd_name: ""                             # etcd member name (default: empty)
-  etcd_listen_client_url: http://192.168.1.100:2379   # etcd client URL (default: auto-detected from main network interface)
-  etcd_listen_peer_url: http://192.168.1.100:2380     # etcd peer URL (default: auto-detected from main network interface)
-  etcd_initial_cluster: ""                  # etcd initial cluster configuration (default: empty)
-  etcd_cluster_state: new                   # etcd cluster state: "new" or "existing" (default: new)
-```
-
-#### Environment Variables
-
-Configuration values can be overridden using environment variables with the `REALM_` prefix and underscores for nested values:
-
-```bash
-REALM_DAEMON_LOG_FORMAT=json
-REALM_DAEMON_LISTEN_PORT=9001
-```
-
-### Security
-
-All containers shall not have any capabilities. For example we don't set NET_ADMIN (https://man7.org/linux/man-pages/man7/capabilities.7.html) to prevent containers modifying routing tables what could allow them to have access to other containers outside of its internal network.
+Realm is configured through a YAML file with four top-level sections: `daemon`, `nodes`, `loads`, and `discovery`. Configuration values can also be set via environment variables with the `REALM_` prefix. See the full [Configuration Reference](docs/configuration.md) for details.
 
 ## Contributing
 
-Please follow the guidelines below to ensure code quality and consistency.
+Please follow the [contributing guidelines](docs/contributing.md) to ensure code quality and consistency.
 
-### Code Style and Conventions
-
-This project follows standard Go conventions as outlined in [Effective Go](https://go.dev/doc/effective_go) and the [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments).
-
-#### Naming
-
-- Use **MixedCaps** or **mixedCaps** rather than underscores for multi-word names
-- Acronyms should be all capitals (e.g., `URL`, `HTTP`, `API`)
-- Interfaces with a single method should be named with the method name plus the `-er` suffix (e.g., `Reader`, `Writer`)
-- Package names should be short, concise, lowercase, and without underscores or mixedCaps
-
-#### Comments
-
-- All exported functions, types, constants, and variables must have doc comments
-- Doc comments should be complete sentences starting with the name of the element
-- Package comments should be included above the package declaration
-- Use `//` style comments; avoid `/* */` except for package comments
-
-Example:
-```go
-// LoadDriver manages the lifecycle of container loads.
-// It provides methods to create, start, stop, and remove loads.
-type LoadDriver interface {
-    // Create creates a new load with the given configuration.
-    Create(ctx context.Context, config *LoadConfig) error
-
-    // Start starts the specified load by ID.
-    Start(ctx context.Context, loadID string) error
-}
-```
-
-#### Code Organization
-
-- Organize imports into groups: standard library, third-party, local packages
-- Use `make verify-fmt` to format all code before committing
-- Run `make vet` to catch common mistakes
-
-#### Error Handling
-
-- Always check errors; don't use `_` to discard errors unless you have a good reason
-- Provide context when returning errors using `fmt.Errorf` with `%w` for wrapping
-- Use meaningful error messages that help debugging
-
-Example:
-```go
-if err := daemon.Start(ctx); err != nil {
-    return fmt.Errorf("failed to start daemon: %w", err)
-}
-```
-
-### Project Structure
+## Project Structure
 
 ```
 realm/
-├── cmd/                    # Command-line interface
-│   ├── main.go            # Application entry point
-│   ├── daemon.go          # Daemon commands
-│   ├── containers.go      # Container management commands
-│   ├── images.go          # Image management commands
-│   ├── network.go         # Network commands
-│   ├── nodes.go           # Node management commands
-│   ├── proxy.go           # Proxy commands
-│   └── loads.go           # Load management commands
+├── cmd/                   # Command-line interface
 ├── daemon/                # Daemon implementation
 ├── drivers/               # Standard drivers
 ├── internal/              # Private application code
-│   ├── dto/               # Data Transfer Objects
-│   └── runtime/           # Runtime abstractions
 ├── config/                # Configuration management
-│   └── logs/              # Logging configuration
 ├── dev/                   # Development tools and scripts
-│   └── ansible/           # Ansible playbooks for deployment
 └── docs/                  # Documentation
 ```
 
-### Development Workflow
+## Development Environment
 
-1. **Fork and clone** the repository
-2. **Create a feature branch** from `main`:
-   ```bash
-   git checkout -b feature/my-feature
-   ```
-3. **Make your changes** following the code style guidelines
-4. **Write tests** for new functionality
-5. **Run tests** to ensure everything passes:
-   ```bash
-   make test
-   ```
-6. **Format your code**:
-   ```bash
-   gofmt -w .
-   ```
-7. **Commit your changes** with clear, descriptive commit messages
-8. **Push to your fork** and submit a pull request
-
-### Testing
-
-- Place tests in `*_test.go` files in the same package
-- Run tests before submitting pull requests:
-  ```bash
-  make test
-  ```
-### Documentation
-
-- Add doc comments to all exported types, functions, constants, and variables
-- Keep comments up-to-date when changing code
-- Use examples in doc comments where helpful
-
-### Pull Request Guidelines
-
-- Keep pull requests focused on a single feature or bug fix
-- Reference any related issues in the PR description
-- Ensure all tests pass and code is formatted before submitting
-- Be responsive to review feedback
-- Squash commits if requested before merging
+See the [Development Guide](docs/development-guide.md) for setting up your development environment on Debian 12 or Windows 11 Pro.
 
 ## License
 
@@ -295,4 +63,3 @@ If you cannot comply with AGPL-3.0 requirements, we offer **commercial licenses*
 For commercial licensing options and pricing, contact **licensing@bitomia.com**.
 
 Copyright (C) 2024-2025 Bitomia Software SLU. All rights reserved.
-
