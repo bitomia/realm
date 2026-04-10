@@ -57,10 +57,11 @@ type QemuConfig struct {
 }
 
 type QemuNodeMetadata struct {
-	Pid      int      `json:"pid,omitempty"`
-	QMPPort  int      `json:"qmp_port,omitempty"`
-	QemuPath string   `json:"qemu_path"`
-	QemuArgs []string `json:"qemu_args"`
+	Pid      int                  `json:"pid,omitempty"`
+	QMPPort  int                  `json:"qmp_port,omitempty"`
+	QemuPath string               `json:"qemu_path"`
+	QemuArgs []string             `json:"qemu_args"`
+	Drives   map[int]OverlayImage `json:"overlay_drives"`
 }
 
 type QemuDriver struct {
@@ -123,8 +124,13 @@ func (q *QemuDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, 
 		return fmt.Errorf("qemu: failed to find free port for QMP: %w", err)
 	}
 
+	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName)
+	if err != nil {
+		return fmt.Errorf("qemu: failed to resolve drive images: %w", err)
+	}
+
 	var cmd *exec.Cmd
-	qemuArgs := q.buildArgs(nodeName, cloudInit)
+	qemuArgs := q.buildArgs(nodeName, overlayDrives, cloudInit)
 	if cmd, err = startVM(nodeName, q.Config.QMPPort, q.Config.Emulator, qemuArgs); err != nil {
 		return err
 	}
@@ -134,6 +140,7 @@ func (q *QemuDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, 
 		QMPPort:  q.Config.QMPPort,
 		QemuPath: q.Config.Emulator,
 		QemuArgs: qemuArgs,
+		Drives:   overlayDrives,
 	}
 
 	slog.Info("QemuDriver.Provision", "msg", "qemu started in paused state", "pid", metadata.Pid, "qmp_port", q.Config.QMPPort)
@@ -169,15 +176,17 @@ func (q *QemuDriver) Deprovision(nodeName *string, repository common.NodesReposi
 
 	self, err := repository.GetGuestNode(*nodeName)
 	if err == nil {
-		if metadata, ok := self.Metadata.(*QemuNodeMetadata); ok && metadata.Pid != 0 {
-			if proc, err := os.FindProcess(metadata.Pid); err == nil {
-				proc.Kill()
-			}
-		} else if metadataMap, ok := self.Metadata.(map[string]any); ok {
-			if pid, ok := metadataMap["pid"].(float64); ok && pid != 0 {
-				if proc, err := os.FindProcess(int(pid)); err == nil {
+		metadata, err := common.CastMetadata[QemuNodeMetadata](&self.Metadata)
+		if err != nil {
+			slog.Warn("QemuDriver.Deprovision", "msg", "cannot cast metadata", "error", err)
+		} else {
+			if metadata.Pid != 0 {
+				if proc, err := os.FindProcess(metadata.Pid); err == nil {
 					proc.Kill()
 				}
+			}
+			for _, drive := range metadata.Drives {
+				drive.Cleanup()
 			}
 		}
 	}
@@ -215,7 +224,7 @@ func (q *QemuDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (q *QemuDriver) buildArgs(nodeName string, cloudInit *cloudinit.CloudInit) []string {
+func (q *QemuDriver) buildArgs(nodeName string, overlayDrives map[int]OverlayImage, cloudInit *cloudinit.CloudInit) []string {
 	var args []string
 
 	args = append(args, "-name", nodeName)
@@ -239,10 +248,10 @@ func (q *QemuDriver) buildArgs(nodeName string, cloudInit *cloudinit.CloudInit) 
 		args = append(args, "-serial", q.Config.Serial)
 	}
 
-	for _, drive := range q.Config.Drives {
+	for driveIdx, drive := range q.Config.Drives {
 		driveStr := ""
 		if drive.File != "" {
-			driveStr += "file=" + drive.File
+			driveStr += "file=" + overlayDrives[driveIdx].FilePath
 		}
 		if drive.Format != "" {
 			if driveStr != "" {

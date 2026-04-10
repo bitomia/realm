@@ -133,3 +133,20 @@ func ResolveExecPath(execFile string, workingDir *string) (string, error) {
 
 	return "", fmt.Errorf("Executable %q not found", execFile)
 }
+
+func CopyFile(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	return err
+}
