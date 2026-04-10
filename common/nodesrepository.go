@@ -97,3 +97,20 @@ func UpdateGuestNodeMetadata[T any](guestNodeName string, repo NodesRepository, 
 		return nil
 	})
 }
+
+func CastMetadata[T any](metadataPtr any) (*T, error) {
+	ptr := metadataPtr.(*any)
+
+	var metadata T
+	if *ptr != nil {
+		data, err := json.Marshal(*ptr)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(data, &metadata); err != nil {
+			return nil, err
+		}
+	}
+
+	return &metadata, nil
+}

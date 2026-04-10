@@ -1,0 +1,156 @@
+package nodes
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/daemon/config"
+	"github.com/google/uuid"
+)
+
+type OverlayImage struct {
+	ID       uuid.UUID
+	FilePath string
+}
+
+func CreateOverlay(nodeName, imagePath string) (*OverlayImage, error) {
+	oDir, err := overlaysDir(nodeName)
+	if err != nil {
+		return nil, err
+	}
+
+	var overlayImage OverlayImage
+	overlayImage.ID = uuid.New()
+	overlayImage.FilePath = filepath.Join(oDir, overlayImage.ID.String())
+
+	if err := common.CopyFile(imagePath, overlayImage.FilePath); err != nil {
+		return nil, err
+	}
+
+	return &overlayImage, nil
+}
+
+func (o OverlayImage) Cleanup() {
+	slog.Info("OverlayImage.Cleanup", "msg", "cleaning up overlay image", "path", o.FilePath)
+	if err := os.Remove(o.FilePath); err != nil {
+		slog.Warn("OverlayImage.Cleanup", "msg", "failed to clean up overlay", "error", err)
+	}
+	o.ID = uuid.Nil
+	o.FilePath = ""
+}
+
+func isURLDrive(file string) bool {
+	return strings.HasPrefix(file, "http://") || strings.HasPrefix(file, "https://")
+}
+
+func imagesCacheDir() (string, error) {
+	dir := filepath.Join(config.Get().DataPath, "images")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("qemu: failed to create images cache directory: %w", err)
+	}
+	return dir, nil
+}
+
+func overlaysDir(nodeName string) (string, error) {
+	dir := filepath.Join(config.Get().DataPath, "overlays", nodeName)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("qemu: failed to create overlays directory: %w", err)
+	}
+	return dir, nil
+}
+
+func urlToCacheFilename(rawURL string) string {
+	hash := sha256.Sum256([]byte(rawURL))
+	return hex.EncodeToString(hash[:])
+}
+
+func downloadImage(rawURL string) (string, error) {
+	cacheDir, err := imagesCacheDir()
+	if err != nil {
+		return "", err
+	}
+
+	cachedPath := filepath.Join(cacheDir, urlToCacheFilename(rawURL))
+
+	if _, err := os.Stat(cachedPath); err == nil {
+		slog.Info("qemu_images.downloadImage", "msg", "using cached image", "url", rawURL, "path", cachedPath)
+		return cachedPath, nil
+	}
+
+	slog.Info("qemu_images.downloadImage", "msg", "downloading image", "url", rawURL)
+
+	tmpFile, err := os.CreateTemp(cacheDir, ".tmp.*")
+	if err != nil {
+		return "", fmt.Errorf("qemu: failed to create temp file for download: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer func() {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+	}()
+
+	resp, err := http.Get(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("qemu: failed to download image from %s: %w", rawURL, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("qemu: failed to download image from %s: HTTP %d", rawURL, resp.StatusCode)
+	}
+
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		return "", fmt.Errorf("qemu: failed to write downloaded image: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return "", fmt.Errorf("qemu: failed to close downloaded image: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, cachedPath); err != nil {
+		// another process may have placed the file already
+		if _, statErr := os.Stat(cachedPath); statErr == nil {
+			return cachedPath, nil
+		}
+		return "", fmt.Errorf("qemu: failed to move downloaded image to cache: %w", err)
+	}
+
+	slog.Info("qemu_images.downloadImage", "msg", "image downloaded", "url", rawURL, "path", cachedPath)
+	return cachedPath, nil
+}
+
+func resolveDrives(drives []QemuDrive, nodeName string) (map[int]OverlayImage, error) {
+	overlays := make(map[int]OverlayImage)
+	for i := range drives {
+		if !isURLDrive(drives[i].File) {
+			continue
+		}
+
+		cachedImagePath, err := downloadImage(drives[i].File)
+		if err != nil {
+			return nil, err
+		}
+
+		overlayImage, err := CreateOverlay(nodeName, cachedImagePath)
+		if err != nil {
+			return nil, err
+		}
+		overlays[i] = *overlayImage
+	}
+	return overlays, nil
+}
+
+func cleanupOverlays(nodeName string) {
+	dir := filepath.Join(config.Get().DataPath, "overlays", nodeName)
+	if err := os.RemoveAll(dir); err != nil {
+		slog.Warn("qemu_images.cleanupOverlays", "msg", "failed to clean up overlays", "node", nodeName, "error", err)
+	}
+}
