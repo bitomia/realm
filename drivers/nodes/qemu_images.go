@@ -130,19 +130,19 @@ func downloadImage(rawURL string) (string, error) {
 func resolveDrives(drives []QemuDrive, nodeName string) (map[int]OverlayImage, error) {
 	overlays := make(map[int]OverlayImage)
 	for i := range drives {
-		if !isURLDrive(drives[i].File) {
-			continue
+		imagePath := drives[i].File
+		if isURLDrive(imagePath) {
+			var err error
+			if imagePath, err = downloadImage(drives[i].File); err != nil {
+				return nil, err
+			}
 		}
 
-		cachedImagePath, err := downloadImage(drives[i].File)
+		overlayImage, err := CreateOverlay(nodeName, imagePath)
 		if err != nil {
 			return nil, err
 		}
 
-		overlayImage, err := CreateOverlay(nodeName, cachedImagePath)
-		if err != nil {
-			return nil, err
-		}
 		overlays[i] = *overlayImage
 	}
 	return overlays, nil
