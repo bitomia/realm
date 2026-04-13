@@ -63,11 +63,9 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("daemon.containerd_namespace", "realm")
 	viper.SetDefault("daemon.etcd_mode", "server")
 	viper.SetDefault("daemon.etcd_endpoints", []string{})
-	viper.SetDefault("daemon.etcd_name", "")
 	viper.SetDefault("daemon.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
 	viper.SetDefault("daemon.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
 	viper.SetDefault("daemon.etcd_initial_cluster", "")
-	viper.SetDefault("daemon.etcd_cluster_state", "new")
 }
 
 func readInConfig(configFilePath string) (*Config, error) {
@@ -94,7 +92,7 @@ func readInConfig(configFilePath string) (*Config, error) {
 			}
 		}
 
-		err := viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
+		err := viper.UnmarshalExact(&config, func(c *mapstructure.DecoderConfig) {
 			c.TagName = "json"
 		})
 
