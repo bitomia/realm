@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -72,11 +73,24 @@ func setDefaults(networkConfig NetworkConfig) {
 func readInConfig(configFilePath string) (*Config, error) {
 	return readConfig(func() (*Config, error) {
 		var config Config
-		if err := viper.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+
+		cfgPath := findConfigFile(configFilePath)
+		if cfgPath != "" {
+			resolved, err := resolveIncludes(cfgPath)
+			if err != nil {
+				return &config, fmt.Errorf("failed to resolve includes in %s: %w", cfgPath, err)
+			}
+			viper.SetConfigType("yaml")
+			if err := viper.ReadConfig(bytes.NewReader(resolved)); err != nil {
 				return &config, err
-			} else {
-				log.Println("Config file not found. Continuing using default configuration.")
+			}
+		} else {
+			if err := viper.ReadInConfig(); err != nil {
+				if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+					return &config, err
+				} else {
+					log.Println("Config file not found. Continuing using default configuration.")
+				}
 			}
 		}
 
@@ -86,6 +100,34 @@ func readInConfig(configFilePath string) (*Config, error) {
 
 		return &config, err
 	}, configFilePath)
+}
+
+// findConfigFile resolves the config file path using the same logic as viper's config setup.
+func findConfigFile(configFilePath string) string {
+	if configFilePath != "" {
+		if _, err := os.Stat(configFilePath); err == nil {
+			return configFilePath
+		}
+		return ""
+	}
+
+	if configFile := viper.GetString("config_file"); configFile != "" {
+		if _, err := os.Stat(configFile); err == nil {
+			return configFile
+		}
+		return ""
+	}
+
+	if cwd, err := os.Getwd(); err == nil {
+		for _, ext := range []string{"yaml", "yml"} {
+			path := filepath.Join(cwd, "config."+ext)
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+		}
+	}
+
+	return ""
 }
 
 func readConfigFromReader(in io.Reader) (*Config, error) {
