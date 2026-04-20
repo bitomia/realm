@@ -81,7 +81,7 @@ nodes:
         - type: user
           id: net0
       drives:
-        - file: /Users/juan/repos/vlab/debian-12-generic-amd64.qcow2
+        - file: /home/user/debian-12-generic-amd64.qcow2
           format: qcow2
           if: virtio
       params:
@@ -93,7 +93,7 @@ nodes:
 
 ### Linux Node Driver
 
-The `linux` driver supports optional Wake-On-LAN:
+The `linux` driver runs on a host where Realm is installed as a daemon. It supports optional Wake-On-LAN to power the host on remotely:
 
 ```yaml
 nodes:
@@ -109,6 +109,109 @@ nodes:
 | ----- | ------ | ----------------------------------------- |
 | `wol` | bool   | Enable Wake-On-LAN                        |
 | `MAC` | string | MAC address (required when `wol` is true) |
+
+### Windows Node Driver
+
+```yaml
+nodes:
+  workstation:
+    url: http://192.168.1.20:9000
+    driver: windows
+    driver_config:
+      wol: true
+      MAC: "00:11:22:33:44:55"
+```
+
+| Field | Type   | Description                               |
+| ----- | ------ | ----------------------------------------- |
+| `wol` | bool   | Enable Wake-On-LAN                        |
+| `MAC` | string | MAC address (required when `wol` is true) |
+
+### QEMU Node Driver
+
+The `qemu` driver provisions guest nodes by spawning a QEMU process on the host. Each provisioned node launches its own VM (paused, then resumed by `Start`) and is managed via QEMU's QMP socket on a dynamically-allocated localhost port. The driver runs in the daemon process.
+
+```yaml
+nodes:
+  vm:
+    url: http://localhost:9000
+    driver: qemu
+    driver_config:
+      emulator: qemu-system-x86_64
+      machine: q35
+      accel: kvm
+      cpu: host
+      memory: 2048
+      smp: "2"
+      serial: telnet:localhost:4444,server,nowait
+      drives:
+        - file: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+          format: qcow2
+          if: virtio
+      netdevs:
+        - type: user
+          id: net0
+      params:
+        - -display
+        - none
+        - -device
+        - virtio-net-pci,netdev=net0
+```
+
+#### QemuConfig Fields
+
+| Field      | Type           | Required | Description                                                                                                                  |
+| ---------- | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `emulator` | string         | Yes      | Path to the QEMU binary. Resolved as absolute path or via `PATH` lookup.                                                     |
+| `machine`  | string         | No       | Value for `-machine` (e.g. `q35`, `pc`).                                                                                     |
+| `accel`    | string or list | No       | One or more accelerators for `-accel` (e.g. `kvm`, `hvf`, `tcg`). A single string is accepted and converted into a one-item list. |
+| `cpu`      | string         | No       | Value for `-cpu` (e.g. `host`).                                                                                              |
+| `memory`   | int            | No       | Memory in megabytes for `-m`.                                                                                                |
+| `smp`      | string         | No       | Value for `-smp` (e.g. `"2"`, `"cpus=4,cores=2"`).                                                                          |
+| `serial`   | string         | No       | Value for `-serial` (e.g. `telnet:localhost:4444,server,nowait`).                                                            |
+| `drives`   | list           | No       | Drive definitions, see below. Each entry produces a `-drive` argument.                                                       |
+| `netdevs`  | list           | No       | Netdev definitions, see below. Each entry produces a `-netdev` argument.                                                     |
+| `params`   | list of string | No       | Raw extra arguments appended verbatim to the QEMU command line.                                                              |
+
+#### Drive Fields
+
+| Field    | Type   | Description                                                                                                          |
+| -------- | ------ | -------------------------------------------------------------------------------------------------------------------- |
+| `file`   | string | Path to the disk image. If it begins with `http://` or `https://` the image is downloaded and cached under `<data_path>/images/` (keyed by URL hash). |
+| `format` | string | Image format (e.g. `qcow2`, `raw`).                                                                                  |
+| `if`     | string | Drive interface (e.g. `virtio`, `ide`).                                                                              |
+| `media`  | string | Media type (e.g. `disk`, `cdrom`).                                                                                   |
+| `index`  | string | Drive index.                                                                                                         |
+
+For each drive Realm copies the source image into a per-node overlay under `<data_path>/overlays/<node>/<uuid>` and points QEMU at the copy, so the original image is never written to. Overlays are removed on deprovision.
+
+#### Netdev Fields
+
+| Field        | Type   | Description                                                                       |
+| ------------ | ------ | --------------------------------------------------------------------------------- |
+| `type`       | string | Netdev type (e.g. `user`, `tap`, `bridge`).                                       |
+| `id`         | string | Netdev id (referenced by `-device ...,netdev=<id>`).                              |
+| `ifname`     | string | TAP interface name.                                                               |
+| `script`     | string | TAP up script.                                                                    |
+| `downscript` | string | TAP down script.                                                                  |
+| `br`         | string | Bridge name (used by `bridge` type and for cloud-init host IP resolution).        |
+| `helper`     | string | Bridge helper binary.                                                             |
+| `net`        | string | User-mode network range.                                                          |
+| `dhcpstart`  | string | First DHCP address for user-mode networking.                                      |
+| `hostfwd`    | string | User-mode host port forwarding rule (e.g. `tcp::2222-:22`).                       |
+
+#### Cloud-init
+
+When the node has a `cloud_init` block, the guest's cloud-init datasource fetches metadata from the Realm daemon. The `<host>` is resolved as follows:
+
+1. If any non-`user` netdev is configured and its `br` interface has an IPv4 address, that address is used.
+2. Otherwise, the daemon's auto-detected IP is used.
+3. Otherwise, the configured `daemon.listen_address` (if not `0.0.0.0`) is used.
+4. Fallback: `10.0.2.2` (the QEMU user-mode gateway), which only works when the guest uses user-mode networking.
+
+#### Logs
+
+Per-VM stdout and stderr from QEMU are written to `<data_path>/logs/qemu/<node>_stdout.log` and `<node>_stderr.log`.
 
 ## Loads
 
@@ -376,11 +479,3 @@ loads:
 discovery:
   mdns: true
 ```
-
-### QEMU Node Driver
-
-TBD
-
-### Windows Node Driver
-
-TBD
