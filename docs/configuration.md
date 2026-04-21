@@ -129,6 +129,10 @@ nodes:
 
 ### QEMU Node Driver
 
+> **Experimental — Work in Progress**
+>
+> The QEMU driver is experimental and under active development. Its configuration schema, behavior, and defaults may change without notice, and it is not yet recommended for production use. Expect rough edges and please report issues you encounter.
+
 The `qemu` driver provisions guest nodes by spawning a QEMU process on the host. Each provisioned node launches its own VM (paused, then resumed by `Start`) and is managed via QEMU's QMP socket on a dynamically-allocated localhost port. The driver runs in the daemon process.
 
 ```yaml
