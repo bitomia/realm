@@ -45,7 +45,7 @@ nodes:
 | `driver_config` | object | No       | Driver-specific configuration                  |
 | `cloud_init`    | object | No       | Cloud init configuration                       |
 
-**Cloud init **
+**Cloud init**
 
 Realm serves cloud-init configurations for any node with a `cloud_init` configuration. Currently Realm supports `meta-data`and `user-data` structures.
 
