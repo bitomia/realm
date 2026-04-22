@@ -100,7 +100,7 @@ func (m *mockNodeDriver) GetCapabilities() (common.Capabilities, error) {
 	return nil, nil
 }
 
-func (m *mockNodeDriver) GetState() (common.NodeState, error) {
+func (m *mockNodeDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
 	return common.NodeState{}, nil
 }
 

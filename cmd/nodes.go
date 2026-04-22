@@ -85,6 +85,16 @@ var nodeStates = &cobra.Command{
 					log.Info("Containers: %s", color.CyanString("0"))
 				}
 
+				if len(node.State.NetworkInterfaces) > 0 {
+					log.Info("Network Interfaces (%d):", len(node.State.NetworkInterfaces))
+					for _, ni := range node.State.NetworkInterfaces {
+						log.Info("  - %s (%s): %s",
+							color.YellowString(ni.Name),
+							color.CyanString(ni.HWAddr),
+							color.CyanString(strings.Join(ni.Addresses, ", ")))
+					}
+				}
+
 				fmt.Println()
 			}
 		}

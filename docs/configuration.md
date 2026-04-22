@@ -49,7 +49,7 @@ nodes:
 
 Realm serves cloud-init configurations for any node with a `cloud_init` configuration. Currently Realm supports `meta-data`and `user-data` structures.
 
-An usage example using the Qemu node driver:
+An usage example using the VM node driver:
 
 ```yaml
 nodes:
@@ -69,9 +69,8 @@ nodes:
               source: "deb http://deb.debian.org/debian bookworm-backports main contrib non-free-firmware"
         runcmd:
           - apt-get update
-    driver: qemu
+    driver: vm
     driver_config:
-      emulator: qemu-system-x86_64
       machine: q35
       accel: hvf
       memory: 2048
@@ -84,11 +83,6 @@ nodes:
         - file: /home/user/debian-12-generic-amd64.qcow2
           format: qcow2
           if: virtio
-      params:
-        - -display
-        - none
-        - -device
-        - virtio-net-pci,netdev=net0
 ```
 
 ### Linux Node Driver
@@ -127,21 +121,20 @@ nodes:
 | `wol` | bool   | Enable Wake-On-LAN                        |
 | `MAC` | string | MAC address (required when `wol` is true) |
 
-### QEMU Node Driver
+### VM Node Driver
 
 > **Experimental — Work in Progress**
 >
-> The QEMU driver is experimental and under active development. Its configuration schema, behavior, and defaults may change without notice, and it is not yet recommended for production use. Expect rough edges and please report issues you encounter.
+> The VM driver is experimental and under active development. Its configuration schema, behavior, and defaults may change without notice, and it is not yet recommended for production use. Expect rough edges and please report issues you encounter.
 
-The `qemu` driver provisions guest nodes by spawning a QEMU process on the host. Each provisioned node launches its own VM (paused, then resumed by `Start`) and is managed via QEMU's QMP socket on a dynamically-allocated localhost port. The driver runs in the daemon process.
+The `vm` driver provisions guest nodes through a local **libvirtd** daemon.
 
 ```yaml
 nodes:
   vm:
     url: http://localhost:9000
-    driver: qemu
+    driver: vm
     driver_config:
-      emulator: qemu-system-x86_64
       machine: q35
       accel: kvm
       cpu: host
@@ -155,54 +148,49 @@ nodes:
       netdevs:
         - type: user
           id: net0
-      params:
-        - -display
-        - none
-        - -device
-        - virtio-net-pci,netdev=net0
 ```
 
-#### QemuConfig Fields
+#### VMConfig Fields
 
-| Field      | Type           | Required | Description                                                                                                                  |
-| ---------- | -------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `emulator` | string         | Yes      | Path to the QEMU binary. Resolved as absolute path or via `PATH` lookup.                                                     |
-| `machine`  | string         | No       | Value for `-machine` (e.g. `q35`, `pc`).                                                                                     |
-| `accel`    | string or list | No       | One or more accelerators for `-accel` (e.g. `kvm`, `hvf`, `tcg`). A single string is accepted and converted into a one-item list. |
-| `cpu`      | string         | No       | Value for `-cpu` (e.g. `host`).                                                                                              |
-| `memory`   | int            | No       | Memory in megabytes for `-m`.                                                                                                |
-| `smp`      | string         | No       | Value for `-smp` (e.g. `"2"`, `"cpus=4,cores=2"`).                                                                          |
-| `serial`   | string         | No       | Value for `-serial` (e.g. `telnet:localhost:4444,server,nowait`).                                                            |
-| `drives`   | list           | No       | Drive definitions, see below. Each entry produces a `-drive` argument.                                                       |
-| `netdevs`  | list           | No       | Netdev definitions, see below. Each entry produces a `-netdev` argument.                                                     |
-| `params`   | list of string | No       | Raw extra arguments appended verbatim to the QEMU command line.                                                              |
+The fields below describe a VM in driver-neutral terms; the driver translates them into a libvirt domain XML document. The `emulator` path is recorded as the `<emulator>` element, so libvirt invokes the binary you specify.
+
+| Field     | Type           | Required | Description                                                                                                                      |
+| --------- | -------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `machine` | string         | No       | Machine type (e.g. `q35`, `pc`). Mapped to `<os><type machine=...>`.                                                             |
+| `accel`   | string or list | No       | Accelerator selection. The first recognised entry (`kvm`, `hvf`, `xen`) chooses the libvirt domain type; otherwise `qemu` (TCG). |
+| `cpu`     | string         | No       | CPU model (e.g. `host`). Mapped to `<cpu mode='custom'><model>...</model></cpu>`.                                                |
+| `memory`  | int            | No       | Memory in MiB. Mapped to `<memory unit='MiB'>`.                                                                                  |
+| `smp`     | string         | No       | vCPU count. Either an integer (`"2"`) or a `cpus=N,...` form; the leading integer is used.                                       |
+| `serial`  | string         | No       | Serial backend. `stdio` / `pty` produce a `pty` device; `file:/path` redirects to a file; `none` disables it.                    |
+| `drives`  | list           | No       | Drive definitions, see below.                                                                                                    |
+| `netdevs` | list           | No       | Netdev definitions, see below.                                                                                                   |
 
 #### Drive Fields
 
-| Field    | Type   | Description                                                                                                          |
-| -------- | ------ | -------------------------------------------------------------------------------------------------------------------- |
+| Field    | Type   | Description                                                                                                                                           |
+| -------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `file`   | string | Path to the disk image. If it begins with `http://` or `https://` the image is downloaded and cached under `<data_path>/images/` (keyed by URL hash). |
-| `format` | string | Image format (e.g. `qcow2`, `raw`).                                                                                  |
-| `if`     | string | Drive interface (e.g. `virtio`, `ide`).                                                                              |
-| `media`  | string | Media type (e.g. `disk`, `cdrom`).                                                                                   |
-| `index`  | string | Drive index.                                                                                                         |
+| `format` | string | Image format (e.g. `qcow2`, `raw`).                                                                                                                   |
+| `if`     | string | Drive interface (e.g. `virtio`, `ide`).                                                                                                               |
+| `media`  | string | Media type (e.g. `disk`, `cdrom`).                                                                                                                    |
+| `index`  | string | Drive index.                                                                                                                                          |
 
-For each drive Realm copies the source image into a per-node overlay under `<data_path>/overlays/<node>/<uuid>` and points QEMU at the copy, so the original image is never written to. Overlays are removed on deprovision.
+For each drive Realm copies the source image into a per-node overlay under `<data_path>/overlays/<node>/<uuid>` and points the libvirt `<disk>` at the copy, so the original image is never written to. Overlays are removed on deprovision.
 
 #### Netdev Fields
 
-| Field        | Type   | Description                                                                       |
-| ------------ | ------ | --------------------------------------------------------------------------------- |
-| `type`       | string | Netdev type (e.g. `user`, `tap`, `bridge`).                                       |
-| `id`         | string | Netdev id (referenced by `-device ...,netdev=<id>`).                              |
-| `ifname`     | string | TAP interface name.                                                               |
-| `script`     | string | TAP up script.                                                                    |
-| `downscript` | string | TAP down script.                                                                  |
-| `br`         | string | Bridge name (used by `bridge` type and for cloud-init host IP resolution).        |
-| `helper`     | string | Bridge helper binary.                                                             |
-| `net`        | string | User-mode network range.                                                          |
-| `dhcpstart`  | string | First DHCP address for user-mode networking.                                      |
-| `hostfwd`    | string | User-mode host port forwarding rule (e.g. `tcp::2222-:22`).                       |
+| Field        | Type   | Description                                                                |
+| ------------ | ------ | -------------------------------------------------------------------------- |
+| `type`       | string | Netdev type (e.g. `user`, `tap`, `bridge`).                                |
+| `id`         | string | Netdev id (referenced by `-device ...,netdev=<id>`).                       |
+| `ifname`     | string | TAP interface name.                                                        |
+| `script`     | string | TAP up script.                                                             |
+| `downscript` | string | TAP down script.                                                           |
+| `br`         | string | Bridge name (used by `bridge` type and for cloud-init host IP resolution). |
+| `helper`     | string | Bridge helper binary.                                                      |
+| `net`        | string | User-mode network range.                                                   |
+| `dhcpstart`  | string | First DHCP address for user-mode networking.                               |
+| `hostfwd`    | string | User-mode host port forwarding rule (e.g. `tcp::2222-:22`).                |
 
 #### Cloud-init
 
@@ -215,7 +203,7 @@ When the node has a `cloud_init` block, the guest's cloud-init datasource fetche
 
 #### Logs
 
-Per-VM stdout and stderr from QEMU are written to `<data_path>/logs/qemu/<node>_stdout.log` and `<node>_stderr.log`.
+Per-VM logs are managed by libvirtd (typically under `/var/log/libvirt/qemu/<node>.log`). Inspect domain state with `virsh list --all` and `virsh dominfo <node>`.
 
 ## Loads
 

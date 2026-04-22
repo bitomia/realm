@@ -54,7 +54,7 @@ func isURLDrive(file string) bool {
 func imagesCacheDir() (string, error) {
 	dir := filepath.Join(config.Get().DataPath, "images")
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("qemu: failed to create images cache directory: %w", err)
+		return "", fmt.Errorf("vm: failed to create images cache directory: %w", err)
 	}
 	return dir, nil
 }
@@ -62,7 +62,7 @@ func imagesCacheDir() (string, error) {
 func overlaysDir(nodeName string) (string, error) {
 	dir := filepath.Join(config.Get().DataPath, "overlays", nodeName)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return "", fmt.Errorf("qemu: failed to create overlays directory: %w", err)
+		return "", fmt.Errorf("vm: failed to create overlays directory: %w", err)
 	}
 	return dir, nil
 }
@@ -81,15 +81,15 @@ func downloadImage(rawURL string) (string, error) {
 	cachedPath := filepath.Join(cacheDir, urlToCacheFilename(rawURL))
 
 	if _, err := os.Stat(cachedPath); err == nil {
-		slog.Info("qemu_images.downloadImage", "msg", "using cached image", "url", rawURL, "path", cachedPath)
+		slog.Info("vm_images.downloadImage", "msg", "using cached image", "url", rawURL, "path", cachedPath)
 		return cachedPath, nil
 	}
 
-	slog.Info("qemu_images.downloadImage", "msg", "downloading image", "url", rawURL)
+	slog.Info("vm_images.downloadImage", "msg", "downloading image", "url", rawURL)
 
 	tmpFile, err := os.CreateTemp(cacheDir, ".tmp.*")
 	if err != nil {
-		return "", fmt.Errorf("qemu: failed to create temp file for download: %w", err)
+		return "", fmt.Errorf("vm: failed to create temp file for download: %w", err)
 	}
 	tmpPath := tmpFile.Name()
 	defer func() {
@@ -99,20 +99,20 @@ func downloadImage(rawURL string) (string, error) {
 
 	resp, err := http.Get(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("qemu: failed to download image from %s: %w", rawURL, err)
+		return "", fmt.Errorf("vm: failed to download image from %s: %w", rawURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("qemu: failed to download image from %s: HTTP %d", rawURL, resp.StatusCode)
+		return "", fmt.Errorf("vm: failed to download image from %s: HTTP %d", rawURL, resp.StatusCode)
 	}
 
 	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
-		return "", fmt.Errorf("qemu: failed to write downloaded image: %w", err)
+		return "", fmt.Errorf("vm: failed to write downloaded image: %w", err)
 	}
 
 	if err := tmpFile.Close(); err != nil {
-		return "", fmt.Errorf("qemu: failed to close downloaded image: %w", err)
+		return "", fmt.Errorf("vm: failed to close downloaded image: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, cachedPath); err != nil {
@@ -120,14 +120,14 @@ func downloadImage(rawURL string) (string, error) {
 		if _, statErr := os.Stat(cachedPath); statErr == nil {
 			return cachedPath, nil
 		}
-		return "", fmt.Errorf("qemu: failed to move downloaded image to cache: %w", err)
+		return "", fmt.Errorf("vm: failed to move downloaded image to cache: %w", err)
 	}
 
-	slog.Info("qemu_images.downloadImage", "msg", "image downloaded", "url", rawURL, "path", cachedPath)
+	slog.Info("vm_images.downloadImage", "msg", "image downloaded", "url", rawURL, "path", cachedPath)
 	return cachedPath, nil
 }
 
-func resolveDrives(drives []QemuDrive, nodeName string) (map[int]OverlayImage, error) {
+func resolveDrives(drives []VMDrive, nodeName string) (map[int]OverlayImage, error) {
 	overlays := make(map[int]OverlayImage)
 	for i := range drives {
 		imagePath := drives[i].File
@@ -151,6 +151,6 @@ func resolveDrives(drives []QemuDrive, nodeName string) (map[int]OverlayImage, e
 func cleanupOverlays(nodeName string) {
 	dir := filepath.Join(config.Get().DataPath, "overlays", nodeName)
 	if err := os.RemoveAll(dir); err != nil {
-		slog.Warn("qemu_images.cleanupOverlays", "msg", "failed to clean up overlays", "node", nodeName, "error", err)
+		slog.Warn("vm_images.cleanupOverlays", "msg", "failed to clean up overlays", "node", nodeName, "error", err)
 	}
 }

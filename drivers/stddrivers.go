@@ -11,5 +11,5 @@ func RegisterStdDrivers() {
 	common.RegisterLoadDriver(&loads.ProcessDriver{})
 	common.RegisterNodeDriver(&nodes.LinuxDriver{})
 	common.RegisterNodeDriver(&nodes.WindowsDriver{})
-	common.RegisterNodeDriver(&nodes.QemuDriver{})
+	common.RegisterNodeDriver(&nodes.VMDriver{})
 }

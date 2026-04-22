@@ -33,4 +33,12 @@ type NodeState struct {
 	ProcThreadsCount  uint32 `json:"proc_threads_count"`  // Number of threads
 
 	Containers []ContainerState `json:"containers,omitempty"`
+
+	NetworkInterfaces []NetworkInterface `json:"network_interfaces,omitempty"`
+}
+
+type NetworkInterface struct {
+	Name      string   `json:"name"`
+	HWAddr    string   `json:"hwaddr,omitempty"`
+	Addresses []string `json:"addresses,omitempty"`
 }
