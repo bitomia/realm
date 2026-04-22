@@ -163,7 +163,7 @@ func (l *LinuxDriver) UpdateStatus(_ *string, repository common.NodesRepository)
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *LinuxDriver) GetState() (common.NodeState, error) {
+func (l *LinuxDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
 	return cpu.GetNodeState()
 }
 

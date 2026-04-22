@@ -155,7 +155,7 @@ func (w *WindowsDriver) UpdateStatus(_ *string, repository common.NodesRepositor
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *WindowsDriver) GetState() (common.NodeState, error) {
+func (l *WindowsDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
 	return cpu.GetNodeState()
 }
 

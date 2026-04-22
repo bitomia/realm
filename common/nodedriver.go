@@ -120,7 +120,7 @@ type NodeDriver interface {
 	UpdateStatus(nodeName *string, repository NodesRepository) (NodeStatus, error)
 
 	// GetState returns current node state like cpu, mem, etc..
-	GetState() (NodeState, error)
+	GetState(nodeName *string, repository NodesRepository) (NodeState, error)
 
 	// Provision validates self-node prerequisites and creates or replace the current
 	// database entry.

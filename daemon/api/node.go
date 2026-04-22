@@ -53,7 +53,7 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 
 	}
 
-	state, err := nodeEntry.NodeDriver.GetState()
+	state, err := nodeEntry.NodeDriver.GetState(&nodeEntry.NodeName, database.NodesRepository)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}

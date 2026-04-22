@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"os/exec"
 	"time"
@@ -62,6 +63,8 @@ func qmpConnect(port int) (net.Conn, error) {
 // qmpExecCommand connects to the QMP TCP port, executes a command,
 // skips any event messages, and returns the command response.
 func qmpExecCommand(port int, command string) (map[string]any, error) {
+	slog.Info("qmpExecCommand", "port", port, "cmd", command)
+
 	conn, err := qmpConnect(port)
 	if err != nil {
 		return nil, err

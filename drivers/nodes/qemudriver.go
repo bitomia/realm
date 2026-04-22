@@ -53,7 +53,6 @@ type QemuConfig struct {
 	Params   []string     `json:"params,omitempty"`
 	Drives   []QemuDrive  `json:"drives,omitempty"`
 	Netdevs  []QemuNetdev `json:"netdevs,omitempty"`
-	QMPPort  int          `json:"qmp_port"`
 }
 
 type QemuNodeMetadata struct {
@@ -120,7 +119,9 @@ func (q *QemuDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, 
 	if q.Config.Emulator, err = common.ResolveExecPath(q.Config.Emulator, nil); err != nil {
 		return err
 	}
-	if q.Config.QMPPort, err = getFreePort(); err != nil {
+
+	var qmpPort int = 0
+	if qmpPort, err = getFreePort(); err != nil {
 		return fmt.Errorf("qemu: failed to find free port for QMP: %w", err)
 	}
 
@@ -131,19 +132,19 @@ func (q *QemuDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, 
 
 	var cmd *exec.Cmd
 	qemuArgs := q.buildArgs(nodeName, overlayDrives, cloudInit)
-	if cmd, err = startVM(nodeName, q.Config.QMPPort, q.Config.Emulator, qemuArgs); err != nil {
+	if cmd, err = startVM(nodeName, qmpPort, q.Config.Emulator, qemuArgs); err != nil {
 		return err
 	}
 
 	metadata := QemuNodeMetadata{
 		Pid:      cmd.Process.Pid,
-		QMPPort:  q.Config.QMPPort,
+		QMPPort:  qmpPort,
 		QemuPath: q.Config.Emulator,
 		QemuArgs: qemuArgs,
 		Drives:   overlayDrives,
 	}
 
-	slog.Info("QemuDriver.Provision", "msg", "qemu started in paused state", "pid", metadata.Pid, "qmp_port", q.Config.QMPPort)
+	slog.Info("QemuDriver.Provision", "msg", "qemu started in paused state", "pid", metadata.Pid, "qmp_port", qmpPort)
 
 	if err := repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
 		slog.Error("QemuDriver.Provision", "msg", "failed to provision node", "error", err)
@@ -168,18 +169,18 @@ func (q *QemuDriver) Deprovision(nodeName *string, repository common.NodesReposi
 		return fmt.Errorf("QemuDriver expects node name for guest node deprovision")
 	}
 
-	if q.Config.QMPPort != 0 {
-		if err := qmpQuit(q.Config.QMPPort); err != nil {
-			slog.Warn("QemuDriver.Deprovision", "msg", "failed to quit via QMP, will attempt process kill", "error", err)
-		}
-	}
-
 	self, err := repository.GetGuestNode(*nodeName)
 	if err == nil {
 		metadata, err := common.CastMetadata[QemuNodeMetadata](&self.Metadata)
 		if err != nil {
 			slog.Warn("QemuDriver.Deprovision", "msg", "cannot cast metadata", "error", err)
 		} else {
+			if metadata.QMPPort != 0 {
+				if err := qmpQuit(metadata.QMPPort); err != nil {
+					slog.Warn("QemuDriver.Deprovision", "msg", "failed to quit via QMP, will attempt process kill", "error", err)
+				}
+			}
+
 			if metadata.Pid != 0 {
 				if proc, err := os.FindProcess(metadata.Pid); err == nil {
 					proc.Kill()
@@ -490,15 +491,18 @@ func (q *QemuDriver) UpdateStatus(nodeName *string, repository common.NodesRepos
 	return common.NodeStatus{StatusCode: common.NodeStatusOffline, Reason: "VM is not running"}, nil
 }
 
-func (q *QemuDriver) GetState() (common.NodeState, error) {
+func (q *QemuDriver) GetState(nodeName *string, repository common.NodesRepository) (common.NodeState, error) {
 	state := common.NodeState{}
 
-	if q.Config.QMPPort == 0 {
-		return state, fmt.Errorf("qemu: no QMP port available, VM may not be running")
+	self, err := repository.GetGuestNode(*nodeName)
+
+	metadata, err := common.CastMetadata[QemuNodeMetadata](&self.Metadata)
+	if err != nil {
+		return state, fmt.Errorf("QemuDriver.GetState cannot cast metadata: %s", err.Error())
 	}
 
 	// Query vCPU count
-	numCPU, err := qmpQueryCpusFast(q.Config.QMPPort)
+	numCPU, err := qmpQueryCpusFast(metadata.QMPPort)
 	if err != nil {
 		slog.Warn("QemuDriver.GetState", "msg", "failed to query CPUs via QMP", "error", err)
 	} else {
@@ -506,7 +510,7 @@ func (q *QemuDriver) GetState() (common.NodeState, error) {
 	}
 
 	// Query total memory via memory-size-summary
-	totalMem, err := qmpQueryMemorySizeSummary(q.Config.QMPPort)
+	totalMem, err := qmpQueryMemorySizeSummary(metadata.QMPPort)
 	if err != nil {
 		slog.Warn("QemuDriver.GetState", "msg", "failed to query memory size via QMP", "error", err)
 		// Fallback to configured memory (MB to bytes)
@@ -518,7 +522,7 @@ func (q *QemuDriver) GetState() (common.NodeState, error) {
 	}
 
 	// Query balloon for actual memory usage (requires virtio-balloon device)
-	balloonMem, err := qmpQueryBalloon(q.Config.QMPPort)
+	balloonMem, err := qmpQueryBalloon(metadata.QMPPort)
 	if err != nil {
 		slog.Debug("QemuDriver.GetState", "msg", "balloon query unavailable", "error", err)
 	} else if state.TotalMem > 0 {
