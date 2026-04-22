@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -19,7 +20,7 @@ func main() {
 	drivers.RegisterStdDrivers()
 
 	rootCmd.Use = "realm"
-	rootCmd.Short = "Realm command-line interface"
+	rootCmd.Short = fmt.Sprintf("Realm command-line interface %s", config.GetVersion())
 	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
