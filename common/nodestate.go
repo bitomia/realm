@@ -37,6 +37,13 @@ type NodeState struct {
 	NetworkInterfaces []NetworkInterface `json:"network_interfaces,omitempty"`
 }
 
+func NewNodeState() NodeState {
+	return NodeState{
+		Containers:        []ContainerState{},
+		NetworkInterfaces: []NetworkInterface{},
+	}
+}
+
 type NetworkInterface struct {
 	Name      string   `json:"name"`
 	HWAddr    string   `json:"hwaddr,omitempty"`

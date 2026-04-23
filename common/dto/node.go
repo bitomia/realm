@@ -9,6 +9,16 @@ type NodeResponse struct {
 	Status common.NodeStatus `json:"status"`
 }
 
+func NewNodeResponse() NodeResponse {
+	return NodeResponse{
+		State: common.NewNodeState(),
+		Status: common.NodeStatus{
+			StatusCode: common.NodeStatusOffline,
+			Reason:     "",
+		},
+	}
+}
+
 // OsKind represents the type of operating system
 type OsKind uint8
 

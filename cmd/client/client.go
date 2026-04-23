@@ -70,34 +70,41 @@ func NewUnauthClient() Client {
 	}
 }
 
-// doRequest executes an HTTP request and returns the response body.
-func (c *Client) doRequest(method, url string, payload io.Reader, timeout time.Duration) ([]byte, error) {
+// doRequest executes an HTTP request and returns the response body along with
+// the HTTP status code. If the request fails before a response is received
+// (e.g. transport error or malformed request), the returned status code is -1.
+// A non-200 status yields an error whose message is the raw response body.
+func (c *Client) doRequest(method, url string, payload io.Reader, timeout time.Duration) ([]byte, int, error) {
 	client := &http.Client{Timeout: timeout}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
+		return nil, -1, fmt.Errorf("failed to create request: %v", err)
 	}
 	req.Header = c.header
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %v", err)
+		return nil, -1, fmt.Errorf("failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
+		return nil, resp.StatusCode, fmt.Errorf("failed to read response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%s", string(body))
+		return nil, resp.StatusCode, fmt.Errorf("%s", string(body))
 	}
-	return body, nil
+	return body, resp.StatusCode, nil
 }
 
-// doJSONRequest JSON-encodes the payload and executes an HTTP request.
-func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Duration) ([]byte, error) {
+// doJSONRequest JSON-encodes the payload and executes an HTTP request,
+// returning the response body along with the HTTP status code. If the request
+// fails before a response is received (e.g. transport error or malformed
+// request), the returned status code is -1. A non-200 status yields an error
+// whose message is the raw response body.
+func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Duration) ([]byte, int, error) {
 	var body io.Reader
 	if payload != nil {
 		buf := new(bytes.Buffer)
@@ -135,7 +142,7 @@ func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
 
 	for _, node := range nodes {
 		url := fmt.Sprintf("%s/images", node.Url)
-		body, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
@@ -167,7 +174,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 
 	for _, node := range nodes {
 		url := fmt.Sprintf("%s/containers", node.Url)
-		body, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			log.Error("Failed to get containers from %s: %v", node.Name, err)
 			continue
@@ -189,7 +196,7 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 
 	for _, node := range nodes {
 		url := fmt.Sprintf("%s/network", node.Url)
-		body, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			log.Fatal("Failed to get networks from %s: %v", node.Name, err)
 		}
@@ -206,10 +213,12 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 	return networksPerNode, nil
 }
 
-func (c *Client) GetNode(node *common.Node) (*dto.NodeResponse, error) {
+func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
+	nodeRes := dto.NewNodeResponse()
+
 	driverInfo, err := node.Driver.DriverInfo()
 	if err != nil {
-		return nil, err
+		return nodeRes, err
 	}
 
 	url := fmt.Sprintf("%s/node", node.Url)
@@ -217,22 +226,26 @@ func (c *Client) GetNode(node *common.Node) (*dto.NodeResponse, error) {
 		url += fmt.Sprintf("?guest=%s", node.Name)
 	}
 
-	body, err := c.doRequest("GET", url, nil, 10*time.Second)
+	body, statusCode, err := c.doRequest("GET", url, nil, 10*time.Second)
+	if statusCode != -1 {
+		// Node is online by default if it replied (with success or error)
+		nodeRes.Status.StatusCode = common.NodeStatusOnline
+	}
 	if err != nil {
-		return nil, err
+		return nodeRes, err
 	}
 
-	var status dto.NodeResponse
-	if err := json.Unmarshal(body, &status); err != nil {
-		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
+	// Now we unmarshall the node reply and change StatusCode accordingly
+	if err := json.Unmarshal(body, &nodeRes); err != nil {
+		return nodeRes, fmt.Errorf("Failed to parse JSON: %v", err)
 	}
 
-	return &status, nil
+	return nodeRes, nil
 }
 
 func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 	url := fmt.Sprintf("%s/system", node)
-	body, err := c.doRequest("GET", url, nil, 10*time.Second)
+	body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +260,7 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 
 func (c *Client) GetContainerLogs(node string, container string) error {
 	url := fmt.Sprintf("%s/containers/%s/logs", node, container)
-	body, err := c.doRequest("GET", url, nil, 30*time.Second)
+	body, _, err := c.doRequest("GET", url, nil, 30*time.Second)
 	if err != nil {
 		return err
 	}
@@ -258,7 +271,7 @@ func (c *Client) GetContainerLogs(node string, container string) error {
 
 func (c *Client) GetProxyConfig(node string, container string) error {
 	url := fmt.Sprintf("%s/containers/%s/server", node, container)
-	body, err := c.doRequest("GET", url, nil, 10*time.Second)
+	body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -322,37 +335,37 @@ func (c *Client) Login(node string, username string, password string) (string, e
 
 func (c *Client) ProvisionLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
-	_, err := c.doJSONRequest("POST", url, load, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, load, 60*time.Second)
 	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
-	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) StopLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
-	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) KillLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
-	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) DeprovisionLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
-	_, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
 	url := fmt.Sprintf("%s/loads", nodeUrl)
-	body, err := c.doRequest("GET", url, nil, 60*time.Second)
+	body, _, err := c.doRequest("GET", url, nil, 60*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +410,7 @@ func (c *Client) ReadLoadStderr(load *common.Load) error {
 
 func (c *Client) ProvisionNode(node *common.Node) error {
 	url := fmt.Sprintf("%s/node/provision", node.Url)
-	_, err := c.doJSONRequest("POST", url, node, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, node, 60*time.Second)
 	return err
 }
 
@@ -412,26 +425,26 @@ func (c *Client) DeprovisionNode(node *common.Node) error {
 		url += fmt.Sprintf("?guest=%s", node.Name)
 	}
 
-	_, err = c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err = c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) StartNode(node *common.Node) error {
 	url := fmt.Sprintf("%s/node/start", node.Url)
-	_, err := c.doJSONRequest("POST", url, node, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, node, 60*time.Second)
 	return err
 }
 
 func (c *Client) StopNode(node *common.Node, wallMessage string, offsetTime uint32, force bool) error {
 	url := fmt.Sprintf("%s/node/stop", node.Url)
 	request := dto.StopNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name, Force: force}
-	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	url := fmt.Sprintf("%s/node/restart", node.Url)
 	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, request, 60*time.Second)
 	return err
 }
