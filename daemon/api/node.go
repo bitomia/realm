@@ -58,12 +58,17 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName, database.NodesRepository)
+	caps, err := nodeEntry.NodeDriver.GetCapabilities()
 	if err != nil {
-		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
+		return nil, fmt.Errorf("failed to get node capabilities: %w", err)
 	}
 
-	return &dto.NodeResponse{State: state, Status: status}, nil
+	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName, database.NodesRepository)
+	if err != nil {
+		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, Capabilities: dto.NewNodeCapabilities(caps)}, nil
+	}
+
+	return &dto.NodeResponse{State: state, Status: status, Capabilities: dto.NewNodeCapabilities(caps)}, nil
 
 }
 

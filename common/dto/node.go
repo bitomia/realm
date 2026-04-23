@@ -4,9 +4,31 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
+type NodeCapabilities struct {
+	ContainersEngine     bool `json:"containers_engine"`
+	ContainersNetworking bool `json:"containers_networking"`
+	Volumes              bool `json:"volumes"`
+	VolumesZFS           bool `json:"volumes_zfs"`
+	VMM                  bool `json:"vmm"`
+}
+
+func NewNodeCapabilities(c common.Capabilities) NodeCapabilities {
+	if c == nil {
+		return NodeCapabilities{}
+	}
+	return NodeCapabilities{
+		ContainersEngine:     c.ContainersEngine(),
+		ContainersNetworking: c.ContainersNetworking(),
+		Volumes:              c.Volumes(),
+		VolumesZFS:           c.VolumesZFS(),
+		VMM:                  c.VMM(),
+	}
+}
+
 type NodeResponse struct {
-	State  common.NodeState  `json:"state"`
-	Status common.NodeStatus `json:"status"`
+	State        common.NodeState  `json:"state"`
+	Status       common.NodeStatus `json:"status"`
+	Capabilities NodeCapabilities  `json:"capabilities"`
 }
 
 func NewNodeResponse() NodeResponse {
@@ -16,6 +38,7 @@ func NewNodeResponse() NodeResponse {
 			StatusCode: common.NodeStatusOffline,
 			Reason:     "",
 		},
+		Capabilities: NodeCapabilities{},
 	}
 }
 

@@ -85,6 +85,13 @@ var nodeStates = &cobra.Command{
 					log.Info("Containers: %s", color.CyanString("0"))
 				}
 
+				log.Info("Capabilities:")
+				log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.ContainersEngine)))
+				log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.ContainersNetworking)))
+				log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.Volumes)))
+				log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.VolumesZFS)))
+				log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.VMM)))
+
 				if len(node.State.NetworkInterfaces) > 0 {
 					log.Info("Network Interfaces (%d):", len(node.State.NetworkInterfaces))
 					for _, ni := range node.State.NetworkInterfaces {
