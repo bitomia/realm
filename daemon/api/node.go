@@ -136,7 +136,7 @@ func DeprovisionNode(nodeName *string) error {
 		return err
 	}
 
-	_ = cloudinit.UnregisterNode(*nodeName)
+	_ = cloudinit.UnregisterNode(node.NodeName)
 
 	return nil
 }
