@@ -1,0 +1,29 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck      # unchecked errors
+    - govet         # suspicious constructs
+    - ineffassign   # unused assignments
+    - staticcheck   # broad static analysis
+    - unused        # unused code
+    - gofmt         # formatting
+    - goimports     # imports order/grouping
+    - misspell      # typos in comments/strings
+    - unconvert     # redundant type conversions
+    - gosimple      # simplifications
+
+linters-settings:
+  goimports:
+    local-prefixes: github.com/bitomia/realm
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck

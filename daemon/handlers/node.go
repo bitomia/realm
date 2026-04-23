@@ -23,7 +23,7 @@ func NodeStateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(state)
+	_ = json.NewEncoder(w).Encode(state)
 }
 
 func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,7 +34,7 @@ func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
+	_ = json.NewEncoder(w).Encode(info)
 }
 
 func ProvisionNodeHandler(w http.ResponseWriter, r *http.Request) {

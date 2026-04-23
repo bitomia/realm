@@ -108,7 +108,9 @@ func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Dur
 	var body io.Reader
 	if payload != nil {
 		buf := new(bytes.Buffer)
-		json.NewEncoder(buf).Encode(payload)
+		if err := json.NewEncoder(buf).Encode(payload); err != nil {
+			return nil, -1, err
+		}
 		body = buf
 	}
 	return c.doRequest(method, url, body, timeout)
@@ -301,7 +303,9 @@ func (c *Client) Login(node string, username string, password string) (string, e
 		Password: password,
 	}
 	payload := new(bytes.Buffer)
-	json.NewEncoder(payload).Encode(request)
+	if err := json.NewEncoder(payload).Encode(request); err != nil {
+		return "", fmt.Errorf("failed to encode request: %v", err)
+	}
 
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {

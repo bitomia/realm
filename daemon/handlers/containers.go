@@ -20,5 +20,5 @@ func ListContainersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(containersState)
+	_ = json.NewEncoder(w).Encode(containersState)
 }

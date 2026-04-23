@@ -33,7 +33,7 @@ daemon: !include daemon.yaml
 		t.Fatalf("resolveIncludes failed: %v", err)
 	}
 	config, err := InitFromBuffer(string(resolved))
-
+	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, config.DataPath, "./test_data")
 	assert.Equal(t, config.Daemon.ListenAddress, "127.0.0.1")
@@ -71,7 +71,7 @@ etcd: !include sub/etcd.yaml
 		t.Fatalf("resolveIncludes failed: %v", err)
 	}
 	config, err := InitFromBuffer(string(resolved))
-
+	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, config.Daemon.EtcdMode, "server")
 	assert.Equal(t, config.Daemon.ListenPort, 12345)
@@ -111,7 +111,7 @@ daemon:
 		t.Fatalf("resolveIncludes failed: %v", err)
 	}
 	config, err := InitFromBuffer(string(resolved))
-
+	assert.NoError(t, err)
 	assert.NotNil(t, config)
 	assert.Equal(t, config.DataPath, "./another_test")
 	assert.Equal(t, config.Daemon.ListenPort, 12346)

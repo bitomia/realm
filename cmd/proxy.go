@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 
-	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	clientPkg "github.com/bitomia/realm/cmd/client"
 )
 
 var proxyCmd = &cobra.Command{

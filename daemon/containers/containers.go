@@ -70,7 +70,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		return fmt.Errorf("Failed to pull image %s: %s", opts.Image, err.Error())
 	}
 
-	var container containerd.Container = nil
+	var container containerd.Container
 
 	specOpts := []oci.SpecOpts{
 		oci.WithImageConfig(image),
@@ -105,7 +105,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 				continue
 			}
 
-			var mountSource string = ""
+			var mountSource string
 			var volumeName = fmt.Sprintf("%s-%s", containerName, uuid.New())
 
 			if volumes.IsVolume(volumeName) {
@@ -206,11 +206,13 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 		return fmt.Errorf("Failed to create new container %s with image %s: %s", containerName, opts.Image, err.Error())
 	}
 	if container == nil {
-		return errors.New("Unexpected condition container not existant")
+		return errors.New("Unexpected condition container not existent")
 	}
 
 	database := db.GetDB()
-	database.CreateContainer(containerName, opts.Image, "")
+	if _, err := database.CreateContainer(containerName, opts.Image, ""); err != nil {
+		return fmt.Errorf("Failed to create container %s in database: %s", containerName, err.Error())
+	}
 
 	return nil
 }
@@ -290,7 +292,7 @@ func SendSignal(containerName string, signal syscall.Signal) error {
 	}
 	task, _ := container.Task(ctx, nil)
 	if task != nil {
-		task.Kill(ctx, signal)
+		_ = task.Kill(ctx, signal)
 		statusC, err := task.Wait(ctx)
 		if err != nil {
 			return err
@@ -302,27 +304,6 @@ func SendSignal(containerName string, signal syscall.Signal) error {
 		_, err = task.Delete(ctx)
 		return err
 	}
-	return nil
-}
-
-func removeContainerSnapshots(ctx context.Context, c *containerd.Client, container containerd.Container) error {
-	info, err := container.Info(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get container info: %w", err)
-	}
-	snapshotKey := info.SnapshotKey
-	snapshotter := info.Snapshotter
-	if snapshotKey == "" {
-		slog.Info("No snapshots found for container", "containerID", container.ID())
-		return nil
-	}
-	slog.Info("Removing snapshot using snapshotter", "snapshotKey", snapshotKey, "snapshotter", snapshotter)
-	err = c.SnapshotService(snapshotter).Remove(ctx, snapshotKey)
-	if err != nil {
-		return fmt.Errorf("failed to remove snapshot: %w", err)
-	}
-
-	slog.Info("Snapshot removed successfully", "containerID", container.ID())
 	return nil
 }
 

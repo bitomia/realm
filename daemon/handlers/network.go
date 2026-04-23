@@ -59,11 +59,9 @@ func ListNetworksHandler(w http.ResponseWriter, _ *http.Request) {
 				log.Println("Unexpected condition bridge network not found")
 			}
 			var result network.IPAddresses
-			json.Unmarshal([]byte(config.CniResult), &result)
-			for _, ip := range result.Addresses {
-				networks[container.ID].Addresses = append(networks[container.ID].Addresses, ip)
-			}
+			_ = json.Unmarshal([]byte(config.CniResult), &result)
+			networks[container.ID].Addresses = append(networks[container.ID].Addresses, result.Addresses...)
 		}
 	}
-	json.NewEncoder(w).Encode(networks)
+	_ = json.NewEncoder(w).Encode(networks)
 }

@@ -38,28 +38,6 @@ type CaddyRule struct {
 	Routes []CaddyRoute `json:"routes"`
 }
 
-func createCaddyConfigWithHost(host string, upstreamAddress string, listenAddress string) CaddyRule {
-	match := CaddyMatch{
-		Host: []string{host},
-	}
-	upstream := CaddyUpstream{
-		Dial: upstreamAddress,
-	}
-	handle := CaddyHandle{
-		Handler:   "reverse_proxy",
-		Upstreams: []CaddyUpstream{upstream},
-	}
-	return CaddyRule{
-		Listen: []string{listenAddress},
-		Routes: []CaddyRoute{
-			{
-				Match:  []CaddyMatch{match},
-				Handle: []CaddyHandle{handle},
-			},
-		},
-	}
-}
-
 type CaddyError struct {
 	Error error
 	Body  []byte
@@ -105,11 +83,9 @@ func HttpCaddyRequest(url string, method string, data *string) (int, []byte, err
 	} else {
 		slog.Info("HttpCaddyRequest", "method", method, "url", url)
 	}
-	var reader io.Reader = nil
+	var reader io.Reader
 	if data != nil {
 		reader = strings.NewReader(*data)
-	} else {
-		// TODO
 	}
 
 	req, err := http.NewRequest(method, url, reader)
@@ -122,6 +98,9 @@ func HttpCaddyRequest(url string, method string, data *string) (int, []byte, err
 	if err != nil {
 		slog.Error("HttpCaddyRequest failed", "error", err)
 		req, err := http.NewRequest(method, url, reader)
+		if err != nil {
+			return -1, nil, errors.New(fmt.Sprintf("Error connecting to Caddy: %v", err))
+		}
 		req.Header.Set("Content-Type", "application/json")
 
 		resp, err = retryRequest(client, req, 3)
@@ -199,6 +178,9 @@ func SetReverseProxy(containerName string, opts ProxyOpts) CaddyError {
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return CaddyError{errors.New(fmt.Sprintf("Error reading response body: %v", err)), nil}
+	}
 
 	if resp.StatusCode == 200 {
 		slog.Info("SetReverseProxy. Local proxy route created. Creating master route", "container", containerName)
@@ -303,7 +285,7 @@ func GetMasterProxyHosts(caddyID string) ([]string, error) {
 	if statusCode != 200 {
 		return nil, errors.New(fmt.Sprintf("Invalid caddy statuscode %d", statusCode))
 	}
-	err = json.Unmarshal([]byte(masterBody), &masterHosts)
+	err = json.Unmarshal(masterBody, &masterHosts)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("Error unmarshalling JSON: %v", err))
 	}
@@ -324,7 +306,7 @@ func GetProxyHosts(caddyID string) ([]string, []string, error) {
 	if statusCode != 200 {
 		return nil, nil, errors.New(fmt.Sprintf("Invalid caddy statuscode %d", statusCode))
 	}
-	err = json.Unmarshal([]byte(localBody), &localHosts)
+	err = json.Unmarshal(localBody, &localHosts)
 	if err != nil {
 		return nil, nil, errors.New(fmt.Sprintf("Error unmarshalling JSON: %v", err))
 	}
@@ -360,13 +342,13 @@ func RemoveProxyHost(caddyID string, domain string) error {
 	if localHostsIndex != -1 {
 		caddyURL := config.Get().Daemon.LocalCaddyUrl
 		caddyURL = fmt.Sprintf("http://%s/id/%s/match/0/host/%d", caddyURL, caddyID, localHostsIndex)
-		HttpCaddyRequest(caddyURL, "DELETE", nil)
+		_, _, _ = HttpCaddyRequest(caddyURL, "DELETE", nil)
 	}
 
 	if masterHostsIndex != -1 {
 		masterCaddyURL := config.Get().Daemon.MasterCaddyUrl
 		masterCaddyURL = fmt.Sprintf("http://%s/id/%s/match/0/host/%d", masterCaddyURL, caddyID, masterHostsIndex)
-		HttpCaddyRequest(masterCaddyURL, "DELETE", nil)
+		_, _, _ = HttpCaddyRequest(masterCaddyURL, "DELETE", nil)
 	}
 
 	return nil

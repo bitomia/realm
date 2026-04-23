@@ -273,18 +273,6 @@ func (db *DaemonDB) delete(key string) error {
 	return err
 }
 
-// Generic delete with prefix operation
-func (db *DaemonDB) deleteWithPrefix(prefix string) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	_, err := db.client.Delete(ctx, prefix, clientv3.WithPrefix())
-	if err != nil {
-		slog.Error("Error deleting prefix %s: %s", prefix, err.Error())
-	}
-	return err
-}
-
 // Atomic increment for subnet allocation
 func (db *DaemonDB) getNextSubnet(network string) (int32, error) {
 	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)

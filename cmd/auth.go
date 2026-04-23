@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 )
 
+//nolint:unused // TODO auth module has been temporary disabled
 func saveTokenToFile(token string) error {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -23,6 +24,7 @@ func saveTokenToFile(token string) error {
 	return os.WriteFile(realmrcPath, []byte(token), 0600)
 }
 
+//nolint:unused // TODO auth module has been temporary disabled
 var authCmd = &cobra.Command{
 	Use:                   "auth",
 	Short:                 "Authorization module",
@@ -32,13 +34,14 @@ var authCmd = &cobra.Command{
 	},
 }
 
+//nolint:unused // TODO auth module has been temporary disabled
 var initCmd = &cobra.Command{
 	Use:                   "init",
 	Short:                 "Init with a secret token",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print("Enter token: ")
-		tokenBytes, err := term.ReadPassword(int(syscall.Stdin))
+		tokenBytes, err := term.ReadPassword(syscall.Stdin)
 		if err != nil {
 			color.Red("\nError reading password: %v\n", err)
 			return
@@ -57,6 +60,7 @@ var initCmd = &cobra.Command{
 	},
 }
 
+//nolint:unused // TODO auth module has been temporary disabled
 var logoutCmd = &cobra.Command{
 	Use:                   "logout",
 	Short:                 "Logout and remove authentication token",
@@ -87,7 +91,7 @@ var logoutCmd = &cobra.Command{
 
 		response = strings.TrimSpace(strings.ToLower(response))
 		if response != "y" && response != "yes" {
-			color.Blue("Logout cancelled.\n")
+			color.Blue("Logout canceled.\n")
 			return
 		}
 

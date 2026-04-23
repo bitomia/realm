@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dominikbraun/graph"
 )
@@ -100,22 +101,27 @@ func (l *Load) Hash() [32]byte {
 	return sha256.Sum256(data)
 }
 
-func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMap map[string]*Load) {
+func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMap map[string]*Load) error {
 	l.StartChain = LoadChain{}
-	graph.DFS(configGraph, l.Name, func(value string) bool {
+	if err := graph.DFS(configGraph, l.Name, func(value string) bool {
 		if load, exists := loadsMap[value]; exists {
 			l.StartChain = append(l.StartChain, load)
 		}
 		return false
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to build start chain for load %s: %w", l.Name, err)
+	}
 
 	l.StopChain = LoadChain{}
-	graph.DFS(configGraph, l.Name, func(value string) bool {
+	if err := graph.DFS(configGraph, l.Name, func(value string) bool {
 		if load, exists := loadsMap[value]; exists {
 			l.StopChain = append([]*Load{load}, l.StopChain...)
 		}
 		return false
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to build stop chain for load %s: %w", l.Name, err)
+	}
+	return nil
 }
 
 // Hash loads in order

@@ -97,12 +97,12 @@ func (c *ContainerDriver) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if loadDriver, err := NewContainerDriver(config); err != nil {
+	loadDriver, err := NewContainerDriver(config)
+	if err != nil {
 		return err
-	} else {
-		c = loadDriver.(*ContainerDriver)
-		return nil
 	}
+	*c = *loadDriver.(*ContainerDriver)
+	return nil
 }
 
 func (c *ContainerDriver) verifyConfig() error {
@@ -285,9 +285,9 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 				ctx, client, _ := cruntime.CreateClient()
 				if client != nil {
 					defer client.Close()
-					task.Kill(ctx, syscall.SIGKILL)
-					task.Wait(ctx)
-					task.Delete(ctx)
+					_ = task.Kill(ctx, syscall.SIGKILL)
+					_, _ = task.Wait(ctx)
+					_, _ = task.Delete(ctx)
 				}
 			} else {
 				gwAddressPtr = &gwAddress
@@ -503,7 +503,7 @@ func (c *ContainerDriver) ReadStderr(repository common.DeploymentsRepository, de
 func getContainerMetadata(d common.Deployment) (*ContainerEntryMetadata, error) {
 	var metadata ContainerEntryMetadata
 	if tmp, err := json.Marshal(d.Metadata); err != nil {
-		slog.Error("ProcessDriver.getMetadata", "error", "error on marshalling metadata", "deployment", d.ID)
+		slog.Error("ProcessDriver.getMetadata", "error", "error on marshaling metadata", "deployment", d.ID)
 		return nil, err
 	} else {
 		if err := json.Unmarshal(tmp, &metadata); err != nil {

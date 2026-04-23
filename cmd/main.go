@@ -17,7 +17,10 @@ var (
 )
 
 func main() {
-	drivers.RegisterStdDrivers()
+	if err := drivers.RegisterStdDrivers(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to register std drivers: %s\n", err.Error())
+		os.Exit(1)
+	}
 
 	rootCmd.Use = "realm"
 	rootCmd.Short = fmt.Sprintf("Realm command-line interface %s", config.GetVersion())
@@ -25,7 +28,7 @@ func main() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if cmd == rootCmd && len(args) == 0 {
-			cmd.Help()
+			_ = cmd.Help()
 			os.Exit(0)
 		}
 

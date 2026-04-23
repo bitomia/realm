@@ -35,7 +35,7 @@ func (r *EtcdDeploymentsRepository) Create(loadName string, driver common.LoadDr
 
 	deploymentJson, err := json.Marshal(deployment)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "msg", "Marshalling driver", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.Create", "deploymentID", deployment.ID, "msg", "Marshaling driver", "error", err.Error())
 		return uuid.Nil, err
 	}
 
@@ -108,7 +108,7 @@ func (r *EtcdDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 
 		for _, kv := range getResp.Kvs {
 			var deployment DeploymentValue
-			if err := json.Unmarshal([]byte(kv.Value), &deployment); err != nil {
+			if err := json.Unmarshal(kv.Value, &deployment); err != nil {
 				slog.Error("EtcdLoadsRepository.GetByLoad", "loadName", loadName, "msg", "unmarshalling deployment", "key", kv.Key, "error", err.Error())
 				return nil, err
 			}
@@ -138,6 +138,10 @@ func (r *EtcdDeploymentsRepository) getDeploymentValue(deploymentID common.Deplo
 
 	var deploymentValue DeploymentValue
 	deploymentStr, err := r.db.get(deploymentKey)
+	if err != nil {
+		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "msg", "get failed", "error", err.Error())
+		return nil, err
+	}
 	if err := json.Unmarshal([]byte(deploymentStr), &deploymentValue); err != nil {
 		slog.Error("EtcdLoadsRepository.GetDeployment", "deploymentID", deploymentID, "msg", "unmarshalling deployment", "deploymentStr", deploymentStr, "error", err.Error())
 		return nil, err
@@ -230,7 +234,7 @@ func (r *EtcdDeploymentsRepository) UpdateStatus(deploymentID common.DeploymentI
 
 	deploymentJson, err := json.Marshal(*deployment)
 	if err != nil {
-		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "Marshalling deployment", "error", err.Error())
+		slog.Error("EtcdLoadsRepository.UpdateStatus", "deploymentID", deploymentID, "msg", "Marshaling deployment", "error", err.Error())
 		return err
 	}
 
@@ -259,7 +263,7 @@ func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.Deploymen
 		return err
 	}
 
-	r.db.OptimisticUpdate(deploymentKey, func(deploymentData []byte) ([]byte, error) {
+	return r.db.OptimisticUpdate(deploymentKey, func(deploymentData []byte) ([]byte, error) {
 		var deployment DeploymentValue
 		if err := json.Unmarshal(deploymentData, &deployment); err != nil {
 			return nil, err
@@ -269,7 +273,6 @@ func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.Deploymen
 		}
 		return json.Marshal(deployment)
 	})
-	return nil
 }
 
 func (r *EtcdDeploymentsRepository) GetByLoadAndStatus(loadName string, statusCode common.DeploymentStatusCode) ([]common.Deployment, error) {

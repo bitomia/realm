@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/containerd/containerd"
+
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/containerd/containerd"
 )
 
 // ListContainers returns a list of all containers with their status

@@ -70,14 +70,14 @@ func getSubnet(network string) (string, error) {
 func deriveGatewayFromSubnet(subnet string) string {
 	_, ipNet, err := net.ParseCIDR(subnet)
 	if err != nil {
-		slog.Error("Failed to parse subnet CIDR, using fallback", "subnet", subnet, "error", err)
+		slog.Warn("Failed to parse subnet CIDR, using fallback", "subnet", subnet, "error", err)
 		return "10.0.1.1"
 	}
 
 	// Get the network address and add 1 to get the gateway
 	ip := ipNet.IP.To4()
 	if ip == nil {
-		slog.Error("Subnet is not IPv4, using fallback", "subnet", subnet)
+		slog.Warn("Subnet is not IPv4, using fallback", "subnet", subnet)
 		return "10.0.1.1"
 	}
 
@@ -184,7 +184,7 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 	dbConn := db.GetDB()
 	configs, err := dbConn.GetNetConfigs(containerName)
 	if err != nil {
-		slog.Error("Failed to get network configs, continuing with cleanup", "container", containerName, "error", err)
+		slog.Warn("Failed to get network configs, continuing with cleanup", "container", containerName, "error", err)
 	}
 
 	// Track networks used by this container for subnet cleanup
@@ -205,7 +205,7 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 			IfName:      c.GuestIfaceName,
 		})
 		if err != nil {
-			slog.Error("Failed to delete network. Continuing.", "error", err)
+			slog.Warn("Failed to delete network. Continuing.", "error", err)
 		}
 
 		// we have to delete the host iface because CNI bridge plugin is not doing this
@@ -220,29 +220,31 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 			} else {
 				err = netlink.LinkDel(link)
 				if err != nil {
-					slog.Error("Failed to delete link", "container", containerName, "netns", netns, "error", err)
+					slog.Warn("Failed to delete link", "container", containerName, "netns", netns, "error", err)
 				}
 			}
 		}
 	}
-	dbConn.DeleteAllNetConfigs(containerName)
+	if err := dbConn.DeleteAllNetConfigs(containerName); err != nil {
+		slog.Warn("Failed to delete net configs", "container", containerName, "error", err)
+	}
 
 	// Release subnet for networks that no longer have any containers
 	for network := range networksToCheck {
 		count, err := dbConn.GetNetworkContainerCount(network)
 		if err != nil {
-			slog.Error("Failed to get network container count", "network", network, "error", err)
+			slog.Warn("Failed to get network container count", "network", network, "error", err)
 			continue
 		}
 		if count == 0 {
 			slog.Info("Network has no more containers, releasing subnet and deleting bridge", "network", network)
 			if err := dbConn.ReleaseSubnet(network); err != nil {
-				slog.Error("Failed to release subnet", "network", network, "error", err)
+				slog.Warn("Failed to release subnet", "network", network, "error", err)
 			}
 			// Delete the bridge since no containers are using this network anymore
 			bridgeName := getBridgeName(network)
 			if err := deleteBridge(bridgeName); err != nil {
-				slog.Error("Failed to delete bridge", "bridge", bridgeName, "error", err)
+				slog.Warn("Failed to delete bridge", "bridge", bridgeName, "error", err)
 			}
 		}
 	}
@@ -319,11 +321,11 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 			gw = networkCNIConfig.IPs[0].Gateway
 			ip = networkCNIConfig.IPs[0].Address
 			if err := dns.RegisterContainerDNS(containerName, ip); err != nil {
-				slog.Error("Error registering container in DNS", "container", containerName)
+				slog.Warn("Error registering container in DNS", "container", containerName)
 			}
 		}
 
-		err = db.GetDB().AddNetConfig(netConfig.Network, containerName, []byte(netConf), []byte(resultJSON), ifaceName, netConfig.Network)
+		err = db.GetDB().AddNetConfig(netConfig.Network, containerName, []byte(netConf), resultJSON, ifaceName, netConfig.Network)
 		if err != nil {
 			return fmt.Errorf("Failed to marshal result: %s", err.Error()), nil, nil, nil
 		}
@@ -336,7 +338,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 					return fmt.Errorf("error writing resolv.conf for container %s: %w", containerName, err), nil, nil, nil
 				}
 			} else {
-				slog.Error("Cannot update resolv.conf for container", "container", containerName, "pid", pid)
+				slog.Warn("Cannot update resolv.conf for container", "container", containerName, "pid", pid)
 			}
 		}
 	}
@@ -348,7 +350,7 @@ func WriteStringToResolvConf(ctx context.Context, task containerd.Task, content 
 	// Try to clean-up any other write-resolv process
 	oldExecProcess, err := task.LoadProcess(ctx, "write-resolv", cio.NewAttach(cio.WithStdio))
 	if err == nil && oldExecProcess != nil {
-		oldExecProcess.Delete(ctx)
+		_, _ = oldExecProcess.Delete(ctx)
 	}
 
 	// Use base64 encoding to safely pass content without shell injection
@@ -362,7 +364,7 @@ func WriteStringToResolvConf(ctx context.Context, task containerd.Task, content 
 	if err != nil {
 		return err
 	}
-	defer execProcess.Delete(ctx)
+	defer func() { _, _ = execProcess.Delete(ctx) }()
 
 	if err := execProcess.Start(ctx); err != nil {
 		return err
@@ -384,7 +386,7 @@ func DeleteNetwork(containerName string) error {
 	if err != nil {
 		return err
 	}
-	dns.UnregisterContainerDNS(containerName)
+	_ = dns.UnregisterContainerDNS(containerName)
 
 	if err := deleteNetworkConfig(ctx, containerName, pid); err != nil {
 		return err
@@ -454,7 +456,7 @@ func RepairNetwork(containerName string) error {
 		if len(networkCNIConfig.IPs) > 0 {
 			ip := networkCNIConfig.IPs[0].Address
 			if err := dns.RegisterContainerDNS(containerName, ip); err != nil {
-				slog.Error("Error registering container in DNS", "container", containerName)
+				slog.Warn("Error registering container in DNS", "container", containerName)
 			}
 		}
 	}
@@ -488,12 +490,10 @@ func GetNetworkConfig(container string) []IP {
 	for _, config := range configs {
 		var result IPAddresses
 		if err := json.Unmarshal([]byte(config.CniResult), &result); err != nil {
-			slog.Error("Failed to unmarshal CNI result", "container", container, "error", err)
+			slog.Warn("Failed to unmarshal CNI result", "container", container, "error", err)
 			continue
 		}
-		for _, ip := range result.Addresses {
-			networks = append(networks, ip)
-		}
+		networks = append(networks, result.Addresses...)
 	}
 	return networks
 }
@@ -533,7 +533,7 @@ func PurgeBridgeNetwork(bridge *Bridge) error {
 		return errors.New("bridge nil")
 	}
 	for _, l := range bridge.VethLinks {
-		netlink.LinkDel(l)
+		_ = netlink.LinkDel(l)
 	}
 	return netlink.LinkDel(bridge.Link)
 }

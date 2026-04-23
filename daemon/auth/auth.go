@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+type contextKey string
+
+const usernameContextKey contextKey = "username"
+
 var (
 	secretKey string
 	enabled   bool = false
@@ -44,7 +48,7 @@ func WithAuth(handler http.HandlerFunc) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "username", claims.Username)
+		ctx := context.WithValue(r.Context(), usernameContextKey, claims.Username)
 		handler.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

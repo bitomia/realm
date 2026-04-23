@@ -122,15 +122,15 @@ var listLoads = &cobra.Command{
 
 						switch d.DeploymentStatus.StatusCode {
 						case common.DeploymentStatusRunning:
-							deploymentStatusStr = fmt.Sprintf("%s", color.GreenString("running"))
+							deploymentStatusStr = color.GreenString("running")
 						case common.DeploymentStatusReady:
-							deploymentStatusStr = fmt.Sprintf("%s", color.HiBlueString("ready"))
+							deploymentStatusStr = color.HiBlueString("ready")
 						case common.DeploymentStatusStopped:
-							deploymentStatusStr = fmt.Sprintf("%s", color.YellowString("stopped"))
+							deploymentStatusStr = color.YellowString("stopped")
 						case common.DeploymentStatusError:
 							deploymentStatusStr = fmt.Sprintf("%s %s", color.RedString("error"), d.DeploymentStatus.Reason)
 						default:
-							deploymentStatusStr = fmt.Sprintf("%s", string(d.DeploymentStatus.StatusCode))
+							deploymentStatusStr = string(d.DeploymentStatus.StatusCode)
 						}
 					}
 				}

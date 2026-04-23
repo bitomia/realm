@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
-	"github.com/stretchr/testify/assert"
 )
 
 const MockNodeDriverID common.NodeDriverID = "mock_node_driver"

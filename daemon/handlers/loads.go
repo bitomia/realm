@@ -30,7 +30,7 @@ func ProvisionLoadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(provisionLoadInfo)
+	_ = json.NewEncoder(w).Encode(provisionLoadInfo)
 }
 
 func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +91,7 @@ func GetLoadsDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	_ = json.NewEncoder(w).Encode(response)
 }
 
 func ReadLoadStdoutHandler(w http.ResponseWriter, r *http.Request) {

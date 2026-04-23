@@ -34,7 +34,7 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 
 	nodeJson, err := json.Marshal(nodeValue)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshalling node", "error", err.Error())
+		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 
 	guestNodeJson, err := json.Marshal(guestNodeValue)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshalling node", "error", err.Error())
+		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
 	}
 
@@ -241,7 +241,7 @@ func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 		return err
 	}
 
-	r.db.OptimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.OptimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
@@ -251,7 +251,6 @@ func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 		}
 		return json.Marshal(value)
 	})
-	return nil
 }
 
 func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error {
@@ -263,7 +262,7 @@ func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn
 		return err
 	}
 
-	r.db.OptimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.OptimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
@@ -273,5 +272,4 @@ func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn
 		}
 		return json.Marshal(value)
 	})
-	return nil
 }

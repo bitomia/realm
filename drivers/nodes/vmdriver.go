@@ -42,12 +42,12 @@ type VMNetdev struct {
 }
 
 type VMConfig struct {
-	Machine string       `json:"machine,omitempty"`
-	Accel   []string     `json:"accel,omitempty"`
-	CPU     string       `json:"cpu,omitempty"`
-	Memory  int          `json:"memory,omitempty"`
-	SMP     string       `json:"smp,omitempty"`
-	Serial  string       `json:"serial,omitempty"`
+	Machine string     `json:"machine,omitempty"`
+	Accel   []string   `json:"accel,omitempty"`
+	CPU     string     `json:"cpu,omitempty"`
+	Memory  int        `json:"memory,omitempty"`
+	SMP     string     `json:"smp,omitempty"`
+	Serial  string     `json:"serial,omitempty"`
 	Drives  []VMDrive  `json:"drives,omitempty"`
 	Netdevs []VMNetdev `json:"netdevs,omitempty"`
 }
@@ -530,7 +530,7 @@ func (q *VMDriver) getMetadata(nodeName string, repository common.NodesRepositor
 	var metadata VMNodeMetadata
 	tmp, err := json.Marshal(node.Metadata)
 	if err != nil {
-		slog.Error("VMDriver.getMetadata", "error", "error on marshalling metadata", "node", nodeName)
+		slog.Error("VMDriver.getMetadata", "error", "error on marshaling metadata", "node", nodeName)
 		return nil, err
 	}
 	if err := json.Unmarshal(tmp, &metadata); err != nil {

@@ -90,7 +90,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/yaml")
 	if dataType == "user-data" {
-		w.Write([]byte("#cloud-config\n"))
+		_, _ = w.Write([]byte("#cloud-config\n"))
 	}
-	w.Write(out)
+	_, _ = w.Write(out)
 }

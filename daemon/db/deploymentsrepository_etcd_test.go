@@ -6,10 +6,11 @@ import (
 	"io"
 	"testing"
 
-	"github.com/bitomia/realm/common"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitomia/realm/common"
 )
 
 const MockLoadDriverID common.LoadDriverID = "mock_load_driver"
@@ -63,12 +64,10 @@ func (m mockLoadDriver) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if loadDriver, err := NewMockLoadDriverFromConfig(config); err != nil {
+	if _, err := NewMockLoadDriverFromConfig(config); err != nil {
 		return err
-	} else {
-		m = loadDriver.(mockLoadDriver)
-		return nil
 	}
+	return nil
 }
 
 func (m mockLoadDriver) Provision(node common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
@@ -798,9 +797,7 @@ func TestEtcdDeploymentsRepository_UpdateMetadata_UpdateFnReturnsError(t *testin
 		return updateErr
 	})
 
-	// Note: Current implementation doesn't return the error from OptimisticUpdate
-	// This test documents the current behavior
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, updateErr)
 
 	// Metadata should remain unchanged since updateFn failed
 	deployment, err := repo.GetDeployment(deploymentID)

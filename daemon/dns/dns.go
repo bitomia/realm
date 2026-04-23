@@ -39,7 +39,7 @@ func replyRealmDomainRequest(q *dns.Question, w dns.ResponseWriter, r *dns.Msg) 
 		// Skip ipv6 resolutions
 		m := new(dns.Msg)
 		m.SetReply(r)
-		w.WriteMsg(m)
+		_ = w.WriteMsg(m)
 		return
 	}
 

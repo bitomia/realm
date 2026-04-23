@@ -101,12 +101,12 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if loadDriver, err := NewProcessDriver(config); err != nil {
+	loadDriver, err := NewProcessDriver(config)
+	if err != nil {
 		return err
-	} else {
-		p = loadDriver.(*ProcessDriver)
-		return nil
 	}
+	*p = *loadDriver.(*ProcessDriver)
+	return nil
 }
 
 func (p *ProcessDriver) verifyConfig() error {
@@ -274,7 +274,7 @@ func (p *ProcessDriver) Deprovision(repository common.DeploymentsRepository, dep
 	if deployment.Status.StatusCode == common.DeploymentStatusError {
 		proc, _ := retrieveProcess(deployment)
 		if proc != nil {
-			proc.Kill()
+			_ = proc.Kill()
 		}
 	}
 
@@ -324,7 +324,7 @@ func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.De
 	} else {
 		// Process might be running or defunct
 		// Status code is stopped if it's defunct
-		if defunct, _ := isDefunct(proc); defunct == true {
+		if defunct, _ := isDefunct(proc); defunct {
 			status.StatusCode = common.DeploymentStatusStopped
 		} else {
 			status.StatusCode = common.DeploymentStatusRunning
@@ -421,7 +421,7 @@ func retrieveProcess(deployment common.Deployment) (*process.Process, error) {
 func getProcessMetadata(d common.Deployment) (*ProcessEntryMetadata, error) {
 	var metadata ProcessEntryMetadata
 	if tmp, err := json.Marshal(d.Metadata); err != nil {
-		slog.Error("ProcessDriver.getMetadata", "error", "error on marshalling metadata", "deployment", d.ID)
+		slog.Error("ProcessDriver.getMetadata", "error", "error on marshaling metadata", "deployment", d.ID)
 		return nil, err
 	} else {
 		if err := json.Unmarshal(tmp, &metadata); err != nil {

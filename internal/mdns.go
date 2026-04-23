@@ -121,7 +121,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 	hostnames := make(map[string]bool)
 
 	for time.Now().Before(endTime) {
-		conn.SetReadDeadline(time.Now().Add(config.ReadTimeout))
+		_ = conn.SetReadDeadline(time.Now().Add(config.ReadTimeout))
 
 		buffer := make([]byte, 1500)
 		n, _, err := conn.ReadFromUDP(buffer)
@@ -134,7 +134,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 		}
 		responseCount++
 
-		parseMDNSResponse(buffer[:n], services, hostnames)
+		_ = parseMDNSResponse(buffer[:n], services, hostnames)
 	}
 
 	for serviceName := range services {
@@ -144,7 +144,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 
 	time.Sleep(config.DetailTimeout)
 	for {
-		conn.SetReadDeadline(time.Now().Add(config.DetailTimeout))
+		_ = conn.SetReadDeadline(time.Now().Add(config.DetailTimeout))
 		buffer := make([]byte, 1500)
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
@@ -153,7 +153,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 			}
 			continue
 		}
-		parseMDNSResponse(buffer[:n], services, hostnames)
+		_ = parseMDNSResponse(buffer[:n], services, hostnames)
 	}
 
 	return services, nil
@@ -363,29 +363,6 @@ func parseResourceRecord(data []byte, offset int, recordType string, services ma
 	return dataEnd
 }
 
-func dnsTypeToString(rtype uint16) string {
-	switch rtype {
-	case 1:
-		return "A"
-	case 5:
-		return "CNAME"
-	case 12:
-		return "PTR"
-	case 15:
-		return "MX"
-	case 16:
-		return "TXT"
-	case 28:
-		return "AAAA"
-	case 33:
-		return "SRV"
-	case 255:
-		return "ANY"
-	default:
-		return "UNKNOWN"
-	}
-}
-
 func parseTXTRecord(data []byte) string {
 	result := ""
 	offset := 0
@@ -415,5 +392,5 @@ func parseTXTRecord(data []byte) string {
 
 func queryServiceDetails(p *ipv4.PacketConn, addr *net.UDPAddr, serviceName string) {
 	srvQuery := buildMDNSQuery(serviceName)
-	p.WriteTo(srvQuery, nil, addr)
+	_, _ = p.WriteTo(srvQuery, nil, addr)
 }

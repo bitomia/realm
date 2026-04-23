@@ -116,7 +116,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 
 	go func() {
 		slog.Info("Daemon running", "addr", serverAddr)
-		server.Serve(listener)
+		_ = server.Serve(listener)
 		slog.Info("HTTP server stopped", "addr", serverAddr)
 	}()
 

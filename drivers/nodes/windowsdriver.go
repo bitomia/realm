@@ -93,10 +93,9 @@ func (w *WindowsDriver) UnmarshalJSON(data []byte) error {
 	}
 	if err != nil {
 		return err
-	} else {
-		w = nodeDriver.(*WindowsDriver)
-		return nil
 	}
+	*w = *nodeDriver.(*WindowsDriver)
+	return nil
 }
 
 func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {

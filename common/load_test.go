@@ -117,7 +117,7 @@ func buildTestGraph(loads []*Load) (graph.Graph[string, string], map[string]*Loa
 func updateLoadChains(loads []*Load) {
 	g, loadsMap := buildTestGraph(loads)
 	for _, load := range loads {
-		load.UpdateLoadChains(g, loadsMap)
+		_ = load.UpdateLoadChains(g, loadsMap)
 	}
 }
 

@@ -11,9 +11,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/daemon/config"
-	"github.com/google/uuid"
 )
 
 type OverlayImage struct {
@@ -38,7 +39,7 @@ func CreateOverlay(nodeName, imagePath string) (*OverlayImage, error) {
 	return &overlayImage, nil
 }
 
-func (o OverlayImage) Cleanup() {
+func (o *OverlayImage) Cleanup() {
 	slog.Info("OverlayImage.Cleanup", "msg", "cleaning up overlay image", "path", o.FilePath)
 	if err := os.Remove(o.FilePath); err != nil {
 		slog.Warn("OverlayImage.Cleanup", "msg", "failed to clean up overlay", "error", err)

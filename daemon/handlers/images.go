@@ -42,5 +42,5 @@ func ListImagesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(toImagesResponse(images))
+	_ = json.NewEncoder(w).Encode(toImagesResponse(images))
 }

@@ -54,7 +54,7 @@ func RemoveStaticDomain(projectID string, domain string) error {
 	if masterHostsIndex != -1 {
 		masterCaddyURL := config.Get().Daemon.MasterCaddyUrl
 		masterCaddyURL = fmt.Sprintf("http://%s/id/%s/match/0/host/%d", masterCaddyURL, caddyID, masterHostsIndex)
-		HttpCaddyRequest(masterCaddyURL, "DELETE", nil)
+		_, _, _ = HttpCaddyRequest(masterCaddyURL, "DELETE", nil)
 	}
 
 	return nil

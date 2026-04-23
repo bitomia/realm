@@ -98,10 +98,9 @@ func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
 	}
 	if err != nil {
 		return err
-	} else {
-		l = nodeDriver.(*LinuxDriver)
-		return nil
 	}
+	*l = *nodeDriver.(*LinuxDriver)
+	return nil
 }
 
 func (l *LinuxDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {

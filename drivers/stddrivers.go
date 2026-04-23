@@ -6,10 +6,18 @@ import (
 	"github.com/bitomia/realm/drivers/nodes"
 )
 
-func RegisterStdDrivers() {
-	common.RegisterLoadDriver(&loads.ContainerDriver{})
-	common.RegisterLoadDriver(&loads.ProcessDriver{})
-	common.RegisterNodeDriver(&nodes.LinuxDriver{})
-	common.RegisterNodeDriver(&nodes.WindowsDriver{})
-	common.RegisterNodeDriver(&nodes.VMDriver{})
+func RegisterStdDrivers() error {
+	if err := common.RegisterLoadDriver(&loads.ContainerDriver{}); err != nil {
+		return err
+	}
+	if err := common.RegisterLoadDriver(&loads.ProcessDriver{}); err != nil {
+		return err
+	}
+	if err := common.RegisterNodeDriver(&nodes.LinuxDriver{}); err != nil {
+		return err
+	}
+	if err := common.RegisterNodeDriver(&nodes.WindowsDriver{}); err != nil {
+		return err
+	}
+	return common.RegisterNodeDriver(&nodes.VMDriver{})
 }

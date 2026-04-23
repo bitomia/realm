@@ -172,9 +172,8 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	hostInfo.RamTotal = memInfo.Total
 
 	// Get network information
-	if err := populateNetworkInfo(hostInfo); err != nil {
-		// Don't fail on network info errors, just continue
-	}
+	// Don't fail on network info errors, just continue
+	_ = populateNetworkInfo(hostInfo)
 
 	// Get boot time (approximate CPU start time)
 	if info.BootTime > 0 {

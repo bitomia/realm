@@ -37,7 +37,7 @@ func getContainersState(ctx context.Context, client *containerd.Client) (common.
 		id := container.ID()
 		task, err := container.Task(ctx, nil)
 		if err != nil {
-			if errdefs.IsNotFound(err) == false {
+			if !errdefs.IsNotFound(err) {
 				return nil, err
 			}
 			continue

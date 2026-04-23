@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"go.etcd.io/etcd/client/v3"
+	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/db"
@@ -97,12 +97,16 @@ func (hp *HealthPublisher) Start() error {
 func (hp *HealthPublisher) Stop() {
 	slog.Info("Stopping health publisher for node", "hostname", hp.hostname)
 
-	hp.PublishStatus(STATUS_STOPPING, nil)
+	if err := hp.PublishStatus(STATUS_STOPPING, nil); err != nil {
+		slog.Warn("Failed to publish stopping status", "hostname", hp.hostname, "error", err)
+	}
 
 	close(hp.stopChan)
 	hp.wg.Wait()
 
-	hp.db.DeleteHealthStatus(hp.hostname)
+	if err := hp.db.DeleteHealthStatus(hp.hostname); err != nil {
+		slog.Warn("Failed to delete health status", "hostname", hp.hostname, "error", err)
+	}
 	slog.Info("Health publisher stopped")
 }
 

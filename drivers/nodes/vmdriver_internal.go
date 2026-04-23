@@ -27,7 +27,7 @@ func withLibvirt(fn func(*libvirt.Libvirt) error) error {
 	if err != nil {
 		return err
 	}
-	defer l.Disconnect()
+	defer func() { _ = l.Disconnect() }()
 	return fn(l)
 }
 

@@ -252,7 +252,9 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 			if err != nil {
 				return nil, fmt.Errorf("Error building node driver '%s': %s", nodeName, err.Error())
 			}
-			newNodeConfig(nodeName, node, driver)
+			if _, err := newNodeConfig(nodeName, node, driver); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -306,7 +308,9 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 			return nil, err
 		}
 
-		newLoadConfig(loadName, node, driver)
+		if _, err := newLoadConfig(loadName, node, driver); err != nil {
+			return nil, err
+		}
 		allLoadDeps[loadName] = loadConfig.DependsOn
 	}
 
@@ -333,7 +337,9 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 
 	// Create chain loads
 	for _, load := range loadsConfig {
-		load.UpdateLoadChains(loadsConfigGraph, loadsConfig)
+		if err := load.UpdateLoadChains(loadsConfigGraph, loadsConfig); err != nil {
+			return nil, err
+		}
 	}
 
 	// Populate instance fields

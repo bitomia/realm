@@ -11,7 +11,9 @@ import (
 )
 
 func init() {
-	RegisterStdDrivers()
+	if err := RegisterStdDrivers(); err != nil {
+		panic(err)
+	}
 }
 
 func resetConfigs() {
