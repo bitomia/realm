@@ -26,9 +26,8 @@ func NewNodeCapabilities(c common.Capabilities) NodeCapabilities {
 }
 
 type NodeResponse struct {
-	State        common.NodeState  `json:"state"`
-	Status       common.NodeStatus `json:"status"`
-	Capabilities NodeCapabilities  `json:"capabilities"`
+	State  common.NodeState  `json:"state"`
+	Status common.NodeStatus `json:"status"`
 }
 
 func NewNodeResponse() NodeResponse {
@@ -38,7 +37,6 @@ func NewNodeResponse() NodeResponse {
 			StatusCode: common.NodeStatusOffline,
 			Reason:     "",
 		},
-		Capabilities: NodeCapabilities{},
 	}
 }
 
@@ -102,6 +100,8 @@ type SystemInfo struct {
 	CpuVendor         string  `json:"cpu_vendor"`           // CPU vendor string
 	CpuMhz            uint32  `json:"cpu_mhz"`              // Maximum CPU frequency in Megahertz
 	RamTotal          uint64  `json:"ram_total"`            // Total available RAM in bytes
+
+	Capabilities NodeCapabilities `json:"capabilities"` // Node capabilities
 }
 
 type StopNodeRequest struct {

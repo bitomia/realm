@@ -44,12 +44,14 @@ var nodeStates = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 		nodes := cfg.GetNodes(nodeNames...)
 
-		for id, node := range nodes {
+		for id, cfgNode := range nodes {
 			fmt.Printf("Node: %s\n", color.CyanString(id))
-			fmt.Printf(" URL: %s\n", color.CyanString(node.Url))
-			node, err := client.GetNode(node)
+			fmt.Printf(" URL: %s\n", color.CyanString(cfgNode.Url))
+			node, err := client.GetNode(cfgNode)
 
-			if err != nil {
+			if node.Status.StatusCode == common.NodeStatusOnline {
+				log.Info(" Status: %s [%s]", node.Status.StatusCode, "ready for provisioning")
+			} else if err != nil {
 				log.Info(" Status: %s [%s]", node.Status.StatusCode, strings.TrimSpace(err.Error()))
 			} else {
 				if len(node.Status.Reason) > 0 {
@@ -85,12 +87,17 @@ var nodeStates = &cobra.Command{
 					log.Info("Containers: %s", color.CyanString("0"))
 				}
 
-				log.Info("Capabilities:")
-				log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.ContainersEngine)))
-				log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.ContainersNetworking)))
-				log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.Volumes)))
-				log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.VolumesZFS)))
-				log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", node.Capabilities.VMM)))
+				info, err := client.GetSystemInfo(cfgNode.Url)
+				if err != nil {
+					log.Info("System Info: %s", strings.TrimSpace(err.Error()))
+				} else {
+					log.Info("Capabilities:")
+					log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersEngine)))
+					log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersNetworking)))
+					log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.Volumes)))
+					log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VolumesZFS)))
+					log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VMM)))
+				}
 
 				if len(node.State.NetworkInterfaces) > 0 {
 					log.Info("Network Interfaces (%d):", len(node.State.NetworkInterfaces))
