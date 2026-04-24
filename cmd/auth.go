@@ -41,7 +41,7 @@ var initCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print("Enter token: ")
-		tokenBytes, err := term.ReadPassword(syscall.Stdin)
+		tokenBytes, err := term.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			color.Red("\nError reading password: %v\n", err)
 			return
