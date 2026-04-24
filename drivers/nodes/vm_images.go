@@ -30,7 +30,10 @@ func CreateOverlay(nodeName, imagePath string) (*OverlayImage, error) {
 
 	var overlayImage OverlayImage
 	overlayImage.ID = uuid.New()
-	overlayImage.FilePath = filepath.Join(oDir, overlayImage.ID.String())
+	overlayImage.FilePath, err = filepath.Abs(filepath.Join(oDir, overlayImage.ID.String()))
+	if err != nil {
+		return nil, fmt.Errorf("vm: failed to resolve overlay absolute path: %w", err)
+	}
 
 	if err := common.CopyFile(imagePath, overlayImage.FilePath); err != nil {
 		return nil, err

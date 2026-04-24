@@ -157,7 +157,7 @@ func DeprovisionNode(nodeName *string) error {
 func StartNode(node *common.Node) error {
 	driverInfo, err := node.Driver.DriverInfo()
 	if err != nil {
-		return fmt.Errorf("failed to startup node: %w", err)
+		return fmt.Errorf("failed to retrieve node driver info: %w", err)
 	}
 	if driverInfo.StartMode != common.DaemonMode {
 		return fmt.Errorf("start expects daemon mode")

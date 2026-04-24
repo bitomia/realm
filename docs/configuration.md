@@ -129,6 +129,15 @@ nodes:
 
 The `vm` driver provisions guest nodes through a local **libvirtd** daemon.
 
+User running Realm must be allowed to run libvirt, set in `/etc/libvirt/qemu.conf`:
+
+```
+user = "<realm-user>"
+group = "<realm-user>"
+```
+
+Now, restart libvirtd with `sudo systemctl restart libvirtd` so the overlay images under `<data_path>/overlays/` are readable by the QEMU process.
+
 ```yaml
 nodes:
   vm:
