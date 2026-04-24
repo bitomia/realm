@@ -204,7 +204,7 @@ func HasCaddyConfig() (bool, error) {
 	}
 	defer resp.Body.Close()
 
-	var body []byte = make([]byte, 10)
+	body := make([]byte, 10)
 	_, _ = io.LimitReader(resp.Body, 10).Read(body)
 
 	if len(body) == 0 || strings.Contains(string(body), "null") {

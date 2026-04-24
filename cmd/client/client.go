@@ -239,7 +239,7 @@ func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 
 	// Now we unmarshall the node reply and change StatusCode accordingly
 	if err := json.Unmarshal(body, &nodeRes); err != nil {
-		return nodeRes, fmt.Errorf("Failed to parse JSON: %v", err)
+		return nodeRes, fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
 	return nodeRes, nil
@@ -254,7 +254,7 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 
 	var info dto.SystemInfo
 	if err := json.Unmarshal(body, &info); err != nil {
-		return nil, fmt.Errorf("Failed to parse JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse JSON: %v", err)
 	}
 
 	return &info, nil

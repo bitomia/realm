@@ -47,7 +47,7 @@ func StartLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No provisioned deployment found. Run 'provision' first.")
+		return fmt.Errorf("no provisioned deployment found, run 'provision' first")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
@@ -78,7 +78,7 @@ func StopLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No running deployments found")
+		return fmt.Errorf("no running deployments found")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
@@ -108,7 +108,7 @@ func KillLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No running deployments found")
+		return fmt.Errorf("no running deployments found")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
@@ -133,15 +133,15 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
-		return nil, fmt.Errorf("Node not provisioned")
+		return nil, fmt.Errorf("node not provisioned")
 	}
 
 	nodeStatus, err := node.NodeDriver.UpdateStatus(&node.NodeName, database.NodesRepository)
 	if err != nil {
-		return nil, fmt.Errorf("Cannot update node status: %s", err)
+		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}
 	if nodeStatus.StatusCode != common.NodeStatusReady {
-		return nil, fmt.Errorf("Node not provisioned, current status %s", nodeStatus.StatusCode)
+		return nil, fmt.Errorf("node not provisioned, current status %s", nodeStatus.StatusCode)
 	}
 
 	// Check if deployments already exist for this load
@@ -151,7 +151,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 	}
 
 	if len(existingDeployments) > 0 {
-		err := fmt.Errorf("Cannot provision load: deployment already exists for load '%s'. Run 'deprovision' first.", load.Name)
+		err := fmt.Errorf("cannot provision load: deployment already exists for load '%s', run 'deprovision' first", load.Name)
 		slog.Error("ProvisionLoad", "error", err)
 
 		return nil, err
@@ -174,7 +174,7 @@ func DeprovisionLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No deployments found")
+		return fmt.Errorf("no deployments found")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
@@ -202,11 +202,11 @@ func StreamLoadStdout(loadName string, w io.Writer) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No provisioned deployments found")
+		return fmt.Errorf("no provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
-		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
+		return fmt.Errorf("more than one deployment found for this load: %s", loadName)
 	}
 
 	return deployments[0].LoadDriver.StreamStdout(database.DeploymentsRepository, deployments[0], w)
@@ -221,11 +221,11 @@ func StreamLoadStderr(loadName string, w io.Writer) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("No provisioned deployments found")
+		return fmt.Errorf("no provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
-		return fmt.Errorf("More than one deployment found for this load: %s", loadName)
+		return fmt.Errorf("more than one deployment found for this load: %s", loadName)
 	}
 
 	return deployments[0].LoadDriver.StreamStderr(database.DeploymentsRepository, deployments[0], w)
@@ -240,11 +240,11 @@ func ReadLoadStdout(loadName string, offset int64) ([]byte, int64, error) {
 	}
 
 	if len(deployments) == 0 {
-		return nil, 0, fmt.Errorf("No provisioned deployments found")
+		return nil, 0, fmt.Errorf("no provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
-		return nil, 0, fmt.Errorf("More than one deployment found for this load: %s", loadName)
+		return nil, 0, fmt.Errorf("more than one deployment found for this load: %s", loadName)
 	}
 
 	return deployments[0].LoadDriver.ReadStdout(database.DeploymentsRepository, deployments[0], offset)
@@ -259,11 +259,11 @@ func ReadLoadStderr(loadName string, offset int64) ([]byte, int64, error) {
 	}
 
 	if len(deployments) == 0 {
-		return nil, 0, fmt.Errorf("No provisioned deployments found")
+		return nil, 0, fmt.Errorf("no provisioned deployments found")
 	}
 
 	if len(deployments) > 1 {
-		return nil, 0, fmt.Errorf("More than one deployment found for this load: %s", loadName)
+		return nil, 0, fmt.Errorf("more than one deployment found for this load: %s", loadName)
 	}
 
 	return deployments[0].LoadDriver.ReadStderr(database.DeploymentsRepository, deployments[0], offset)
@@ -273,14 +273,14 @@ func CheckDeploymentStatus(deployments []common.Deployment, repository *common.D
 	for _, d := range deployments {
 		status, err := d.LoadDriver.UpdateStatus(*repository, d)
 		if err != nil {
-			err := fmt.Errorf("Cannot update deployment status %s", d.ID)
+			err := fmt.Errorf("cannot update deployment status %s", d.ID)
 			slog.Error(msgContext, "deployment", d.ID, "msg", err)
 			return err
 		}
 		d.Status = status
 
 		if !check(d.Status.StatusCode) {
-			err := fmt.Errorf("Cannot run deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
+			err := fmt.Errorf("cannot run deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
 			slog.Error(msgContext, "deployment", d.ID, "msg", err)
 			return err
 		}

@@ -47,7 +47,7 @@ func (db *DaemonDB) GetContainer(containerName string) (Container, error) {
 	value, err := db.get(containerKey)
 	if err != nil {
 		slog.Error("Error on GetContainer", "error", err.Error())
-		return Container{}, fmt.Errorf("Container %s not found", containerName)
+		return Container{}, fmt.Errorf("container %s not found", containerName)
 	}
 
 	var container Container

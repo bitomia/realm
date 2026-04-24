@@ -61,13 +61,13 @@ func GetContainerdVersion() (*containerd.Version, error) {
 func CreateContainer(containerName string, opts dto.CreateContainerRequest, extraSpecOpts []oci.SpecOpts) error {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s: %s", containerName, err.Error())
+		return fmt.Errorf("cannot create cruntime client: %s: %s", containerName, err.Error())
 	}
 	defer client.Close()
 
 	image, err := TryPullAndGetImage(ctx, client, opts.Image)
 	if err != nil {
-		return fmt.Errorf("Failed to pull image %s: %s", opts.Image, err.Error())
+		return fmt.Errorf("failed to pull image %s: %s", opts.Image, err.Error())
 	}
 
 	var container containerd.Container
@@ -113,17 +113,17 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 				mountSource, err = volumes.MountVolume(volumeName)
 				if err != nil {
 					slog.Error("CreateContainer", "msg", "error on mounting to reuse volume for container", "volume", volumeName, "error", err)
-					return fmt.Errorf("Failed to reuse volume %s: %s", volumeName, err.Error())
+					return fmt.Errorf("failed to reuse volume %s: %s", volumeName, err.Error())
 				}
 			} else {
 				err = volumes.CreateVolume(volumeName)
 				if err != nil {
-					return fmt.Errorf("Failed to create volume %s: %s", volumeName, err.Error())
+					return fmt.Errorf("failed to create volume %s: %s", volumeName, err.Error())
 				}
 
 				mountSource, err = volumes.MountVolume(volumeName)
 				if err != nil {
-					return fmt.Errorf("Error on mounting volume %s: %s", volumeName, err.Error())
+					return fmt.Errorf("error on mounting volume %s: %s", volumeName, err.Error())
 				}
 			}
 
@@ -137,7 +137,7 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 			}
 
 			if len(mountSource) == 0 {
-				return fmt.Errorf("Failed to create volume %s: Unexpected condition mountSource empty", volumeName)
+				return fmt.Errorf("failed to create volume %s: Unexpected condition mountSource empty", volumeName)
 			}
 
 			mountOptions := []specs.Mount{
@@ -203,15 +203,15 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 	)
 
 	if err != nil {
-		return fmt.Errorf("Failed to create new container %s with image %s: %s", containerName, opts.Image, err.Error())
+		return fmt.Errorf("failed to create new container %s with image %s: %s", containerName, opts.Image, err.Error())
 	}
 	if container == nil {
-		return errors.New("Unexpected condition container not existent")
+		return errors.New("unexpected condition container not existent")
 	}
 
 	database := db.GetDB()
 	if _, err := database.CreateContainer(containerName, opts.Image, ""); err != nil {
-		return fmt.Errorf("Failed to create container %s in database: %s", containerName, err.Error())
+		return fmt.Errorf("failed to create container %s in database: %s", containerName, err.Error())
 	}
 
 	return nil
@@ -220,13 +220,13 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error())
+		return fmt.Errorf("cannot create cruntime client: %s - %s", containerName, err.Error())
 	}
 	defer client.Close()
 
 	container, err := client.LoadContainer(ctx, containerName)
 	if err != nil {
-		return fmt.Errorf("Failed to retrieve container %s on remove: %s", containerName, err.Error())
+		return fmt.Errorf("failed to retrieve container %s on remove: %s", containerName, err.Error())
 	}
 
 	task, err := container.Task(ctx, nil)

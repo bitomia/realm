@@ -107,7 +107,7 @@ func (c *ContainerDriver) UnmarshalJSON(data []byte) error {
 
 func (c *ContainerDriver) verifyConfig() error {
 	if c.Config.Image == "" {
-		return fmt.Errorf("Container image not specified")
+		return fmt.Errorf("container image not specified")
 	}
 
 	// Validate network configuration
@@ -119,12 +119,12 @@ func (c *ContainerDriver) verifyConfig() error {
 
 		// Validate mode is valid
 		if mode != "bridge" && mode != "host" {
-			return fmt.Errorf("Invalid network mode '%s': must be 'bridge' or 'host'", mode)
+			return fmt.Errorf("invalid network mode '%s': must be 'bridge' or 'host'", mode)
 		}
 
 		// If not using host mode, network name is required
 		if mode != "host" && c.Config.Network.Network == "" {
-			return fmt.Errorf("Network name is required when using bridge mode")
+			return fmt.Errorf("network name is required when using bridge mode")
 		}
 
 		// Warn during provisioning if host mode has conflicting settings
@@ -149,28 +149,28 @@ func (c *ContainerDriver) verifyConfig() error {
 
 func (c *ContainerDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
 	if nodeDriver == nil {
-		err := fmt.Errorf("Nil node driver")
+		err := fmt.Errorf("nil node driver")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	nodeCaps, err := nodeDriver.GetCapabilities()
 	if err != nil {
-		err := fmt.Errorf("Capabilities not initiliazed")
+		err := fmt.Errorf("capabilities not initiliazed")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.ContainersEngine() {
-		err := fmt.Errorf("Containers engine capability required")
+		err := fmt.Errorf("containers engine capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.ContainersNetworking() {
-		err := fmt.Errorf("Containers networking capability required")
+		err := fmt.Errorf("containers networking capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
 	if !nodeCaps.Volumes() {
-		err := fmt.Errorf("Volumes capability required")
+		err := fmt.Errorf("volumes capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
@@ -276,7 +276,7 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
 		slog.Info("ContainerDriver.Start", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
 
-		if err, _, gwAddress, ipAddress := network.StartNetwork(containerName, *c.Config.Network); err != nil {
+		if _, gwAddress, ipAddress, err := network.StartNetwork(containerName, *c.Config.Network); err != nil {
 			err = fmt.Errorf("failed to attach network. rolling back: %s", err.Error())
 			slog.Error("ContainerDriver.Start", "msg", "failed to attach network", "error", err)
 

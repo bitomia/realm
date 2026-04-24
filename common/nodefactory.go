@@ -18,7 +18,7 @@ func RegisterNodeDriver(d NodeDriver) error {
 	}
 
 	if _, exists := nodeDrivers[info.ID]; exists {
-		return fmt.Errorf("NodeDriverID '%s' already registered", info.ID)
+		return fmt.Errorf("nodeDriverID '%s' already registered", info.ID)
 	}
 
 	nodeDrivers[info.ID] = info
@@ -27,7 +27,7 @@ func RegisterNodeDriver(d NodeDriver) error {
 
 func UnregisterNodeDriver(id NodeDriverID) error {
 	if _, exists := nodeDrivers[id]; !exists {
-		return fmt.Errorf("NodeDriverID '%s' not registered", id)
+		return fmt.Errorf("nodeDriverID '%s' not registered", id)
 	}
 	delete(nodeDrivers, id)
 	return nil
@@ -35,7 +35,7 @@ func UnregisterNodeDriver(id NodeDriverID) error {
 
 func BuildNodeDriver(d NodeDriverConfig) (NodeDriver, error) {
 	if _, exists := nodeDrivers[d.Driver]; !exists {
-		return nil, fmt.Errorf("NodeDriverID '%s' not registered", d.Driver)
+		return nil, fmt.Errorf("nodeDriverID '%s' not registered", d.Driver)
 	}
 	driver, err := nodeDrivers[d.Driver].New(d.DriverConfig)
 	if err != nil {

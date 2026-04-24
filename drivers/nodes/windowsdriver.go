@@ -161,7 +161,7 @@ func (l *WindowsDriver) GetState(_ *string, _ common.NodesRepository) (common.No
 func (w *WindowsDriver) GetCapabilities() (common.Capabilities, error) {
 	daemonCaps := capabilities.Get()
 	if daemonCaps == nil {
-		return nil, fmt.Errorf("Daemon capabilities not initialized")
+		return nil, fmt.Errorf("daemon capabilities not initialized")
 	}
 	return daemonCaps, nil
 }

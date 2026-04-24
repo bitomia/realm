@@ -17,7 +17,7 @@ func ResetNodesConfig() {
 
 func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeDriver) (*common.Node, error) {
 	if _, exists := nodesConfig[nodeName]; exists {
-		return nil, fmt.Errorf("Node '%s' not unique", nodeName)
+		return nil, fmt.Errorf("node '%s' not unique", nodeName)
 	}
 	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Url: node.Url, Driver: driver}
 	return nodesConfig[nodeName], nil

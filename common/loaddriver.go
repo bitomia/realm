@@ -80,7 +80,7 @@ func SetDeploymentError(repository DeploymentsRepository, deployment Deployment,
 	var reason strings.Builder
 	reason.WriteString(msg)
 	for i := 0; i+1 < len(args); i += 2 {
-		reason.WriteString(fmt.Sprintf(" %v=%v", args[i], args[i+1]))
+		fmt.Fprintf(&reason, " %v=%v", args[i], args[i+1])
 	}
 	return repository.UpdateStatus(deployment.ID, DeploymentStatus{StatusCode: DeploymentStatusError, Reason: reason.String()})
 }

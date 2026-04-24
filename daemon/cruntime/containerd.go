@@ -46,5 +46,5 @@ func GetContainerTaskPID(ctx context.Context, c *containerd.Client, containerNam
 
 		return task.Pid(), nil
 	}
-	return 0, fmt.Errorf("Container task not found")
+	return 0, fmt.Errorf("container task not found")
 }

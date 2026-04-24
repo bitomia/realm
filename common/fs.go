@@ -131,7 +131,7 @@ func ResolveExecPath(execFile string, workingDir *string) (string, error) {
 		return path, nil
 	}
 
-	return "", fmt.Errorf("Executable %q not found", execFile)
+	return "", fmt.Errorf("executable %q not found", execFile)
 }
 
 func CopyFile(src, dst string) error {

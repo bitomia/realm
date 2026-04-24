@@ -192,7 +192,7 @@ func getNode(nodeName *string) (*common.NodeEntry, error) {
 func StopNode(nodeName *string, message string, time uint32, force bool) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("Node not provisioned")
+		return fmt.Errorf("node not provisioned")
 	}
 
 	driverInfo, err := node.NodeDriver.DriverInfo()
@@ -214,7 +214,7 @@ func StopNode(nodeName *string, message string, time uint32, force bool) error {
 func RestartNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("Node not provisioned")
+		return fmt.Errorf("node not provisioned")
 	}
 
 	driverInfo, err := node.NodeDriver.DriverInfo()

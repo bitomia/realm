@@ -63,7 +63,7 @@ func NewProcessDriver(c any) (common.LoadDriver, error) {
 	var stopSignal *int = nil
 	if config.StopSignal != nil {
 		if stopSignalAux, ok := internal.StringToSignal(*config.StopSignal); !ok {
-			return nil, fmt.Errorf("Invalid StopSignal")
+			return nil, fmt.Errorf("invalid StopSignal")
 		} else {
 			stopSignal = &stopSignalAux
 		}
@@ -111,7 +111,7 @@ func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
 
 func (p *ProcessDriver) verifyConfig() error {
 	if p.Config.StartCmd == "" {
-		return fmt.Errorf("StartCmd not specified")
+		return fmt.Errorf("startCmd not specified")
 	}
 
 	return nil
@@ -139,7 +139,7 @@ func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository commo
 	}
 
 	if len(deployments) > 0 {
-		return uuid.Nil, fmt.Errorf("Load for ProcessDriver already running: %s", loadName)
+		return uuid.Nil, fmt.Errorf("load for ProcessDriver already running: %s", loadName)
 	}
 
 	// Create deployment in "provisioned" state

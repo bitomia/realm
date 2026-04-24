@@ -138,7 +138,7 @@ func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, re
 
 func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
 	if nodeName == nil {
-		return fmt.Errorf("VMDriver expects node name for guest node deprovision")
+		return fmt.Errorf("vMDriver expects node name for guest node deprovision")
 	}
 
 	self, err := repository.GetGuestNode(*nodeName)
@@ -408,7 +408,7 @@ func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository)
 	}
 	metadata, err := common.CastMetadata[VMNodeMetadata](&self.Metadata)
 	if err != nil {
-		return state, fmt.Errorf("VMDriver.GetState cannot cast metadata: %s", err.Error())
+		return state, fmt.Errorf("vMDriver.GetState cannot cast metadata: %s", err.Error())
 	}
 
 	err = withLibvirt(func(l *libvirt.Libvirt) error {
@@ -475,7 +475,7 @@ func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository)
 func (q *VMDriver) GetCapabilities() (common.Capabilities, error) {
 	daemonCaps := capabilities.Get()
 	if daemonCaps == nil {
-		return nil, fmt.Errorf("Daemon capabilities not initialized")
+		return nil, fmt.Errorf("daemon capabilities not initialized")
 	}
 	return daemonCaps, nil
 }

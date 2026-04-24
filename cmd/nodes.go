@@ -17,11 +17,11 @@ func validateNodeArgs(cmd *cobra.Command, args []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 
 	if all && len(args) > 0 {
-		return fmt.Errorf("Cannot use --all with node names")
+		return fmt.Errorf("cannot use --all with node names")
 	}
 
 	if !all && len(args) == 0 {
-		return fmt.Errorf("Must specify --all or at least one node name")
+		return fmt.Errorf("must specify --all or at least one node name")
 	}
 
 	return nil

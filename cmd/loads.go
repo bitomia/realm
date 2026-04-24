@@ -16,7 +16,7 @@ import (
 
 func doProvisionLoads(client *clientPkg.Client, loads map[string]*common.Load) error {
 	if len(loads) == 0 {
-		return fmt.Errorf("No loads")
+		return fmt.Errorf("no loads")
 	}
 	for _, load := range loads {
 		log.Info("Provisioning load %s", color.CyanString(load.Name))
@@ -31,11 +31,11 @@ func validateLoadArgs(cmd *cobra.Command, args []string) error {
 	all, _ := cmd.Flags().GetBool("all")
 
 	if all && len(args) > 0 {
-		return fmt.Errorf("Cannot use --all with load names")
+		return fmt.Errorf("cannot use --all with load names")
 	}
 
 	if !all && len(args) == 0 {
-		return fmt.Errorf("Must specify --all or at least one load name")
+		return fmt.Errorf("must specify --all or at least one load name")
 	}
 
 	return nil

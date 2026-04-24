@@ -169,7 +169,7 @@ func (l *LinuxDriver) GetState(_ *string, _ common.NodesRepository) (common.Node
 func (l *LinuxDriver) GetCapabilities() (common.Capabilities, error) {
 	daemonCaps := capabilities.Get()
 	if daemonCaps == nil {
-		return nil, fmt.Errorf("Daemon capabilities not initialized")
+		return nil, fmt.Errorf("daemon capabilities not initialized")
 	}
 	return daemonCaps, nil
 }

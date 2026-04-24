@@ -250,7 +250,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 		} else {
 			driver, err := common.BuildNodeDriver(common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
 			if err != nil {
-				return nil, fmt.Errorf("Error building node driver '%s': %s", nodeName, err.Error())
+				return nil, fmt.Errorf("error building node driver '%s': %s", nodeName, err.Error())
 			}
 			if _, err := newNodeConfig(nodeName, node, driver); err != nil {
 				return nil, err

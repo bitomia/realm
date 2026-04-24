@@ -65,7 +65,7 @@ func (m *ZFSVolumeManager) Init() error {
 
 	pool, err := zfs.DatasetOpen(poolName)
 	if err != nil {
-		return fmt.Errorf("ZFS pool '%s' does not exist or cannot be opened: %w", poolName, err)
+		return fmt.Errorf("zFS pool '%s' does not exist or cannot be opened: %w", poolName, err)
 	}
 	pool.Close()
 
@@ -102,7 +102,7 @@ func (m *ZFSVolumeManager) MountVolume(volume string) (string, error) {
 		}
 		return mountPoint, nil
 	} else {
-		return "", fmt.Errorf("Could not mount %s", volume)
+		return "", fmt.Errorf("could not mount %s", volume)
 	}
 }
 

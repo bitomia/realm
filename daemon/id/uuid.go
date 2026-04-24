@@ -17,7 +17,7 @@ import (
 func GetDaemonId() (string, error) {
 	dataPath := config.Get().DataPath
 	if dataPath == "" {
-		return "", fmt.Errorf("Invalid data path")
+		return "", fmt.Errorf("invalid data path")
 	}
 	idPath := filepath.Join(dataPath, "node.id")
 

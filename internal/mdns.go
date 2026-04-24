@@ -59,7 +59,7 @@ func QueryServices(serviceName string) (map[string]*ServiceInfo, error) {
 func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string]*ServiceInfo, error) {
 	addr, err := net.ResolveUDPAddr("udp", mdnsAddr)
 	if err != nil {
-		return nil, fmt.Errorf("Error resolving mDNS address: %v\n", err)
+		return nil, fmt.Errorf("error resolving mDNS address: %v", err)
 	}
 
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{
@@ -67,7 +67,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 		Port: 0,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Error creating UDP listener: %v\n", err)
+		return nil, fmt.Errorf("error creating UDP listener: %v", err)
 	}
 	defer conn.Close()
 
@@ -76,12 +76,12 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 
 	err = p.SetMulticastTTL(64)
 	if err != nil {
-		return nil, fmt.Errorf("Error setting multicast TTL: %v\n", err)
+		return nil, fmt.Errorf("error setting multicast TTL: %v", err)
 	}
 
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting interfaces: %v\n", err)
+		return nil, fmt.Errorf("error getting interfaces: %v", err)
 	}
 
 	multicastAddr := &net.UDPAddr{IP: net.IPv4(224, 0, 0, 251)}
@@ -112,7 +112,7 @@ func QueryServicesWithConfig(serviceName string, config QueryConfig) (map[string
 
 	_, err = p.WriteTo(query, nil, addr)
 	if err != nil {
-		return nil, fmt.Errorf("Error sending query: %v\n", err)
+		return nil, fmt.Errorf("error sending query: %v", err)
 	}
 
 	endTime := time.Now().Add(config.QueryTimeout)
@@ -214,7 +214,7 @@ func splitDNSName(name string) []string {
 
 func parseMDNSResponse(data []byte, services map[string]*ServiceInfo, hostnames map[string]bool) error {
 	if len(data) < 12 {
-		return fmt.Errorf("Response too short")
+		return fmt.Errorf("response too short")
 	}
 
 	header := parseDNSHeader(data[:12])

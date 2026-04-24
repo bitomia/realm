@@ -195,7 +195,7 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 
 		confList, err := libcni.ConfListFromBytes([]byte(c.Config))
 		if err != nil {
-			return fmt.Errorf("Failed to parse CNI config: %s\n", err)
+			return fmt.Errorf("failed to parse CNI config: %s", err)
 		}
 
 		netns := fmt.Sprintf("/proc/%d/ns/net", pid)
@@ -252,28 +252,28 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 	return nil
 }
 
-func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map[string][]any, net.IP, net.IP) {
+func StartNetwork(containerName string, netConfig dto.NetworkConfig) (map[string][]any, net.IP, net.IP, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error()), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("cannot create cruntime client: %s - %s", containerName, err.Error())
 	}
 	defer client.Close()
 
 	containers, err := client.Containers(ctx)
 	if err != nil {
 		slog.Info("network.StartNetwork: Cannot retrieve containers client")
-		return err, nil, nil, nil
+		return nil, nil, nil, err
 	}
 
 	subnet, err := getSubnet(netConfig.Network)
 	if err != nil {
-		return fmt.Errorf("failed to get subnet: %w", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("failed to get subnet: %w", err)
 	}
 	bridgeName := getBridgeName(netConfig.Network)
 	netConf := createNetworkConfig(bridgeName, subnet, netConfig.IPMasq, netConfig.PortMap)
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
-		return fmt.Errorf("failed to parse CNI config: %w", err), nil, nil, nil
+		return nil, nil, nil, fmt.Errorf("failed to parse CNI config: %w", err)
 	}
 
 	var gw net.IP
@@ -286,7 +286,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 
 		task, err := container.Task(ctx, nil)
 		if err != nil {
-			return fmt.Errorf("Error while retrieving task for container %s: %s", containerName, err.Error()), nil, nil, nil
+			return nil, nil, nil, fmt.Errorf("error while retrieving task for container %s: %s", containerName, err.Error())
 		}
 		if task == nil {
 			continue
@@ -308,11 +308,11 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 			IfName:      ifaceName,
 		})
 		if err != nil {
-			return fmt.Errorf("Failed to add network for container=%s pid=%d: %v\n", containerName, pid, err), nil, nil, nil
+			return nil, nil, nil, fmt.Errorf("failed to add network for container=%s pid=%d: %v", containerName, pid, err)
 		}
 		resultJSON, err := json.Marshal(result)
 		if err != nil {
-			return fmt.Errorf("Failed to marshal result: %s", err.Error()), nil, nil, nil
+			return nil, nil, nil, fmt.Errorf("failed to marshal result: %s", err.Error())
 		}
 
 		networkConfigs[containerName] = append(networkConfigs[containerName], result)
@@ -327,7 +327,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 
 		err = db.GetDB().AddNetConfig(netConfig.Network, containerName, []byte(netConf), resultJSON, ifaceName, netConfig.Network)
 		if err != nil {
-			return fmt.Errorf("Failed to marshal result: %s", err.Error()), nil, nil, nil
+			return nil, nil, nil, fmt.Errorf("failed to persist net config: %s", err.Error())
 		}
 
 		if netConfig.DNS {
@@ -335,7 +335,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 				slog.Info("Updating resolv.conf for container", "container", containerName, "pid", pid, "gw", gw)
 				resolvConfContent := fmt.Sprintf("nameserver %s\nnameserver 8.8.8.8\nnameserver 8.8.4.4\n", gw)
 				if err := WriteStringToResolvConf(ctx, task, resolvConfContent); err != nil {
-					return fmt.Errorf("error writing resolv.conf for container %s: %w", containerName, err), nil, nil, nil
+					return nil, nil, nil, fmt.Errorf("error writing resolv.conf for container %s: %w", containerName, err)
 				}
 			} else {
 				slog.Warn("Cannot update resolv.conf for container", "container", containerName, "pid", pid)
@@ -343,7 +343,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (error, map
 		}
 	}
 
-	return nil, networkConfigs, gw, ip.IP
+	return networkConfigs, gw, ip.IP, nil
 }
 
 func WriteStringToResolvConf(ctx context.Context, task containerd.Task, content string) error {
@@ -378,7 +378,7 @@ func WriteStringToResolvConf(ctx context.Context, task containerd.Task, content 
 func DeleteNetwork(containerName string) error {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error())
+		return fmt.Errorf("cannot create cruntime client: %s - %s", containerName, err.Error())
 	}
 	defer client.Close()
 
@@ -397,7 +397,7 @@ func DeleteNetwork(containerName string) error {
 func RepairNetwork(containerName string) error {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		return fmt.Errorf("Cannot create cruntime client: %s - %s", containerName, err.Error())
+		return fmt.Errorf("cannot create cruntime client: %s - %s", containerName, err.Error())
 	}
 	defer client.Close()
 
@@ -408,10 +408,10 @@ func RepairNetwork(containerName string) error {
 
 	task, err := container.Task(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Error while retrieving task for container %s: %s", containerName, err.Error())
+		return fmt.Errorf("error while retrieving task for container %s: %s", containerName, err.Error())
 	}
 	if task == nil {
-		return errors.New("Cannot find task")
+		return errors.New("cannot find task")
 	}
 	pid := task.Pid()
 	cniPath := config.Get().Daemon.CniPath
@@ -436,7 +436,7 @@ func RepairNetwork(containerName string) error {
 			return err
 		}
 		if rt == nil {
-			return fmt.Errorf("RepairNetwork failed, runtime config is nil")
+			return fmt.Errorf("repairNetwork failed, runtime config is nil")
 		}
 		err = cniConfig.DelNetworkList(ctx, confList, rt)
 		if err != nil {
@@ -544,7 +544,7 @@ func IsCNIAvailable() error {
 
 	// Check if CNI path exists
 	if _, err := os.Stat(cniPath); os.IsNotExist(err) {
-		return fmt.Errorf("CNI path does not exist: %s", cniPath)
+		return fmt.Errorf("cNI path does not exist: %s", cniPath)
 	}
 
 	var missingPlugins []string
