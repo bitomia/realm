@@ -85,9 +85,6 @@ type NodeDriver interface {
 	// GetDriverConfig returns the configuration for this node driver.
 	GetDriverConfig() NodeDriverConfig
 
-	// GetCapabilities returns current node capabilities
-	GetCapabilities() (Capabilities, error)
-
 	// MarshalJSON serializes the driver into JSON.
 	MarshalJSON() ([]byte, error)
 

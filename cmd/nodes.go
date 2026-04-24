@@ -74,7 +74,7 @@ var nodeStates = &cobra.Command{
 				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeStorage)))))
 
 				if len(node.State.Containers) > 0 {
-					log.Info("Containers (%d):", len(node.State.Containers))
+					log.Info(" Containers (%d):", len(node.State.Containers))
 					for _, container := range node.State.Containers {
 						log.Info("  - %s:", color.YellowString(container.ContainerID))
 						log.Info("    CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", container.CPUUsage)))
@@ -84,23 +84,11 @@ var nodeStates = &cobra.Command{
 						log.Info("    Memory Limit: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(container.MemoryLimit))))
 					}
 				} else {
-					log.Info("Containers: %s", color.CyanString("0"))
-				}
-
-				info, err := client.GetSystemInfo(cfgNode.Url)
-				if err != nil {
-					log.Info("System Info: %s", strings.TrimSpace(err.Error()))
-				} else {
-					log.Info("Capabilities:")
-					log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersEngine)))
-					log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersNetworking)))
-					log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.Volumes)))
-					log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VolumesZFS)))
-					log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VMM)))
+					log.Info(" Containers: %s", color.CyanString("0"))
 				}
 
 				if len(node.State.NetworkInterfaces) > 0 {
-					log.Info("Network Interfaces (%d):", len(node.State.NetworkInterfaces))
+					log.Info(" Network Interfaces (%d):", len(node.State.NetworkInterfaces))
 					for _, ni := range node.State.NetworkInterfaces {
 						log.Info("  - %s (%s): %s",
 							color.YellowString(ni.Name),
@@ -108,9 +96,22 @@ var nodeStates = &cobra.Command{
 							color.CyanString(strings.Join(ni.Addresses, ", ")))
 					}
 				}
-
-				fmt.Println()
 			}
+
+			if node.Status.StatusCode != common.NodeStatusOffline {
+				info, err := client.GetSystemInfo(cfgNode.Url)
+				if err != nil {
+					log.Info(" System Info: %s", strings.TrimSpace(err.Error()))
+				} else {
+					log.Info(" Capabilities:")
+					log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersEngine)))
+					log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersNetworking)))
+					log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.Volumes)))
+					log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VolumesZFS)))
+					log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VMM)))
+				}
+			}
+			fmt.Println()
 		}
 	},
 }

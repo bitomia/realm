@@ -14,7 +14,6 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
 	commonConfig "github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/config"
 )
 
@@ -470,14 +469,6 @@ func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository)
 		return state, err
 	}
 	return state, nil
-}
-
-func (q *VMDriver) GetCapabilities() (common.Capabilities, error) {
-	daemonCaps := capabilities.Get()
-	if daemonCaps == nil {
-		return nil, fmt.Errorf("daemon capabilities not initialized")
-	}
-	return daemonCaps, nil
 }
 
 func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {

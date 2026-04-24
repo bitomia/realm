@@ -25,7 +25,7 @@ func GetNodeState() (common.NodeState, error) {
 	var cpuStat cpu.TimesStat
 	var cpuUsage float64
 
-	if capabilities.Get().HasContainersEngine {
+	if capabilities.Get().ContainersEngine() {
 		ctx, client, err := cruntime.CreateClient()
 		if err != nil {
 			return common.NodeState{}, err

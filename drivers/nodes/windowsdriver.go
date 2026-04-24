@@ -11,7 +11,6 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
-	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cpu"
 )
 
@@ -156,12 +155,4 @@ func (w *WindowsDriver) UpdateStatus(_ *string, repository common.NodesRepositor
 
 func (l *WindowsDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
 	return cpu.GetNodeState()
-}
-
-func (w *WindowsDriver) GetCapabilities() (common.Capabilities, error) {
-	daemonCaps := capabilities.Get()
-	if daemonCaps == nil {
-		return nil, fmt.Errorf("daemon capabilities not initialized")
-	}
-	return daemonCaps, nil
 }

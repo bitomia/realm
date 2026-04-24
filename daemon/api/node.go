@@ -6,6 +6,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cloudinit"
 	"github.com/bitomia/realm/daemon/cpu"
 	"github.com/bitomia/realm/daemon/db"
@@ -74,17 +75,11 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 		return nil, fmt.Errorf("failed to get system info: %w", err)
 	}
 
-	database := db.GetDB()
-	nodeEntry, err := database.NodesRepository.GetSelf()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get self node: %w", err)
+	caps := capabilities.Get()
+	if caps == nil {
+		return nil, fmt.Errorf("nil system capabilities")
 	}
-
-	caps, err := nodeEntry.NodeDriver.GetCapabilities()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get node capabilities: %w", err)
-	}
-	info.Capabilities = dto.NewNodeCapabilities(caps)
+	info.Capabilities = dto.NewCapabilities(caps)
 
 	return info, nil
 }

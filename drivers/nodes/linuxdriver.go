@@ -11,7 +11,6 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
-	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/cpu"
 )
 
@@ -164,12 +163,4 @@ func (l *LinuxDriver) UpdateStatus(_ *string, repository common.NodesRepository)
 
 func (l *LinuxDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
 	return cpu.GetNodeState()
-}
-
-func (l *LinuxDriver) GetCapabilities() (common.Capabilities, error) {
-	daemonCaps := capabilities.Get()
-	if daemonCaps == nil {
-		return nil, fmt.Errorf("daemon capabilities not initialized")
-	}
-	return daemonCaps, nil
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/daemon/api"
+	"github.com/bitomia/realm/daemon/capabilities"
 	"github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/cruntime"
@@ -153,23 +154,18 @@ func (c *ContainerDriver) Provision(nodeDriver common.NodeDriver, repository com
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
-	nodeCaps, err := nodeDriver.GetCapabilities()
-	if err != nil {
-		err := fmt.Errorf("capabilities not initiliazed")
-		slog.Error("ContainerDriver.Provision", "error", err)
-		return uuid.Nil, err
-	}
-	if !nodeCaps.ContainersEngine() {
+	sysCaps := capabilities.Get()
+	if !sysCaps.ContainersEngine() {
 		err := fmt.Errorf("containers engine capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
-	if !nodeCaps.ContainersNetworking() {
+	if !sysCaps.ContainersNetworking() {
 		err := fmt.Errorf("containers networking capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
-	if !nodeCaps.Volumes() {
+	if !sysCaps.Volumes() {
 		err := fmt.Errorf("volumes capability required")
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err

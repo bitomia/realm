@@ -7,51 +7,57 @@ import (
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
+	"github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt/socket/dialers"
 )
 
-var globalCaps *HostDaemonCapabilities = nil
+var systemCaps *SystemCapabilities = nil
 
-type HostDaemonCapabilities struct {
+type SystemCapabilities struct {
 	// Can use github.com/bitomia/realm/daemon/containers
-	HasContainersEngine bool `json:"containers_engine"`
+	containersEngine bool
 	// Can use github.com/bitomia/realm/daemon/network
-	HasContainersNetworking bool `json:"networking"`
+	containersNetworking bool
 	// Can use github.com/bitomia/realm/daemon/volumes
-	HasVolumes bool `json:"volumes"`
+	volumes bool
 	// Can use github.com/bitomia/realm/daemon/volumes zfs
-	HasVolumesZFS bool `json:"volumes_zfs"`
+	volumesZFS bool
+	// Can host virtual machines
+	vmm bool
 }
 
-func Get() *HostDaemonCapabilities {
-	return globalCaps
+func Get() *SystemCapabilities {
+	return systemCaps
 }
 
 func Initialize(cfg *config.Config) {
-	if globalCaps != nil {
+	if systemCaps != nil {
 		slog.Error("capabilitis.Initialize", "error", "capabilities already initialized")
 		return
 	}
 
-	globalCaps = &HostDaemonCapabilities{false, false, false, false}
+	systemCaps = &SystemCapabilities{false, false, false, false, false}
 	if cfg.Daemon.Containers {
-		globalCaps.evalContainersEngine()
-		globalCaps.evalContainersNetworking()
+		systemCaps.evalContainersEngine()
+		systemCaps.evalContainersNetworking()
 	} else {
 		slog.Info("Containers support disabled")
 	}
-	globalCaps.evalVolumes(cfg)
+	systemCaps.evalVolumes(cfg)
+	systemCaps.evalVMM()
 }
 
-func (c HostDaemonCapabilities) Print() {
-	slog.Info("Capability", "type", "containers engine", "value", c.HasContainersEngine)
-	slog.Info("Capability", "type", "container network interfaces", "value", c.HasContainersNetworking)
-	slog.Info("Capability", "type", "volumes", "value", c.HasVolumes)
-	slog.Info("Capability", "type", "ZFS volumes", "value", c.HasVolumesZFS)
+func (c SystemCapabilities) Print() {
+	slog.Info("Capability", "type", "containers engine", "value", c.containersEngine)
+	slog.Info("Capability", "type", "container network interfaces", "value", c.containersNetworking)
+	slog.Info("Capability", "type", "volumes", "value", c.volumes)
+	slog.Info("Capability", "type", "ZFS volumes", "value", c.volumesZFS)
+	slog.Info("Capability", "type", "VMM", "value", c.vmm)
 }
 
-func (c HostDaemonCapabilities) evalContainersEngine() {
+func (c SystemCapabilities) evalContainersEngine() {
 	containerdVersion, err := containers.GetContainerdVersion()
-	globalCaps.HasContainersEngine = err == nil
+	systemCaps.containersEngine = err == nil
 
 	if err != nil {
 		slog.Warn("Cannot get containerd version", "error", err.Error())
@@ -60,7 +66,7 @@ func (c HostDaemonCapabilities) evalContainersEngine() {
 	}
 }
 
-func (c HostDaemonCapabilities) evalContainersNetworking() {
+func (c SystemCapabilities) evalContainersNetworking() {
 	slog.Info("Checking containers networking availability")
 
 	if err := network.IsCNIAvailable(); err != nil {
@@ -69,10 +75,10 @@ func (c HostDaemonCapabilities) evalContainersNetworking() {
 	}
 
 	slog.Info("CNI plugins validated successfully")
-	globalCaps.HasContainersNetworking = true
+	systemCaps.containersNetworking = true
 }
 
-func (c HostDaemonCapabilities) evalVolumes(cfg *config.Config) {
+func (c SystemCapabilities) evalVolumes(cfg *config.Config) {
 	if err := volumes.InitializeManager(cfg.Daemon.ZFS); err != nil {
 		slog.Warn("Cannot initialize volumes", "error", err.Error())
 		return
@@ -90,27 +96,34 @@ func (c HostDaemonCapabilities) evalVolumes(cfg *config.Config) {
 		slog.Info("Volumes ready (directory-based)", "path", volumesPath)
 	}
 
-	globalCaps.HasVolumes = true
-	globalCaps.HasVolumesZFS = cfg.Daemon.ZFS
+	systemCaps.volumes = true
+	systemCaps.volumesZFS = cfg.Daemon.ZFS
 }
 
-func (c HostDaemonCapabilities) ContainersEngine() bool {
-	return c.HasContainersEngine
+func (c SystemCapabilities) evalVMM() {
+	l := libvirt.NewWithDialer(dialers.NewLocal())
+	if err := l.Connect(); err != nil {
+		systemCaps.vmm = false
+	}
+	systemCaps.vmm = true
 }
 
-func (c HostDaemonCapabilities) ContainersNetworking() bool {
-	return c.HasContainersNetworking
+func (c SystemCapabilities) ContainersEngine() bool {
+	return c.containersEngine
 }
 
-func (c HostDaemonCapabilities) Volumes() bool {
-	return c.HasVolumes
+func (c SystemCapabilities) ContainersNetworking() bool {
+	return c.containersNetworking
 }
 
-func (c HostDaemonCapabilities) VolumesZFS() bool {
-	return c.HasVolumesZFS
+func (c SystemCapabilities) Volumes() bool {
+	return c.volumes
 }
 
-func (c HostDaemonCapabilities) VMM() bool {
-	// TODO
-	return true
+func (c SystemCapabilities) VolumesZFS() bool {
+	return c.volumesZFS
+}
+
+func (c SystemCapabilities) VMM() bool {
+	return c.vmm
 }
