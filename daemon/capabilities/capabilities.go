@@ -3,12 +3,13 @@ package capabilities
 import (
 	"log/slog"
 
+	"github.com/digitalocean/go-libvirt"
+	"github.com/digitalocean/go-libvirt/socket/dialers"
+
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/daemon/containers"
 	"github.com/bitomia/realm/daemon/network"
 	"github.com/bitomia/realm/daemon/volumes"
-	"github.com/digitalocean/go-libvirt"
-	"github.com/digitalocean/go-libvirt/socket/dialers"
 )
 
 var systemCaps *SystemCapabilities = nil
