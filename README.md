@@ -4,9 +4,25 @@ Realm is a extendable, embeddable and simple orchestration service for different
 
 It's simple because it is just one executable to command the cluster where Realm runs as daemon on each one of the cluster nodes. It's also extendable because it uses a driver systems to extend it with custom loads or node drivers. Managing the cluster can be commanded from command-line interface or using the REST API that each daemon exposes. It's embeddable because Realm provides a C API to interface with clusters.
 
+## Quick Installation
+
+**Linux:**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/bitomia/realm/main/install.sh | sh
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/bitomia/realm/main/install.ps1 | iex
+```
+
+The install location can be overridden via the `REALM_INSTALL_DIR` environment variable.
+
 ## Getting Started
 
-Realm running as client does not require any external dependencies. For daemon installation on Linux or Windows, see the [Getting Started Guide](docs/getting-started.md).
+Realm running as client does not require any external dependencies. For detailed daemon installation on Linux or Windows, see the [Getting Started Guide](docs/getting-started.md).
 
 ## Documentation
 
