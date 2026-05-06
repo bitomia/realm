@@ -2,32 +2,45 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 )
 
-// resolveIncludes reads a YAML file and recursively resolves !include tags.
-// Included file paths are resolved relative to the directory of the file containing the tag.
-func resolveIncludes(filePath string) ([]byte, error) {
-	absPath, err := filepath.Abs(filePath)
+// resolveConfig reads YAML from r and recursively resolves !include tags and expands env variables.
+// Included file paths are resolved relative to baseDir.
+func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
+	data, err := io.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve path %s: %w", filePath, err)
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	data, err := os.ReadFile(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", absPath, err)
+	// Expand env variables
+	var missingEnvVars []string
+	data = []byte(os.Expand(string(data), func(key string) string {
+		val, ok := os.LookupEnv(key)
+		if !ok {
+			missingEnvVars = append(missingEnvVars, key)
+		}
+		return val
+	}))
+	if len(missingEnvVars) > 0 {
+		return nil, fmt.Errorf("missing env variables %s", missingEnvVars)
 	}
 
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML in %s: %w", absPath, err)
+		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
-	baseDir := filepath.Dir(absPath)
-	if err := resolveNode(&doc, baseDir); err != nil {
+	absBaseDir, err := filepath.Abs(baseDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve base directory %s: %w", baseDir, err)
+	}
+
+	if err := resolveNode(&doc, absBaseDir); err != nil {
 		return nil, err
 	}
 

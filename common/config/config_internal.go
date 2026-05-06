@@ -68,38 +68,6 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("daemon.etcd_initial_cluster", "")
 }
 
-func readInConfig(configFilePath string) (*Config, error) {
-	return readConfig(func() (*Config, error) {
-		var config Config
-
-		cfgPath := findConfigFile(configFilePath)
-		if cfgPath != "" {
-			resolved, err := resolveIncludes(cfgPath)
-			if err != nil {
-				return &config, fmt.Errorf("failed to resolve includes in %s: %w", cfgPath, err)
-			}
-			viper.SetConfigType("yaml")
-			if err := viper.ReadConfig(bytes.NewReader(resolved)); err != nil {
-				return &config, err
-			}
-		} else {
-			if err := viper.ReadInConfig(); err != nil {
-				if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-					return &config, err
-				} else {
-					log.Println("Config file not found. Continuing using default configuration.")
-				}
-			}
-		}
-
-		err := viper.UnmarshalExact(&config, func(c *mapstructure.DecoderConfig) {
-			c.TagName = "json"
-		})
-
-		return &config, err
-	}, configFilePath)
-}
-
 // findConfigFile resolves the config file path using the same logic as viper's config setup.
 func findConfigFile(configFilePath string) string {
 	if configFilePath != "" {
@@ -128,17 +96,57 @@ func findConfigFile(configFilePath string) string {
 	return ""
 }
 
-func readConfigFromReader(in io.Reader) (*Config, error) {
-	return readConfig(func() (*Config, error) {
-		var config Config
-		err := viper.ReadConfig(in)
-		if err == nil {
-			err = viper.Unmarshal(&config, func(c *mapstructure.DecoderConfig) {
-				c.TagName = "json"
-			})
-		}
+func unmarshalConfigHandler(in io.Reader) (*Config, error) {
+	var config Config
+	if err := viper.ReadConfig(in); err != nil {
 		return &config, err
-	}, "")
+	}
+	err := viper.UnmarshalExact(&config, func(c *mapstructure.DecoderConfig) {
+		c.TagName = "json"
+	})
+	return &config, err
+}
+
+func readInConfig(configFilePath string) (*Config, error) {
+	cfgPath := findConfigFile(configFilePath)
+	if cfgPath == "" {
+		slog.Warn("Config file not found: using default configuration.")
+		return &Config{}, nil
+	}
+
+	absPath, err := filepath.Abs(cfgPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path %s: %w", cfgPath, err)
+	}
+	f, err := os.Open(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file %s: %w", absPath, err)
+	}
+	defer f.Close()
+
+	// Resolve inclusions and expand env variables
+	data, err := resolveConfig(f, filepath.Dir(absPath))
+	if err != nil {
+		return nil, err
+	}
+
+	return readConfig(unmarshalConfigHandler, bytes.NewBuffer(data), configFilePath)
+}
+
+func readConfigFromReader(in io.Reader) (*Config, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	exPath := filepath.Dir(ex)
+
+	// Resolve inclusions and expand env variables
+	data, err := resolveConfig(in, exPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return readConfig(unmarshalConfigHandler, bytes.NewBuffer(data), "")
 }
 
 func getUniqueValues[T any](nodes map[string]bool, values map[string]T) {
@@ -192,13 +200,14 @@ func checkForCycles(l map[string]*common.Load) error {
 	return nil
 }
 
-func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Config, error) {
+func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, configFilePath string) (*Config, error) {
 	networkConfig := autodetectNetworkConfig()
 	setDefaults(networkConfig)
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("realm")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetConfigType("yaml")
 
 	// Priority: command-line flag > environment variable > default
 	if configFilePath != "" {
@@ -213,7 +222,7 @@ func readConfig(unmarshall func() (*Config, error), configFilePath string) (*Con
 		viper.SetConfigName("config")
 	}
 
-	config, err := unmarshall()
+	config, err := unmarshall(in)
 	if err != nil {
 		return nil, err
 	}
