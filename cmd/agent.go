@@ -10,7 +10,7 @@ import (
 
 var agentCmd = &cobra.Command{
 	Use:                   "agent",
-	Aliases:               []string{"d"},
+	Aliases:               []string{"a"},
 	Short:                 "Interface with agent",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
