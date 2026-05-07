@@ -9,12 +9,33 @@ type LoadDriverConfig struct {
 	DriverConfig any          `json:"driver_config"`
 }
 
+type LoadDriverErrorCode string
+
+const (
+	LoadDriverErrAlreadyRegistered LoadDriverErrorCode = "already_registered"
+	LoadDriverErrNotRegistered     LoadDriverErrorCode = "not_registered"
+	LoadDriverErrBuildFailed       LoadDriverErrorCode = "build_failed"
+)
+
+type LoadDriverError struct {
+	Code     LoadDriverErrorCode
+	DriverID LoadDriverID
+	Err      error
+}
+
+func (e *LoadDriverError) Error() string {
+	if e.Err != nil {
+		return fmt.Sprintf("loadDriverID '%s': %s: %v", e.DriverID, e.Code, e.Err)
+	}
+	return fmt.Sprintf("loadDriverID '%s': %s", e.DriverID, e.Code)
+}
+
 var loadDrivers = make(map[LoadDriverID]LoadDriverInfo)
 
 func RegisterLoadDriver(d LoadDriver) error {
 	info := d.DriverInfo()
 	if _, exists := loadDrivers[info.ID]; exists {
-		return fmt.Errorf("loadDriverID '%s' already registered", info.ID)
+		return &LoadDriverError{Code: LoadDriverErrAlreadyRegistered, DriverID: info.ID}
 	}
 	loadDrivers[info.ID] = info
 	return nil
@@ -22,7 +43,7 @@ func RegisterLoadDriver(d LoadDriver) error {
 
 func UnregisterLoadDriver(id LoadDriverID) error {
 	if _, exists := loadDrivers[id]; !exists {
-		return fmt.Errorf("loadDriverID '%s' not registered", id)
+		return &LoadDriverError{Code: LoadDriverErrNotRegistered, DriverID: id}
 	}
 	delete(loadDrivers, id)
 	return nil
@@ -30,11 +51,11 @@ func UnregisterLoadDriver(id LoadDriverID) error {
 
 func BuildLoadDriver(d LoadDriverConfig) (LoadDriver, error) {
 	if _, exists := loadDrivers[d.Driver]; !exists {
-		return nil, fmt.Errorf("loadDriverID '%s' not registered", d.Driver)
+		return nil, &LoadDriverError{Code: LoadDriverErrNotRegistered, DriverID: d.Driver}
 	}
 	driver, err := loadDrivers[d.Driver].New(d.DriverConfig)
 	if err != nil {
-		return nil, err
+		return nil, &LoadDriverError{Code: LoadDriverErrBuildFailed, DriverID: d.Driver, Err: err}
 	}
 	return driver, nil
 }
