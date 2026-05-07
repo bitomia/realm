@@ -50,7 +50,7 @@ loads:
       args:
         - "nginx"
         - "-g"
-        - "daemon off;"
+        - "agent off;"
 ```
 
 **How It Works:**
@@ -157,7 +157,7 @@ loads:
 To use ZFS quotas, ensure:
 
 1. Realm is built with ZFS support: `make TAGS=zfs`
-2. ZFS pool is configured: `daemon.zfs: true` in config
+2. ZFS pool is configured: `agent.zfs: true` in config
 3. ZFS pool exists and is accessible
 
 ### Example
@@ -336,7 +336,7 @@ When DNS is enabled:
 ## Subnet Allocation
 
 - Networks are assigned /24 subnets from the 10.0.0.0/8 range
-- Subnet allocation is persistent across daemon restarts
+- Subnet allocation is persistent across agent restarts
 - Each network name gets a consistent subnet
 - Gateway is always `.1` in the subnet
 
@@ -369,8 +369,8 @@ network:
 If networks aren't being cleaned up properly, you can manually purge orphaned networks:
 
 ```bash
-# Using the daemon API
-curl -X POST http://daemon:9000/network
+# Using the agent API
+curl -X POST http://agent:9000/network
 ```
 
 ### Security

@@ -1,7 +1,7 @@
 #SPDX-License-Identifier: MIT-0
 galaxy_info:
   author: Juan Fernández
-  description: Realm daemon role
+  description: Realm agent role
   company: Bitomia
   license: BSD
   min_ansible_version: "2.9"

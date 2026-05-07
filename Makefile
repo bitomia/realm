@@ -48,9 +48,9 @@ clean:
 verify-lint-cmd:
 	$(GO) run $(GOLANGCI_LINT_PACKAGE) run cmd
 
-.PHONY: verify-lint-daemon
-verify-lint-daemon:
-	$(GO) run $(GOLANGCI_LINT_PACKAGE) run daemon
+.PHONY: verify-lint-agent
+verify-lint-agent:
+	$(GO) run $(GOLANGCI_LINT_PACKAGE) run agent
 
 .PHONY: verify-fmt
 verify-fmt:
@@ -63,5 +63,5 @@ vet:
 .PHONY: test
 test:
 	$(GO) test -v ./drivers/...
-	$(GO) test -v ./daemon/db/...
-	$(GO) test -v ./daemon/containers/...
+	$(GO) test -v ./agent/db/...
+	$(GO) test -v ./agent/containers/...

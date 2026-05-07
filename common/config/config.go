@@ -32,9 +32,9 @@ type RegistryConfig struct {
 	Insecure bool         `json:"insecure,omitempty"` // Allow HTTP instead of HTTPS
 }
 
-// DaemonConfig holds the configuration for the realm daemon.
+// AgentConfig holds the configuration for the realm agent.
 // All fields are optional and have platform-specific or sensible defaults.
-type DaemonConfig struct {
+type AgentConfig struct {
 	// Path to CNI plugins.
 	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)
 	CniPath string `json:"cni_path"`
@@ -49,11 +49,11 @@ type DaemonConfig struct {
 	// Default: false
 	ZFS bool `json:"zfs"`
 
-	// Address to bind the daemon API.
+	// Address to bind the agent API.
 	// Default: 127.0.0.1
 	ListenAddress string `json:"listen_address"`
 
-	// Port to bind the daemon API.
+	// Port to bind the agent API.
 	// Default: 9000
 	ListenPort int `json:"listen_port"`
 
@@ -137,9 +137,9 @@ type Config struct {
 	Nodes     map[string]*common.NodeConfig `json:"nodes"`
 	Discovery DiscoveryConfig               `json:"discovery"`
 
-	// Daemon config
-	Daemon DaemonConfig `json:"daemon"`
-	Loads  LoadsConfig  `json:"loads"`
+	// Agent config
+	Agent AgentConfig `json:"agent"`
+	Loads LoadsConfig `json:"loads"`
 
 	// Autoconfigured network Config
 	NetworkConfig NetworkConfig `json:"-"`

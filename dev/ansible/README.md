@@ -2,7 +2,7 @@
 
 Only Debian 12 and Ubuntu 22.04 are supported.
 
-Create first an Ansible inventory with a targets list where daemons will be installed:
+Create first an Ansible inventory with a targets list where agents will be installed:
 
 inventory.ini file:
 

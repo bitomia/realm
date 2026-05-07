@@ -15,14 +15,14 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
 
+	"github.com/bitomia/realm/agent/api"
+	"github.com/bitomia/realm/agent/capabilities"
+	"github.com/bitomia/realm/agent/config"
+	"github.com/bitomia/realm/agent/containers"
+	"github.com/bitomia/realm/agent/cruntime"
+	"github.com/bitomia/realm/agent/network"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
-	"github.com/bitomia/realm/daemon/api"
-	"github.com/bitomia/realm/daemon/capabilities"
-	"github.com/bitomia/realm/daemon/config"
-	"github.com/bitomia/realm/daemon/containers"
-	"github.com/bitomia/realm/daemon/cruntime"
-	"github.com/bitomia/realm/daemon/network"
 )
 
 const ContainerDriverID common.LoadDriverID = "container"

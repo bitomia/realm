@@ -5,32 +5,32 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/bitomia/realm/daemon"
+	"github.com/bitomia/realm/agent"
 )
 
-var daemonCmd = &cobra.Command{
-	Use:                   "daemon",
+var agentCmd = &cobra.Command{
+	Use:                   "agent",
 	Aliases:               []string{"d"},
-	Short:                 "Interface with daemon",
+	Short:                 "Interface with agent",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},
 }
 
-var startDaemon = &cobra.Command{
+var startAgent = &cobra.Command{
 	Use:                   "start",
-	Short:                 "Start a daemon",
+	Short:                 "Start a agent",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		purgeDB, _ := cmd.Flags().GetBool("purge-db")
-		daemon.Start(cfg, purgeDB, nil)
+		agent.Start(cfg, purgeDB, nil)
 	},
 }
 
 func init() {
-	startDaemon.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: config.yaml in current working directory)")
-	startDaemon.Flags().Bool("purge-db", false, "Purge all database contents before starting")
-	daemonCmd.AddCommand(startDaemon)
-	rootCmd.AddCommand(daemonCmd)
+	startAgent.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: config.yaml in current working directory)")
+	startAgent.Flags().Bool("purge-db", false, "Purge all database contents before starting")
+	agentCmd.AddCommand(startAgent)
+	rootCmd.AddCommand(agentCmd)
 }

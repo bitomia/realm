@@ -9,9 +9,9 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 
+	"github.com/bitomia/realm/agent/cpu"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
-	"github.com/bitomia/realm/daemon/cpu"
 )
 
 const WindowsDriverID common.NodeDriverID = "windows"

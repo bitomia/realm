@@ -2,7 +2,7 @@
 
 ## Installation
 
-Realm running as client does not require any external dependencies. The following guidelines are only for Realm daemon.
+Realm running as client does not require any external dependencies. The following guidelines are only for Realm agent.
 
 ### Linux
 
@@ -22,7 +22,7 @@ Note: The pool name must match the `volumes_pool` configuration (default: `realm
 
 ### Windows
 
-Realm daemon can deploy native windows containers. Follow these steps to enable them on your Windows system:
+Realm agent can deploy native windows containers. Follow these steps to enable them on your Windows system:
 
 1. Enable native Windows containers:
 

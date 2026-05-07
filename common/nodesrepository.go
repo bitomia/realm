@@ -31,8 +31,8 @@ type NodesRepository interface {
 	// Update self node metadata
 	UpdateSelfMetadata(updateFn func(metadataPtr any) error) error
 
-	// Retrieve node entry by daemon ID
-	GetByDaemonId(daemonId string) (NodeEntry, error)
+	// Retrieve node entry by agent ID
+	GetByAgentId(agentId string) (NodeEntry, error)
 
 	// SetGuestNode creates or update the guest node entry for the caller host node
 	SetGuestNode(guestNodeName string, guestDriver NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error

@@ -8,7 +8,7 @@ type Mode int
 
 const (
 	ClientMode Mode = iota
-	DaemonMode
+	AgentMode
 )
 
 type NodeDriverBuilder func(config *any) (NodeDriver, error)
@@ -48,9 +48,9 @@ func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, guestMode boo
 	info := NodeDriverInfo{
 		ID:          id,
 		New:         builder,
-		StartMode:   DaemonMode,
-		StopMode:    DaemonMode,
-		RestartMode: DaemonMode,
+		StartMode:   AgentMode,
+		StopMode:    AgentMode,
+		RestartMode: AgentMode,
 		GuestMode:   guestMode,
 	}
 	for _, o := range opts {
@@ -123,7 +123,7 @@ type NodeDriver interface {
 	// database entry.
 	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
 	// It shall check node requirements but it won't check depending nodes.
-	// This is invoked within the daemon and does not affect client behavior.
+	// This is invoked within the agent and does not affect client behavior.
 	Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository NodesRepository) error
 
 	// Deprovision cleanup and removes the self-node if node name is nil or guest node

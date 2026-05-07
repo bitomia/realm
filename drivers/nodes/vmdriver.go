@@ -11,10 +11,10 @@ import (
 	"github.com/digitalocean/go-libvirt"
 	"github.com/go-viper/mapstructure/v2"
 
+	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
 	commonConfig "github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/daemon/config"
 )
 
 const VMDriverID common.NodeDriverID = "vm"
@@ -52,7 +52,7 @@ type VMConfig struct {
 }
 
 // VMNodeMetadata is persisted in the nodes repository and used to
-// rehydrate the libvirt domain XML across daemon restarts.
+// rehydrate the libvirt domain XML across agent restarts.
 type VMNodeMetadata struct {
 	DomainName string               `json:"domain_name"`
 	DomainXML  string               `json:"domain_xml"`
@@ -94,7 +94,7 @@ func (q *VMDriver) DriverInfo() (common.NodeDriverInfo, error) {
 		VMDriverID,
 		NewVMDriverFromConfig,
 		true,
-		common.WithStartMode(common.DaemonMode),
+		common.WithStartMode(common.AgentMode),
 	)
 }
 
@@ -258,7 +258,7 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	if cloudInit != nil {
 		cfg := config.Get()
 		host := q.resolveCloudInitHost(cfg)
-		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", host, cfg.Daemon.ListenPort, nodeName)
+		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", host, cfg.Agent.ListenPort, nodeName)
 		dom.SysInfo = &xSysInfo{
 			Type: "smbios",
 			System: xSysInfoSystem{Entries: []xSysInfoEntry{
@@ -503,8 +503,8 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	if cfg.NetworkConfig.IPAddress != nil {
 		return cfg.NetworkConfig.IPAddress.String()
 	}
-	if cfg.Daemon.ListenAddress != "" && cfg.Daemon.ListenAddress != "0.0.0.0" {
-		return cfg.Daemon.ListenAddress
+	if cfg.Agent.ListenAddress != "" && cfg.Agent.ListenAddress != "0.0.0.0" {
+		return cfg.Agent.ListenAddress
 	}
 
 	slog.Warn("VMDriver.resolveCloudInitHost",

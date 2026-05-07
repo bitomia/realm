@@ -36,7 +36,7 @@ Then build with:
 make TAGS=zfs
 ```
 
-Before starting the daemon with ZFS support, create the ZFS pool:
+Before starting the agent with ZFS support, create the ZFS pool:
 
 ```shell
 sudo zpool create realm_volumes /dev/sdX  # Replace /dev/sdX with your device

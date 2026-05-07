@@ -13,8 +13,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/daemon/config"
 )
 
 type OverlayImage struct {

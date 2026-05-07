@@ -50,22 +50,22 @@ func setDefaults(networkConfig NetworkConfig) {
 	}
 
 	viper.SetDefault("data_path", dataPath)
-	viper.SetDefault("daemon.cni_path", cniPath)
-	viper.SetDefault("daemon.volumes_pool", "realm_volumes")
-	viper.SetDefault("daemon.listen_address", "0.0.0.0")
-	viper.SetDefault("daemon.listen_port", "9000")
-	viper.SetDefault("daemon.log_format", "text")
-	viper.SetDefault("daemon.containers", true)
-	viper.SetDefault("daemon.proxy_enabled", false)
-	viper.SetDefault("daemon.local_caddy_url", "localhost:2019")
-	viper.SetDefault("daemon.master_caddy_url", "localhost:2019")
-	viper.SetDefault("daemon.containerd_sock", containerdSock)
-	viper.SetDefault("daemon.containerd_namespace", "realm")
-	viper.SetDefault("daemon.etcd_mode", "server")
-	viper.SetDefault("daemon.etcd_endpoints", []string{})
-	viper.SetDefault("daemon.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
-	viper.SetDefault("daemon.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
-	viper.SetDefault("daemon.etcd_initial_cluster", "")
+	viper.SetDefault("agent.cni_path", cniPath)
+	viper.SetDefault("agent.volumes_pool", "realm_volumes")
+	viper.SetDefault("agent.listen_address", "0.0.0.0")
+	viper.SetDefault("agent.listen_port", "9000")
+	viper.SetDefault("agent.log_format", "text")
+	viper.SetDefault("agent.containers", true)
+	viper.SetDefault("agent.proxy_enabled", false)
+	viper.SetDefault("agent.local_caddy_url", "localhost:2019")
+	viper.SetDefault("agent.master_caddy_url", "localhost:2019")
+	viper.SetDefault("agent.containerd_sock", containerdSock)
+	viper.SetDefault("agent.containerd_namespace", "realm")
+	viper.SetDefault("agent.etcd_mode", "server")
+	viper.SetDefault("agent.etcd_endpoints", []string{})
+	viper.SetDefault("agent.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
+	viper.SetDefault("agent.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
+	viper.SetDefault("agent.etcd_initial_cluster", "")
 }
 
 // findConfigFile resolves the config file path using the same logic as viper's config setup.
@@ -228,10 +228,10 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	}
 
 	// If listen_address is configured with a specific IP (not 127.0.0.1 or 0.0.0.0), use it to find the network interface
-	if viper.IsSet("daemon.listen_address") && config.Daemon.ListenAddress != "127.0.0.1" && config.Daemon.ListenAddress != "0.0.0.0" {
-		configuredNetworkConfig, err := getNetworkConfigFromIP(config.Daemon.ListenAddress)
+	if viper.IsSet("agent.listen_address") && config.Agent.ListenAddress != "127.0.0.1" && config.Agent.ListenAddress != "0.0.0.0" {
+		configuredNetworkConfig, err := getNetworkConfigFromIP(config.Agent.ListenAddress)
 		if err != nil {
-			slog.Warn("Failed to get network config from configured listen_address, using auto-detected network", "listen_address", config.Daemon.ListenAddress, "error", err)
+			slog.Warn("Failed to get network config from configured listen_address, using auto-detected network", "listen_address", config.Agent.ListenAddress, "error", err)
 		} else {
 			networkConfig = configuredNetworkConfig
 			slog.Info("Using network interface from configured listen_address", "ip", networkConfig.IPAddress.String(), "interface", networkConfig.Iface.Name)
@@ -240,14 +240,14 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 
 	config.NetworkConfig = networkConfig
 
-	if !viper.IsSet("daemon.etcd_listen_client_url") {
+	if !viper.IsSet("agent.etcd_listen_client_url") {
 		if networkConfig.IPAddress != nil {
-			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", networkConfig.IPAddress.String(), "url", config.Daemon.EtcdListenClientUrl)
+			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", networkConfig.IPAddress.String(), "url", config.Agent.EtcdListenClientUrl)
 		}
 	}
-	if !viper.IsSet("daemon.etcd_listen_peer_url") {
+	if !viper.IsSet("agent.etcd_listen_peer_url") {
 		if networkConfig.IPAddress != nil {
-			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", networkConfig.IPAddress, "url", config.Daemon.EtcdListenPeerUrl)
+			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", networkConfig.IPAddress, "url", config.Agent.EtcdListenPeerUrl)
 		}
 	}
 

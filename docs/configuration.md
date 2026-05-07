@@ -7,7 +7,7 @@ Realm is configured through a YAML file. By default, Realm looks for a `config.y
 A Realm configuration file has four top-level sections:
 
 ```yaml
-daemon: # Daemon settings (paths, etcd, registries)
+agent: # Agent settings (paths, etcd, registries)
 nodes: # Remote nodes to manage
 loads: # Workloads to deploy
 discovery: # Discovery settings
@@ -17,7 +17,7 @@ discovery: # Discovery settings
 
 | Field       | Type   | Default          | Description                                              |
 | ----------- | ------ | ---------------- | -------------------------------------------------------- |
-| `data_path` | string | `/var/lib/realm` | Path to store client or daemon data (ID file, etcd data) |
+| `data_path` | string | `/var/lib/realm` | Path to store client or agent data (ID file, etcd data) |
 
 ```yaml
 data_path: ./data
@@ -25,7 +25,7 @@ data_path: ./data
 
 ## Nodes
 
-Nodes represent the machines where loads are deployed. Each node has a name (the map key), a URL pointing to its daemon API, and a driver.
+Nodes represent the machines where loads are deployed. Each node has a name (the map key), a URL pointing to its agent API, and a driver.
 
 ```yaml
 nodes:
@@ -40,7 +40,7 @@ nodes:
 
 | Field           | Type   | Required | Description                                    |
 | --------------- | ------ | -------- | ---------------------------------------------- |
-| `url`           | string | Yes      | URL of the node's daemon API                   |
+| `url`           | string | Yes      | URL of the node's agent API                   |
 | `driver`        | string | Yes      | Node driver type. Currently supported: `linux` |
 | `driver_config` | object | No       | Driver-specific configuration                  |
 | `cloud_init`    | object | No       | Cloud init configuration                       |
@@ -87,7 +87,7 @@ nodes:
 
 ### Linux Node Driver
 
-The `linux` driver runs on a host where Realm is installed as a daemon. It supports optional Wake-On-LAN to power the host on remotely:
+The `linux` driver runs on a host where Realm is installed as a agent. It supports optional Wake-On-LAN to power the host on remotely:
 
 ```yaml
 nodes:
@@ -127,7 +127,7 @@ nodes:
 >
 > The VM driver is experimental and under active development. Its configuration schema, behavior, and defaults may change without notice, and it is not yet recommended for production use. Expect rough edges and please report issues you encounter.
 
-The `vm` driver provisions guest nodes through a local **libvirtd** daemon.
+The `vm` driver provisions guest nodes through a local **libvirtd** agent.
 
 User running Realm must be allowed to run libvirt, set in `/etc/libvirt/qemu.conf`:
 
@@ -203,11 +203,11 @@ For each drive Realm copies the source image into a per-node overlay under `<dat
 
 #### Cloud-init
 
-When the node has a `cloud_init` block, the guest's cloud-init datasource fetches metadata from the Realm daemon. The `<host>` is resolved as follows:
+When the node has a `cloud_init` block, the guest's cloud-init datasource fetches metadata from the Realm agent. The `<host>` is resolved as follows:
 
 1. If any non-`user` netdev is configured and its `br` interface has an IPv4 address, that address is used.
-2. Otherwise, the daemon's auto-detected IP is used.
-3. Otherwise, the configured `daemon.listen_address` (if not `0.0.0.0`) is used.
+2. Otherwise, the agent's auto-detected IP is used.
+3. Otherwise, the configured `agent.listen_address` (if not `0.0.0.0`) is used.
 4. Fallback: `10.0.2.2` (the QEMU user-mode gateway), which only works when the guest uses user-mode networking.
 
 #### Logs
@@ -291,12 +291,12 @@ loads:
       image: docker.io/nginx:latest
 ```
 
-## Daemon
+## Agent
 
-The `daemon` section configures the Realm daemon. All fields are optional and have sensible defaults.
+The `agent` section configures the Realm agent. All fields are optional and have sensible defaults.
 
 ```yaml
-daemon:
+agent:
   listen_address: 0.0.0.0
   listen_port: 9000
   log_format: text
@@ -306,8 +306,8 @@ daemon:
 
 | Field            | Type   | Default   | Description                         |
 | ---------------- | ------ | --------- | ----------------------------------- |
-| `listen_address` | string | `0.0.0.0` | Address to bind the daemon API      |
-| `listen_port`    | int    | `9000`    | Port to bind the daemon API         |
+| `listen_address` | string | `0.0.0.0` | Address to bind the agent API      |
+| `listen_port`    | int    | `9000`    | Port to bind the agent API         |
 | `log_format`     | string | `text`    | Log output format: `text` or `json` |
 
 ### Container Runtime
@@ -343,14 +343,14 @@ Realm uses etcd for cluster state. It can run an embedded etcd server or connect
 **Single-node (default):**
 
 ```yaml
-daemon:
+agent:
   listen_address: 0.0.0.0
 ```
 
 **Multi-node server:**
 
 ```yaml
-daemon:
+agent:
   etcd_listen_client_url: http://192.168.1.10:2379
   etcd_listen_peer_url: http://192.168.1.10:2380
   listen_address: 0.0.0.0
@@ -359,7 +359,7 @@ daemon:
 **Client connecting to external etcd:**
 
 ```yaml
-daemon:
+agent:
   etcd_mode: client
   etcd_endpoints: ["http://192.168.1.10:2379"]
   etcd_listen_client_url: http://192.168.1.20:2379
@@ -371,7 +371,7 @@ daemon:
 Configure authentication for private container registries:
 
 ```yaml
-daemon:
+agent:
   registries:
     - host: ghcr.io
       auth:
@@ -404,13 +404,13 @@ discovery:
 
 ## Environment Variables
 
-All daemon configuration fields can be set via environment variables using the `REALM_` prefix. Nested fields use underscores as separators:
+All agent configuration fields can be set via environment variables using the `REALM_` prefix. Nested fields use underscores as separators:
 
 ```bash
-REALM_DAEMON_LISTEN_ADDRESS=0.0.0.0
-REALM_DAEMON_LISTEN_PORT=9000
+REALM_AGENT_LISTEN_ADDRESS=0.0.0.0
+REALM_AGENT_LISTEN_PORT=9000
 REALM_DATA_PATH=/opt/realm
-REALM_DAEMON_ETCD_MODE=client
+REALM_AGENT_ETCD_MODE=client
 ```
 
 Environment variables take priority over config file values but are overridden by command-line flags.
@@ -419,7 +419,7 @@ Environment variables take priority over config file values but are overridden b
 
 ```yaml
 data_path: /opt/realm_data
-daemon:
+agent:
   listen_address: 0.0.0.0
   zfs: false
   registries:

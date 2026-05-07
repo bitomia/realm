@@ -17,8 +17,8 @@ import (
 	"github.com/google/uuid"
 	process "github.com/shirou/gopsutil/v4/process"
 
+	configPkg "github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/common"
-	configPkg "github.com/bitomia/realm/daemon/config"
 	"github.com/bitomia/realm/internal"
 )
 

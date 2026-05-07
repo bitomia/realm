@@ -29,7 +29,7 @@ type LoadDriver interface {
 
 	// Provision validates prerequisites and creates a deployment in "provisioned" status.
 	// It shall check load requirements but it won't check depending loads.
-	// This is invoked within the daemon and does not affect client behavior.
+	// This is invoked within the agent and does not affect client behavior.
 	//
 	// Returns the deployment ID for the provisioned deployment.
 	Provision(node NodeDriver, repository DeploymentsRepository, loadName string) (DeploymentID, error)
@@ -44,13 +44,13 @@ type LoadDriver interface {
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	Start(repository DeploymentsRepository, deployment Deployment) error
 
-	// Stop stops a running load execution within the daemon.
+	// Stop stops a running load execution within the agent.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository
 	Stop(repository DeploymentsRepository, deployment Deployment) error
 
-	// Kill stops immediately a running load execution within the daemon.
+	// Kill stops immediately a running load execution within the agent.
 	// This has no effect when called from the client.
 	//
 	// LoadDriver is responsible of the consistency of the DeploymentsRepository

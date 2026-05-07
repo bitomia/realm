@@ -1,0 +1,76 @@
+package containers
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
+
+	"github.com/bitomia/realm/agent/cruntime"
+)
+
+func createTask(ctx context.Context, container containerd.Container, containerName string, stdoutPath string, stderrPath string) (containerd.Task, error) {
+	logDir := filepath.Dir(stdoutPath)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		slog.Error("Failed to create containers log directory", "path", logDir, "error", err.Error())
+		return nil, fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	stdoutFile, err := os.Create(stdoutPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout log file: %w", err)
+	}
+
+	stderrFile, err := os.Create(stderrPath)
+	if err != nil {
+		stdoutFile.Close()
+		return nil, fmt.Errorf("failed to create stderr log file: %w", err)
+	}
+
+	task, err := container.NewTask(ctx, cio.NewCreator(
+		cio.WithStreams(nil, stdoutFile, stderrFile),
+	))
+	if err != nil {
+		stdoutFile.Close()
+		stderrFile.Close()
+		slog.Error("Failed to create new task for container on restart", "container", containerName, "error", err.Error())
+		return nil, err
+	}
+
+	slog.Info("Task created for container", "taskPID", task.Pid(), "container", containerName, "stdout", stdoutPath, "stderr", stderrPath)
+
+	return task, nil
+}
+
+func StartContainer(containerName string, stdoutPath string, stderrPath string) (containerd.Task, error) {
+	ctx, client, err := cruntime.CreateClient()
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	container, err := client.LoadContainer(ctx, containerName)
+	if err != nil {
+		slog.Error("Failed to retrieve container on start", "container", containerName, "error", err.Error())
+		return nil, err
+	}
+	task, err := container.Task(ctx, nil)
+	if err != nil {
+		slog.Info("Task doesn't exist for container. Creating task again", "container", containerName)
+		task, err = createTask(ctx, container, containerName, stdoutPath, stderrPath)
+	}
+	if err != nil {
+		slog.Error("Impossible to retrieve task for container", "container", containerName)
+		return nil, err
+	}
+	if err := task.Start(ctx); err != nil {
+		slog.Error("Failed to start task for container on start", "container", containerName, "error", err.Error())
+		return nil, err
+	}
+
+	return task, nil
+}
