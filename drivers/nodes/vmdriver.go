@@ -48,7 +48,7 @@ type VMConfig struct {
 	SMP     string     `json:"smp,omitempty"`
 	Serial  string     `json:"serial,omitempty"`
 	Drives  []VMDrive  `json:"drives,omitempty"`
-	Netdevs []VMNetdev `json:"netdevs,omitempty"`
+	Netdev  []VMNetdev `json:"netdev,omitempty"`
 }
 
 // VMNodeMetadata is persisted in the nodes repository and used to
@@ -242,7 +242,7 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		dom.Devices.Disks = append(dom.Devices.Disks, d)
 	}
 
-	for _, nd := range q.Config.Netdevs {
+	for _, nd := range q.Config.Netdev {
 		iface, err := buildInterface(nd)
 		if err != nil {
 			return "", err
@@ -475,7 +475,7 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	// find first bridged netdev
 	var bridgeName string
 	hasBridgedNetdev := false
-	for _, nd := range q.Config.Netdevs {
+	for _, nd := range q.Config.Netdev {
 		if nd.Type != "" && nd.Type != "user" {
 			hasBridgedNetdev = true
 			bridgeName = nd.BR
