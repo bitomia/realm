@@ -9,7 +9,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+
+	"github.com/digitalocean/go-libvirt"
 
 	"github.com/google/uuid"
 
@@ -147,9 +150,83 @@ func resolveDrives(drives []VMDrive, nodeName string) (map[int]OverlayImage, err
 			return nil, err
 		}
 
+		if drives[i].Resize != "" {
+			if err := resizeOverlay(overlayImage.FilePath, drives[i].Resize); err != nil {
+				overlayImage.Cleanup()
+				return nil, err
+			}
+		}
+
 		overlays[i] = *overlayImage
 	}
 	return overlays, nil
+}
+
+func parseDriveSize(size string) (uint64, error) {
+	s := strings.TrimSpace(size)
+	if s == "" {
+		return 0, fmt.Errorf("empty size")
+	}
+	mult := uint64(1)
+	switch s[len(s)-1] {
+	case 'k', 'K':
+		mult = 1 << 10
+		s = s[:len(s)-1]
+	case 'm', 'M':
+		mult = 1 << 20
+		s = s[:len(s)-1]
+	case 'g', 'G':
+		mult = 1 << 30
+		s = s[:len(s)-1]
+	case 't', 'T':
+		mult = 1 << 40
+		s = s[:len(s)-1]
+	}
+	n, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid size %q: %w", size, err)
+	}
+	return n * mult, nil
+}
+
+func resizeOverlay(filePath, size string) error {
+	capacity, err := parseDriveSize(size)
+	if err != nil {
+		return fmt.Errorf("vm: invalid resize for %s: %w", filePath, err)
+	}
+
+	slog.Info("vm_images.resizeOverlay", "msg", "resizing overlay", "path", filePath, "size", size, "bytes", capacity)
+
+	dir := filepath.Dir(filePath)
+	volName := filepath.Base(filePath)
+	poolName := fmt.Sprintf("realm-resize-%s", uuid.New().String())
+	poolXML := fmt.Sprintf(`<pool type='dir'><name>%s</name><target><path>%s</path></target></pool>`, poolName, dir)
+
+	return withLibvirt(func(l *libvirt.Libvirt) error {
+		pool, err := l.StoragePoolCreateXML(poolXML, 0)
+		if err != nil {
+			return fmt.Errorf("vm: failed to create transient storage pool: %w", err)
+		}
+		defer func() {
+			if err := l.StoragePoolDestroy(pool); err != nil {
+				slog.Warn("vm_images.resizeOverlay", "msg", "failed to destroy transient pool", "pool", poolName, "error", err)
+			}
+		}()
+
+		if err := l.StoragePoolRefresh(pool, 0); err != nil {
+			return fmt.Errorf("vm: failed to refresh storage pool: %w", err)
+		}
+
+		vol, err := l.StorageVolLookupByName(pool, volName)
+		if err != nil {
+			return fmt.Errorf("vm: failed to lookup overlay volume %s: %w", volName, err)
+		}
+
+		if err := l.StorageVolResize(vol, capacity, 0); err != nil {
+			return fmt.Errorf("vm: StorageVolResize failed: %w", err)
+		}
+		return nil
+	})
 }
 
 func cleanupOverlays(nodeName string) {

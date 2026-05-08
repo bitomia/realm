@@ -25,6 +25,7 @@ type VMDrive struct {
 	If     string `json:"if,omitempty"`
 	Media  string `json:"media,omitempty"`
 	Index  string `json:"index,omitempty"`
+	Resize string `json:"resize,omitempty"`
 }
 
 type VMNetdev struct {
