@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/internal"
 )
 
@@ -44,74 +46,90 @@ var nodeStates = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 		nodes := cfg.GetNodes(nodeNames...)
 
-		for id, cfgNode := range nodes {
-			fmt.Printf("Node: %s\n", color.CyanString(id))
-			fmt.Printf(" URL: %s\n", color.CyanString(cfgNode.Url))
-			node, err := client.GetNode(cfgNode)
-
-			if node.Status.StatusCode == common.NodeStatusOnline {
-				log.Info(" Status: %s [%s]", node.Status.StatusCode, "ready for provisioning")
-			} else if err != nil {
-				log.Info(" Status: %s [%s]", node.Status.StatusCode, strings.TrimSpace(err.Error()))
-			} else {
-				if len(node.Status.Reason) > 0 {
-					log.Info(" Status: %s [%s]", node.Status.StatusCode, node.Status.Reason)
-				} else {
-					log.Info(" Status: %s", node.Status.StatusCode)
-				}
-				log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", node.State.NumCPU)))
-				log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.UsageCPUPercent)))
-				log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.UserCPU)))
-				log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.SystemCPU)))
-				log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.IdleCPU)))
-				log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.TotalCPU)))
-
-				log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(node.State.UsedMem)/float64(node.State.TotalMem)*100)))
-				log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.FreeMemPercent)))
-				log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.TotalMem)))))
-				log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.UsedMem)))))
-				log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeMem)))))
-				log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeStorage)))))
-
-				if len(node.State.Containers) > 0 {
-					log.Info(" Containers (%d):", len(node.State.Containers))
-					for _, container := range node.State.Containers {
-						log.Info("  - %s:", color.YellowString(container.ContainerID))
-						log.Info("    CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", container.CPUUsage)))
-						log.Info("    Memory Usage: %s%% (%s MB)",
-							color.CyanString(fmt.Sprintf("%.2f", container.MemoryPercent)),
-							color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(container.MemoryUsage))))
-						log.Info("    Memory Limit: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(container.MemoryLimit))))
-					}
-				} else {
-					log.Info(" Containers: %s", color.CyanString("0"))
-				}
-
-				if len(node.State.NetworkInterfaces) > 0 {
-					log.Info(" Network Interfaces (%d):", len(node.State.NetworkInterfaces))
-					for _, ni := range node.State.NetworkInterfaces {
-						log.Info("  - %s (%s): %s",
-							color.YellowString(ni.Name),
-							color.CyanString(ni.HWAddr),
-							color.CyanString(strings.Join(ni.Addresses, ", ")))
-					}
+		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
+			result := make(map[string]any, len(nodes))
+			for id, cfgNode := range nodes {
+				node, _ := client.GetNode(cfgNode)
+				result[id] = struct {
+					common.Node      `json:"config"`
+					dto.NodeResponse `json:"node"`
+				}{
+					*cfgNode,
+					node,
 				}
 			}
+			json, _ := json.Marshal(result)
+			fmt.Println(string(json))
+		} else {
+			for id, cfgNode := range nodes {
+				fmt.Printf("Node: %s\n", color.CyanString(id))
+				fmt.Printf(" URL: %s\n", color.CyanString(cfgNode.Url))
+				node, err := client.GetNode(cfgNode)
 
-			if node.Status.StatusCode != common.NodeStatusOffline {
-				info, err := client.GetSystemInfo(cfgNode.Url)
-				if err != nil {
-					log.Info(" System Info: %s", strings.TrimSpace(err.Error()))
+				if node.Status.StatusCode == common.NodeStatusOnline {
+					log.Info(" Status: %s [%s]", node.Status.StatusCode, "ready for provisioning")
+				} else if err != nil {
+					log.Info(" Status: %s [%s]", node.Status.StatusCode, strings.TrimSpace(err.Error()))
 				} else {
-					log.Info(" Capabilities:")
-					log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersEngine)))
-					log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersNetworking)))
-					log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.Volumes)))
-					log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VolumesZFS)))
-					log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VMM)))
+					if len(node.Status.Reason) > 0 {
+						log.Info(" Status: %s [%s]", node.Status.StatusCode, node.Status.Reason)
+					} else {
+						log.Info(" Status: %s", node.Status.StatusCode)
+					}
+					log.Info(" CPUs count: %s", color.CyanString(fmt.Sprintf("%d", node.State.NumCPU)))
+					log.Info(" CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.UsageCPUPercent)))
+					log.Info(" User CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.UserCPU)))
+					log.Info(" System CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.SystemCPU)))
+					log.Info(" Idle CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.IdleCPU)))
+					log.Info(" Total CPU: %s", color.CyanString(fmt.Sprintf("%d", node.State.TotalCPU)))
+
+					log.Info(" Memory Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", float64(node.State.UsedMem)/float64(node.State.TotalMem)*100)))
+					log.Info(" Free Memory: %s%%", color.CyanString(fmt.Sprintf("%.2f", node.State.FreeMemPercent)))
+					log.Info(" Total Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.TotalMem)))))
+					log.Info(" Used Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.UsedMem)))))
+					log.Info(" Free Memory: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeMem)))))
+					log.Info(" Free Storage: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(float64(node.State.FreeStorage)))))
+
+					if len(node.State.Containers) > 0 {
+						log.Info(" Containers (%d):", len(node.State.Containers))
+						for _, container := range node.State.Containers {
+							log.Info("  - %s:", color.YellowString(container.ContainerID))
+							log.Info("    CPU Usage: %s%%", color.CyanString(fmt.Sprintf("%.2f", container.CPUUsage)))
+							log.Info("    Memory Usage: %s%% (%s MB)",
+								color.CyanString(fmt.Sprintf("%.2f", container.MemoryPercent)),
+								color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(container.MemoryUsage))))
+							log.Info("    Memory Limit: %s MB", color.CyanString(fmt.Sprintf("%.2f", internal.ToMB(container.MemoryLimit))))
+						}
+					} else {
+						log.Info(" Containers: %s", color.CyanString("0"))
+					}
+
+					if len(node.State.NetworkInterfaces) > 0 {
+						log.Info(" Network Interfaces (%d):", len(node.State.NetworkInterfaces))
+						for _, ni := range node.State.NetworkInterfaces {
+							log.Info("  - %s (%s): %s",
+								color.YellowString(ni.Name),
+								color.CyanString(ni.HWAddr),
+								color.CyanString(strings.Join(ni.Addresses, ", ")))
+						}
+					}
 				}
+
+				if node.Status.StatusCode != common.NodeStatusOffline {
+					info, err := client.GetSystemInfo(cfgNode.Url)
+					if err != nil {
+						log.Info(" System Info: %s", strings.TrimSpace(err.Error()))
+					} else {
+						log.Info(" Capabilities:")
+						log.Info("  Containers Engine: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersEngine)))
+						log.Info("  Containers Networking: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.ContainersNetworking)))
+						log.Info("  Volumes: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.Volumes)))
+						log.Info("  Volumes ZFS: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VolumesZFS)))
+						log.Info("  VMM: %s", color.CyanString(fmt.Sprintf("%t", info.Capabilities.VMM)))
+					}
+				}
+				fmt.Println()
 			}
-			fmt.Println()
 		}
 	},
 }
@@ -241,6 +259,7 @@ var stopNodes = &cobra.Command{
 }
 
 func init() {
+	nodeStates.Flags().Bool("json", false, "Output as JSON")
 	provisionNodes.Flags().Bool("all", false, "All nodes")
 	deprovisionNodes.Flags().Bool("all", false, "All nodes")
 	startNodes.Flags().Bool("all", false, "All nodes")
