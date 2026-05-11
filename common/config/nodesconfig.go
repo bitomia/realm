@@ -19,7 +19,12 @@ func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeD
 	if _, exists := nodesConfig[nodeName]; exists {
 		return nil, fmt.Errorf("node '%s' not unique", nodeName)
 	}
-	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Url: node.Url, Driver: driver}
+	agentURL, err := common.ResolveAgentURL(node)
+	if err != nil {
+		return nil, err
+	}
+
+	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Url: agentURL, Driver: driver}
 	return nodesConfig[nodeName], nil
 }
 
