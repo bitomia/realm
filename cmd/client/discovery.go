@@ -2,76 +2,41 @@ package client
 
 import (
 	"fmt"
-	"net"
-	"strings"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/internal"
 )
 
-func GetNodes(cfg *config.Config) map[string]*common.NodeConfig {
+func GetNodes(cfg *config.Config) (map[string]*common.NodeConfig, error) {
 	nodes := make(map[string]*common.NodeConfig)
 	seenUrls := make(map[string]string)
 
 	for name, node := range cfg.Nodes {
-		if existingName, exists := seenUrls[node.Url]; exists {
-			log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", node.Url, existingName, node.Name)
-			delete(nodes, existingName)
+		agentURL, err := common.ResolveAgentURL(node)
+		if err != nil {
+			return nil, err
+		}
+		if existingName, exists := seenUrls[agentURL]; exists {
+			return nil, fmt.Errorf("Duplicated URL %s for nodes %s and %s ", node.Url, existingName, node.Name)
 		}
 		node.Name = name
 		nodes[node.Name] = node
-		seenUrls[node.Url] = node.Name
+		seenUrls[agentURL] = node.Name
 	}
 
-	if cfg.Discovery.MdnsEnabled {
-		services, err := internal.QueryServices("_realm._tcp.local")
-		if err != nil {
-			log.Warn("mDNS discovery failed: %v", err)
-		} else {
-			addDiscoveredServices(services, nodes, seenUrls)
-		}
-	}
-
-	return nodes
+	return nodes, nil
 }
 
-func addDiscoveredServices(services map[string]*internal.ServiceInfo, nodes map[string]*common.NodeConfig, seenUrls map[string]string) {
-	for _, service := range services {
-		if service.Hostname == "" || service.Port == 0 || len(service.IPs) == 0 {
-			continue
-		}
-
-		for _, serviceIPStr := range service.IPs {
-			serviceIP := net.ParseIP(serviceIPStr)
-			if serviceIP == nil || serviceIP.To4() == nil {
-				continue
-			}
-
-			serviceNameParts := strings.Split(service.Name, ".")
-			if len(serviceNameParts) == 0 {
-				continue
-			}
-
-			name := serviceNameParts[0]
-			url := fmt.Sprintf("http://%s:%d", service.IPs[0], service.Port)
-			if existingName, exists := seenUrls[url]; exists {
-				log.Warn("Duplicate URL detected: %s (replacing node '%s' with '%s')\n", url, existingName, name)
-				delete(nodes, existingName)
-			}
-
-			nodes[name] = &common.NodeConfig{Name: name, Url: url}
-			seenUrls[url] = name
-		}
+func GetNode(cfg *config.Config, nodeName string) (*common.NodeConfig, error) {
+	nodes, err := GetNodes(cfg)
+	if err != nil {
+		return nil, err
 	}
-}
 
-func GetNode(cfg *config.Config, nodeName string) *common.NodeConfig {
-	nodes := GetNodes(cfg)
 	node, exists := nodes[nodeName]
 	if !exists {
-		log.Fatal("Node %s not found", nodeName)
+		return nil, fmt.Errorf("Node %s not found", nodeName)
 	}
-	return node
+
+	return node, nil
 }

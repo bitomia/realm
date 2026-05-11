@@ -117,15 +117,24 @@ type AgentConfig struct {
 	EtcdInitialCluster string `json:"etcd_initial_cluster"`
 }
 
-type DiscoveryConfig struct {
-	MdnsEnabled bool `json:"mdns"`
-}
-
 type LoadsConfig map[string]common.LoadConfig
 
 type NetworkConfig struct {
 	IPAddress *net.IP
 	Iface     *net.Interface
+}
+
+type MeshTransport string
+
+const (
+	MeshTransportUDP       MeshTransport = "udp"
+	MeshTransportWebsocket MeshTransport = "websocket"
+)
+
+type MeshConfig struct {
+	ServerUrl string        `json:"server"`
+	Transport MeshTransport `json:"transport,omitempty"`
+	LinkCode  string        `json:"link_code"`
 }
 
 type Config struct {
@@ -134,8 +143,7 @@ type Config struct {
 	DataPath string `json:"data_path"`
 
 	// Client config
-	Nodes     map[string]*common.NodeConfig `json:"nodes"`
-	Discovery DiscoveryConfig               `json:"discovery"`
+	Nodes map[string]*common.NodeConfig `json:"nodes"`
 
 	// Agent config
 	Agent AgentConfig `json:"agent"`
@@ -148,6 +156,8 @@ type Config struct {
 	processedNodes map[string]*common.Node     `json:"-"`
 	processedLoads map[string]*common.Load     `json:"-"`
 	loadsGraph     graph.Graph[string, string] `json:"-"`
+
+	MeshConfig *MeshConfig `json:"mesh,omitempty"`
 }
 
 func GetVersion() string {

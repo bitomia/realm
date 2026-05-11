@@ -4,9 +4,11 @@ go 1.26.0
 
 require (
 	github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4
+	github.com/bitomia/netplane/bindings/gonetplane v0.0.0-20260511161152-589cefbd4ac6
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.28
 	github.com/containernetworking/cni v1.3.0
+	github.com/digitalocean/go-libvirt v0.0.0-20260217163227-273eaa321819
 	github.com/dominikbraun/graph v0.23.0
 	github.com/expr-lang/expr v1.17.7
 	github.com/fatih/color v1.18.0
@@ -52,7 +54,6 @@ require (
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/digitalocean/go-libvirt v0.0.0-20260217163227-273eaa321819 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-events v0.0.0-20190806004212-e31b211e4f1c // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect

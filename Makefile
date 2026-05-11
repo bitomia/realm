@@ -1,6 +1,5 @@
 GO ?= go
 GOLANGCI_LINT_PACKAGE ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.8.0
-TAGS ?=
 
 ROOT:=$(realpath .)
 
@@ -12,7 +11,6 @@ ifeq ($(OS),Windows_NT)
 	SEP = \\
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm.exe
-	SET_CGO = set CGO_ENABLED=0 &&
 else
 	GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "Unknown Version")
 	GIT_TAG := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "dev")
@@ -21,17 +19,26 @@ else
 	SEP = /
 	BIN_DIR := $(ROOT)$(SEP)bin
 	REALM_OUT := $(BIN_DIR)$(SEP)realm
-	SET_CGO = CGO_ENABLED=0
 endif
 
 VERSION := $(GIT_TAG)-$(GIT_COMMIT)
-
-COMMIT_FLAG := -X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'
+NETPLANE_STATIC_DIR := $(ROOT)/bin/netplane
+EXT_LDFLAGS := -extldflags '-L$(NETPLANE_STATIC_DIR) -lm'
 
 .PHONY: all
 all:
 	@echo "Building $(VERSION)..."
-	$(SET_CGO) $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="$(COMMIT_FLAG)" $(if $(TAGS),-tags "$(TAGS)")
+	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
+
+.PHONY: ee
+ee: netplane
+	@echo "Building $(VERSION)-ee (static musl via zig)..."
+	CC="zig cc -target x86_64-linux-musl" CGO_ENABLED=1 $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)-ee' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)' -extldflags '-L$(NETPLANE_STATIC_DIR) -lm -lunwind'" -tags=EE
+
+.PHONY: netplane
+netplane:
+	@mkdir -p $(NETPLANE_STATIC_DIR)
+	@cp -f $(NETPLANE_LIB_DIR)/libnetplane_client.a $(NETPLANE_STATIC_DIR)/libnetplane_client.a
 
 .PHONY: tidy
 tidy:

@@ -9,6 +9,7 @@ import (
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/drivers"
+	"github.com/bitomia/realm/ee"
 )
 
 var (
@@ -42,6 +43,10 @@ func main() {
 		}
 		if configError != nil {
 			log.Error("Config error: %s", configError)
+			os.Exit(1)
+		}
+		if err := ee.Start(cfg); err != nil {
+			log.Error("%s", err)
 			os.Exit(1)
 		}
 	}
