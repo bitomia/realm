@@ -17,7 +17,7 @@ func GetNodes(cfg *config.Config) (map[string]*common.NodeConfig, error) {
 			return nil, err
 		}
 		if existingName, exists := seenUrls[agentURL]; exists {
-			return nil, fmt.Errorf("Duplicated URL %s for nodes %s and %s ", node.Url, existingName, node.Name)
+			return nil, fmt.Errorf("duplicated URL %s for nodes %s and %s ", agentURL, existingName, node.Name)
 		}
 		node.Name = name
 		nodes[node.Name] = node
@@ -35,7 +35,7 @@ func GetNode(cfg *config.Config, nodeName string) (*common.NodeConfig, error) {
 
 	node, exists := nodes[nodeName]
 	if !exists {
-		return nil, fmt.Errorf("Node %s not found", nodeName)
+		return nil, fmt.Errorf("node %s not found", nodeName)
 	}
 
 	return node, nil

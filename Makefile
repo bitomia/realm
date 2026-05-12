@@ -53,11 +53,13 @@ clean:
 
 .PHONY: verify-lint-cmd
 verify-lint-cmd:
-	$(GO) run $(GOLANGCI_LINT_PACKAGE) run cmd
+	$(GO) run $(GOLANGCI_LINT_PACKAGE) run cmd/...
 
 .PHONY: verify-lint-agent
 verify-lint-agent:
-	$(GO) run $(GOLANGCI_LINT_PACKAGE) run agent
+	$(GO) run $(GOLANGCI_LINT_PACKAGE) run agent/...
+
+lint: verify-lint-cmd verify-lint-agent
 
 .PHONY: verify-fmt
 verify-fmt:
