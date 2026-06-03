@@ -42,17 +42,30 @@ func lookupDomain(l *libvirt.Libvirt, name string) (libvirt.Domain, bool, error)
 	return d, true, nil
 }
 
+// qemuCommandlineNS is the libvirt QEMU namespace required to pass arbitrary
+const qemuCommandlineNS = "http://libvirt.org/schemas/domain/qemu/1.0"
+
 type xDomain struct {
-	XMLName  xml.Name   `xml:"domain"`
-	Type     string     `xml:"type,attr"`
-	Name     string     `xml:"name"`
-	Memory   *xMemory   `xml:"memory,omitempty"`
-	VCPU     *xVCPU     `xml:"vcpu,omitempty"`
-	OS       xOS        `xml:"os"`
-	CPU      *xCPU      `xml:"cpu,omitempty"`
-	SysInfo  *xSysInfo  `xml:"sysinfo,omitempty"`
-	Features *xFeatures `xml:"features,omitempty"`
-	Devices  xDevices   `xml:"devices"`
+	XMLName     xml.Name      `xml:"domain"`
+	Type        string        `xml:"type,attr"`
+	QemuXMLNS   string        `xml:"xmlns:qemu,attr,omitempty"`
+	Name        string        `xml:"name"`
+	Memory      *xMemory      `xml:"memory,omitempty"`
+	VCPU        *xVCPU        `xml:"vcpu,omitempty"`
+	OS          xOS           `xml:"os"`
+	CPU         *xCPU         `xml:"cpu,omitempty"`
+	SysInfo     *xSysInfo     `xml:"sysinfo,omitempty"`
+	Features    *xFeatures    `xml:"features,omitempty"`
+	Devices     xDevices      `xml:"devices"`
+	QemuCmdline *xQemuCmdline `xml:"qemu:commandline,omitempty"`
+}
+
+type xQemuCmdline struct {
+	Args []xQemuArg `xml:"qemu:arg"`
+}
+
+type xQemuArg struct {
+	Value string `xml:"value,attr"`
 }
 
 type xMemory struct {
@@ -135,9 +148,14 @@ type xDiskTarget struct {
 
 type xInterface struct {
 	Type   string        `xml:"type,attr"`
+	Mac    *xIfaceMac    `xml:"mac,omitempty"`
 	Source *xIfaceSource `xml:"source,omitempty"`
 	Model  *xIfaceModel  `xml:"model,omitempty"`
 	Target *xIfaceTarget `xml:"target,omitempty"`
+}
+
+type xIfaceMac struct {
+	Address string `xml:"address,attr"`
 }
 
 type xIfaceSource struct {
@@ -154,13 +172,21 @@ type xIfaceTarget struct {
 }
 
 type xSerial struct {
-	Type   string      `xml:"type,attr"`
-	Source *xSerialSrc `xml:"source,omitempty"`
-	Target *xSerialTgt `xml:"target,omitempty"`
+	Type     string        `xml:"type,attr"`
+	Source   *xSerialSrc   `xml:"source,omitempty"`
+	Protocol *xSerialProto `xml:"protocol,omitempty"`
+	Target   *xSerialTgt   `xml:"target,omitempty"`
 }
 
 type xSerialSrc struct {
-	Path string `xml:"path,attr,omitempty"`
+	Mode    string `xml:"mode,attr,omitempty"`
+	Path    string `xml:"path,attr,omitempty"`
+	Host    string `xml:"host,attr,omitempty"`
+	Service string `xml:"service,attr,omitempty"`
+}
+
+type xSerialProto struct {
+	Type string `xml:"type,attr"`
 }
 
 type xSerialTgt struct {
@@ -235,11 +261,17 @@ func driverTypeFromFormat(format string) string {
 }
 
 func buildInterface(nd VMNetdev) (xInterface, error) {
+	var mac *xIfaceMac
+	if nd.Mac != "" {
+		mac = &xIfaceMac{Address: nd.Mac}
+	}
+
 	t := strings.ToLower(nd.Type)
 	switch t {
 	case "user", "":
 		return xInterface{
 			Type:  "user",
+			Mac:   mac,
 			Model: &xIfaceModel{Type: "virtio"},
 		}, nil
 	case "bridge", "tap":
@@ -248,6 +280,7 @@ func buildInterface(nd VMNetdev) (xInterface, error) {
 		}
 		i := xInterface{
 			Type:   "bridge",
+			Mac:    mac,
 			Source: &xIfaceSource{Bridge: nd.BR},
 			Model:  &xIfaceModel{Type: "virtio"},
 		}
@@ -305,6 +338,38 @@ func buildSerial(serial string) *xSerial {
 			Source: &xSerialSrc{Path: strings.TrimPrefix(serial, "file:")},
 			Target: &xSerialTgt{Port: "0"},
 		}
+	case strings.HasPrefix(serial, "telnet:"):
+		return buildTCPSerial(strings.TrimPrefix(serial, "telnet:"), "telnet")
+	case strings.HasPrefix(serial, "tcp:"):
+		return buildTCPSerial(strings.TrimPrefix(serial, "tcp:"), "raw")
 	}
 	return &xSerial{Type: "pty", Target: &xSerialTgt{Port: "0"}}
+}
+
+// buildTCPSerial parses a qemu serial spec of the form
+// "host:port,opt,opt" (e.g. "localhost:4444,server,nowait") into a libvirt
+// <serial type='tcp'> device.
+func buildTCPSerial(spec, protocol string) *xSerial {
+	parts := strings.Split(spec, ",")
+	hostPort := parts[0]
+	mode := "connect"
+	for _, opt := range parts[1:] {
+		if strings.EqualFold(strings.TrimSpace(opt), "server") {
+			mode = "bind"
+		}
+	}
+
+	host, port := hostPort, ""
+	if idx := strings.LastIndex(hostPort, ":"); idx >= 0 {
+		host = hostPort[:idx]
+		port = hostPort[idx+1:]
+	}
+
+	s := &xSerial{
+		Type:     "tcp",
+		Source:   &xSerialSrc{Mode: mode, Host: host, Service: port},
+		Protocol: &xSerialProto{Type: protocol},
+		Target:   &xSerialTgt{Port: "0"},
+	}
+	return s
 }

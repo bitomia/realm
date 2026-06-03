@@ -39,6 +39,7 @@ type VMNetdev struct {
 	Net        string `json:"net,omitempty"`
 	DHCPStart  string `json:"dhcpstart,omitempty"`
 	Hostfwd    string `json:"hostfwd,omitempty"`
+	Mac        string `json:"mac,omitempty"`
 }
 
 type VMConfig struct {
@@ -50,6 +51,7 @@ type VMConfig struct {
 	Serial  string     `json:"serial,omitempty"`
 	Drives  []VMDrive  `json:"drives,omitempty"`
 	Netdev  []VMNetdev `json:"netdev,omitempty"`
+	Params  []string   `json:"params,omitempty"`
 }
 
 // VMNodeMetadata is persisted in the nodes repository and used to
@@ -253,12 +255,24 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 
 	if s := buildSerial(q.Config.Serial); s != nil {
 		dom.Devices.Serials = append(dom.Devices.Serials, *s)
-		dom.Devices.Consoles = append(dom.Devices.Consoles, *s)
+		if s.Type == "pty" {
+			dom.Devices.Consoles = append(dom.Devices.Consoles, *s)
+		}
+	}
+
+	if len(q.Config.Params) > 0 {
+		dom.QemuXMLNS = qemuCommandlineNS
+		cmdline := &xQemuCmdline{}
+		for _, arg := range q.Config.Params {
+			cmdline.Args = append(cmdline.Args, xQemuArg{Value: arg})
+		}
+		dom.QemuCmdline = cmdline
 	}
 
 	if cloudInit != nil {
 		cfg := config.Get()
 		host := q.resolveCloudInitHost(cfg)
+		slog.Info("VMDriver.Provision", "msg", "cloud-init host resolved", "host", host, "port", cfg.Agent.ListenPort, "node", nodeName)
 		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", host, cfg.Agent.ListenPort, nodeName)
 		dom.SysInfo = &xSysInfo{
 			Type: "smbios",
