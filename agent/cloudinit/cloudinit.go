@@ -1,6 +1,7 @@
 package cloudinit
 
 import (
+	"bytes"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -82,15 +83,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		data = ci.NetworkConfig
 	}
 
-	out, err := yaml.Marshal(data)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(data); err != nil {
 		http.Error(w, "failed to marshal cloud-init data", http.StatusInternalServerError)
 		return
 	}
+	_ = enc.Close()
 
-	w.Header().Set("Content-Type", "text/yaml")
+	w.Header().Set("Content-Type", "text/cloud-config")
 	if dataType == "user-data" {
 		_, _ = w.Write([]byte("#cloud-config\n"))
 	}
-	_, _ = w.Write(out)
+	_, _ = w.Write(buf.Bytes())
 }
