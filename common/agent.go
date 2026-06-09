@@ -8,8 +8,7 @@ func ResolveAgentURL(nodeConfig *NodeConfig) (string, error) {
 	}
 
 	if nodeConfig.Url == nil {
-		// Use mDNS when Url is nil
-		return fmt.Sprintf("http://%s.local:9000", nodeConfig.Name), nil
+		return "", fmt.Errorf("'url' attribute not found for node '%s'", nodeConfig.Name)
 	}
 
 	// TODO add support for custom protocols

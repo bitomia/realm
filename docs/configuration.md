@@ -38,6 +38,16 @@ nodes:
     driver: linux
 ```
 
+`url` field can be also configured with a mDNS address:
+
+```yaml
+nodes:
+  lab1:
+    url: http://lab1.local:9000
+...
+```
+
+
 | Field           | Type   | Required | Description                                    |
 | --------------- | ------ | -------- | ---------------------------------------------- |
 | `url`           | string | Yes      | URL of the node's agent API                   |
