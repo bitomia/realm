@@ -1,4 +1,0 @@
-agent:
-  etcd_listen_client_urL: http://192.168.105.2:2379
-  etcd_listen_peer_url: http://192.168.105.2:2380
-  listen_address: 0.0.0.0

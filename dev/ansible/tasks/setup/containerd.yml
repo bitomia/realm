@@ -1,5 +1,0 @@
-- name: CONTAINERD > Install
-  ansible.builtin.package:
-    name: containerd
-    state: present
-  become: true

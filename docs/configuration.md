@@ -234,7 +234,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/nginx:latest
+      image: docker.io/library/nginx:latest
 
   my_service:
     node: lab2
@@ -264,13 +264,13 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/postgres:15
+      image: docker.io/library/postgres:15
 
   api:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapi:latest
+      image: docker.io/library/myapi:latest
     depends_on:
       - database
 ```
@@ -298,7 +298,7 @@ loads:
     node: selectAny(filter(nodes, .Name startsWith "vps-"))
     driver: container
     driver_config:
-      image: docker.io/nginx:latest
+      image: docker.io/library/nginx:latest
 ```
 
 ## Agent
@@ -450,7 +450,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/postgres:15
+      image: docker.io/library/postgres:15
       env:
         - POSTGRES_PASSWORD=secret
       network:

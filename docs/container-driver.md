@@ -14,7 +14,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapp:latest
+      image: docker.io/library/myapp:latest
       args:
         - "--port"
         - "8080"
@@ -31,7 +31,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapp:latest
+      image: docker.io/library/myapp:latest
       entrypoint: /bin/sh
 ```
 
@@ -45,7 +45,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/nginx:latest
+      image: docker.io/library/nginx:latest
       entrypoint: /usr/local/bin/custom-wrapper.sh
       args:
         - "nginx"
@@ -77,7 +77,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapp:latest
+      image: docker.io/library/myapp:latest
       working_dir: /app/data
       args:
         - "./run.sh"
@@ -107,7 +107,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapp:latest
+      image: docker.io/library/myapp:latest
       bind_mounts:
         - source: ./data
           destination: /app/data
@@ -136,7 +136,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/postgres:15
+      image: docker.io/library/postgres:15
       mount_volume:
         - volume_mount_point: /var/lib/postgresql/data
           volume_size: 10G
@@ -168,7 +168,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/nginx:latest
+      image: docker.io/library/nginx:latest
       # Bind mount for configuration (read-only)
       bind_mounts:
         - source: /opt/test/nginx.conf
@@ -207,7 +207,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/prometheus:latest
+      image: docker.io/library/prometheus:latest
       network:
         mode: host
 ```
@@ -238,7 +238,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/nginx:latest
+      image: docker.io/library/nginx:latest
       network:
         network: my-network # Network name
         ip_masq: true # Enable IP masquerading (NAT)
@@ -255,7 +255,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapp:latest
+      image: docker.io/library/myapp:latest
       network:
         network: app-network
         ip_masq: true
@@ -279,7 +279,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/postgres:15
+      image: docker.io/library/postgres:15
       env:
         - POSTGRES_PASSWORD=secret
       network:
@@ -290,7 +290,7 @@ loads:
     node: lab1
     driver: container
     driver_config:
-      image: docker.io/myapi:latest
+      image: docker.io/library/myapi:latest
       env:
         - DB_HOST=database.realm # Use DNS name
       network:

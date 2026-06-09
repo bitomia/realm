@@ -1,8 +1,0 @@
-agent:
-  listen_address: 0.0.0.0
-  etcd_endpoints:
-{% for host in groups['targets'] %}
-{%   if hostvars[host]['etcd_server'] == "true" %}
-    - http://{{ hostvars[host]['ansible_host'] }}:2379
-{%   endif %}
-{% endfor %}
