@@ -83,16 +83,16 @@ var listLoads = &cobra.Command{
 		// Collect load deployments from all nodes
 		nodeLoadsDeployments := make(map[string]map[string]dto.LoadsDeployments)
 		for _, load := range loads {
-			if _, exists := nodeLoadsDeployments[*load.Node.Url]; !exists {
-				loadsDeployments, err := client.GetLoadsDeployments(*load.Node.Url)
+			if _, exists := nodeLoadsDeployments[load.Node.Url]; !exists {
+				loadsDeployments, err := client.GetLoadsDeployments(load.Node.Url)
 
 				if err != nil {
 					log.Error("%s", err.Error())
-					nodeLoadsDeployments[*load.Node.Url] = nil // Mark as failed
+					nodeLoadsDeployments[load.Node.Url] = nil // Mark as failed
 				} else {
-					nodeLoadsDeployments[*load.Node.Url] = make(map[string]dto.LoadsDeployments)
+					nodeLoadsDeployments[load.Node.Url] = make(map[string]dto.LoadsDeployments)
 					for _, s := range loadsDeployments {
-						nodeLoadsDeployments[*load.Node.Url][s.LoadName] = append(nodeLoadsDeployments[*load.Node.Url][s.LoadName], s)
+						nodeLoadsDeployments[load.Node.Url][s.LoadName] = append(nodeLoadsDeployments[load.Node.Url][s.LoadName], s)
 					}
 				}
 			}
@@ -102,8 +102,8 @@ var listLoads = &cobra.Command{
 			deploymentStatusStr := "unknown"
 			containerNames := []string{}
 
-			if nodeLoadsDeployments[*load.Node.Url] != nil {
-				deployments, exists := nodeLoadsDeployments[*load.Node.Url][load.Name]
+			if nodeLoadsDeployments[load.Node.Url] != nil {
+				deployments, exists := nodeLoadsDeployments[load.Node.Url][load.Name]
 				if !exists {
 					deploymentStatusStr = "not deployed"
 				} else {

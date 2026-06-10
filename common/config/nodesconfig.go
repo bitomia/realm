@@ -28,7 +28,7 @@ func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeD
 	return nodesConfig[nodeName], nil
 }
 
-func GetNodesFromConfig(nodesFilter ...string) map[string]*common.Node {
+func GetNodes(nodesFilter ...string) map[string]*common.Node {
 	nodes := make(map[string]*common.Node)
 	for _, node := range nodesConfig {
 		if len(nodesFilter) == 0 || slices.Contains(nodesFilter, node.Name) {

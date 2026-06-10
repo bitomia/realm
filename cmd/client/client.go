@@ -139,14 +139,9 @@ func (c *Client) doStreamRequest(method, url string) (*http.Response, error) {
 }
 
 func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
-	nodes, err := GetNodes(c.cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	var nodeImagesMap dto.NodeImagesMapResponse
-	for _, node := range nodes {
-		url := fmt.Sprintf("%s/images", *node.Url)
+	for _, node := range config.GetNodes() {
+		url := fmt.Sprintf("%s/images", node.Url)
 		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
@@ -174,14 +169,10 @@ type Container struct {
 }
 
 func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
-	nodes, err := GetNodes(c.cfg)
-	if err != nil {
-		return nil, err
-	}
 
 	containersPerNode := make(map[string]map[string]Container)
-	for _, node := range nodes {
-		url := fmt.Sprintf("%s/containers", *node.Url)
+	for _, node := range config.GetNodes() {
+		url := fmt.Sprintf("%s/containers", node.Url)
 		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			log.Error("Failed to get containers from %s: %v", node.Name, err)
@@ -199,14 +190,9 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 }
 
 func (c *Client) ListNetworks() (map[string]any, error) {
-	nodes, err := GetNodes(c.cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	networksPerNode := make(map[string]any)
-	for _, node := range nodes {
-		url := fmt.Sprintf("%s/network", *node.Url)
+	for _, node := range config.GetNodes() {
+		url := fmt.Sprintf("%s/network", node.Url)
 		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
 		if err != nil {
 			log.Fatal("Failed to get networks from %s: %v", node.Name, err)
@@ -347,31 +333,31 @@ func (c *Client) Login(node string, username string, password string) (string, e
 }
 
 func (c *Client) ProvisionLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/provision", *load.Node.Url)
+	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
 	_, _, err := c.doJSONRequest("POST", url, load, 60*time.Second)
 	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/start", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
 	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) StopLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stop", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
 	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) KillLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/kill", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
 	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
 
 func (c *Client) DeprovisionLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/deprovision", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
 	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
 	return err
 }
@@ -392,7 +378,7 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 }
 
 func (c *Client) ReadLoadStdout(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stdout", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/stdout", load.Node.Url, load.Name)
 	resp, err := c.doStreamRequest("GET", url)
 	if err != nil {
 		return err
@@ -407,7 +393,7 @@ func (c *Client) ReadLoadStdout(load *common.Load) error {
 }
 
 func (c *Client) ReadLoadStderr(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stderr", *load.Node.Url, load.Name)
+	url := fmt.Sprintf("%s/loads/%s/stderr", load.Node.Url, load.Name)
 	resp, err := c.doStreamRequest("GET", url)
 	if err != nil {
 		return err

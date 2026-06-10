@@ -7,10 +7,6 @@ func ResolveAgentURL(nodeConfig *NodeConfig) (string, error) {
 		return "", fmt.Errorf("nil nodeConfig")
 	}
 
-	if nodeConfig.Url == nil {
-		return "", fmt.Errorf("'url' attribute not found for node '%s'", nodeConfig.Name)
-	}
-
 	// TODO add support for custom protocols
-	return *nodeConfig.Url, nil
+	return nodeConfig.Url, nil
 }

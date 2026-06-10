@@ -10,7 +10,7 @@ import (
 
 type NodeConfig struct {
 	Name         string               `json:"name"`
-	Url          *string              `json:"url,omitempty"`
+	Url          string               `json:"url"`
 	CloudInit    *cloudinit.CloudInit `json:"cloud_init,omitempty"`
 	Driver       NodeDriverID         `json:"driver,omitempty"`
 	DriverConfig *any                 `json:"driver_config,omitempty"`
@@ -50,7 +50,7 @@ func NewNodeFromConfig(config *NodeConfig) (*Node, error) {
 func (n *Node) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NodeConfig{
 		Name:         n.Name,
-		Url:          &n.Url,
+		Url:          n.Url,
 		CloudInit:    n.CloudInit,
 		Driver:       n.Driver.GetNodeDriverID(),
 		DriverConfig: n.Driver.GetDriverConfig().DriverConfig,
