@@ -22,6 +22,11 @@ jobs:
             goarch: amd64
             binary_name: realm.exe
             asset_name: realm-windows-amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: universal
+            binary_name: realm
+            asset_name: realm-darwin-universal
 
     steps:
       - name: Checkout code
@@ -33,6 +38,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Build binary
+        if: matrix.goarch != 'universal'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -40,6 +46,16 @@ jobs:
         run: |
           mkdir -p bin
           go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
+
+      - name: Build universal binary (Darwin)
+        if: matrix.goarch == 'universal'
+        env:
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p bin
+          GOOS=darwin GOARCH=amd64 go build -C ./cmd -o ../bin/realm-amd64 -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
+          GOOS=darwin GOARCH=arm64 go build -C ./cmd -o ../bin/realm-arm64 -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
+          lipo -create -output bin/realm bin/realm-amd64 bin/realm-arm64
 
       - name: Compress binary (Unix)
         if: matrix.goos != 'windows'

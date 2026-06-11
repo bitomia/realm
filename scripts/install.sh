@@ -82,10 +82,15 @@ detect_os() {
 }
 
 detect_arch() {
-    case "$(uname -m)" in
-        x86_64|amd64) echo "amd64" ;;
-        aarch64|arm64) echo "arm64" ;;
-        *) return 1 ;;
+    case "$(uname -s)" in
+        Darwin*) echo "universal" ;;
+        *)
+            case "$(uname -m)" in
+                x86_64|amd64) echo "amd64" ;;
+                aarch64|arm64) echo "arm64" ;;
+                *) return 1 ;;
+            esac
+            ;;
     esac
 }
 
