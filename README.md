@@ -14,7 +14,7 @@ curl -fsSL https://realm.bitomia.com/install.sh | sh
 
 **Windows (PowerShell):**
 
-```powershell
+```sh
 irm https://realm.bitomia.com/install.ps1 | iex
 ```
 
