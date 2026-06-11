@@ -6,16 +6,16 @@ It's simple because it is just one executable to command the cluster where Realm
 
 ## Quick Installation
 
-**Linux:**
+**Linux / macOS:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/bitomia/realm/main/install.sh | sh
+curl -fsSL https://realm.bitomia.com/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/bitomia/realm/main/install.ps1 | iex
+irm https://realm.bitomia.com/install.ps1 | iex
 ```
 
 The install location can be overridden via the `REALM_INSTALL_DIR` environment variable.
