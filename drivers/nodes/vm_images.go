@@ -20,6 +20,10 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
+const (
+	defaultLibVirtSocket = "/var/run/libvirt/libvirt-sock"
+)
+
 type OverlayImage struct {
 	ID       uuid.UUID
 	FilePath string
@@ -134,7 +138,7 @@ func downloadImage(rawURL string) (string, error) {
 	return cachedPath, nil
 }
 
-func resolveDrives(drives []VMDrive, nodeName string) (map[int]OverlayImage, error) {
+func resolveDrives(drives []VMDrive, nodeName, socket string) (map[int]OverlayImage, error) {
 	overlays := make(map[int]OverlayImage)
 	for i := range drives {
 		imagePath := drives[i].File
@@ -151,7 +155,7 @@ func resolveDrives(drives []VMDrive, nodeName string) (map[int]OverlayImage, err
 		}
 
 		if drives[i].Resize != "" {
-			if err := resizeOverlay(overlayImage.FilePath, drives[i].Resize); err != nil {
+			if err := resizeOverlay(overlayImage.FilePath, drives[i].Resize, socket); err != nil {
 				overlayImage.Cleanup()
 				return nil, err
 			}
@@ -189,7 +193,7 @@ func parseDriveSize(size string) (uint64, error) {
 	return n * mult, nil
 }
 
-func resizeOverlay(filePath, size string) error {
+func resizeOverlay(filePath, size, socket string) error {
 	capacity, err := parseDriveSize(size)
 	if err != nil {
 		return fmt.Errorf("vm: invalid resize for %s: %w", filePath, err)
@@ -202,7 +206,7 @@ func resizeOverlay(filePath, size string) error {
 	poolName := fmt.Sprintf("realm-resize-%s", uuid.New().String())
 	poolXML := fmt.Sprintf(`<pool type='dir'><name>%s</name><target><path>%s</path></target></pool>`, poolName, dir)
 
-	return withLibvirt(func(l *libvirt.Libvirt) error {
+	return withLibvirt(socket, func(l *libvirt.Libvirt) error {
 		pool, err := l.StoragePoolCreateXML(poolXML, 0)
 		if err != nil {
 			return fmt.Errorf("vm: failed to create transient storage pool: %w", err)

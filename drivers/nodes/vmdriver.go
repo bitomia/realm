@@ -43,15 +43,16 @@ type VMNetdev struct {
 }
 
 type VMConfig struct {
-	Machine string     `json:"machine,omitempty"`
-	Accel   []string   `json:"accel,omitempty"`
-	CPU     string     `json:"cpu,omitempty"`
-	Memory  int        `json:"memory,omitempty"`
-	SMP     string     `json:"smp,omitempty"`
-	Serial  string     `json:"serial,omitempty"`
-	Drives  []VMDrive  `json:"drives,omitempty"`
-	Netdev  []VMNetdev `json:"netdev,omitempty"`
-	Params  []string   `json:"params,omitempty"`
+	Machine       string     `json:"machine,omitempty"`
+	Accel         []string   `json:"accel,omitempty"`
+	CPU           string     `json:"cpu,omitempty"`
+	Memory        int        `json:"memory,omitempty"`
+	SMP           string     `json:"smp,omitempty"`
+	Serial        string     `json:"serial,omitempty"`
+	Drives        []VMDrive  `json:"drives,omitempty"`
+	Netdev        []VMNetdev `json:"netdev,omitempty"`
+	Params        []string   `json:"params,omitempty"`
+	LibVirtSocket *string    `json:"libvirt_socket,omitempty"`
 }
 
 // VMNodeMetadata is persisted in the nodes repository and used to
@@ -109,7 +110,7 @@ func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, re
 	slog.Info("VMDriver.Provision", "msg", "preparing libvirt domain", "node", nodeName)
 
 	var err error
-	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName)
+	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName, q.libvirtSocket())
 	if err != nil {
 		return fmt.Errorf("vm: failed to resolve drive images: %w", err)
 	}
@@ -149,7 +150,7 @@ func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesReposito
 		if mErr != nil {
 			slog.Warn("VMDriver.Deprovision", "msg", "cannot cast metadata", "error", mErr)
 		} else {
-			if err := withLibvirt(func(l *libvirt.Libvirt) error {
+			if err := withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 				d, found, err := lookupDomain(l, metadata.DomainName)
 				if err != nil {
 					return err
@@ -180,6 +181,13 @@ func (q *VMDriver) GetDriverConfig() common.NodeDriverConfig {
 
 func (q *VMDriver) MarshalJSON() ([]byte, error) {
 	return json.Marshal(q.GetDriverConfig())
+}
+
+func (q *VMDriver) libvirtSocket() string {
+	if q.Config.LibVirtSocket != nil {
+		return *q.Config.LibVirtSocket
+	}
+	return defaultLibVirtSocket
 }
 
 func (q *VMDriver) UnmarshalJSON(data []byte) error {
@@ -299,7 +307,7 @@ func (q *VMDriver) Start(nodeName *string, repository common.NodesRepository) er
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
 
-	return withLibvirt(func(l *libvirt.Libvirt) error {
+	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		if d, found, err := lookupDomain(l, metadata.DomainName); err != nil {
 			return err
 		} else if found {
@@ -332,7 +340,7 @@ func (q *VMDriver) Stop(nodeName *string, _ string, _ uint32, repository common.
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
 
-	return withLibvirt(func(l *libvirt.Libvirt) error {
+	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		d, found, err := lookupDomain(l, metadata.DomainName)
 		if err != nil {
 			return err
@@ -356,7 +364,7 @@ func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32, repository comm
 		return fmt.Errorf("getMetadata on Restart failed: %s", err.Error())
 	}
 
-	return withLibvirt(func(l *libvirt.Libvirt) error {
+	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		d, found, err := lookupDomain(l, metadata.DomainName)
 		if err != nil {
 			return err
@@ -380,7 +388,7 @@ func (q *VMDriver) UpdateStatus(nodeName *string, repository common.NodesReposit
 	}
 
 	var status common.NodeStatus
-	err = withLibvirt(func(l *libvirt.Libvirt) error {
+	err = withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		d, found, err := lookupDomain(l, metadata.DomainName)
 		if err != nil {
 			return err
@@ -425,7 +433,7 @@ func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository)
 		return state, fmt.Errorf("vMDriver.GetState cannot cast metadata: %s", err.Error())
 	}
 
-	err = withLibvirt(func(l *libvirt.Libvirt) error {
+	err = withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		d, found, err := lookupDomain(l, metadata.DomainName)
 		if err != nil {
 			return err

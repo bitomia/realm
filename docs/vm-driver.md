@@ -45,6 +45,21 @@ cloud_init:
       - podman
 ```
 
+## driver_config reference
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `machine` | string | — | QEMU machine type (e.g. `q35`) |
+| `accel` | string or list | — | Acceleration backends tried in order (e.g. `kvm`, `hvf`) |
+| `cpu` | string | — | CPU model |
+| `memory` | int | — | RAM in MiB |
+| `smp` | string | — | SMP topology |
+| `serial` | string | — | Serial device string (e.g. `telnet:localhost:4444,server,nowait`) |
+| `drives` | list | — | Disk images to attach |
+| `netdev` | list | — | Network devices to attach |
+| `params` | list | — | Extra QEMU arguments |
+| `libvirt_socket` | string | `/var/run/libvirt/libvirt-sock` | Path to the libvirt UNIX socket |
+
 ## Cloud-init
 
 When a node has a `cloud_init` block, the driver configures the guest to fetch it
