@@ -305,7 +305,7 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 			panic(err)
 		}
 
-		node, exists := config.Nodes[loadConfig.Node]
+		node, exists := nodesConfig[loadConfig.Node]
 		if !exists {
 			return nil, fmt.Errorf("node '%s' referenced by load '%s' does not exist", loadConfig.Node, loadName)
 		}
@@ -353,13 +353,11 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 
 	// Populate instance fields
 	config.processedNodes = make(map[string]*common.Node, len(nodesConfig))
-	for k, v := range nodesConfig {
-		config.processedNodes[k] = v
-	}
+	maps.Copy(config.processedNodes, nodesConfig)
+
 	config.processedLoads = make(map[string]*common.Load, len(loadsConfig))
-	for k, v := range loadsConfig {
-		config.processedLoads[k] = v
-	}
+	maps.Copy(config.processedLoads, loadsConfig)
+
 	config.loadsGraph = loadsConfigGraph
 
 	return config, nil

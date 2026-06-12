@@ -83,7 +83,7 @@ func (m *MockLoadDriver) ReadStderr(repository DeploymentsRepository, deployment
 }
 
 func createTestLoad(name, nodeName string, driverID LoadDriverID, driverConfig any) *Load {
-	node := &NodeConfig{Name: nodeName}
+	node := &Node{Name: nodeName}
 	driver := &MockLoadDriver{driver: driverID, driverConfig: driverConfig}
 
 	load := &Load{
@@ -180,7 +180,7 @@ func TestHashableLoadConfig_NilHandling(t *testing.T) {
 		Name:      "test",
 		Driver:    &MockLoadDriver{driver: "test", driverConfig: nil},
 		DependsOn: nil,
-		Node:      &NodeConfig{Name: "node1"},
+		Node:      &Node{Name: "node1"},
 	}
 
 	hash := load.Hash()

@@ -19,7 +19,7 @@ func ResetLoadsConfig() {
 	loadsConfigGraph = nil
 }
 
-func newLoadConfig(loadName string, node *common.NodeConfig, driver common.LoadDriver) (*common.Load, error) {
+func newLoadConfig(loadName string, node *common.Node, driver common.LoadDriver) (*common.Load, error) {
 	if _, exists := loadsConfig[loadName]; exists {
 		return nil, fmt.Errorf("load name not unique")
 	}
