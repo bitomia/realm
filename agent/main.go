@@ -108,7 +108,10 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
-	cloudinit.Initialize(router)
+	if err := cloudinit.Initialize(router); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
 
 	serverAddr := fmt.Sprintf("%s:%d", cfg.Agent.ListenAddress, cfg.Agent.ListenPort)
 	listener, err := net.Listen("tcp", serverAddr)

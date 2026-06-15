@@ -40,5 +40,8 @@ func ListRawArtifactsHandler(w http.ResponseWriter, r *http.Request) {
 	for _, entry := range dirEntries {
 		entries = append(entries, entry.Name())
 	}
-	json.NewEncoder(w).Encode(entries)
+	if err := json.NewEncoder(w).Encode(entries); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
