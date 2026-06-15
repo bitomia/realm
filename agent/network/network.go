@@ -544,7 +544,7 @@ func IsCNIAvailable() error {
 
 	// Check if CNI path exists
 	if _, err := os.Stat(cniPath); os.IsNotExist(err) {
-		return fmt.Errorf("cNI path does not exist: %s", cniPath)
+		return fmt.Errorf("CNI path does not exist: %s", cniPath)
 	}
 
 	var missingPlugins []string

@@ -98,3 +98,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = w.Write(buf.Bytes())
 }
+
+func Initialize(router *mux.Router) error {
+	if router != nil {
+		return fmt.Errorf("Router cannot be nil on cloudinit.Initialize")
+	}
+
+	router.HandleFunc("/cloudinit/{nodeName}/{dataType:meta-data|user-data|network-config}", RequestHandler).Methods("GET")
+
+	return nil
+}

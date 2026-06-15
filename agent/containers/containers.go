@@ -46,7 +46,6 @@ func GetHostNetworkSpecOpts() []oci.SpecOpts {
 func GetContainerdVersion() (*containerd.Version, error) {
 	ctx, client, err := cruntime.CreateClient()
 	if err != nil {
-		slog.Error("Failed to create containerd client", "error", err.Error())
 		return nil, err
 	}
 	defer client.Close()

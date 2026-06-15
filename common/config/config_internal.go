@@ -66,6 +66,7 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("agent.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
 	viper.SetDefault("agent.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
 	viper.SetDefault("agent.etcd_initial_cluster", "")
+	viper.SetDefault("agent.artifacts.auth_required", false)
 }
 
 // findConfigFile resolves the config file path using the same logic as viper's config setup.

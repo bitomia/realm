@@ -25,6 +25,14 @@ type RegistryAuth struct {
 	Token    string `json:"token,omitempty"`
 }
 
+// ArtifactRepositoryConfig
+type ArtifactsRepository struct {
+	AuthRequired bool `json:"auth_required"`
+
+	// Path to raw artifacts
+	RawArtifactsPath *string `json:"raw_path,omitempty"`
+}
+
 // RegistryConfig holds configuration for a container registry.
 type RegistryConfig struct {
 	Host     string       `json:"host"` // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
@@ -115,6 +123,9 @@ type AgentConfig struct {
 	// Left empty for single-node cluster
 	// Default: empty
 	EtcdInitialCluster string `json:"etcd_initial_cluster"`
+
+	// Artifacts repository (experimental)
+	Artifacts ArtifactsRepository `json:"artifacts"`
 }
 
 type LoadsConfig map[string]common.LoadConfig

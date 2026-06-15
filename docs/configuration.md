@@ -330,13 +330,29 @@ agent:
 | `volumes_pool`         | string | `realm_volumes`                   | ZFS pool name for container volumes |
 | `zfs`                  | bool   | `false`                           | Enable ZFS for volume management    |
 
-### Reverse Proxy
+### Reverse Proxy (Experimental)
 
 | Field              | Type   | Default          | Description              |
 | ------------------ | ------ | ---------------- | ------------------------ |
 | `proxy_enabled`    | bool   | `false`          | Enable the reverse proxy |
 | `local_caddy_url`  | string | `localhost:2019` | Local Caddy proxy URL    |
 | `master_caddy_url` | string | `localhost:2019` | Master Caddy proxy URL   |
+
+### Artifacts repository (Experimental)
+
+Realm agents can expose artifacts when configured.
+
+| Field              | Type                 | Default          | Description                 |
+| ------------------ | -------------------- | ---------------- | --------------------------- |
+| `artifacts`        | ArtifactsRepository  | Empty            | Artifacts repository config | 
+
+
+`artifacts` field expects the following attributes:
+
+| Field              | Type                 | Default  | Description                                                         |
+| ------------------ | -------------------- | -------- | ------------------------------------------------------------------- |
+| `auth_required`    | bool                 | false    | Endpoints available only for authed requests                        | 
+| `raw_path`         | string               | nil      | Point to a local directory with raw artifacts (nesting not allowed) |
 
 ### Etcd
 

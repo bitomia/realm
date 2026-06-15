@@ -14,8 +14,10 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/bitomia/realm/agent/artifacts"
 	"github.com/bitomia/realm/agent/auth"
 	"github.com/bitomia/realm/agent/capabilities"
+	"github.com/bitomia/realm/agent/cloudinit"
 	agentConfig "github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/agent/db"
 	"github.com/bitomia/realm/agent/dns"
@@ -97,13 +99,18 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		os.Exit(1)
 	}
 
-	router := mux.NewRouter()
-	createRoutes(true, router)
-
 	auth.Initialize()
 
-	serverAddr := fmt.Sprintf("%s:%d", cfg.Agent.ListenAddress, cfg.Agent.ListenPort)
+	router := mux.NewRouter()
+	createBaseRoutes(cfg, router)
 
+	if err := artifacts.Initialize(&cfg.Agent.Artifacts, router); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+	cloudinit.Initialize(router)
+
+	serverAddr := fmt.Sprintf("%s:%d", cfg.Agent.ListenAddress, cfg.Agent.ListenPort)
 	listener, err := net.Listen("tcp", serverAddr)
 	if err != nil {
 		slog.Error("Failed to listen", "addr", serverAddr, "error", err)

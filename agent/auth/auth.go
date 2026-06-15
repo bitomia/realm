@@ -20,7 +20,7 @@ var (
 func Initialize() {
 	secretKey = os.Getenv("JWT_SECRET")
 	if secretKey == "" {
-		slog.Warn("** Running without authentication **")
+		slog.Warn("Running without authentication")
 		enabled = false
 	} else {
 		slog.Info("Authentication initialized")
