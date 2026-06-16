@@ -9,13 +9,13 @@ It's simple because it is just one executable to command the cluster where Realm
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://realm.bitomia.com/install.sh | sh
+curl -fsSL https://realm.bitomia.com/install.sh | sudo sh
 ```
 
 **Windows (PowerShell):**
 
 ```sh
-irm https://realm.bitomia.com/install.ps1 | iex
+irm https://realm.bitomia.com/install.ps1 | sudo iex
 ```
 
 The install location can be overridden via the `REALM_INSTALL_DIR` environment variable.
