@@ -109,13 +109,22 @@ func (q *VMDriver) GetNodeDriverID() common.NodeDriverID {
 func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
 	slog.Info("VMDriver.Provision", "msg", "preparing libvirt domain", "node", nodeName)
 
-	var err error
 	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName, q.libvirtSocket())
 	if err != nil {
 		return fmt.Errorf("vm: failed to resolve drive images: %w", err)
 	}
 
-	domainXML, err := q.buildDomainXML(nodeName, overlayDrives, cloudInit)
+	var cloudInitHost *string = nil
+	if cloudInit != nil {
+		cfg := config.Get()
+		cloudInitHostStr := q.resolveCloudInitHost(cfg)
+		cloudInitHost = &cloudInitHostStr
+		if err := commonConfig.EvalVars(cloudInit, map[string]string{"cloud_init_host": cloudInitHostStr}); err != nil {
+			return err
+		}
+	}
+
+	domainXML, err := q.buildDomainXML(nodeName, overlayDrives, cloudInit, cloudInitHost)
 	if err != nil {
 		cleanupOverlays(nodeName)
 		return fmt.Errorf("vm: failed to build domain XML: %w", err)
@@ -211,7 +220,7 @@ func (q *VMDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]OverlayImage, cloudInit *cloudinit.CloudInit) (string, error) {
+func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]OverlayImage, cloudInit *cloudinit.CloudInit, cloudInitHost *string) (string, error) {
 	dom := xDomain{
 		Type: domainTypeFromAccel(q.Config.Accel),
 		Name: nodeName,
@@ -277,11 +286,10 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		dom.QemuCmdline = cmdline
 	}
 
-	if cloudInit != nil {
+	if cloudInitHost != nil {
 		cfg := config.Get()
-		host := q.resolveCloudInitHost(cfg)
-		slog.Info("VMDriver.Provision", "msg", "cloud-init host resolved", "host", host, "port", cfg.Agent.ListenPort, "node", nodeName)
-		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", host, cfg.Agent.ListenPort, nodeName)
+		slog.Info("VMDriver.Provision", "msg", "cloud-init host resolved", "host", *cloudInitHost, "port", cfg.Agent.ListenPort, "node", nodeName)
+		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s:%d/cloudinit/%s/", *cloudInitHost, cfg.Agent.ListenPort, nodeName)
 		dom.SysInfo = &xSysInfo{
 			Type: "smbios",
 			System: xSysInfoSystem{Entries: []xSysInfoEntry{

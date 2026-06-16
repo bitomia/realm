@@ -102,7 +102,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	auth.Initialize()
 
 	router := mux.NewRouter()
-	createBaseRoutes(cfg, router)
+	createBaseRoutes(router)
 
 	if err := artifacts.Initialize(&cfg.Agent.Artifacts, router); err != nil {
 		slog.Error(err.Error())

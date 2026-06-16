@@ -87,14 +87,14 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 func ProvisionNode(node *common.Node) error {
 	database := db.GetDB()
 
+	if err := node.Driver.Provision(node.Name, node.CloudInit, database.NodesRepository); err != nil {
+		return err
+	}
+
 	if node.CloudInit != nil {
 		if err := cloudinit.RegisterNode(node); err != nil {
 			return err
 		}
-	}
-
-	if err := node.Driver.Provision(node.Name, node.CloudInit, database.NodesRepository); err != nil {
-		return err
 	}
 
 	return nil
