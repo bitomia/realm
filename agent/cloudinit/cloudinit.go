@@ -100,7 +100,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func Initialize(router *mux.Router) error {
-	if router != nil {
+	if router == nil {
 		return fmt.Errorf("router cannot be nil on cloudinit.Initialize")
 	}
 
