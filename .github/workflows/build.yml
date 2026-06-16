@@ -6,46 +6,51 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   verify-format:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
     - name: Verify formatting
       run: make verify-fmt
 
   lint:
-    needs: verify-format
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v9
       with:
-        version: latest
+        version: v2.8.0
 
   test:
-    needs: lint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
     - name: Run tests
       run: make test
 
   build:
-    needs: test
+    needs: [verify-format, lint, test]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -54,13 +59,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version-file: go.mod
-    # - name: Install ZFS utilities (Linux)
-    #   if: runner.os == 'Linux'
-    #   run: |
-    #     sudo apt-get update
-    #     sudo apt-get install -y zfsutils-linux libzfslinux-dev
     - name: Build all
       run: make all

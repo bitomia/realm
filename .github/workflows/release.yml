@@ -5,10 +5,32 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+
 jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.8.0
+      - name: Run tests
+        run: make test
+
   build-and-release:
     name: Build and Release
+    needs: verify
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -28,12 +50,17 @@ jobs:
             binary_name: realm
             asset_name: realm-darwin-universal
 
+    env:
+      LDFLAGS: >-
+        -X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}'
+        -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
@@ -45,7 +72,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p bin
-          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
+          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
 
       - name: Build universal binary (Darwin)
         if: matrix.goarch == 'universal'
@@ -53,8 +80,8 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p bin
-          GOOS=darwin GOARCH=amd64 go build -C ./cmd -o ../bin/realm-amd64 -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
-          GOOS=darwin GOARCH=arm64 go build -C ./cmd -o ../bin/realm-arm64 -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=${{ github.sha }}' -X 'github.com/bitomia/realm/common/config.Version=${{ github.ref_name }}'"
+          GOOS=darwin GOARCH=amd64 go build -C ./cmd -o ../bin/realm-amd64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
+          GOOS=darwin GOARCH=arm64 go build -C ./cmd -o ../bin/realm-arm64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
           lipo -create -output bin/realm bin/realm-amd64 bin/realm-arm64
 
       - name: Compress binary (Unix)
