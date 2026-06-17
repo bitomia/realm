@@ -65,6 +65,11 @@ main() {
 
     echo "realm ${tag} installed to ${INSTALL_DIR}/${binary}"
 
+    if [ "$os" = "linux" ]; then
+        check_container_deps
+        check_vmm_deps
+    fi
+
     if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
         echo ""
         echo "Add ${INSTALL_DIR} to your PATH:"
@@ -112,6 +117,62 @@ download() {
         curl -fsSL -o "$dest" "$url"
     elif command -v wget >/dev/null 2>&1; then
         wget -q -O "$dest" "$url"
+    fi
+}
+
+check_container_deps() {
+    missing=""
+
+    if ! command -v containerd >/dev/null 2>&1; then
+        missing="containerd"
+    fi
+
+    cni_found=""
+    for dir in /opt/cni/bin /usr/lib/cni /usr/libexec/cni; do
+        if [ -d "$dir" ] && [ -x "${dir}/bridge" ]; then
+            cni_found="yes"
+            break
+        fi
+    done
+    if [ -z "$cni_found" ]; then
+        missing="${missing:+${missing} }containernetworking-plugins"
+    fi
+
+    if [ -n "$missing" ]; then
+        echo "" >&2
+        echo "Warning: the container engine will not be available." >&2
+        echo "Missing dependencies: ${missing}" >&2
+        echo "Install them to enable container support, e.g.:" >&2
+        echo "  Debian/Ubuntu: sudo apt-get install ${missing}" >&2
+        echo "  Fedora/RHEL:   sudo dnf install ${missing}" >&2
+    fi
+}
+
+check_vmm_deps() {
+    missing=""
+
+    if ! command -v libvirtd >/dev/null 2>&1 && ! command -v virsh >/dev/null 2>&1; then
+        missing="libvirt"
+    fi
+
+    qemu_found=""
+    for bin in qemu-system-x86_64 qemu-system-aarch64 qemu-kvm; do
+        if command -v "$bin" >/dev/null 2>&1; then
+            qemu_found="yes"
+            break
+        fi
+    done
+    if [ -z "$qemu_found" ]; then
+        missing="${missing:+${missing} }qemu"
+    fi
+
+    if [ -n "$missing" ]; then
+        echo "" >&2
+        echo "Warning: virtual machines (VMMs) will not be available." >&2
+        echo "Missing dependencies: ${missing}" >&2
+        echo "Install them to enable VM support, e.g.:" >&2
+        echo "  Debian/Ubuntu: sudo apt-get install libvirt-daemon-system bridge-utils qemu-system" >&2
+        echo "  Fedora/RHEL:   sudo dnf install libvirt qemu-kvm bridge-utils" >&2
     fi
 }
 
