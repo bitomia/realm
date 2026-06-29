@@ -4,6 +4,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/drivers/loads"
 	"github.com/bitomia/realm/drivers/nodes"
+	"github.com/bitomia/realm/drivers/nodes/cloud"
 )
 
 func RegisterStdDrivers() error {
@@ -17,6 +18,9 @@ func RegisterStdDrivers() error {
 		return err
 	}
 	if err := common.RegisterNodeDriver(&nodes.WindowsDriver{}); err != nil {
+		return err
+	}
+	if err := common.RegisterNodeDriver(&cloud.HetznerServerDriver{}); err != nil {
 		return err
 	}
 	return common.RegisterNodeDriver(&nodes.VMDriver{})
