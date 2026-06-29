@@ -17,22 +17,13 @@ func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	// Expand env variables
-	var missingEnvVars []string
-	data = []byte(os.Expand(string(data), func(key string) string {
-		val, ok := os.LookupEnv(key)
-		if !ok {
-			missingEnvVars = append(missingEnvVars, key)
-		}
-		return val
-	}))
-	if len(missingEnvVars) > 0 {
-		return nil, fmt.Errorf("missing env variables %s", missingEnvVars)
-	}
-
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	if err := expandEnvNode(&doc); err != nil {
+		return nil, err
 	}
 
 	absBaseDir, err := filepath.Abs(baseDir)
@@ -45,6 +36,36 @@ func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
 	}
 
 	return yaml.Marshal(&doc)
+}
+
+// expandEnvNode recursively expands ${VAR}/$VAR references found in scalar node values
+func expandEnvNode(node *yaml.Node) error {
+	var missingEnvVars []string
+
+	var walk func(n *yaml.Node)
+	walk = func(n *yaml.Node) {
+		if n == nil {
+			return
+		}
+		if n.Kind == yaml.ScalarNode {
+			n.Value = os.Expand(n.Value, func(key string) string {
+				val, ok := os.LookupEnv(key)
+				if !ok {
+					missingEnvVars = append(missingEnvVars, key)
+				}
+				return val
+			})
+		}
+		for _, child := range n.Content {
+			walk(child)
+		}
+	}
+	walk(node)
+
+	if len(missingEnvVars) > 0 {
+		return fmt.Errorf("missing env variables %s", missingEnvVars)
+	}
+	return nil
 }
 
 func resolveNode(node *yaml.Node, baseDir string) error {

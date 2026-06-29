@@ -139,3 +139,17 @@ agent:
 	require.NotNil(t, config)
 	assert.Equal(t, config.Agent.ListenPort, 202123)
 }
+
+func TestConfig_EnvVarsInCommentIgnored(t *testing.T) {
+	os.Unsetenv("TEST_REALM_UNSET_VAR")
+	os.Setenv("TEST_REALM_LISTEN_PORT", "202123")
+	yaml := `
+agent:
+    listen_port: ${TEST_REALM_LISTEN_PORT}
+    # listen_address: ${TEST_REALM_UNSET_VAR}
+`
+	config, err := readConfigFromReader(bytes.NewBuffer([]byte(yaml)))
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, config.Agent.ListenPort, 202123)
+}
