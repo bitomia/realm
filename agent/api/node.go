@@ -54,12 +54,12 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 
 	}
 
-	state, err := nodeEntry.NodeDriver.GetState(&nodeEntry.NodeName, database.NodesRepository)
+	state, err := nodeEntry.NodeDriver.State()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName, database.NodesRepository)
+	status, err := nodeEntry.NodeDriver.RefreshStatus()
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
@@ -84,51 +84,68 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func ProvisionNode(node *common.Node) error {
-	database := db.GetDB()
+func GetNodeConfig() (*common.NodeDriverConfig, error) {
+	db := db.GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("db not initialized")
+	}
+	if node, err := db.NodesRepository.GetSelf(); err != nil {
+		return nil, err
+	} else {
+		config := node.NodeDriver.Config()
+		return &config, nil
+	}
+}
 
-	if err := node.Driver.Provision(node.Name, node.CloudInit, database.NodesRepository); err != nil {
+func LoadNodeConfig(node *common.Node) error {
+	db := db.GetDB()
+	if db == nil {
+		return fmt.Errorf("db not initialized")
+	}
+	if err := db.NodesRepository.SetSelf(node.Name, node.Driver, nil); err != nil {
+		return err
+	}
+	return nil
+}
+
+func UnloadGuestNodeConfig(nodeName string) error {
+	db := db.GetDB()
+	if db == nil {
+		return fmt.Errorf("db not initialized")
+	}
+
+	var err error
+	var node common.NodeEntry
+	if node, err = db.NodesRepository.GetGuestNode(nodeName); err != nil {
 		return err
 	}
 
-	if node.CloudInit != nil {
-		if err := cloudinit.RegisterNode(node); err != nil {
-			return err
-		}
+	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.NodeDriver, nil); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func DeprovisionNode(nodeName *string) error {
-	database := db.GetDB()
-	var node common.NodeEntry
+func UnloadNodeConfig() error {
+	db := db.GetDB()
+	if db == nil {
+		return fmt.Errorf("db not initialized")
+	}
 
-	if nodeName == nil {
-		var err error
-		if node, err = database.NodesRepository.GetSelf(); err != nil {
-			return err
-		}
-
-		// Deprovision all guest nodes if they exist
-		if nodes, err := database.NodesRepository.GetAllGuestNodes(); err != nil {
-			return err
-		} else {
-			for _, node := range nodes {
-				if err := DeprovisionNode(&node.NodeName); err != nil {
-					return err
-				}
-			}
-		}
+	// Unregister all guest nodes if they exist
+	if nodes, err := db.NodesRepository.GetAllGuestNodes(); err != nil {
+		return err
 	} else {
-		var err error
-		if node, err = database.NodesRepository.GetGuestNode(*nodeName); err != nil {
-			return err
+		for _, node := range nodes {
+			if err := UnloadGuestNodeConfig(node.NodeName); err != nil {
+				return err
+			}
 		}
 	}
 
 	// Deprovision all deployments on this node before deprovisioning the node
-	deployments, err := database.DeploymentsRepository.GetAll()
+	deployments, err := db.DeploymentsRepository.GetAll()
 	if err != nil {
 		return fmt.Errorf("failed to get deployments: %w", err)
 	}
@@ -139,9 +156,55 @@ func DeprovisionNode(nodeName *string) error {
 		}
 	}
 
-	// if GetSelf() worked then node is provisioned
-	if err := node.NodeDriver.Deprovision(&node.NodeName, database.NodesRepository); err != nil {
+	if err := db.NodesRepository.DeleteSelf(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func PowerOnNode(node *common.Node) error {
+	if node.CloudInit != nil {
+		if err := cloudinit.RegisterNode(node); err != nil {
+			return err
+		}
+	}
+
+	if err := node.Driver.PowerOn(node.CloudInit); err != nil {
+		return fmt.Errorf("failed to poweron node: %w", err)
+	}
+	return nil
+}
+
+// Return self node if nodename is nil, or try to return guest node otherwise
+func getNode(nodeName *string) (*common.NodeEntry, error) {
+	db := db.GetDB()
+
+	if nodeName == nil {
+		node, err := db.NodesRepository.GetSelf()
+		if err != nil {
+			return nil, err
+		} else {
+			return &node, err
+		}
+	} else {
+		node, err := db.NodesRepository.GetGuestNode(*nodeName)
+		if err != nil {
+			return nil, err
+		} else {
+			return &node, err
+		}
+	}
+}
+
+func PowerOffNode(nodeName *string) error {
+	node, err := getNode(nodeName)
+	if err != nil {
+		return fmt.Errorf("node not registerd")
+	}
+
+	if err := node.NodeDriver.PowerOff(); err != nil {
+		return fmt.Errorf("failed to poweroff node: %w", err)
 	}
 
 	_ = cloudinit.UnregisterNode(node.NodeName)
@@ -149,59 +212,17 @@ func DeprovisionNode(nodeName *string) error {
 	return nil
 }
 
-func StartNode(node *common.Node) error {
-	driverInfo, err := node.Driver.DriverInfo()
-	if err != nil {
-		return fmt.Errorf("failed to retrieve node driver info: %w", err)
-	}
-	if driverInfo.StartMode != common.AgentMode {
-		return fmt.Errorf("start expects agent mode")
-	}
-	if err := node.Driver.Start(&node.Name, db.GetDB().NodesRepository); err != nil {
-		return fmt.Errorf("failed to start node: %w", err)
-	}
-	return nil
-}
-
-// Return self node if nodename is nil, or try to return guest node otherwise
-func getNode(nodeName *string) (*common.NodeEntry, error) {
-	database := db.GetDB()
-
-	if nodeName == nil {
-		node, err := database.NodesRepository.GetSelf()
-		if err != nil {
-			return nil, err
-		} else {
-			return &node, err
-		}
-	} else {
-		node, err := database.NodesRepository.GetGuestNode(*nodeName)
-		if err != nil {
-			return nil, err
-		} else {
-			return &node, err
-		}
-	}
-}
-
-func StopNode(nodeName *string, message string, time uint32, force bool) error {
+func ShutdownNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not provisioned")
+		return fmt.Errorf("node not registered")
 	}
 
-	driverInfo, err := node.NodeDriver.DriverInfo()
-	if err != nil {
-		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
-	}
-
-	if driverInfo.StopMode != common.AgentMode {
-		return fmt.Errorf("stop expects agent mode")
-	}
-
-	if err := node.NodeDriver.Stop(&node.NodeName, message, time, db.GetDB().NodesRepository, force); err != nil {
+	if err := node.NodeDriver.Shutdown(message, time); err != nil {
 		return fmt.Errorf("failed to stop node: %w", err)
 	}
+
+	_ = cloudinit.UnregisterNode(node.NodeName)
 
 	return nil
 }
@@ -209,19 +230,10 @@ func StopNode(nodeName *string, message string, time uint32, force bool) error {
 func RestartNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not provisioned")
+		return fmt.Errorf("node not registered")
 	}
 
-	driverInfo, err := node.NodeDriver.DriverInfo()
-	if err != nil {
-		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
-	}
-
-	if driverInfo.RestartMode != common.AgentMode {
-		return fmt.Errorf("restart expects agent mode")
-	}
-
-	if err := node.NodeDriver.Restart(&node.NodeName, message, time, db.GetDB().NodesRepository); err != nil {
+	if err := node.NodeDriver.Restart(message, time); err != nil {
 		return fmt.Errorf("failed to restart node: %w", err)
 	}
 

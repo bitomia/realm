@@ -76,7 +76,7 @@ func (db *AgentDB) CreateContainer(containerName string, image string, state dto
 		return Container{}, err
 	}
 
-	err = db.createIfNotExists(containerKey, string(value))
+	err = db.putIfNotExists(containerKey, string(value))
 	if err != nil {
 		slog.Error("Error on CreateContainer", "error", err.Error())
 		return Container{}, err
@@ -94,7 +94,7 @@ func (db *AgentDB) UpdateContainerImage(containerName string, image string) (str
 		return "", err
 	}
 
-	err = db.OptimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
+	err = db.optimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
 		var container Container
 		if err := json.Unmarshal(currentValue, &container); err != nil {
 			slog.Error("Error unmarshaling container", "error", err.Error())

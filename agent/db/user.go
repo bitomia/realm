@@ -64,5 +64,5 @@ func (db *AgentDB) CreateUser(username string, password string, role int32) erro
 		return err
 	}
 
-	return db.put(userKey, string(value))
+	return db.putIfNotExists(userKey, string(value))
 }

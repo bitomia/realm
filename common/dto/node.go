@@ -82,11 +82,14 @@ type SystemInfo struct {
 	Capabilities      Capabilities `json:"capabilities"`         // System capabilities
 }
 
-type StopNodeRequest struct {
+type ShutdownNodeRequest struct {
 	WallMessage string  `json:"wall_message"`
 	Time        uint32  `json:"time"`
 	NodeName    *string `json:"node_name,omitempty"`
-	Force       bool    `json:"force"`
+}
+
+type PowerOffRequest struct {
+	NodeName *string `json:"node_name,omitempty"`
 }
 
 type RestartNodeRequest struct {

@@ -274,7 +274,7 @@ func getNetworkConfigFromIP(ipStr string) (NetworkConfig, error) {
 func autodetectNetworkConfig() NetworkConfig {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		slog.Warn("Failed to get network interfaces", "error", err)
+		slog.Warn("failed to get network interfaces", "error", err)
 		return NetworkConfig{nil, nil}
 	}
 

@@ -30,6 +30,11 @@ all:
 	@echo "Building $(VERSION)..."
 	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
 
+.PHONY: debug
+debug:
+	@echo "Building debug $(VERSION)..."
+	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -gcflags="all=-N -l" -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
+
 .PHONY: ee
 ee: netplane
 	@echo "Building $(VERSION)-ee (static musl via zig)..."

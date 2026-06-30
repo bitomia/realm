@@ -42,3 +42,7 @@ func prettyJSON(v any, excludeFields ...string) {
 		fmt.Println(string(line))
 	}
 }
+
+func NewNodeContext() {
+
+}

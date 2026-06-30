@@ -23,12 +23,12 @@ type Node struct {
 	Driver    NodeDriver
 }
 
-func NewNodeFromConfig(config *NodeConfig) (*Node, error) {
+func newNodeFromConfig(ctx NodeContext, config *NodeConfig) (*Node, error) {
 	if config == nil {
 		return nil, fmt.Errorf("nil config")
 	}
 
-	driver, err := BuildNodeDriver(NodeDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
+	driver, err := BuildNodeDriver(ctx, NodeDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		Name:         n.Name,
 		Url:          n.Url,
 		CloudInit:    n.CloudInit,
-		Driver:       n.Driver.GetNodeDriverID(),
-		DriverConfig: n.Driver.GetDriverConfig().DriverConfig,
+		Driver:       n.Driver.ID(),
+		DriverConfig: n.Driver.Config().DriverConfig,
 	})
 }
 
@@ -63,7 +63,7 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	if naux, err := NewNodeFromConfig(&config); err != nil {
+	if naux, err := newNodeFromConfig(NewNodeContext(config.Name), &config); err != nil {
 		return err
 	} else {
 		n.Name = naux.Name

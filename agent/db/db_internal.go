@@ -236,7 +236,7 @@ func (db *AgentDB) get(key string) (string, error) {
 	}
 
 	if len(resp.Kvs) == 0 {
-		return "", fmt.Errorf("key %s not found", key)
+		return "", ErrKeyNotFound
 	}
 
 	return string(resp.Kvs[0].Value), nil
@@ -349,11 +349,97 @@ func (db *AgentDB) getNextSubnet(network string) (int32, error) {
 	}
 }
 
-// DeleteSubnetOffset removes the subnet assignment for a network
-func (db *AgentDB) DeleteSubnetOffset(network string) error {
+// deleteSubnetOffset removes the subnet assignment for a network
+func (db *AgentDB) deleteSubnetOffset(network string) error {
 	subnetKey, err := db.subnetKey(network)
 	if err != nil {
 		return err
 	}
 	return db.delete(subnetKey)
+}
+
+// putIfNotExists atomically creates a key only if it doesn't already exist,
+// applying any extra put options (e.g. a lease). Returns ErrKeyAlreadyExists if
+// the key already exists, or an etcd error.
+func (db *AgentDB) putIfNotExists(key, value string, opts ...clientv3.OpOption) error {
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	// Use transaction to check if key doesn't exist (CreateRevision == 0)
+	txn := db.client.Txn(ctx)
+	txn = txn.If(clientv3.Compare(clientv3.CreateRevision(key), "=", 0))
+	txn = txn.Then(clientv3.OpPut(key, value, opts...))
+
+	tresp, err := txn.Commit()
+	if err != nil {
+		slog.Error("putIfNotExists: error committing transaction", "key", key, "error", err.Error())
+		return err
+	}
+
+	if !tresp.Succeeded {
+		return ErrKeyAlreadyExists
+	}
+
+	return nil
+}
+
+// optimisticUpdate performs an optimistic lock update on a key.
+// The updateFn receives the current value and should return the updated value.
+// Returns an error if the key doesn't exist or if there's an etcd error.
+func (db *AgentDB) optimisticUpdate(key string, updateFn func(currentValue []byte) ([]byte, error)) error {
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	// Retry loop for optimistic locking
+	for {
+		// Get current value and revision
+		resp, err := db.client.Get(ctx, key)
+		if err != nil {
+			slog.Error("OptimisticUpdate: error getting key", "key", key, "error", err.Error())
+			return err
+		}
+
+		if len(resp.Kvs) == 0 {
+			return fmt.Errorf("key '%s' not found", key)
+		}
+
+		currentValue := resp.Kvs[0].Value
+		currentRevision := resp.Kvs[0].ModRevision
+
+		// Apply the update function
+		newValue, err := updateFn(currentValue)
+		if err != nil {
+			return err
+		}
+
+		// Use transaction with compare-and-swap to ensure atomicity
+		txn := db.client.Txn(ctx)
+		txn = txn.If(clientv3.Compare(clientv3.ModRevision(key), "=", currentRevision))
+		txn = txn.Then(clientv3.OpPut(key, string(newValue)))
+
+		tresp, err := txn.Commit()
+		if err != nil {
+			slog.Error("OptimisticUpdate: error committing transaction", "key", key, "error", err.Error())
+			return err
+		}
+
+		if tresp.Succeeded {
+			return nil
+		}
+
+		// Transaction failed due to concurrent modification, retry
+		slog.Debug("OptimisticUpdate: concurrent modification detected, retrying", "key", key)
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func (db *AgentDB) putWithLease(key, value string, leaseID clientv3.LeaseID) error {
+	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
+	defer cancel()
+
+	_, err := db.client.Put(ctx, key, value, clientv3.WithLease(leaseID))
+	if err != nil {
+		slog.Error("Error putting key %s with lease", "key", key, "error", err.Error())
+	}
+	return err
 }

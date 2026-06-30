@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -37,8 +38,27 @@ func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(info)
 }
 
-func ProvisionNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.ProvisionNodeHandler")
+func GetNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Debug("handlers.GetNodeConfigHandler")
+
+	if nodeConfig, err := api.GetNodeConfig(); err != nil {
+		if errors.Is(err, common.ErrNodeNotConfigured) {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+	} else {
+		if nodeConfig != nil {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(*nodeConfig)
+		} else {
+			http.NotFound(w, r)
+		}
+	}
+}
+
+func LoadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.LoadNodeConfigHandler")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -47,49 +67,42 @@ func ProvisionNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.ProvisionNodeHandler", "node", node.Name, "driver", node.Driver)
+	slog.Info("handlers.LoadNodeConfigHandler", "node", node.Name, "driver", node.Driver)
 
-	if err := api.ProvisionNode(&node); err != nil {
+	if err := api.LoadNodeConfig(&node); err != nil {
+		if errors.Is(err, common.ErrNodeAlreadyConfigured) {
+			w.WriteHeader(http.StatusConflict)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+	} else {
+		w.WriteHeader(http.StatusOK)
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
-func DeprovisionNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.DeprovisionNodeHandler")
+func UnloadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.UnloadNodeConfigHandler")
 
-	var nodeName *string
-	if guest := r.URL.Query().Get("guest"); guest != "" {
-		nodeName = &guest
-	} else if r.Body != nil && r.ContentLength != 0 {
-		var node common.Node
-		if err := json.NewDecoder(r.Body).Decode(&node); err != nil {
+	if guestNodeName := r.URL.Query().Get("guest"); guestNodeName != "" {
+		slog.Info("handlers.UnloadNodeConfigHandler", "guest", guestNodeName)
+		if err := api.UnloadGuestNodeConfig(guestNodeName); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if node.Name != "" {
-			nodeName = &node.Name
-		}
-	}
-
-	if nodeName != nil {
-		slog.Info("handlers.DeprovisionNodeHandler", "node", *nodeName)
 	} else {
-		slog.Info("handlers.DeprovisionNodeHandler", "node", "self")
-	}
-
-	if err := api.DeprovisionNode(nodeName); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		slog.Info("handlers.UnloadNodeConfigHandler", "self", true)
+		if err := api.UnloadNodeConfig(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func StartNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.StartNodeHandler")
+func PowerOnNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.PowerOnNodeHandler")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -98,7 +111,7 @@ func StartNodeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.StartNode(&node); err != nil {
+	if err := api.PowerOnNode(&node); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -106,17 +119,35 @@ func StartNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func StopNodeHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.StopNodeHandler")
+func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.ShutdownNodeHandler")
 
-	var request dto.StopNodeRequest
+	var request dto.ShutdownNodeRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if err := api.StopNode(request.NodeName, request.WallMessage, request.Time, request.Force); err != nil {
+	if err := api.ShutdownNode(request.NodeName, request.WallMessage, request.Time); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func PowerOffNodeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Info("handlers.PowerOffNodeHandler")
+
+	var node common.Node
+	err := json.NewDecoder(r.Body).Decode(&node)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := api.PowerOffNode(&node.Name); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

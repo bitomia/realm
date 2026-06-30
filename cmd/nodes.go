@@ -38,6 +38,14 @@ var hostCmd = &cobra.Command{
 	},
 }
 
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Interface with node config",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Realm CLI. Use -h for help.")
+	},
+}
+
 var nodeStates = &cobra.Command{
 	Use:                   "state",
 	Short:                 "Show state of nodes",
@@ -67,7 +75,7 @@ var nodeStates = &cobra.Command{
 				node, err := client.GetNode(cfgNode)
 
 				if node.Status.StatusCode == common.NodeStatusOnline {
-					log.Info(" Status: %s [%s]", node.Status.StatusCode, "ready for provisioning")
+					log.Info(" Status: %s [%s]", node.Status.StatusCode, "no configuration loaded")
 				} else if err != nil {
 					log.Info(" Status: %s [%s]", node.Status.StatusCode, strings.TrimSpace(err.Error()))
 				} else {
@@ -134,66 +142,105 @@ var nodeStates = &cobra.Command{
 	},
 }
 
-var provisionNodes = &cobra.Command{
-	Use:                   "provision [--all | node...]",
-	Short:                 "Provision nodes on the cluster",
+func checkNodesCmd(cmd *cobra.Command, nodeNames []string) {
+	nodes := cfg.GetNodes(nodeNames...)
+	client := clientPkg.NewClient(cfg)
+
+	log.Info("Checking node configurations:")
+	for _, n := range nodes {
+		if nodeDriverConfig, err := client.GetNodeConfig(n); err != nil {
+			log.Warn("Node '%s' config error: %s", n.Name, err.Error())
+		} else if !n.Driver.Config().Equal(*nodeDriverConfig) {
+			log.Warn("Node '%s' config mismatch: loaded config differs from local config", n.Name)
+		} else {
+			log.Info("Node '%s' config valid", n.Name)
+		}
+	}
+}
+
+var checkNodeConfig = &cobra.Command{
+	Use:                   "check [--all | node...]",
+	Short:                 "Check node configurations are valid",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run:                   checkNodesCmd,
+}
+
+var loadNodeConfig = &cobra.Command{
+	Use:                   "load [--all | node...]",
+	Short:                 "Load node configurations",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
 		client := clientPkg.NewClient(cfg)
 
+		log.Info("Loading node configurations:")
 		for _, n := range nodes {
-			log.Info("Provisioning node %s", color.CyanString(n.Name))
-			if err := client.ProvisionNode(n); err != nil {
-				log.Fatal("Provisioning node '%s' failed: %s", n.Name, err.Error())
-			}
-		}
-	},
-}
-
-var deprovisionNodes = &cobra.Command{
-	Use:                   "deprovision [--all | node...]",
-	Short:                 "Deprovision nodes from the cluster",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
-
-		for _, n := range nodes {
-			log.Info("Deprovisioning node %s", color.CyanString(n.Name))
-			if err := client.DeprovisionNode(n); err != nil {
-				log.Fatal("Deprovisioning node '%s' failed: %s", n.Name, err.Error())
-			}
-		}
-	},
-}
-
-var startNodes = &cobra.Command{
-	Use:                   "start [--all | node...]",
-	Short:                 "Start nodes",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := cfg.GetNodes(nodeNames...)
-
-		for _, n := range nodes {
-			log.Info("Starting up node %s", color.CyanString(n.Name))
-			driverInfo, err := n.Driver.DriverInfo()
-			if err != nil {
-				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
-			}
-
-			if driverInfo.StartMode == common.ClientMode {
-				if err := n.Driver.Start(nil, nil); err != nil {
-					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
-				}
+			if err := client.LoadNodeConfig(n); err != nil {
+				log.Warn("Node '%s' config loading error: %s", n.Name, err.Error())
 			} else {
-				client := clientPkg.NewClient(cfg)
-				if err := client.StartNode(n); err != nil {
-					log.Fatal("Starting node '%s' failed: %s", n.Name, err.Error())
-				}
+				log.Info("Node '%s' config loaded", n.Name)
+			}
+		}
+	},
+}
+
+var unloadNodeConfig = &cobra.Command{
+	Use:                   "unload [--all | node...]",
+	Short:                 "Unload node configurations",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
+
+		log.Info("Unloading node configurations:")
+		for _, n := range nodes {
+			if err := client.UnloadNodeConfig(n); err != nil {
+				log.Warn("Node '%s' config unloading failed: %s", n.Name, err.Error())
+			} else {
+				log.Info("Node '%s' config unloaded", n.Name)
+			}
+		}
+	},
+}
+
+var powerOnNodes = &cobra.Command{
+	Use:                   "poweron [--all | node...]",
+	Short:                 "Power-on nodes",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
+
+		log.Info("Powering on nodes:")
+		for _, n := range nodes {
+			if err := client.PowerOnNode(n); err != nil {
+				log.Warn("Power-on node '%s' failed: %s", n.Name, err.Error())
+			} else {
+				log.Info("Node '%s' power-on started", n.Name)
+			}
+		}
+	},
+}
+
+var powerOffNodes = &cobra.Command{
+	Use:                   "poweroff [--all | node...]",
+	Short:                 "Power-off nodes",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
+
+		log.Info("Powering off nodes:")
+		for _, n := range nodes {
+			if err := client.PowerOffNode(n); err != nil {
+				log.Warn("Power off node '%s' failed: %s", n.Name, err.Error())
+			} else {
+				log.Info("Node '%s' power-off started", n.Name)
 			}
 		}
 	},
@@ -206,72 +253,63 @@ var restartNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
 
+		log.Info("Restarting nodes:")
 		for _, n := range nodes {
-			driverInfo, err := n.Driver.DriverInfo()
-			if err != nil {
-				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
+			if err := client.RestartNode(n, "", 0); err != nil {
+				log.Warn("Restarting node '%s' failed: %s", n.Name, err.Error())
+			} else {
+				log.Info("Node '%s' restarted", n.Name)
 			}
 
-			log.Info("Restarting node %s", color.CyanString(n.Name))
-			if driverInfo.RestartMode == common.ClientMode {
-				if err := n.Driver.Restart(nil, "", 0, nil); err != nil {
-					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
-				}
-			} else {
-				client := clientPkg.NewClient(cfg)
-				if err := client.RestartNode(n, "", 0); err != nil {
-					log.Fatal("Restarting node '%s' failed: %s", n.Name, err.Error())
-				}
-			}
 		}
 	},
 }
 
-var stopNodes = &cobra.Command{
-	Use:                   "stop [--all | node...] [--force]",
-	Short:                 "Stop nodes",
+var shutdownNodes = &cobra.Command{
+	Use:                   "shutdown [--all | node...]",
+	Short:                 "Shutdown nodes",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		force, _ := cmd.Flags().GetBool("force")
+		client := clientPkg.NewClient(cfg)
 
+		log.Info("Shutting down nodes:")
 		for _, n := range nodes {
-			driverInfo, err := n.Driver.DriverInfo()
-			if err != nil {
-				log.Fatal("Driver info for node '%s' failed: %s", n.Name, err.Error())
-			}
-
-			log.Info("Stopping node %s", color.CyanString(n.Name))
-			if driverInfo.StopMode == common.ClientMode {
-				if err := n.Driver.Stop(nil, "", 0, nil, force); err != nil {
-					log.Fatal("Stopping node '%s' failed: %s", n.Name, err.Error())
-				}
+			if err := client.ShutdownNode(n, "", 0); err != nil {
+				log.Warn("Shutting down node '%s' failed: %s", n.Name, err.Error())
 			} else {
-				client := clientPkg.NewClient(cfg)
-				if err := client.StopNode(n, "", 0, force); err != nil {
-					log.Fatal("Stopping node '%s' failed: %s", n.Name, err.Error())
-				}
+				log.Info("Node '%s' shutting down", n.Name)
 			}
 		}
 	},
 }
 
 func init() {
+	// Node config commands
+	loadNodeConfig.Flags().Bool("all", false, "All nodes")
+	unloadNodeConfig.Flags().Bool("all", false, "All nodes")
+	checkNodeConfig.Flags().Bool("all", false, "All nodes")
+
+	configCmd.AddCommand(loadNodeConfig)
+	configCmd.AddCommand(checkNodeConfig)
+	configCmd.AddCommand(unloadNodeConfig)
+
+	// General commands
 	nodeStates.Flags().Bool("json", false, "Output as JSON")
-	provisionNodes.Flags().Bool("all", false, "All nodes")
-	deprovisionNodes.Flags().Bool("all", false, "All nodes")
-	startNodes.Flags().Bool("all", false, "All nodes")
+	powerOnNodes.Flags().Bool("all", false, "All nodes")
+	powerOffNodes.Flags().Bool("all", false, "All nodes")
+	shutdownNodes.Flags().Bool("all", false, "All nodes")
 	restartNodes.Flags().Bool("all", false, "All nodes")
-	stopNodes.Flags().Bool("all", false, "All nodes")
-	stopNodes.Flags().Bool("force", false, "Force stop")
 
 	hostCmd.AddCommand(nodeStates)
-	hostCmd.AddCommand(provisionNodes)
-	hostCmd.AddCommand(deprovisionNodes)
-	hostCmd.AddCommand(startNodes)
+	hostCmd.AddCommand(configCmd)
+	hostCmd.AddCommand(powerOnNodes)
+	hostCmd.AddCommand(powerOffNodes)
+	hostCmd.AddCommand(shutdownNodes)
 	hostCmd.AddCommand(restartNodes)
-	hostCmd.AddCommand(stopNodes)
+
 	rootCmd.AddCommand(hostCmd)
 }

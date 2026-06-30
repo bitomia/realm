@@ -105,7 +105,7 @@ var listLoads = &cobra.Command{
 			if nodeLoadsDeployments[load.Node.Url] != nil {
 				deployments, exists := nodeLoadsDeployments[load.Node.Url][load.Name]
 				if !exists {
-					deploymentStatusStr = "not deployed"
+					deploymentStatusStr = "not provisioned"
 				} else {
 					for _, d := range deployments {
 						// Extract container name from metadata if it's a container driver
@@ -124,7 +124,7 @@ var listLoads = &cobra.Command{
 						case common.DeploymentStatusRunning:
 							deploymentStatusStr = color.GreenString("running")
 						case common.DeploymentStatusReady:
-							deploymentStatusStr = color.HiBlueString("ready")
+							deploymentStatusStr = color.HiBlueString("provisioned")
 						case common.DeploymentStatusStopped:
 							deploymentStatusStr = color.YellowString("stopped")
 						case common.DeploymentStatusError:
@@ -148,7 +148,7 @@ var listLoads = &cobra.Command{
 
 var startLoads = &cobra.Command{
 	Use:                   "start [--all | load...]",
-	Short:                 "Start loads (must be provisioned first)",
+	Short:                 "Start loads",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -225,7 +225,7 @@ var killLoads = &cobra.Command{
 
 var deprovisionLoads = &cobra.Command{
 	Use:                   "deprovision [--all | load...]",
-	Short:                 "Remove provisioned (not started) loads",
+	Short:                 "Remove provisioned loads",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {

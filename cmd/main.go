@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/drivers"
 	"github.com/bitomia/realm/ee"
@@ -23,8 +24,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
+		return common.NodeContext{Repository: nil, NodeName: nodeName, RunMode: common.ClientMode}
+	})
+
 	rootCmd.Use = "realm"
-	rootCmd.Short = fmt.Sprintf("Realm command-line interface %s", config.GetVersion())
+	rootCmd.Short = fmt.Sprintf("Realm %s", config.GetVersion())
 	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

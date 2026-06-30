@@ -497,7 +497,7 @@ func TestPutWithLease(t *testing.T) {
 	leaseID, err := db.CreateLease(10)
 	require.NoError(t, err)
 
-	err = db.PutWithLease("test-key", "test-value", leaseID)
+	err = db.putWithLease("test-key", "test-value", leaseID)
 	assert.NoError(t, err)
 
 	value, err := db.get("test-key")

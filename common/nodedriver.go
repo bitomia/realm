@@ -4,46 +4,22 @@ import "github.com/bitomia/realm/common/cloudinit"
 
 type NodeDriverID string
 
-type Mode int
+type RunMode int
 
 const (
-	ClientMode Mode = iota
+	ClientMode RunMode = iota
 	AgentMode
 )
 
-type NodeDriverBuilder func(config *any) (NodeDriver, error)
+type NodeDriverBuilder func(ctx NodeContext, config *any) (NodeDriver, error)
 
 type NodeDriverInfo struct {
-	ID          NodeDriverID
-	New         NodeDriverBuilder
-	StartMode   Mode
-	StopMode    Mode
-	RestartMode Mode
-	GuestMode   bool
+	ID        NodeDriverID
+	New       NodeDriverBuilder
+	GuestMode bool
 }
 
 type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
-
-func WithStartMode(m Mode) NewNodeDriverInfoOpts {
-	return func(i *NodeDriverInfo) error {
-		i.StartMode = m
-		return nil
-	}
-}
-
-func WithStopMode(m Mode) NewNodeDriverInfoOpts {
-	return func(i *NodeDriverInfo) error {
-		i.StopMode = m
-		return nil
-	}
-}
-
-func WithRestartMode(m Mode) NewNodeDriverInfoOpts {
-	return func(i *NodeDriverInfo) error {
-		i.RestartMode = m
-		return nil
-	}
-}
 
 func WithGuestMode() NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
@@ -54,12 +30,9 @@ func WithGuestMode() NewNodeDriverInfoOpts {
 
 func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
 	info := NodeDriverInfo{
-		ID:          id,
-		New:         builder,
-		StartMode:   AgentMode,
-		StopMode:    AgentMode,
-		RestartMode: AgentMode,
-		GuestMode:   false,
+		ID:        id,
+		New:       builder,
+		GuestMode: false,
 	}
 	for _, o := range opts {
 		if err := o(&info); err != nil {
@@ -84,58 +57,34 @@ type NodeStatus struct {
 }
 
 type NodeDriver interface {
-	// GetNodeDriverID returns the unique identifier for this node driver.
-	GetNodeDriverID() NodeDriverID
+	// ID returns the unique identifier for this node driver.
+	ID() NodeDriverID
 
-	// DriverInfo returns metadata describing the driver for internal factory use.
-	DriverInfo() (NodeDriverInfo, error)
+	// Info returns driver description for internal factory use.
+	Info() (NodeDriverInfo, error)
 
-	// GetDriverConfig returns the configuration for this node driver.
-	GetDriverConfig() NodeDriverConfig
+	// Config returns the configuration for this node driver.
+	Config() NodeDriverConfig
 
-	// MarshalJSON serializes the driver into JSON.
-	MarshalJSON() ([]byte, error)
+	// PowerOn starts the node
+	PowerOn(cloudInit *cloudinit.CloudInit) error
 
-	// UnmarshalJSON deserializes the driver from JSON.
-	UnmarshalJSON(data []byte) error
+	// PowerOff stops the node immediately
+	PowerOff() error
 
-	// Start starts the node
-	//
-	// nodeName as nil for self-node
-	Start(nodeName *string, repository NodesRepository) error
-
-	// Stop stops the node
-	// Message will be shown to users before stop on the time
-	// offset specified
-	//
-	// nodeName as nil for self-node
-	// force can be used for hard-stops like pulling the plug of a VM, it can be ignored otherwise
-	Stop(nodeName *string, message string, time uint32, repository NodesRepository, force bool) error
+	// Shutdown stops the node
+	Shutdown(message string, time uint32) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
+	Restart(message string, time uint32) error
+
+	// State returns current node state (e.g. cpu, mem, etc...)
+	State() (NodeState, error)
+
+	// RefreshStatus update and returns current status based on internal drivers factors
 	//
 	// nodeName as nil for self-node
-	Restart(nodeName *string, message string, time uint32, repository NodesRepository) error
-
-	// UpdateStatus update and returns current status based on internal drivers factors
-	//
-	// nodeName as nil for self-node
-	UpdateStatus(nodeName *string, repository NodesRepository) (NodeStatus, error)
-
-	// GetState returns current node state like cpu, mem, etc..
-	GetState(nodeName *string, repository NodesRepository) (NodeState, error)
-
-	// Provision validates self-node prerequisites and creates or replace the current
-	// database entry.
-	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
-	// It shall check node requirements but it won't check depending nodes.
-	// This is invoked within the agent and does not affect client behavior.
-	Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository NodesRepository) error
-
-	// Deprovision cleanup and removes the self-node if node name is nil or guest node
-	// otherwise
-	// Only operates on deployments in "provisioned" status.
-	Deprovision(nodeName *string, repository NodesRepository) error
+	RefreshStatus() (NodeStatus, error)
 }
