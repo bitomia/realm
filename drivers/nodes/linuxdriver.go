@@ -68,7 +68,6 @@ func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
-		false,
 		common.WithStartMode(common.ClientMode),
 	)
 }

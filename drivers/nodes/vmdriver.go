@@ -97,8 +97,8 @@ func (q *VMDriver) DriverInfo() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		VMDriverID,
 		NewVMDriverFromConfig,
-		true,
 		common.WithStartMode(common.AgentMode),
+		common.WithGuestMode(),
 	)
 }
 

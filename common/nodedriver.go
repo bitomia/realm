@@ -12,6 +12,7 @@ const (
 )
 
 type NodeDriverBuilder func(config *any) (NodeDriver, error)
+
 type NodeDriverInfo struct {
 	ID          NodeDriverID
 	New         NodeDriverBuilder
@@ -44,14 +45,21 @@ func WithRestartMode(m Mode) NewNodeDriverInfoOpts {
 	}
 }
 
-func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, guestMode bool, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
+func WithGuestMode() NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.GuestMode = true
+		return nil
+	}
+}
+
+func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
 	info := NodeDriverInfo{
 		ID:          id,
 		New:         builder,
 		StartMode:   AgentMode,
 		StopMode:    AgentMode,
 		RestartMode: AgentMode,
-		GuestMode:   guestMode,
+		GuestMode:   false,
 	}
 	for _, o := range opts {
 		if err := o(&info); err != nil {
