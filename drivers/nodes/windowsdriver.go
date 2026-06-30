@@ -1,7 +1,6 @@
 package nodes
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -25,9 +24,10 @@ type WindowsConfig struct {
 
 type WindowsDriver struct {
 	Config WindowsConfig
+	ctx    common.NodeContext
 }
 
-func NewWindowsDriverFromConfig(c *any) (common.NodeDriver, error) {
+func NewWindowsDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
 	var config = WindowsConfig{
 		WakeOnLan: false,
 		MAC:       "",
@@ -71,33 +71,8 @@ func (w *WindowsDriver) GetNodeDriverID() common.NodeDriverID {
 	return WindowsDriverID
 }
 
-func (w *WindowsDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(w.GetDriverConfig())
-}
-
-func (w *WindowsDriver) UnmarshalJSON(data []byte) error {
-	var config map[string]any
-	if err := json.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	var nodeDriver common.NodeDriver
-	var err error
-	if len(config) > 0 {
-		var a any = config
-		nodeDriver, err = NewWindowsDriverFromConfig(&a)
-	} else {
-		nodeDriver, err = NewWindowsDriverFromConfig(nil)
-	}
-	if err != nil {
-		return err
-	}
-	*w = *nodeDriver.(*WindowsDriver)
-	return nil
-}
-
-func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
-	if err := repository.SetSelf(nodeName, w, cloudInit, nil); err != nil {
+func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
+	if err := w.ctx.Repository.SetSelf(nodeName, w, cloudInit, nil); err != nil {
 		slog.Error("WindowsDriver.Provision", "msg", "failed to provision node", "error", err)
 		return err
 	}
@@ -105,8 +80,8 @@ func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudIni
 	return nil
 }
 
-func (w *WindowsDriver) Deprovision(_ *string, repository common.NodesRepository) error {
-	return repository.DeleteSelf()
+func (w *WindowsDriver) Deprovision(_ *string) error {
+	return w.ctx.Repository.DeleteSelf()
 }
 
 func (w *WindowsDriver) GetDriverConfig() common.NodeDriverConfig {
@@ -114,7 +89,7 @@ func (w *WindowsDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: WindowsDriverID, DriverConfig: &c}
 }
 
-func (w *WindowsDriver) Start(_ *string, repository common.NodesRepository) error {
+func (w *WindowsDriver) Start(_ *string) error {
 	if !w.Config.WakeOnLan {
 		return nil
 	}
@@ -122,7 +97,7 @@ func (w *WindowsDriver) Start(_ *string, repository common.NodesRepository) erro
 	return launchWakeOnLan(w.Config.MAC)
 }
 
-func (w *WindowsDriver) Stop(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
+func (w *WindowsDriver) Stop(_ *string, message string, time uint32, _ bool) error {
 	args := []string{"/s", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)
@@ -135,7 +110,7 @@ func (w *WindowsDriver) Stop(_ *string, message string, time uint32, repository 
 	return nil
 }
 
-func (w *WindowsDriver) Restart(_ *string, message string, time uint32, repository common.NodesRepository) error {
+func (w *WindowsDriver) Restart(_ *string, message string, time uint32) error {
 	args := []string{"/r", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)
@@ -148,10 +123,10 @@ func (w *WindowsDriver) Restart(_ *string, message string, time uint32, reposito
 	return nil
 }
 
-func (w *WindowsDriver) UpdateStatus(_ *string, repository common.NodesRepository) (common.NodeStatus, error) {
+func (w *WindowsDriver) UpdateStatus(_ *string) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *WindowsDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
+func (l *WindowsDriver) GetState(_ *string) (common.NodeState, error) {
 	return cpu.GetNodeState()
 }

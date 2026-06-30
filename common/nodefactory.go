@@ -33,13 +33,15 @@ func UnregisterNodeDriver(id NodeDriverID) error {
 	return nil
 }
 
-func BuildNodeDriver(d NodeDriverConfig) (NodeDriver, error) {
+func BuildNodeDriver(ctx NodeContext, d NodeDriverConfig) (NodeDriver, error) {
 	if _, exists := nodeDrivers[d.Driver]; !exists {
 		return nil, fmt.Errorf("nodeDriverID '%s' not registered", d.Driver)
 	}
-	driver, err := nodeDrivers[d.Driver].New(d.DriverConfig)
+
+	driver, err := nodeDrivers[d.Driver].New(ctx, d.DriverConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	return driver, nil
 }

@@ -22,6 +22,12 @@ type NodeValue struct {
 	Metadata         any                     `json:"metadata"`
 }
 
+func (r *EtcdNodesRepository) getNodeContext() common.NodeContext {
+	return common.NodeContext{
+		Repository: r,
+	}
+}
+
 func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error {
 	slog.Info("EtcdNodesRepository.SetSelf", "nodeName", nodeName)
 
@@ -83,7 +89,7 @@ func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
+	nodeDriver, err := common.BuildNodeDriver(r.getNodeContext(), nodeValue.NodeDriverConfig)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
@@ -195,7 +201,7 @@ func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEnt
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
+	nodeDriver, err := common.BuildNodeDriver(r.getNodeContext(), nodeValue.NodeDriverConfig)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err

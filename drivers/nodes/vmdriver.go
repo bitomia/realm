@@ -65,6 +65,7 @@ type VMNodeMetadata struct {
 
 type VMDriver struct {
 	Config VMConfig
+	ctx    common.NodeContext
 }
 
 func stringToSliceHook(from reflect.Type, to reflect.Type, data any) (any, error) {
@@ -74,7 +75,7 @@ func stringToSliceHook(from reflect.Type, to reflect.Type, data any) (any, error
 	return data, nil
 }
 
-func NewVMDriverFromConfig(c *any) (common.NodeDriver, error) {
+func NewVMDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
 	var cfg VMConfig
 	if c != nil {
 		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -106,7 +107,7 @@ func (q *VMDriver) GetNodeDriverID() common.NodeDriverID {
 	return VMDriverID
 }
 
-func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
+func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
 	slog.Info("VMDriver.Provision", "msg", "preparing libvirt domain", "node", nodeName)
 
 	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName, q.libvirtSocket())
@@ -136,7 +137,7 @@ func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, re
 		Drives:     overlayDrives,
 	}
 
-	if err := repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
+	if err := q.ctx.Repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
 		slog.Error("VMDriver.Provision", "msg", "failed to persist guest node", "error", err)
 		for _, d := range overlayDrives {
 			d.Cleanup()
@@ -148,12 +149,12 @@ func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, re
 	return nil
 }
 
-func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
+func (q *VMDriver) Deprovision(nodeName *string) error {
 	if nodeName == nil {
 		return fmt.Errorf("vMDriver expects node name for guest node deprovision")
 	}
 
-	self, err := repository.GetGuestNode(*nodeName)
+	self, err := q.ctx.Repository.GetGuestNode(*nodeName)
 	if err == nil {
 		metadata, mErr := common.CastMetadata[VMNodeMetadata](&self.Metadata)
 		if mErr != nil {
@@ -180,7 +181,7 @@ func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesReposito
 		}
 	}
 
-	return repository.DeleteGuestNode(*nodeName, q, self.Metadata)
+	return q.ctx.Repository.DeleteGuestNode(*nodeName, q, self.Metadata)
 }
 
 func (q *VMDriver) GetDriverConfig() common.NodeDriverConfig {
@@ -188,36 +189,11 @@ func (q *VMDriver) GetDriverConfig() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: VMDriverID, DriverConfig: &c}
 }
 
-func (q *VMDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(q.GetDriverConfig())
-}
-
 func (q *VMDriver) libvirtSocket() string {
 	if q.Config.LibVirtSocket != nil {
 		return *q.Config.LibVirtSocket
 	}
 	return defaultLibVirtSocket
-}
-
-func (q *VMDriver) UnmarshalJSON(data []byte) error {
-	var cfgMap map[string]any
-	if err := json.Unmarshal(data, &cfgMap); err != nil {
-		return err
-	}
-
-	var nodeDriver common.NodeDriver
-	var err error
-	if len(cfgMap) > 0 {
-		var a any = cfgMap
-		nodeDriver, err = NewVMDriverFromConfig(&a)
-	} else {
-		nodeDriver, err = NewVMDriverFromConfig(nil)
-	}
-	if err != nil {
-		return err
-	}
-	*q = *nodeDriver.(*VMDriver)
-	return nil
 }
 
 func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]OverlayImage, cloudInitHost *string) (string, error) {
@@ -305,11 +281,11 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	return string(out), nil
 }
 
-func (q *VMDriver) Start(nodeName *string, repository common.NodesRepository) error {
+func (q *VMDriver) Start(nodeName *string) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
-	metadata, err := q.getMetadata(*nodeName, repository)
+	metadata, err := q.getMetadata(*nodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
@@ -338,11 +314,11 @@ func (q *VMDriver) Start(nodeName *string, repository common.NodesRepository) er
 	})
 }
 
-func (q *VMDriver) Stop(nodeName *string, _ string, _ uint32, repository common.NodesRepository, force bool) error {
+func (q *VMDriver) Stop(nodeName *string, _ string, _ uint32, force bool) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
-	metadata, err := q.getMetadata(*nodeName, repository)
+	metadata, err := q.getMetadata(*nodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
@@ -362,11 +338,11 @@ func (q *VMDriver) Stop(nodeName *string, _ string, _ uint32, repository common.
 	})
 }
 
-func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32, repository common.NodesRepository) error {
+func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32) error {
 	if nodeName == nil {
 		return fmt.Errorf("nodeName cannot be nil")
 	}
-	metadata, err := q.getMetadata(*nodeName, repository)
+	metadata, err := q.getMetadata(*nodeName)
 	if err != nil {
 		return fmt.Errorf("getMetadata on Restart failed: %s", err.Error())
 	}
@@ -383,12 +359,12 @@ func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32, repository comm
 	})
 }
 
-func (q *VMDriver) UpdateStatus(nodeName *string, repository common.NodesRepository) (common.NodeStatus, error) {
+func (q *VMDriver) UpdateStatus(nodeName *string) (common.NodeStatus, error) {
 	if nodeName == nil {
 		err := fmt.Errorf("getMetadata on UpdateStatus failed: nodeName cannot be nil")
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
 	}
-	metadata, err := q.getMetadata(*nodeName, repository)
+	metadata, err := q.getMetadata(*nodeName)
 	if err != nil {
 		e := fmt.Errorf("getMetadata on UpdateStatus failed: %s", err.Error())
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: e.Error()}, e
@@ -428,10 +404,10 @@ func (q *VMDriver) UpdateStatus(nodeName *string, repository common.NodesReposit
 	return status, nil
 }
 
-func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository) (common.NodeState, error) {
+func (q *VMDriver) GetState(nodeName *string) (common.NodeState, error) {
 	state := common.NodeState{}
 
-	self, err := repository.GetGuestNode(*nodeName)
+	self, err := q.ctx.Repository.GetGuestNode(*nodeName)
 	if err != nil {
 		return state, err
 	}
@@ -542,8 +518,8 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	return "10.0.2.2"
 }
 
-func (q *VMDriver) getMetadata(nodeName string, repository common.NodesRepository) (*VMNodeMetadata, error) {
-	node, err := repository.GetGuestNode(nodeName)
+func (q *VMDriver) getMetadata(nodeName string) (*VMNodeMetadata, error) {
+	node, err := q.ctx.Repository.GetGuestNode(nodeName)
 	if err != nil {
 		return nil, err
 	}

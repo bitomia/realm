@@ -11,7 +11,11 @@ const (
 	AgentMode
 )
 
-type NodeDriverBuilder func(config *any) (NodeDriver, error)
+type NodeContext struct {
+	Repository NodesRepository
+}
+
+type NodeDriverBuilder func(ctx NodeContext, config *any) (NodeDriver, error)
 
 type NodeDriverInfo struct {
 	ID          NodeDriverID
@@ -93,16 +97,10 @@ type NodeDriver interface {
 	// GetDriverConfig returns the configuration for this node driver.
 	GetDriverConfig() NodeDriverConfig
 
-	// MarshalJSON serializes the driver into JSON.
-	MarshalJSON() ([]byte, error)
-
-	// UnmarshalJSON deserializes the driver from JSON.
-	UnmarshalJSON(data []byte) error
-
 	// Start starts the node
 	//
 	// nodeName as nil for self-node
-	Start(nodeName *string, repository NodesRepository) error
+	Start(nodeName *string) error
 
 	// Stop stops the node
 	// Message will be shown to users before stop on the time
@@ -110,32 +108,32 @@ type NodeDriver interface {
 	//
 	// nodeName as nil for self-node
 	// force can be used for hard-stops like pulling the plug of a VM, it can be ignored otherwise
-	Stop(nodeName *string, message string, time uint32, repository NodesRepository, force bool) error
+	Stop(nodeName *string, message string, time uint32, force bool) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
 	//
 	// nodeName as nil for self-node
-	Restart(nodeName *string, message string, time uint32, repository NodesRepository) error
+	Restart(nodeName *string, message string, time uint32) error
 
 	// UpdateStatus update and returns current status based on internal drivers factors
 	//
 	// nodeName as nil for self-node
-	UpdateStatus(nodeName *string, repository NodesRepository) (NodeStatus, error)
+	UpdateStatus(nodeName *string) (NodeStatus, error)
 
 	// GetState returns current node state like cpu, mem, etc..
-	GetState(nodeName *string, repository NodesRepository) (NodeState, error)
+	GetState(nodeName *string) (NodeState, error)
 
 	// Provision validates self-node prerequisites and creates or replace the current
 	// database entry.
 	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the agent and does not affect client behavior.
-	Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository NodesRepository) error
+	Provision(nodeName string, cloudInit *cloudinit.CloudInit) error
 
 	// Deprovision cleanup and removes the self-node if node name is nil or guest node
 	// otherwise
 	// Only operates on deployments in "provisioned" status.
-	Deprovision(nodeName *string, repository NodesRepository) error
+	Deprovision(nodeName *string) error
 }

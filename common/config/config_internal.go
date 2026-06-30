@@ -258,7 +258,7 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 		if len(node.Driver) == 0 {
 			return nil, fmt.Errorf("driver required for node '%s'", nodeName)
 		} else {
-			driver, err := common.BuildNodeDriver(common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
+			driver, err := common.BuildNodeDriver(common.NodeContext{}, common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
 			if err != nil {
 				return nil, fmt.Errorf("error building node driver '%s': %s", nodeName, err.Error())
 			}

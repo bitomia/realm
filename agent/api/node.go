@@ -54,12 +54,12 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 
 	}
 
-	state, err := nodeEntry.NodeDriver.GetState(&nodeEntry.NodeName, database.NodesRepository)
+	state, err := nodeEntry.NodeDriver.GetState(&nodeEntry.NodeName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName, database.NodesRepository)
+	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName)
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
@@ -85,9 +85,7 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 }
 
 func ProvisionNode(node *common.Node) error {
-	database := db.GetDB()
-
-	if err := node.Driver.Provision(node.Name, node.CloudInit, database.NodesRepository); err != nil {
+	if err := node.Driver.Provision(node.Name, node.CloudInit); err != nil {
 		return err
 	}
 
@@ -140,7 +138,7 @@ func DeprovisionNode(nodeName *string) error {
 	}
 
 	// if GetSelf() worked then node is provisioned
-	if err := node.NodeDriver.Deprovision(&node.NodeName, database.NodesRepository); err != nil {
+	if err := node.NodeDriver.Deprovision(&node.NodeName); err != nil {
 		return err
 	}
 
@@ -157,7 +155,7 @@ func StartNode(node *common.Node) error {
 	if driverInfo.StartMode != common.AgentMode {
 		return fmt.Errorf("start expects agent mode")
 	}
-	if err := node.Driver.Start(&node.Name, db.GetDB().NodesRepository); err != nil {
+	if err := node.Driver.Start(&node.Name); err != nil {
 		return fmt.Errorf("failed to start node: %w", err)
 	}
 	return nil
@@ -199,7 +197,7 @@ func StopNode(nodeName *string, message string, time uint32, force bool) error {
 		return fmt.Errorf("stop expects agent mode")
 	}
 
-	if err := node.NodeDriver.Stop(&node.NodeName, message, time, db.GetDB().NodesRepository, force); err != nil {
+	if err := node.NodeDriver.Stop(&node.NodeName, message, time, force); err != nil {
 		return fmt.Errorf("failed to stop node: %w", err)
 	}
 
@@ -221,7 +219,7 @@ func RestartNode(nodeName *string, message string, time uint32) error {
 		return fmt.Errorf("restart expects agent mode")
 	}
 
-	if err := node.NodeDriver.Restart(&node.NodeName, message, time, db.GetDB().NodesRepository); err != nil {
+	if err := node.NodeDriver.Restart(&node.NodeName, message, time); err != nil {
 		return fmt.Errorf("failed to restart node: %w", err)
 	}
 

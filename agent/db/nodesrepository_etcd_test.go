@@ -16,6 +16,7 @@ type mockNodeDriver struct {
 	Value      string
 	ShouldFail bool
 	config     common.NodeDriverConfig
+	ctx        common.NodeContext
 }
 
 func newMockNodeDriver(value string) *mockNodeDriver {
@@ -33,11 +34,12 @@ func newMockNodeDriver(value string) *mockNodeDriver {
 	}
 }
 
-func NewMockNodeDriverFromConfig(c *any) (common.NodeDriver, error) {
+func NewMockNodeDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
 	config := (*c).(map[string]any)
 	return &mockNodeDriver{
 		Value:      config["value"].(string),
 		ShouldFail: config["should_fail"].(bool),
+		ctx:        ctx,
 	}, nil
 }
 
@@ -69,27 +71,27 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
-	return repository.SetSelf(nodeName, m, cloudInit, nil)
+func (m *mockNodeDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
+	return m.ctx.Repository.SetSelf(nodeName, m, cloudInit, nil)
 }
 
-func (m *mockNodeDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
-	return repository.DeleteSelf()
+func (m *mockNodeDriver) Deprovision(nodeName *string) error {
+	return m.ctx.Repository.DeleteSelf()
 }
 
-func (m *mockNodeDriver) Start(nodeName *string, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Start(nodeName *string) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Stop(nodeName *string, message string, time uint32, repository common.NodesRepository, force bool) error {
+func (m *mockNodeDriver) Stop(nodeName *string, message string, time uint32, force bool) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Restart(nodeName *string, message string, time uint32, repository common.NodesRepository) error {
+func (m *mockNodeDriver) Restart(nodeName *string, message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) UpdateStatus(nodeName *string, repository common.NodesRepository) (common.NodeStatus, error) {
+func (m *mockNodeDriver) UpdateStatus(nodeName *string) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 
@@ -97,11 +99,7 @@ func (m *mockNodeDriver) GetDriverConfig() common.NodeDriverConfig {
 	return m.config
 }
 
-func (m *mockNodeDriver) GetCapabilities() (common.Capabilities, error) {
-	return nil, nil
-}
-
-func (m *mockNodeDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
+func (m *mockNodeDriver) GetState(_ *string) (common.NodeState, error) {
 	return common.NodeState{}, nil
 }
 
