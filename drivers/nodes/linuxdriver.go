@@ -24,7 +24,7 @@ type LinuxConfig struct {
 }
 
 type LinuxDriver struct {
-	Config LinuxConfig
+	config LinuxConfig
 	ctx    common.NodeContext
 }
 
@@ -60,52 +60,60 @@ func NewLinuxDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver
 	}
 
 	return &LinuxDriver{
-		Config: config,
+		config: config,
 	}, nil
 }
 
-func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
+func (l *LinuxDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
-		common.WithStartMode(common.ClientMode),
+		common.WithPowerOnMode(common.ClientMode),
 	)
 }
 
-func (l *LinuxDriver) GetNodeDriverID() common.NodeDriverID {
+func (l *LinuxDriver) ID() common.NodeDriverID {
 	return LinuxDriverID
 }
 
-func (l *LinuxDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
+func (l *LinuxDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
 	if err := l.ctx.Repository.SetSelf(nodeName, l, cloudInit, nil); err != nil {
-		slog.Error("LinuxDriver.Provision", "msg", "failed to provision node", "error", err)
+		slog.Error("LinuxDriver.Register", "msg", "failed to register node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (l *LinuxDriver) Deprovision(_ *string) error {
+func (l *LinuxDriver) Unregister(_ *string) error {
 	return l.ctx.Repository.DeleteSelf()
 }
 
-func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
-	var c any = l.Config
+func (l *LinuxDriver) Config() common.NodeDriverConfig {
+	var c any = l.config
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) Start(_ *string) error {
-	if !l.Config.WakeOnLan {
+func (l *LinuxDriver) PowerOn(_ *string) error {
+	if !l.config.WakeOnLan {
 		return nil
 	}
 
-	return launchWakeOnLan(l.Config.MAC)
+	return launchWakeOnLan(l.config.MAC)
 }
 
-func (l *LinuxDriver) Stop(_ *string, message string, time uint32, _ bool) error {
+func (l *LinuxDriver) PowerOff(_ *string) error {
+	cmd := exec.Command(shutdownCmd, "-h", "now")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to execute shutdown command: %w", err)
+	}
+	return nil
+}
+
+func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -131,10 +139,10 @@ func (l *LinuxDriver) Restart(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) UpdateStatus(_ *string) (common.NodeStatus, error) {
+func (l *LinuxDriver) RefreshStatus(_ *string) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *LinuxDriver) GetState(_ *string) (common.NodeState, error) {
+func (l *LinuxDriver) State(_ *string) (common.NodeState, error) {
 	return cpu.GetNodeState()
 }

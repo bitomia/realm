@@ -43,11 +43,11 @@ func NewMockNodeDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDri
 	}, nil
 }
 
-func (m *mockNodeDriver) GetNodeDriverID() common.NodeDriverID {
+func (m *mockNodeDriver) ID() common.NodeDriverID {
 	return MockNodeDriverID
 }
 
-func (m *mockNodeDriver) DriverInfo() (common.NodeDriverInfo, error) {
+func (m *mockNodeDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NodeDriverInfo{
 		ID:  MockNodeDriverID,
 		New: NewMockNodeDriverFromConfig,
@@ -71,19 +71,23 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
+func (m *mockNodeDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
 	return m.ctx.Repository.SetSelf(nodeName, m, cloudInit, nil)
 }
 
-func (m *mockNodeDriver) Deprovision(nodeName *string) error {
+func (m *mockNodeDriver) Unregister(nodeName *string) error {
 	return m.ctx.Repository.DeleteSelf()
 }
 
-func (m *mockNodeDriver) Start(nodeName *string) error {
+func (m *mockNodeDriver) PowerOn(nodeName *string) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Stop(nodeName *string, message string, time uint32, force bool) error {
+func (m *mockNodeDriver) PowerOff(nodeName *string) error {
+	return nil
+}
+
+func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32) error {
 	return nil
 }
 
@@ -91,15 +95,15 @@ func (m *mockNodeDriver) Restart(nodeName *string, message string, time uint32) 
 	return nil
 }
 
-func (m *mockNodeDriver) UpdateStatus(nodeName *string) (common.NodeStatus, error) {
+func (m *mockNodeDriver) RefreshStatus(nodeName *string) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 
-func (m *mockNodeDriver) GetDriverConfig() common.NodeDriverConfig {
+func (m *mockNodeDriver) Config() common.NodeDriverConfig {
 	return m.config
 }
 
-func (m *mockNodeDriver) GetState(_ *string) (common.NodeState, error) {
+func (m *mockNodeDriver) State(_ *string) (common.NodeState, error) {
 	return common.NodeState{}, nil
 }
 

@@ -16,10 +16,11 @@ func createBaseRoutes(router *mux.Router) {
 	router.Handle("/network", auth.WithAuth(handlers.ListNetworksHandler)).Methods("GET")
 
 	router.Handle("/node", auth.WithAuth(handlers.NodeStateHandler)).Methods("GET")
-	router.Handle("/node/provision", auth.WithAuth(handlers.ProvisionNodeHandler)).Methods("POST")
-	router.Handle("/node/deprovision", auth.WithAuth(handlers.DeprovisionNodeHandler)).Methods("POST")
-	router.Handle("/node/start", auth.WithAuth(handlers.StartNodeHandler)).Methods("POST")
-	router.Handle("/node/stop", auth.WithAuth(handlers.StopNodeHandler)).Methods("POST")
+	router.Handle("/node/register", auth.WithAuth(handlers.RegisterNodeHandler)).Methods("POST")
+	router.Handle("/node/unregister", auth.WithAuth(handlers.UnregisterNodeHandler)).Methods("POST")
+	router.Handle("/node/poweron", auth.WithAuth(handlers.PowerOnNodeHandler)).Methods("POST")
+	router.Handle("/node/poweroff", auth.WithAuth(handlers.PowerOffNodeHandler)).Methods("POST")
+	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNodeHandler)).Methods("POST")
 	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNodeHandler)).Methods("POST")
 
 	router.Handle("/loads", auth.WithAuth(handlers.GetLoadsDeploymentsHandler)).Methods("GET")

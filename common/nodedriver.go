@@ -18,26 +18,34 @@ type NodeContext struct {
 type NodeDriverBuilder func(ctx NodeContext, config *any) (NodeDriver, error)
 
 type NodeDriverInfo struct {
-	ID          NodeDriverID
-	New         NodeDriverBuilder
-	StartMode   Mode
-	StopMode    Mode
-	RestartMode Mode
-	GuestMode   bool
+	ID           NodeDriverID
+	New          NodeDriverBuilder
+	PowerOnMode  Mode
+	PowerOffMode Mode
+	ShutdownMode Mode
+	RestartMode  Mode
+	GuestMode    bool
 }
 
 type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
 
-func WithStartMode(m Mode) NewNodeDriverInfoOpts {
+func WithPowerOnMode(m Mode) NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
-		i.StartMode = m
+		i.PowerOnMode = m
 		return nil
 	}
 }
 
-func WithStopMode(m Mode) NewNodeDriverInfoOpts {
+func WithPowerOffMode(m Mode) NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
-		i.StopMode = m
+		i.ShutdownMode = m
+		return nil
+	}
+}
+
+func WithShutdownMode(m Mode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.ShutdownMode = m
 		return nil
 	}
 }
@@ -58,12 +66,12 @@ func WithGuestMode() NewNodeDriverInfoOpts {
 
 func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
 	info := NodeDriverInfo{
-		ID:          id,
-		New:         builder,
-		StartMode:   AgentMode,
-		StopMode:    AgentMode,
-		RestartMode: AgentMode,
-		GuestMode:   false,
+		ID:           id,
+		New:          builder,
+		PowerOnMode:  AgentMode,
+		ShutdownMode: AgentMode,
+		RestartMode:  AgentMode,
+		GuestMode:    false,
 	}
 	for _, o := range opts {
 		if err := o(&info); err != nil {
@@ -88,27 +96,31 @@ type NodeStatus struct {
 }
 
 type NodeDriver interface {
-	// GetNodeDriverID returns the unique identifier for this node driver.
-	GetNodeDriverID() NodeDriverID
+	// ID returns the unique identifier for this node driver.
+	ID() NodeDriverID
 
-	// DriverInfo returns metadata describing the driver for internal factory use.
-	DriverInfo() (NodeDriverInfo, error)
+	// Info returns driver description for internal factory use.
+	Info() (NodeDriverInfo, error)
 
-	// GetDriverConfig returns the configuration for this node driver.
-	GetDriverConfig() NodeDriverConfig
+	// Config returns the configuration for this node driver.
+	Config() NodeDriverConfig
 
-	// Start starts the node
+	// PowerOn starts the node
 	//
 	// nodeName as nil for self-node
-	Start(nodeName *string) error
+	PowerOn(nodeName *string) error
 
-	// Stop stops the node
+	// PowerOff stops the node immediately
+	//
+	// nodeName as nil for self-node
+	PowerOff(nodeName *string) error
+
+	// Shutdown stops the node
 	// Message will be shown to users before stop on the time
 	// offset specified
 	//
 	// nodeName as nil for self-node
-	// force can be used for hard-stops like pulling the plug of a VM, it can be ignored otherwise
-	Stop(nodeName *string, message string, time uint32, force bool) error
+	Shutdown(nodeName *string, message string, time uint32) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
@@ -117,23 +129,23 @@ type NodeDriver interface {
 	// nodeName as nil for self-node
 	Restart(nodeName *string, message string, time uint32) error
 
-	// UpdateStatus update and returns current status based on internal drivers factors
+	// RefreshStatus update and returns current status based on internal drivers factors
 	//
 	// nodeName as nil for self-node
-	UpdateStatus(nodeName *string) (NodeStatus, error)
+	RefreshStatus(nodeName *string) (NodeStatus, error)
 
-	// GetState returns current node state like cpu, mem, etc..
-	GetState(nodeName *string) (NodeState, error)
+	// State returns current node state like cpu, mem, etc..
+	State(nodeName *string) (NodeState, error)
 
-	// Provision validates self-node prerequisites and creates or replace the current
+	// Register validates self-node prerequisites and creates or replace the current
 	// database entry.
-	// Notice that nodes are nameless, provisioning is also the action of naming the self-node
+	// Notice that nodes are nameless, registering is also the action of naming the self-node
 	// It shall check node requirements but it won't check depending nodes.
 	// This is invoked within the agent and does not affect client behavior.
-	Provision(nodeName string, cloudInit *cloudinit.CloudInit) error
+	Register(nodeName string, cloudInit *cloudinit.CloudInit) error
 
-	// Deprovision cleanup and removes the self-node if node name is nil or guest node
+	// Unregister cleanup and removes the self-node if node name is nil or guest node
 	// otherwise
-	// Only operates on deployments in "provisioned" status.
-	Deprovision(nodeName *string) error
+	// Only operates on deployments in registered status.
+	Unregister(nodeName *string) error
 }

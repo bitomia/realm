@@ -52,8 +52,8 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		Name:         n.Name,
 		Url:          n.Url,
 		CloudInit:    n.CloudInit,
-		Driver:       n.Driver.GetNodeDriverID(),
-		DriverConfig: n.Driver.GetDriverConfig().DriverConfig,
+		Driver:       n.Driver.ID(),
+		DriverConfig: n.Driver.Config().DriverConfig,
 	})
 }
 

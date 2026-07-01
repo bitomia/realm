@@ -33,7 +33,7 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
-		NodeDriverConfig: driver.GetDriverConfig(),
+		NodeDriverConfig: driver.Config(),
 		CloudInit:        cloudInit,
 		Metadata:         metadata,
 	}
@@ -131,7 +131,7 @@ func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 
 	guestNodeValue := NodeValue{
 		NodeName:         guestNodeName,
-		NodeDriverConfig: guestDriver.GetDriverConfig(),
+		NodeDriverConfig: guestDriver.Config(),
 		CloudInit:        cloudInit,
 		Metadata:         metadata,
 	}

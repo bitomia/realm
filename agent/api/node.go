@@ -54,12 +54,12 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 
 	}
 
-	state, err := nodeEntry.NodeDriver.GetState(&nodeEntry.NodeName)
+	state, err := nodeEntry.NodeDriver.State(&nodeEntry.NodeName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.UpdateStatus(&nodeEntry.NodeName)
+	status, err := nodeEntry.NodeDriver.RefreshStatus(&nodeEntry.NodeName)
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
@@ -84,8 +84,8 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func ProvisionNode(node *common.Node) error {
-	if err := node.Driver.Provision(node.Name, node.CloudInit); err != nil {
+func RegisterNode(node *common.Node) error {
+	if err := node.Driver.Register(node.Name, node.CloudInit); err != nil {
 		return err
 	}
 
@@ -98,7 +98,7 @@ func ProvisionNode(node *common.Node) error {
 	return nil
 }
 
-func DeprovisionNode(nodeName *string) error {
+func UnregisterNode(nodeName *string) error {
 	database := db.GetDB()
 	var node common.NodeEntry
 
@@ -108,12 +108,12 @@ func DeprovisionNode(nodeName *string) error {
 			return err
 		}
 
-		// Deprovision all guest nodes if they exist
+		// Unregister all guest nodes if they exist
 		if nodes, err := database.NodesRepository.GetAllGuestNodes(); err != nil {
 			return err
 		} else {
 			for _, node := range nodes {
-				if err := DeprovisionNode(&node.NodeName); err != nil {
+				if err := UnregisterNode(&node.NodeName); err != nil {
 					return err
 				}
 			}
@@ -137,8 +137,8 @@ func DeprovisionNode(nodeName *string) error {
 		}
 	}
 
-	// if GetSelf() worked then node is provisioned
-	if err := node.NodeDriver.Deprovision(&node.NodeName); err != nil {
+	// if GetSelf() worked then node is registerd
+	if err := node.NodeDriver.Unregister(&node.NodeName); err != nil {
 		return err
 	}
 
@@ -147,16 +147,16 @@ func DeprovisionNode(nodeName *string) error {
 	return nil
 }
 
-func StartNode(node *common.Node) error {
-	driverInfo, err := node.Driver.DriverInfo()
+func PowerOnNode(node *common.Node) error {
+	driverInfo, err := node.Driver.Info()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve node driver info: %w", err)
 	}
-	if driverInfo.StartMode != common.AgentMode {
-		return fmt.Errorf("start expects agent mode")
+	if driverInfo.PowerOnMode != common.AgentMode {
+		return fmt.Errorf("poweron expects agent mode")
 	}
-	if err := node.Driver.Start(&node.Name); err != nil {
-		return fmt.Errorf("failed to start node: %w", err)
+	if err := node.Driver.PowerOn(&node.Name); err != nil {
+		return fmt.Errorf("failed to poweron node: %w", err)
 	}
 	return nil
 }
@@ -182,22 +182,44 @@ func getNode(nodeName *string) (*common.NodeEntry, error) {
 	}
 }
 
-func StopNode(nodeName *string, message string, time uint32, force bool) error {
+func PowerOffNode(nodeName *string) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not provisioned")
+		return fmt.Errorf("node not registerd")
 	}
 
-	driverInfo, err := node.NodeDriver.DriverInfo()
+	driverInfo, err := node.NodeDriver.Info()
 	if err != nil {
 		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
 	}
 
-	if driverInfo.StopMode != common.AgentMode {
+	if driverInfo.ShutdownMode != common.AgentMode {
+		return fmt.Errorf("poweroff expects agent mode")
+	}
+
+	if err := node.NodeDriver.PowerOff(&node.NodeName); err != nil {
+		return fmt.Errorf("failed to poweroff node: %w", err)
+	}
+
+	return nil
+}
+
+func ShutdownNode(nodeName *string, message string, time uint32) error {
+	node, err := getNode(nodeName)
+	if err != nil {
+		return fmt.Errorf("node not registered")
+	}
+
+	driverInfo, err := node.NodeDriver.Info()
+	if err != nil {
+		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
+	}
+
+	if driverInfo.ShutdownMode != common.AgentMode {
 		return fmt.Errorf("stop expects agent mode")
 	}
 
-	if err := node.NodeDriver.Stop(&node.NodeName, message, time, force); err != nil {
+	if err := node.NodeDriver.Shutdown(&node.NodeName, message, time); err != nil {
 		return fmt.Errorf("failed to stop node: %w", err)
 	}
 
@@ -207,10 +229,10 @@ func StopNode(nodeName *string, message string, time uint32, force bool) error {
 func RestartNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not provisioned")
+		return fmt.Errorf("node not registered")
 	}
 
-	driverInfo, err := node.NodeDriver.DriverInfo()
+	driverInfo, err := node.NodeDriver.Info()
 	if err != nil {
 		return fmt.Errorf("cannot retrieve driver info for %s", node.NodeName)
 	}

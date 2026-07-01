@@ -23,7 +23,7 @@ type WindowsConfig struct {
 }
 
 type WindowsDriver struct {
-	Config WindowsConfig
+	config WindowsConfig
 	ctx    common.NodeContext
 }
 
@@ -55,49 +55,57 @@ func NewWindowsDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriv
 	}
 
 	return &WindowsDriver{
-		Config: config,
+		config: config,
 	}, nil
 }
 
-func (w *WindowsDriver) DriverInfo() (common.NodeDriverInfo, error) {
+func (w *WindowsDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		WindowsDriverID,
 		NewWindowsDriverFromConfig,
-		common.WithStartMode(common.ClientMode),
+		common.WithPowerOnMode(common.ClientMode),
 	)
 }
 
-func (w *WindowsDriver) GetNodeDriverID() common.NodeDriverID {
+func (w *WindowsDriver) ID() common.NodeDriverID {
 	return WindowsDriverID
 }
 
-func (w *WindowsDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit) error {
+func (w *WindowsDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
 	if err := w.ctx.Repository.SetSelf(nodeName, w, cloudInit, nil); err != nil {
-		slog.Error("WindowsDriver.Provision", "msg", "failed to provision node", "error", err)
+		slog.Error("WindowsDriver.Register", "msg", "failed to register node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (w *WindowsDriver) Deprovision(_ *string) error {
+func (w *WindowsDriver) Unregister(_ *string) error {
 	return w.ctx.Repository.DeleteSelf()
 }
 
-func (w *WindowsDriver) GetDriverConfig() common.NodeDriverConfig {
-	var c any = w.Config
+func (w *WindowsDriver) Config() common.NodeDriverConfig {
+	var c any = w.config
 	return common.NodeDriverConfig{Driver: WindowsDriverID, DriverConfig: &c}
 }
 
-func (w *WindowsDriver) Start(_ *string) error {
-	if !w.Config.WakeOnLan {
+func (w *WindowsDriver) PowerOn(_ *string) error {
+	if !w.config.WakeOnLan {
 		return nil
 	}
 
-	return launchWakeOnLan(w.Config.MAC)
+	return launchWakeOnLan(w.config.MAC)
 }
 
-func (w *WindowsDriver) Stop(_ *string, message string, time uint32, _ bool) error {
+func (w *WindowsDriver) PowerOff(_ *string) error {
+	cmd := exec.Command(windowsShutdownCmd)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to execute shutdown command: %w", err)
+	}
+	return nil
+}
+
+func (w *WindowsDriver) Shutdown(_ *string, message string, time uint32) error {
 	args := []string{"/s", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)
@@ -123,10 +131,10 @@ func (w *WindowsDriver) Restart(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (w *WindowsDriver) UpdateStatus(_ *string) (common.NodeStatus, error) {
+func (w *WindowsDriver) RefreshStatus(_ *string) (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *WindowsDriver) GetState(_ *string) (common.NodeState, error) {
+func (l *WindowsDriver) State(_ *string) (common.NodeState, error) {
 	return cpu.GetNodeState()
 }

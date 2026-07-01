@@ -17,6 +17,8 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
+const requestTimeout = 60 * time.Second
+
 type Client struct {
 	header http.Header
 	cfg    *config.Config
@@ -213,7 +215,7 @@ func (c *Client) ListNetworks() (map[string]any, error) {
 func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 	nodeRes := dto.NewNodeResponse()
 
-	driverInfo, err := node.Driver.DriverInfo()
+	driverInfo, err := node.Driver.Info()
 	if err != nil {
 		return nodeRes, err
 	}
@@ -334,37 +336,37 @@ func (c *Client) Login(node string, username string, password string) (string, e
 
 func (c *Client) ProvisionLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
-	_, _, err := c.doJSONRequest("POST", url, load, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, load, requestTimeout)
 	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
 	return err
 }
 
 func (c *Client) StopLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
 	return err
 }
 
 func (c *Client) KillLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
 	return err
 }
 
 func (c *Client) DeprovisionLoad(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
 	return err
 }
 
 func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
 	url := fmt.Sprintf("%s/loads", nodeUrl)
-	body, _, err := c.doRequest("GET", url, nil, 60*time.Second)
+	body, _, err := c.doRequest("GET", url, nil, requestTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -407,43 +409,49 @@ func (c *Client) ReadLoadStderr(load *common.Load) error {
 	return nil
 }
 
-func (c *Client) ProvisionNode(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/provision", node.Url)
-	_, _, err := c.doJSONRequest("POST", url, node, 60*time.Second)
+func (c *Client) RegisterNode(node *common.Node) error {
+	url := fmt.Sprintf("%s/node/register", node.Url)
+	_, _, err := c.doJSONRequest("POST", url, node, requestTimeout)
 	return err
 }
 
-func (c *Client) DeprovisionNode(node *common.Node) error {
-	driverInfo, err := node.Driver.DriverInfo()
+func (c *Client) UnregisterNode(node *common.Node) error {
+	driverInfo, err := node.Driver.Info()
 	if err != nil {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/node/deprovision", node.Url)
+	url := fmt.Sprintf("%s/node/unregister", node.Url)
 	if driverInfo.GuestMode {
 		url += fmt.Sprintf("?guest=%s", node.Name)
 	}
 
-	_, _, err = c.doRequest("POST", url, nil, 60*time.Second)
+	_, _, err = c.doRequest("POST", url, nil, requestTimeout)
 	return err
 }
 
-func (c *Client) StartNode(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/start", node.Url)
-	_, _, err := c.doJSONRequest("POST", url, node, 60*time.Second)
+func (c *Client) PowerOnNode(node *common.Node) error {
+	url := fmt.Sprintf("%s/node/poweron", node.Url)
+	_, _, err := c.doJSONRequest("POST", url, node, requestTimeout)
 	return err
 }
 
-func (c *Client) StopNode(node *common.Node, wallMessage string, offsetTime uint32, force bool) error {
-	url := fmt.Sprintf("%s/node/stop", node.Url)
-	request := dto.StopNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name, Force: force}
-	_, _, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+func (c *Client) PowerOffNode(node *common.Node) error {
+	url := fmt.Sprintf("%s/node/poweroff", node.Url)
+	_, _, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	return err
+}
+
+func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
+	url := fmt.Sprintf("%s/node/shutdown", node.Url)
+	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
+	_, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
 	return err
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
 	url := fmt.Sprintf("%s/node/restart", node.Url)
 	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, _, err := c.doJSONRequest("POST", url, request, 60*time.Second)
+	_, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
 	return err
 }

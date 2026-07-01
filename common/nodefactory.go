@@ -12,7 +12,7 @@ type NodeDriverConfig struct {
 var nodeDrivers = make(map[NodeDriverID]NodeDriverInfo)
 
 func RegisterNodeDriver(d NodeDriver) error {
-	info, err := d.DriverInfo()
+	info, err := d.Info()
 	if err != nil {
 		return err
 	}
