@@ -2,8 +2,10 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"log/slog"
 	"maps"
@@ -99,8 +101,17 @@ func findConfigFile(configFilePath string) string {
 
 func unmarshalConfigHandler(in io.Reader) (*Config, error) {
 	var config Config
-	if err := viper.ReadConfig(in); err != nil {
-		return &config, err
+	if in == nil {
+		if err := viper.ReadInConfig(); err != nil {
+			var notFound viper.ConfigFileNotFoundError
+			if !errors.As(err, &notFound) && !errors.Is(err, fs.ErrNotExist) {
+				return &config, err
+			}
+		}
+	} else {
+		if err := viper.ReadConfig(in); err != nil {
+			return &config, err
+		}
 	}
 	err := viper.UnmarshalExact(&config, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "json"
@@ -112,7 +123,7 @@ func readInConfig(configFilePath string) (*Config, error) {
 	cfgPath := findConfigFile(configFilePath)
 	if cfgPath == "" {
 		slog.Warn("Config file not found: using default configuration.")
-		return &Config{}, nil
+		return readConfig(unmarshalConfigHandler, nil, configFilePath)
 	}
 
 	absPath, err := filepath.Abs(cfgPath)
@@ -341,7 +352,7 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	}
 
 	// Build the loads graph
-	if err = newLoadsConfigGraph(); err != nil {
+	if err := newLoadsConfigGraph(); err != nil {
 		return nil, err
 	}
 

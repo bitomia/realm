@@ -136,7 +136,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, fmt.Errorf("node not provisioned")
 	}
 
-	nodeStatus, err := node.NodeDriver.RefreshStatus(&node.NodeName)
+	nodeStatus, err := node.NodeDriver.RefreshStatus()
 	if err != nil {
 		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}

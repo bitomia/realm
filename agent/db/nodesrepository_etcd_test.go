@@ -2,6 +2,7 @@ package db
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,31 +72,34 @@ func (m *mockNodeDriver) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
-	return m.ctx.Repository.SetSelf(nodeName, m, cloudInit, nil)
+func (m *mockNodeDriver) Register(cloudInit *cloudinit.CloudInit) error {
+	if m.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
+	}
+	return m.ctx.Repository.SetSelf(*m.ctx.NodeName, m, cloudInit, nil)
 }
 
-func (m *mockNodeDriver) Unregister(nodeName *string) error {
+func (m *mockNodeDriver) Unregister() error {
 	return m.ctx.Repository.DeleteSelf()
 }
 
-func (m *mockNodeDriver) PowerOn(nodeName *string) error {
+func (m *mockNodeDriver) PowerOn() error {
 	return nil
 }
 
-func (m *mockNodeDriver) PowerOff(nodeName *string) error {
+func (m *mockNodeDriver) PowerOff() error {
 	return nil
 }
 
-func (m *mockNodeDriver) Shutdown(nodeName *string, message string, time uint32) error {
+func (m *mockNodeDriver) Shutdown(message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) Restart(nodeName *string, message string, time uint32) error {
+func (m *mockNodeDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) RefreshStatus(nodeName *string) (common.NodeStatus, error) {
+func (m *mockNodeDriver) RefreshStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 
@@ -103,7 +107,7 @@ func (m *mockNodeDriver) Config() common.NodeDriverConfig {
 	return m.config
 }
 
-func (m *mockNodeDriver) State(_ *string) (common.NodeState, error) {
+func (m *mockNodeDriver) State() (common.NodeState, error) {
 	return common.NodeState{}, nil
 }
 

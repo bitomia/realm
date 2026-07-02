@@ -107,10 +107,14 @@ func (q *VMDriver) ID() common.NodeDriverID {
 	return VMDriverID
 }
 
-func (q *VMDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
-	slog.Info("VMDriver.Register", "msg", "preparing libvirt domain", "node", nodeName)
+func (q *VMDriver) Register(cloudInit *cloudinit.CloudInit) error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
+	}
 
-	overlayDrives, err := resolveDrives(q.config.Drives, nodeName, q.libvirtSocket())
+	slog.Info("VMDriver.Register", "msg", "preparing libvirt domain", "node", q.ctx.NodeName)
+
+	overlayDrives, err := resolveDrives(q.config.Drives, *q.ctx.NodeName, q.libvirtSocket())
 	if err != nil {
 		return fmt.Errorf("vm: failed to resolve drive images: %w", err)
 	}
@@ -125,19 +129,19 @@ func (q *VMDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) err
 		}
 	}
 
-	domainXML, err := q.buildDomainXML(nodeName, overlayDrives, cloudInitHost)
+	domainXML, err := q.buildDomainXML(*q.ctx.NodeName, overlayDrives, cloudInitHost)
 	if err != nil {
-		cleanupOverlays(nodeName)
+		cleanupOverlays(*q.ctx.NodeName)
 		return fmt.Errorf("vm: failed to build domain XML: %w", err)
 	}
 
 	metadata := VMNodeMetadata{
-		DomainName: nodeName,
+		DomainName: *q.ctx.NodeName,
 		DomainXML:  domainXML,
 		Drives:     overlayDrives,
 	}
 
-	if err := q.ctx.Repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
+	if err := q.ctx.Repository.SetGuestNode(*q.ctx.NodeName, q, cloudInit, metadata); err != nil {
 		slog.Error("VMDriver.Register", "msg", "failed to persist guest node", "error", err)
 		for _, d := range overlayDrives {
 			d.Cleanup()
@@ -145,16 +149,16 @@ func (q *VMDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) err
 		return err
 	}
 
-	slog.Info("VMDriver.Register", "msg", "domain prepared (not yet started)", "node", nodeName)
+	slog.Info("VMDriver.Register", "msg", "domain prepared (not yet started)", "node", q.ctx.NodeName)
 	return nil
 }
 
-func (q *VMDriver) Unregister(nodeName *string) error {
-	if nodeName == nil {
-		return fmt.Errorf("vMDriver expects node name for guest node unregister")
+func (q *VMDriver) Unregister() error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
 	}
 
-	self, err := q.ctx.Repository.GetGuestNode(*nodeName)
+	self, err := q.ctx.Repository.GetGuestNode(*q.ctx.NodeName)
 	if err == nil {
 		metadata, mErr := common.CastMetadata[VMNodeMetadata](&self.Metadata)
 		if mErr != nil {
@@ -181,7 +185,7 @@ func (q *VMDriver) Unregister(nodeName *string) error {
 		}
 	}
 
-	return q.ctx.Repository.DeleteGuestNode(*nodeName, q, self.Metadata)
+	return q.ctx.Repository.DeleteGuestNode(*q.ctx.NodeName, q, self.Metadata)
 }
 
 func (q *VMDriver) Config() common.NodeDriverConfig {
@@ -281,11 +285,12 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	return string(out), nil
 }
 
-func (q *VMDriver) PowerOn(nodeName *string) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
+func (q *VMDriver) PowerOn() error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
 	}
-	metadata, err := q.getMetadata(*nodeName)
+
+	metadata, err := q.getMetadata(*q.ctx.NodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
@@ -299,7 +304,7 @@ func (q *VMDriver) PowerOn(nodeName *string) error {
 				return err
 			}
 			if libvirt.DomainState(state) == libvirt.DomainRunning {
-				slog.Info("VMDriver.Start", "msg", "domain already running", "node", *nodeName)
+				slog.Info("VMDriver.Start", "msg", "domain already running", "node", *q.ctx.NodeName)
 				return nil
 			}
 			if err := l.DomainDestroy(d); err != nil && !libvirt.IsNotFound(err) {
@@ -309,16 +314,17 @@ func (q *VMDriver) PowerOn(nodeName *string) error {
 		if _, err := l.DomainCreateXML(metadata.DomainXML, 0); err != nil {
 			return fmt.Errorf("vm: DomainCreateXML failed: %w", err)
 		}
-		slog.Info("VMDriver.Start", "msg", "domain started", "node", *nodeName)
+		slog.Info("VMDriver.Start", "msg", "domain started", "node", *q.ctx.NodeName)
 		return nil
 	})
 }
 
-func (q *VMDriver) PowerOff(nodeName *string) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
+func (q *VMDriver) PowerOff() error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
 	}
-	metadata, err := q.getMetadata(*nodeName)
+
+	metadata, err := q.getMetadata(*q.ctx.NodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
@@ -335,11 +341,12 @@ func (q *VMDriver) PowerOff(nodeName *string) error {
 	})
 }
 
-func (q *VMDriver) Shutdown(nodeName *string, _ string, _ uint32) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
+func (q *VMDriver) Shutdown(_ string, _ uint32) error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
 	}
-	metadata, err := q.getMetadata(*nodeName)
+
+	metadata, err := q.getMetadata(*q.ctx.NodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
@@ -356,11 +363,12 @@ func (q *VMDriver) Shutdown(nodeName *string, _ string, _ uint32) error {
 	})
 }
 
-func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
+func (q *VMDriver) Restart(_ string, _ uint32) error {
+	if q.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
 	}
-	metadata, err := q.getMetadata(*nodeName)
+
+	metadata, err := q.getMetadata(*q.ctx.NodeName)
 	if err != nil {
 		return fmt.Errorf("getMetadata on Restart failed: %s", err.Error())
 	}
@@ -377,12 +385,12 @@ func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32) error {
 	})
 }
 
-func (q *VMDriver) RefreshStatus(nodeName *string) (common.NodeStatus, error) {
-	if nodeName == nil {
-		err := fmt.Errorf("getMetadata on UpdateStatus failed: nodeName cannot be nil")
-		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
+func (q *VMDriver) RefreshStatus() (common.NodeStatus, error) {
+	if q.ctx.NodeName == nil {
+		return common.NodeStatus{}, fmt.Errorf("node name required")
 	}
-	metadata, err := q.getMetadata(*nodeName)
+
+	metadata, err := q.getMetadata(*q.ctx.NodeName)
 	if err != nil {
 		e := fmt.Errorf("getMetadata on UpdateStatus failed: %s", err.Error())
 		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: e.Error()}, e
@@ -422,10 +430,14 @@ func (q *VMDriver) RefreshStatus(nodeName *string) (common.NodeStatus, error) {
 	return status, nil
 }
 
-func (q *VMDriver) State(nodeName *string) (common.NodeState, error) {
+func (q *VMDriver) State() (common.NodeState, error) {
+	if q.ctx.NodeName == nil {
+		return common.NodeState{}, fmt.Errorf("node name required")
+	}
+
 	state := common.NodeState{}
 
-	self, err := q.ctx.Repository.GetGuestNode(*nodeName)
+	self, err := q.ctx.Repository.GetGuestNode(*q.ctx.NodeName)
 	if err != nil {
 		return state, err
 	}
@@ -485,7 +497,7 @@ func (q *VMDriver) State(nodeName *string) (common.NodeState, error) {
 
 		state.NetworkInterfaces = queryGuestInterfaces(l, d)
 		for _, ni := range state.NetworkInterfaces {
-			slog.Info("VMDriver.GetState", "node", *nodeName, "iface", ni.Name, "hwaddr", ni.HWAddr, "addrs", ni.Addresses)
+			slog.Info("VMDriver.GetState", "node", *q.ctx.NodeName, "iface", ni.Name, "hwaddr", ni.HWAddr, "addrs", ni.Addresses)
 		}
 		return nil
 	})

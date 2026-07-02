@@ -186,7 +186,7 @@ var powerOnNodes = &cobra.Command{
 			}
 
 			if driverInfo.PowerOnMode == common.ClientMode {
-				if err := n.Driver.PowerOn(nil); err != nil {
+				if err := n.Driver.PowerOn(); err != nil {
 					log.Fatal("Power on node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
@@ -215,7 +215,7 @@ var powerOffNodes = &cobra.Command{
 			}
 
 			if driverInfo.PowerOnMode == common.ClientMode {
-				if err := n.Driver.PowerOff(nil); err != nil {
+				if err := n.Driver.PowerOff(); err != nil {
 					log.Fatal("Power off node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
@@ -244,7 +244,7 @@ var restartNodes = &cobra.Command{
 
 			log.Info("Restarting node %s", color.CyanString(n.Name))
 			if driverInfo.RestartMode == common.ClientMode {
-				if err := n.Driver.Restart(nil, "", 0); err != nil {
+				if err := n.Driver.Restart("", 0); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {
@@ -273,7 +273,7 @@ var shutdownNodes = &cobra.Command{
 
 			log.Info("Shutting down node %s", color.CyanString(n.Name))
 			if driverInfo.ShutdownMode == common.ClientMode {
-				if err := n.Driver.Shutdown(nil, "", 0); err != nil {
+				if err := n.Driver.Shutdown("", 0); err != nil {
 					log.Fatal("Shutting down node '%s' failed: %s", n.Name, err.Error())
 				}
 			} else {

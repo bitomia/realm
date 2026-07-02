@@ -76,11 +76,15 @@ func (l *LinuxDriver) ID() common.NodeDriverID {
 	return LinuxDriverID
 }
 
-func (l *LinuxDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
+func (l *LinuxDriver) Register(cloudInit *cloudinit.CloudInit) error {
+	if l.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
+	}
+
 	// TODO
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
-	if err := l.ctx.Repository.SetSelf(nodeName, l, cloudInit, nil); err != nil {
+	if err := l.ctx.Repository.SetSelf(*l.ctx.NodeName, l, cloudInit, nil); err != nil {
 		slog.Error("LinuxDriver.Register", "msg", "failed to register node", "error", err)
 		return err
 	}
@@ -88,7 +92,7 @@ func (l *LinuxDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) 
 	return nil
 }
 
-func (l *LinuxDriver) Unregister(_ *string) error {
+func (l *LinuxDriver) Unregister() error {
 	return l.ctx.Repository.DeleteSelf()
 }
 
@@ -97,7 +101,7 @@ func (l *LinuxDriver) Config() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) PowerOn(_ *string) error {
+func (l *LinuxDriver) PowerOn() error {
 	if !l.config.WakeOnLan {
 		return nil
 	}
@@ -105,7 +109,7 @@ func (l *LinuxDriver) PowerOn(_ *string) error {
 	return launchWakeOnLan(l.config.MAC)
 }
 
-func (l *LinuxDriver) PowerOff(_ *string) error {
+func (l *LinuxDriver) PowerOff() error {
 	cmd := exec.Command(shutdownCmd, "-h", "now")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to execute shutdown command: %w", err)
@@ -113,7 +117,7 @@ func (l *LinuxDriver) PowerOff(_ *string) error {
 	return nil
 }
 
-func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32) error {
+func (l *LinuxDriver) Shutdown(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -126,7 +130,7 @@ func (l *LinuxDriver) Shutdown(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) Restart(_ *string, message string, time uint32) error {
+func (l *LinuxDriver) Restart(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -139,10 +143,10 @@ func (l *LinuxDriver) Restart(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) RefreshStatus(_ *string) (common.NodeStatus, error) {
+func (l *LinuxDriver) RefreshStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *LinuxDriver) State(_ *string) (common.NodeState, error) {
+func (l *LinuxDriver) State() (common.NodeState, error) {
 	return cpu.GetNodeState()
 }

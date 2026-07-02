@@ -13,6 +13,7 @@ const (
 
 type NodeContext struct {
 	Repository NodesRepository
+	NodeName   *string
 }
 
 type NodeDriverBuilder func(ctx NodeContext, config *any) (NodeDriver, error)
@@ -106,46 +107,30 @@ type NodeDriver interface {
 	Config() NodeDriverConfig
 
 	// PowerOn starts the node
-	//
-	// nodeName as nil for self-node
-	PowerOn(nodeName *string) error
+	PowerOn() error
 
 	// PowerOff stops the node immediately
-	//
-	// nodeName as nil for self-node
-	PowerOff(nodeName *string) error
+	PowerOff() error
 
 	// Shutdown stops the node
-	// Message will be shown to users before stop on the time
-	// offset specified
-	//
-	// nodeName as nil for self-node
-	Shutdown(nodeName *string, message string, time uint32) error
+	Shutdown(message string, time uint32) error
 
 	// Restart restarts the node
 	// Message will be shown to users before shutdown on the time
 	// offset specified
-	//
-	// nodeName as nil for self-node
-	Restart(nodeName *string, message string, time uint32) error
+	Restart(message string, time uint32) error
+
+	// Register node into the cluster
+	Register(cloudInit *cloudinit.CloudInit) error
+
+	// Unregister cleanup and removes the node from the cluster
+	Unregister() error
+
+	// State returns current node state (e.g. cpu, mem, etc...)
+	State() (NodeState, error)
 
 	// RefreshStatus update and returns current status based on internal drivers factors
 	//
 	// nodeName as nil for self-node
-	RefreshStatus(nodeName *string) (NodeStatus, error)
-
-	// State returns current node state like cpu, mem, etc..
-	State(nodeName *string) (NodeState, error)
-
-	// Register validates self-node prerequisites and creates or replace the current
-	// database entry.
-	// Notice that nodes are nameless, registering is also the action of naming the self-node
-	// It shall check node requirements but it won't check depending nodes.
-	// This is invoked within the agent and does not affect client behavior.
-	Register(nodeName string, cloudInit *cloudinit.CloudInit) error
-
-	// Unregister cleanup and removes the self-node if node name is nil or guest node
-	// otherwise
-	// Only operates on deployments in registered status.
-	Unregister(nodeName *string) error
+	RefreshStatus() (NodeStatus, error)
 }

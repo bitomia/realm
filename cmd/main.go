@@ -24,7 +24,7 @@ func main() {
 	}
 
 	rootCmd.Use = "realm"
-	rootCmd.Short = fmt.Sprintf("Realm command-line interface %s", config.GetVersion())
+	rootCmd.Short = fmt.Sprintf("Realm %s", config.GetVersion())
 	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

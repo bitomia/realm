@@ -71,8 +71,12 @@ func (w *WindowsDriver) ID() common.NodeDriverID {
 	return WindowsDriverID
 }
 
-func (w *WindowsDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit) error {
-	if err := w.ctx.Repository.SetSelf(nodeName, w, cloudInit, nil); err != nil {
+func (w *WindowsDriver) Register(cloudInit *cloudinit.CloudInit) error {
+	if w.ctx.NodeName == nil {
+		return fmt.Errorf("node name required")
+	}
+
+	if err := w.ctx.Repository.SetSelf(*w.ctx.NodeName, w, cloudInit, nil); err != nil {
 		slog.Error("WindowsDriver.Register", "msg", "failed to register node", "error", err)
 		return err
 	}
@@ -80,7 +84,7 @@ func (w *WindowsDriver) Register(nodeName string, cloudInit *cloudinit.CloudInit
 	return nil
 }
 
-func (w *WindowsDriver) Unregister(_ *string) error {
+func (w *WindowsDriver) Unregister() error {
 	return w.ctx.Repository.DeleteSelf()
 }
 
@@ -89,7 +93,7 @@ func (w *WindowsDriver) Config() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: WindowsDriverID, DriverConfig: &c}
 }
 
-func (w *WindowsDriver) PowerOn(_ *string) error {
+func (w *WindowsDriver) PowerOn() error {
 	if !w.config.WakeOnLan {
 		return nil
 	}
@@ -97,7 +101,7 @@ func (w *WindowsDriver) PowerOn(_ *string) error {
 	return launchWakeOnLan(w.config.MAC)
 }
 
-func (w *WindowsDriver) PowerOff(_ *string) error {
+func (w *WindowsDriver) PowerOff() error {
 	cmd := exec.Command(windowsShutdownCmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to execute shutdown command: %w", err)
@@ -105,7 +109,7 @@ func (w *WindowsDriver) PowerOff(_ *string) error {
 	return nil
 }
 
-func (w *WindowsDriver) Shutdown(_ *string, message string, time uint32) error {
+func (w *WindowsDriver) Shutdown(message string, time uint32) error {
 	args := []string{"/s", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)
@@ -118,7 +122,7 @@ func (w *WindowsDriver) Shutdown(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (w *WindowsDriver) Restart(_ *string, message string, time uint32) error {
+func (w *WindowsDriver) Restart(message string, time uint32) error {
 	args := []string{"/r", "/t", fmt.Sprintf("%d", time)}
 	if message != "" {
 		args = append(args, "/c", message)
@@ -131,10 +135,10 @@ func (w *WindowsDriver) Restart(_ *string, message string, time uint32) error {
 	return nil
 }
 
-func (w *WindowsDriver) RefreshStatus(_ *string) (common.NodeStatus, error) {
+func (w *WindowsDriver) RefreshStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *WindowsDriver) State(_ *string) (common.NodeState, error) {
+func (l *WindowsDriver) State() (common.NodeState, error) {
 	return cpu.GetNodeState()
 }
