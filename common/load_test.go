@@ -16,11 +16,11 @@ type MockLoadDriver struct {
 	driverConfig any
 }
 
-func (m *MockLoadDriver) GetLoadDriverID() LoadDriverID {
+func (m *MockLoadDriver) ID() LoadDriverID {
 	return m.driver
 }
 
-func (m *MockLoadDriver) DriverInfo() LoadDriverInfo {
+func (m *MockLoadDriver) Info() LoadDriverInfo {
 	return LoadDriverInfo{
 		ID:  m.driver,
 		New: func(config any) (LoadDriver, error) { return m, nil },
