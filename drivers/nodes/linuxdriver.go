@@ -1,7 +1,6 @@
 package nodes
 
 import (
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -25,10 +24,11 @@ type LinuxConfig struct {
 }
 
 type LinuxDriver struct {
-	Config LinuxConfig
+	config LinuxConfig
+	ctx    common.NodeContext
 }
 
-func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
+func NewLinuxDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
 	// Set default values
 	var config = LinuxConfig{
 		WakeOnLan: false,
@@ -60,77 +60,58 @@ func NewLinuxDriverFromConfig(c *any) (common.NodeDriver, error) {
 	}
 
 	return &LinuxDriver{
-		Config: config,
+		config: config,
 	}, nil
 }
 
-func (l *LinuxDriver) DriverInfo() (common.NodeDriverInfo, error) {
+func (l *LinuxDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
-		common.WithStartMode(common.ClientMode),
 	)
 }
 
-func (l *LinuxDriver) GetNodeDriverID() common.NodeDriverID {
+func (l *LinuxDriver) ID() common.NodeDriverID {
 	return LinuxDriverID
 }
 
-func (l *LinuxDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(l.GetDriverConfig())
-}
-
-func (l *LinuxDriver) UnmarshalJSON(data []byte) error {
-	var config map[string]any
-	if err := json.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	var nodeDriver common.NodeDriver
-	var err error
-	if len(config) > 0 {
-		var a any = config
-		nodeDriver, err = NewLinuxDriverFromConfig(&a)
-	} else {
-		nodeDriver, err = NewLinuxDriverFromConfig(nil)
-	}
-	if err != nil {
-		return err
-	}
-	*l = *nodeDriver.(*LinuxDriver)
-	return nil
-}
-
-func (l *LinuxDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
-	// TODO
+func (l *LinuxDriver) Register() error {
 	// Verify commands as shutdown_cmd exists and other prerequisites
 
-	if err := repository.SetSelf(nodeName, l, cloudInit, nil); err != nil {
-		slog.Error("LinuxDriver.Provision", "msg", "failed to provision node", "error", err)
+	if err := l.ctx.Repository.SetSelf(l.ctx.NodeName, l, nil); err != nil {
+		slog.Error("LinuxDriver.Register", "msg", "failed to register node", "error", err)
 		return err
 	}
 
 	return nil
 }
 
-func (l *LinuxDriver) Deprovision(_ *string, repository common.NodesRepository) error {
-	return repository.DeleteSelf()
+func (l *LinuxDriver) Unregister() error {
+	return l.ctx.Repository.DeleteSelf()
 }
 
-func (l *LinuxDriver) GetDriverConfig() common.NodeDriverConfig {
-	var c any = l.Config
+func (l *LinuxDriver) Config() common.NodeDriverConfig {
+	var c any = l.config
 	return common.NodeDriverConfig{Driver: LinuxDriverID, DriverConfig: &c}
 }
 
-func (l *LinuxDriver) Start(_ *string, repository common.NodesRepository) error {
-	if !l.Config.WakeOnLan {
+func (l *LinuxDriver) PowerOn(_ *cloudinit.CloudInit) error {
+	if !l.config.WakeOnLan {
 		return nil
 	}
 
-	return launchWakeOnLan(l.Config.MAC)
+	return launchWakeOnLan(l.config.MAC)
 }
 
-func (l *LinuxDriver) Stop(_ *string, message string, time uint32, repository common.NodesRepository, _ bool) error {
+func (l *LinuxDriver) PowerOff() error {
+	cmd := exec.Command(shutdownCmd, "-h", "now")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to execute shutdown command: %w", err)
+	}
+	return nil
+}
+
+func (l *LinuxDriver) Shutdown(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -143,7 +124,7 @@ func (l *LinuxDriver) Stop(_ *string, message string, time uint32, repository co
 	return nil
 }
 
-func (l *LinuxDriver) Restart(_ *string, message string, time uint32, repository common.NodesRepository) error {
+func (l *LinuxDriver) Restart(message string, time uint32) error {
 	timeArg := "now"
 	if time > 0 {
 		timeArg = fmt.Sprintf("+%d", time)
@@ -156,10 +137,10 @@ func (l *LinuxDriver) Restart(_ *string, message string, time uint32, repository
 	return nil
 }
 
-func (l *LinuxDriver) UpdateStatus(_ *string, repository common.NodesRepository) (common.NodeStatus, error) {
+func (l *LinuxDriver) RefreshStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 
-func (l *LinuxDriver) GetState(_ *string, _ common.NodesRepository) (common.NodeState, error) {
+func (l *LinuxDriver) State() (common.NodeState, error) {
 	return cpu.GetNodeState()
 }

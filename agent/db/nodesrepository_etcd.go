@@ -2,13 +2,13 @@ package db
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"path"
 
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/cloudinit"
 )
 
 type EtcdNodesRepository struct {
@@ -18,17 +18,15 @@ type EtcdNodesRepository struct {
 type NodeValue struct {
 	NodeName         string                  `json:"node_name"`
 	NodeDriverConfig common.NodeDriverConfig `json:"node_driver_config"`
-	CloudInit        *cloudinit.CloudInit    `json:"cloud_init,omitempty"`
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error {
+func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
 	slog.Info("EtcdNodesRepository.SetSelf", "nodeName", nodeName)
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
-		NodeDriverConfig: driver.GetDriverConfig(),
-		CloudInit:        cloudInit,
+		NodeDriverConfig: driver.Config(),
 		Metadata:         metadata,
 	}
 
@@ -44,9 +42,13 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 		return err
 	}
 
-	if err := r.db.put(nodeKey, string(nodeJson)); err != nil {
+	if err := r.db.putIfNotExists(nodeKey, string(nodeJson)); err != nil {
 		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "db put", "error", err.Error())
-		return err
+		if errors.Is(err, ErrKeyAlreadyExists) {
+			return common.ErrNodeAlreadyConfigured
+		} else {
+			return err
+		}
 	}
 
 	return nil
@@ -74,7 +76,11 @@ func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 	nodeStr, err := r.db.get(nodeKey)
 	if err != nil {
 		slog.Debug("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "getting node", "error", err.Error())
-		return common.NodeEntry{}, err
+		if errors.Is(err, ErrKeyNotFound) {
+			return common.NodeEntry{}, common.ErrNodeNotConfigured
+		} else {
+			return common.NodeEntry{}, err
+		}
 	}
 
 	var nodeValue NodeValue
@@ -83,7 +89,7 @@ func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
+	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
@@ -109,7 +115,7 @@ func (r *EtcdNodesRepository) DeleteSelf() error {
 	_, err = r.db.get(nodeKey)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "node not found", "error", err.Error())
-		return fmt.Errorf("node key '%s' not found", nodeKey)
+		return common.ErrNodeNotConfigured
 	}
 
 	if err := r.db.delete(nodeKey); err != nil {
@@ -120,13 +126,12 @@ func (r *EtcdNodesRepository) DeleteSelf() error {
 	return nil
 }
 
-func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error {
+func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
 	slog.Info("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeValue := NodeValue{
 		NodeName:         guestNodeName,
-		NodeDriverConfig: guestDriver.GetDriverConfig(),
-		CloudInit:        cloudInit,
+		NodeDriverConfig: guestDriver.Config(),
 		Metadata:         metadata,
 	}
 
@@ -142,9 +147,13 @@ func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 		return err
 	}
 
-	if err := r.db.put(guestNodeKey, string(guestNodeJson)); err != nil {
+	if err := r.db.putIfNotExists(guestNodeKey, string(guestNodeJson)); err != nil {
 		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "db put", "error", err.Error())
-		return err
+		if errors.Is(err, ErrKeyAlreadyExists) {
+			return common.ErrNodeAlreadyConfigured
+		} else {
+			return err
+		}
 	}
 
 	return nil
@@ -163,7 +172,7 @@ func (r *EtcdNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver 
 	_, err = r.db.get(guestNodeKey)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "node not found", "error", err.Error())
-		return fmt.Errorf("node key '%s' not found", guestNodeKey)
+		return common.ErrNodeNotConfigured
 	}
 
 	if err := r.db.delete(guestNodeKey); err != nil {
@@ -195,7 +204,7 @@ func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEnt
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(nodeValue.NodeDriverConfig)
+	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
 	if err != nil {
 		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
@@ -241,7 +250,7 @@ func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 		return err
 	}
 
-	return r.db.OptimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.optimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
@@ -262,7 +271,7 @@ func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn
 		return err
 	}
 
-	return r.db.OptimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.optimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err

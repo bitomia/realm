@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	loadsPkg "github.com/bitomia/realm/drivers/loads"
 )
@@ -14,6 +15,10 @@ func init() {
 	if err := RegisterStdDrivers(); err != nil {
 		panic(err)
 	}
+
+	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
+		return common.NodeContext{Repository: nil, NodeName: nodeName, RunMode: common.ClientMode}
+	})
 }
 
 func resetConfigs() {
@@ -66,7 +71,7 @@ loads:
 
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")
-	assert.Equal(t, loads["web"].Driver.GetLoadDriverID(), loadsPkg.ContainerDriverID)
+	assert.Equal(t, loads["web"].Driver.ID(), loadsPkg.ContainerDriverID)
 	assert.Equal(t, loads["web"].Driver.(*loadsPkg.ContainerDriver).Config.Image, "docker.io/nginx")
 }
 
@@ -148,7 +153,7 @@ loads:
 
 	webLoad := loads["bindmount_web"]
 	assert.NotNil(t, webLoad)
-	assert.Equal(t, webLoad.Driver.GetLoadDriverID(), loadsPkg.ContainerDriverID)
+	assert.Equal(t, webLoad.Driver.ID(), loadsPkg.ContainerDriverID)
 
 	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
 	assert.Equal(t, "docker.io/nginx", containerDriver.Config.Image)

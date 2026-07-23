@@ -17,7 +17,7 @@ import (
 func GetAgentId() (string, error) {
 	dataPath := config.Get().DataPath
 	if dataPath == "" {
-		return "", fmt.Errorf("invalid data path")
+		return "", fmt.Errorf("invalid data path '%s'", dataPath)
 	}
 	idPath := filepath.Join(dataPath, "node.id")
 
@@ -42,12 +42,6 @@ func GetAgentId() (string, error) {
 	err := os.WriteFile(idPath, []byte(newUUID), 0644)
 	if err != nil {
 		slog.Error("Error writing agent ID", "error", err)
-		debug.PrintStack()
-		os.Exit(1)
-	}
-
-	if err != nil {
-		slog.Error("Error retrieving agent ID", "error", err)
 		debug.PrintStack()
 		os.Exit(1)
 	}

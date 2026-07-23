@@ -40,11 +40,11 @@ func NewMockLoadDriverFromConfig(c map[string]any) (common.LoadDriver, error) {
 	return mockLoadDriver{Value: c["value"].(string), ShouldFail: c["should_fail"].(bool)}, nil
 }
 
-func (m mockLoadDriver) GetLoadDriverID() common.LoadDriverID {
+func (m mockLoadDriver) ID() common.LoadDriverID {
 	return MockLoadDriverID
 }
 
-func (m mockLoadDriver) DriverInfo() common.LoadDriverInfo {
+func (m mockLoadDriver) Info() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  MockLoadDriverID,
 		New: func(config any) (common.LoadDriver, error) { return m, nil },

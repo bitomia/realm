@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/agent/mdns"
 	"github.com/bitomia/realm/agent/proxy"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 )
 
@@ -36,15 +38,27 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	agentConfig.Set(cfg)
 
 	// Configure slog handler based on log format
+	logLevel := slog.LevelInfo // default log level
+	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	case "debug":
+		logLevel = slog.LevelDebug
+	case "warn", "warning":
+		logLevel = slog.LevelWarn
+	case "error":
+		logLevel = slog.LevelError
+	}
+	logOptions := slog.HandlerOptions{
+		Level: logLevel,
+	}
 	var handler slog.Handler
 	switch cfg.Agent.LogFormat {
 	case "json":
-		handler = slog.NewJSONHandler(os.Stdout, nil)
+		handler = slog.NewJSONHandler(os.Stdout, &logOptions)
 	case "text":
-		handler = slog.NewTextHandler(os.Stdout, nil)
+		handler = slog.NewTextHandler(os.Stdout, &logOptions)
 	default:
 		slog.Warn("Invalid log format, defaulting to text", "format", cfg.Agent.LogFormat)
-		handler = slog.NewTextHandler(os.Stdout, nil)
+		handler = slog.NewTextHandler(os.Stdout, &logOptions)
 	}
 	slog.SetDefault(slog.New(handler))
 
@@ -74,6 +88,10 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 			os.Exit(1)
 		}
 	}
+
+	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
+		return common.NodeContext{Repository: db.NodesRepository, NodeName: nodeName, RunMode: common.AgentMode}
+	})
 
 	if err := dns.Initialize(); err != nil {
 		slog.Error("DNS initialization failed", "error", err.Error())

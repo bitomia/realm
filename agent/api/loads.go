@@ -28,7 +28,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 			LoadName:         d.LoadName,
 			DeploymentId:     d.ID.String(),
 			DeploymentStatus: status,
-			Driver:           string(d.LoadDriver.GetLoadDriverID()),
+			Driver:           string(d.LoadDriver.ID()),
 			DriverConfig:     d.LoadDriver.GetDriverConfig().DriverConfig,
 			Metadata:         d.Metadata,
 		})
@@ -89,7 +89,7 @@ func StopLoadDeployments(loadName string) error {
 
 	// Stop deployments
 	for _, deployment := range deployments {
-		slog.Info("StopLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		slog.Info("StopLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
 		if err := deployment.LoadDriver.Stop(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func KillLoadDeployments(loadName string) error {
 
 	// Kill deployments
 	for _, deployment := range deployments {
-		slog.Info("KillLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		slog.Info("KillLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
 		if err := deployment.LoadDriver.Kill(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, fmt.Errorf("node not provisioned")
 	}
 
-	nodeStatus, err := node.NodeDriver.UpdateStatus(&node.NodeName, database.NodesRepository)
+	nodeStatus, err := node.NodeDriver.RefreshStatus()
 	if err != nil {
 		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}
@@ -184,7 +184,7 @@ func DeprovisionLoadDeployments(loadName string) error {
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("DeprovisionLoad", "loadName", loadName, "driverID", deployment.LoadDriver.GetLoadDriverID())
+		slog.Info("DeprovisionLoad", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
 		if err := deployment.LoadDriver.Deprovision(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}

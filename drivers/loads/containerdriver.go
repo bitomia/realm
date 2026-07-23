@@ -77,33 +77,15 @@ func NewContainerDriver(c any) (common.LoadDriver, error) {
 	return driver, nil
 }
 
-func (c *ContainerDriver) DriverInfo() common.LoadDriverInfo {
+func (c *ContainerDriver) ID() common.LoadDriverID {
+	return ContainerDriverID
+}
+
+func (c *ContainerDriver) Info() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  ContainerDriverID,
 		New: NewContainerDriver,
 	}
-}
-
-func (c *ContainerDriver) GetLoadDriverID() common.LoadDriverID {
-	return ContainerDriverID
-}
-
-func (c *ContainerDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(c.GetDriverConfig())
-}
-
-func (c *ContainerDriver) UnmarshalJSON(data []byte) error {
-	var config map[string]any
-	if err := json.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	loadDriver, err := NewContainerDriver(config)
-	if err != nil {
-		return err
-	}
-	*c = *loadDriver.(*ContainerDriver)
-	return nil
 }
 
 func (c *ContainerDriver) verifyConfig() error {

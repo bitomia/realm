@@ -161,7 +161,7 @@ func (db *AgentDB) DeleteDNSRecord(key string) error {
 
 // ReleaseSubnet releases the subnet assignment for a network
 func (db *AgentDB) ReleaseSubnet(network string) error {
-	return db.DeleteSubnetOffset(network)
+	return db.deleteSubnetOffset(network)
 }
 
 // GetNetworkContainerCount returns the number of containers using a network

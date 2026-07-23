@@ -33,7 +33,7 @@ func (db *AgentDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID
 		return err
 	}
 
-	return db.PutWithLease(healthKey, string(value), leaseId)
+	return db.putWithLease(healthKey, string(value), leaseId)
 }
 
 func (db *AgentDB) GetHealthStatus(hostname string) (HealthStatus, error) {

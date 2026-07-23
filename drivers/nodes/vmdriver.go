@@ -1,3 +1,5 @@
+//go:build ignore
+
 package nodes
 
 import (
@@ -58,13 +60,12 @@ type VMConfig struct {
 // VMNodeMetadata is persisted in the nodes repository and used to
 // rehydrate the libvirt domain XML across agent restarts.
 type VMNodeMetadata struct {
-	DomainName string               `json:"domain_name"`
-	DomainXML  string               `json:"domain_xml"`
-	Drives     map[int]OverlayImage `json:"overlay_drives"`
+	Drives map[int]OverlayImage `json:"overlay_drives"`
 }
 
 type VMDriver struct {
-	Config VMConfig
+	config VMConfig
+	ctx    common.NodeContext
 }
 
 func stringToSliceHook(from reflect.Type, to reflect.Type, data any) (any, error) {
@@ -74,7 +75,7 @@ func stringToSliceHook(from reflect.Type, to reflect.Type, data any) (any, error
 	return data, nil
 }
 
-func NewVMDriverFromConfig(c *any) (common.NodeDriver, error) {
+func NewVMDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
 	var cfg VMConfig
 	if c != nil {
 		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
@@ -90,77 +91,54 @@ func NewVMDriverFromConfig(c *any) (common.NodeDriver, error) {
 		}
 	}
 
-	return &VMDriver{Config: cfg}, nil
+	return &VMDriver{config: cfg}, nil
 }
 
-func (q *VMDriver) DriverInfo() (common.NodeDriverInfo, error) {
+func (q *VMDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		VMDriverID,
 		NewVMDriverFromConfig,
-		common.WithStartMode(common.AgentMode),
 		common.WithGuestMode(),
 	)
 }
 
-func (q *VMDriver) GetNodeDriverID() common.NodeDriverID {
+func (q *VMDriver) ID() common.NodeDriverID {
 	return VMDriverID
 }
 
-func (q *VMDriver) Provision(nodeName string, cloudInit *cloudinit.CloudInit, repository common.NodesRepository) error {
-	slog.Info("VMDriver.Provision", "msg", "preparing libvirt domain", "node", nodeName)
+func (q *VMDriver) Register() error {
+	slog.Info("VMDriver.Register", "msg", "preparing libvirt domain", "node", q.ctx.NodeName)
 
-	overlayDrives, err := resolveDrives(q.Config.Drives, nodeName, q.libvirtSocket())
+	overlayDrives, err := createDrives(q.config.Drives, q.ctx.NodeName, q.libvirtSocket())
 	if err != nil {
 		return fmt.Errorf("vm: failed to resolve drive images: %w", err)
 	}
 
-	var cloudInitHost *string = nil
-	if cloudInit != nil {
-		cfg := config.Get()
-		cloudInitHostStr := fmt.Sprintf("%s:%d", q.resolveCloudInitHost(cfg), cfg.Agent.ListenPort)
-		cloudInitHost = &cloudInitHostStr
-		if err := commonConfig.EvalVars(cloudInit, map[string]string{"cloud_init_host": cloudInitHostStr}); err != nil {
-			return err
-		}
-	}
-
-	domainXML, err := q.buildDomainXML(nodeName, overlayDrives, cloudInitHost)
-	if err != nil {
-		cleanupOverlays(nodeName)
-		return fmt.Errorf("vm: failed to build domain XML: %w", err)
-	}
-
 	metadata := VMNodeMetadata{
-		DomainName: nodeName,
-		DomainXML:  domainXML,
-		Drives:     overlayDrives,
+		Drives: overlayDrives,
 	}
 
-	if err := repository.SetGuestNode(nodeName, q, cloudInit, metadata); err != nil {
-		slog.Error("VMDriver.Provision", "msg", "failed to persist guest node", "error", err)
+	if err := q.ctx.Repository.SetGuestNode(q.ctx.NodeName, q, metadata); err != nil {
+		slog.Error("VMDriver.Register", "msg", "failed to persist guest node", "error", err)
 		for _, d := range overlayDrives {
 			d.Cleanup()
 		}
 		return err
 	}
 
-	slog.Info("VMDriver.Provision", "msg", "domain prepared (not yet started)", "node", nodeName)
+	slog.Info("VMDriver.Register", "msg", "domain prepared (not yet started)", "node", q.ctx.NodeName)
 	return nil
 }
 
-func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesRepository) error {
-	if nodeName == nil {
-		return fmt.Errorf("vMDriver expects node name for guest node deprovision")
-	}
-
-	self, err := repository.GetGuestNode(*nodeName)
+func (q *VMDriver) Unregister() error {
+	self, err := q.ctx.Repository.GetGuestNode(q.ctx.NodeName)
 	if err == nil {
 		metadata, mErr := common.CastMetadata[VMNodeMetadata](&self.Metadata)
 		if mErr != nil {
-			slog.Warn("VMDriver.Deprovision", "msg", "cannot cast metadata", "error", mErr)
+			slog.Warn("VMDriver.Unregister", "msg", "cannot cast metadata", "error", mErr)
 		} else {
 			if err := withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-				d, found, err := lookupDomain(l, metadata.DomainName)
+				d, found, err := lookupDomain(l, q.ctx.NodeName)
 				if err != nil {
 					return err
 				}
@@ -172,7 +150,7 @@ func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesReposito
 				}
 				return nil
 			}); err != nil {
-				slog.Warn("VMDriver.Deprovision", "msg", "failed to destroy domain", "error", err)
+				slog.Warn("VMDriver.Unregister", "msg", "failed to destroy domain", "error", err)
 			}
 			for _, drive := range metadata.Drives {
 				drive.Cleanup()
@@ -180,52 +158,27 @@ func (q *VMDriver) Deprovision(nodeName *string, repository common.NodesReposito
 		}
 	}
 
-	return repository.DeleteGuestNode(*nodeName, q, self.Metadata)
+	return q.ctx.Repository.DeleteGuestNode(q.ctx.NodeName, q, self.Metadata)
 }
 
-func (q *VMDriver) GetDriverConfig() common.NodeDriverConfig {
-	var c any = q.Config
+func (q *VMDriver) Config() common.NodeDriverConfig {
+	var c any = q.config
 	return common.NodeDriverConfig{Driver: VMDriverID, DriverConfig: &c}
 }
 
-func (q *VMDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(q.GetDriverConfig())
-}
-
 func (q *VMDriver) libvirtSocket() string {
-	if q.Config.LibVirtSocket != nil {
-		return *q.Config.LibVirtSocket
+	if q.config.LibVirtSocket != nil {
+		return *q.config.LibVirtSocket
 	}
 	return defaultLibVirtSocket
 }
 
-func (q *VMDriver) UnmarshalJSON(data []byte) error {
-	var cfgMap map[string]any
-	if err := json.Unmarshal(data, &cfgMap); err != nil {
-		return err
-	}
-
-	var nodeDriver common.NodeDriver
-	var err error
-	if len(cfgMap) > 0 {
-		var a any = cfgMap
-		nodeDriver, err = NewVMDriverFromConfig(&a)
-	} else {
-		nodeDriver, err = NewVMDriverFromConfig(nil)
-	}
-	if err != nil {
-		return err
-	}
-	*q = *nodeDriver.(*VMDriver)
-	return nil
-}
-
 func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]OverlayImage, cloudInitHost *string) (string, error) {
 	dom := xDomain{
-		Type: domainTypeFromAccel(q.Config.Accel),
+		Type: domainTypeFromAccel(q.config.Accel),
 		Name: nodeName,
 		OS: xOS{
-			Type: xOSType{Machine: q.Config.Machine, Value: "hvm"},
+			Type: xOSType{Machine: q.config.Machine, Value: "hvm"},
 		},
 		Features: &xFeatures{ACPI: &struct{}{}},
 		Devices: xDevices{
@@ -233,17 +186,17 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		},
 	}
 
-	if q.Config.Memory > 0 {
-		dom.Memory = &xMemory{Unit: "MiB", Value: q.Config.Memory}
+	if q.config.Memory > 0 {
+		dom.Memory = &xMemory{Unit: "MiB", Value: q.config.Memory}
 	}
-	if vcpus := parseSMP(q.Config.SMP); vcpus > 0 {
+	if vcpus := parseSMP(q.config.SMP); vcpus > 0 {
 		dom.VCPU = &xVCPU{Value: vcpus}
 	}
-	if q.Config.CPU != "" {
-		dom.CPU = &xCPU{Mode: "custom", Model: q.Config.CPU}
+	if q.config.CPU != "" {
+		dom.CPU = &xCPU{Mode: "custom", Model: q.config.CPU}
 	}
 
-	for idx, drive := range q.Config.Drives {
+	for idx, drive := range q.config.Drives {
 		ov, ok := overlayDrives[idx]
 		if !ok {
 			continue
@@ -262,7 +215,7 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		dom.Devices.Disks = append(dom.Devices.Disks, d)
 	}
 
-	for _, nd := range q.Config.Netdev {
+	for _, nd := range q.config.Netdev {
 		iface, err := buildInterface(nd)
 		if err != nil {
 			return "", err
@@ -270,24 +223,24 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		dom.Devices.Interfaces = append(dom.Devices.Interfaces, iface)
 	}
 
-	if s := buildSerial(q.Config.Serial); s != nil {
+	if s := buildSerial(q.config.Serial); s != nil {
 		dom.Devices.Serials = append(dom.Devices.Serials, *s)
 		if s.Type == "pty" {
 			dom.Devices.Consoles = append(dom.Devices.Consoles, *s)
 		}
 	}
 
-	if len(q.Config.Params) > 0 {
+	if len(q.config.Params) > 0 {
 		dom.QemuXMLNS = qemuCommandlineNS
 		cmdline := &xQemuCmdline{}
-		for _, arg := range q.Config.Params {
+		for _, arg := range q.config.Params {
 			cmdline.Args = append(cmdline.Args, xQemuArg{Value: arg})
 		}
 		dom.QemuCmdline = cmdline
 	}
 
 	if cloudInitHost != nil {
-		slog.Info("VMDriver.Provision", "msg", "cloud-init host resolved", "host", *cloudInitHost, "node", nodeName)
+		slog.Info("VMDriver.Register", "msg", "cloud-init host resolved", "host", *cloudInitHost, "node", nodeName)
 		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s/cloudinit/%s/", *cloudInitHost, nodeName)
 		dom.SysInfo = &xSysInfo{
 			Type: "smbios",
@@ -305,17 +258,30 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	return string(out), nil
 }
 
-func (q *VMDriver) Start(nodeName *string, repository common.NodesRepository) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
-	}
-	metadata, err := q.getMetadata(*nodeName, repository)
+func (q *VMDriver) PowerOn(cloudInit *cloudinit.CloudInit) error {
+	metadata, err := q.getMetadata(q.ctx.NodeName)
 	if err != nil {
 		return fmt.Errorf("vm: failed to get metadata: %w", err)
 	}
 
+	var cloudInitHost *string = nil
+	if cloudInit != nil {
+		cfg := config.Get()
+		cloudInitHostStr := fmt.Sprintf("%s:%d", q.resolveCloudInitHost(cfg), cfg.Agent.ListenPort)
+		cloudInitHost = &cloudInitHostStr
+		if err := commonConfig.EvalVars(cloudInit, map[string]string{"cloud_init_host": cloudInitHostStr}); err != nil {
+			return err
+		}
+	}
+
+	domainXML, err := q.buildDomainXML(q.ctx.NodeName, metadata.Drives, cloudInitHost)
+	if err != nil {
+		cleanupOverlays(q.ctx.NodeName)
+		return fmt.Errorf("vm: failed to build domain XML: %w", err)
+	}
+
 	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-		if d, found, err := lookupDomain(l, metadata.DomainName); err != nil {
+		if d, found, err := lookupDomain(l, q.ctx.NodeName); err != nil {
 			return err
 		} else if found {
 			state, _, err := l.DomainGetState(d, 0)
@@ -323,80 +289,64 @@ func (q *VMDriver) Start(nodeName *string, repository common.NodesRepository) er
 				return err
 			}
 			if libvirt.DomainState(state) == libvirt.DomainRunning {
-				slog.Info("VMDriver.Start", "msg", "domain already running", "node", *nodeName)
+				slog.Info("VMDriver.PowerOn", "msg", "domain already running", "node", q.ctx.NodeName)
 				return nil
 			}
 			if err := l.DomainDestroy(d); err != nil && !libvirt.IsNotFound(err) {
 				return err
 			}
 		}
-		if _, err := l.DomainCreateXML(metadata.DomainXML, 0); err != nil {
+		if _, err := l.DomainCreateXML(domainXML, 0); err != nil {
 			return fmt.Errorf("vm: DomainCreateXML failed: %w", err)
 		}
-		slog.Info("VMDriver.Start", "msg", "domain started", "node", *nodeName)
+		slog.Info("VMDriver.PowerOn", "msg", "domain started", "node", q.ctx.NodeName)
 		return nil
 	})
 }
 
-func (q *VMDriver) Stop(nodeName *string, _ string, _ uint32, repository common.NodesRepository, force bool) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
-	}
-	metadata, err := q.getMetadata(*nodeName, repository)
-	if err != nil {
-		return fmt.Errorf("vm: failed to get metadata: %w", err)
-	}
-
+func (q *VMDriver) PowerOff() error {
 	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-		d, found, err := lookupDomain(l, metadata.DomainName)
+		d, found, err := lookupDomain(l, q.ctx.NodeName)
 		if err != nil {
 			return err
 		}
 		if !found {
 			return nil
 		}
-		if force {
-			return l.DomainDestroy(d)
+		return l.DomainDestroy(d)
+	})
+}
+
+func (q *VMDriver) Shutdown(_ string, _ uint32) error {
+	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
+		d, found, err := lookupDomain(l, q.ctx.NodeName)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return nil
 		}
 		return l.DomainShutdown(d)
 	})
 }
 
-func (q *VMDriver) Restart(nodeName *string, _ string, _ uint32, repository common.NodesRepository) error {
-	if nodeName == nil {
-		return fmt.Errorf("nodeName cannot be nil")
-	}
-	metadata, err := q.getMetadata(*nodeName, repository)
-	if err != nil {
-		return fmt.Errorf("getMetadata on Restart failed: %s", err.Error())
-	}
-
+func (q *VMDriver) Restart(_ string, _ uint32) error {
 	return withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-		d, found, err := lookupDomain(l, metadata.DomainName)
+		d, found, err := lookupDomain(l, q.ctx.NodeName)
 		if err != nil {
 			return err
 		}
 		if !found {
-			return fmt.Errorf("vm: domain %q is not running", metadata.DomainName)
+			return fmt.Errorf("vm: domain %q is not running", q.ctx.NodeName)
 		}
 		return l.DomainReboot(d, 0)
 	})
 }
 
-func (q *VMDriver) UpdateStatus(nodeName *string, repository common.NodesRepository) (common.NodeStatus, error) {
-	if nodeName == nil {
-		err := fmt.Errorf("getMetadata on UpdateStatus failed: nodeName cannot be nil")
-		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}, err
-	}
-	metadata, err := q.getMetadata(*nodeName, repository)
-	if err != nil {
-		e := fmt.Errorf("getMetadata on UpdateStatus failed: %s", err.Error())
-		return common.NodeStatus{StatusCode: common.NodeStatusError, Reason: e.Error()}, e
-	}
-
+func (q *VMDriver) RefreshStatus() (common.NodeStatus, error) {
 	var status common.NodeStatus
-	err = withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-		d, found, err := lookupDomain(l, metadata.DomainName)
+	err := withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
+		d, found, err := lookupDomain(l, q.ctx.NodeName)
 		if err != nil {
 			return err
 		}
@@ -428,26 +378,17 @@ func (q *VMDriver) UpdateStatus(nodeName *string, repository common.NodesReposit
 	return status, nil
 }
 
-func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository) (common.NodeState, error) {
+func (q *VMDriver) State() (common.NodeState, error) {
 	state := common.NodeState{}
 
-	self, err := repository.GetGuestNode(*nodeName)
-	if err != nil {
-		return state, err
-	}
-	metadata, err := common.CastMetadata[VMNodeMetadata](&self.Metadata)
-	if err != nil {
-		return state, fmt.Errorf("vMDriver.GetState cannot cast metadata: %s", err.Error())
-	}
-
-	err = withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
-		d, found, err := lookupDomain(l, metadata.DomainName)
+	err := withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
+		d, found, err := lookupDomain(l, q.ctx.NodeName)
 		if err != nil {
 			return err
 		}
 		if !found {
-			if q.Config.Memory > 0 {
-				state.TotalMem = uint64(q.Config.Memory) * 1024 * 1024
+			if q.config.Memory > 0 {
+				state.TotalMem = uint64(q.config.Memory) * 1024 * 1024
 			}
 			return nil
 		}
@@ -491,7 +432,7 @@ func (q *VMDriver) GetState(nodeName *string, repository common.NodesRepository)
 
 		state.NetworkInterfaces = queryGuestInterfaces(l, d)
 		for _, ni := range state.NetworkInterfaces {
-			slog.Info("VMDriver.GetState", "node", *nodeName, "iface", ni.Name, "hwaddr", ni.HWAddr, "addrs", ni.Addresses)
+			slog.Info("VMDriver.GetState", "node", q.ctx.NodeName, "iface", ni.Name, "hwaddr", ni.HWAddr, "addrs", ni.Addresses)
 		}
 		return nil
 	})
@@ -505,7 +446,7 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	// find first bridged netdev
 	var bridgeName string
 	hasBridgedNetdev := false
-	for _, nd := range q.Config.Netdev {
+	for _, nd := range q.config.Netdev {
 		if nd.Type != "" && nd.Type != "user" {
 			hasBridgedNetdev = true
 			bridgeName = nd.BR
@@ -542,8 +483,8 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	return "10.0.2.2"
 }
 
-func (q *VMDriver) getMetadata(nodeName string, repository common.NodesRepository) (*VMNodeMetadata, error) {
-	node, err := repository.GetGuestNode(nodeName)
+func (q *VMDriver) getMetadata(nodeName string) (*VMNodeMetadata, error) {
+	node, err := q.ctx.Repository.GetGuestNode(nodeName)
 	if err != nil {
 		return nil, err
 	}

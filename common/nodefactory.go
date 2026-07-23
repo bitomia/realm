@@ -1,7 +1,9 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type NodeDriverConfig struct {
@@ -9,10 +11,43 @@ type NodeDriverConfig struct {
 	DriverConfig *any         `json:"driver_config"`
 }
 
+// Equal compares two NodeDriverConfig by normalizing both DriverConfig
+// values through JSON, since one side may hold a concrete driver struct
+// and the other a map[string]any decoded from JSON.
+func (d NodeDriverConfig) Equal(other NodeDriverConfig) bool {
+	if d.Driver != other.Driver {
+		return false
+	}
+
+	a, err := normalizeDriverConfig(d.DriverConfig)
+	if err != nil {
+		return false
+	}
+	b, err := normalizeDriverConfig(other.DriverConfig)
+	if err != nil {
+		return false
+	}
+
+	return reflect.DeepEqual(a, b)
+}
+
+func normalizeDriverConfig(c *any) (any, error) {
+	data, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+
+	var normalized any
+	if err := json.Unmarshal(data, &normalized); err != nil {
+		return nil, err
+	}
+	return normalized, nil
+}
+
 var nodeDrivers = make(map[NodeDriverID]NodeDriverInfo)
 
 func RegisterNodeDriver(d NodeDriver) error {
-	info, err := d.DriverInfo()
+	info, err := d.Info()
 	if err != nil {
 		return err
 	}
@@ -33,13 +68,15 @@ func UnregisterNodeDriver(id NodeDriverID) error {
 	return nil
 }
 
-func BuildNodeDriver(d NodeDriverConfig) (NodeDriver, error) {
+func BuildNodeDriver(ctx NodeContext, d NodeDriverConfig) (NodeDriver, error) {
 	if _, exists := nodeDrivers[d.Driver]; !exists {
 		return nil, fmt.Errorf("nodeDriverID '%s' not registered", d.Driver)
 	}
-	driver, err := nodeDrivers[d.Driver].New(d.DriverConfig)
+
+	driver, err := nodeDrivers[d.Driver].New(ctx, d.DriverConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	return driver, nil
 }

@@ -1,3 +1,5 @@
+//go:build ignore
+
 package nodes
 
 import (
@@ -138,7 +140,7 @@ func downloadImage(rawURL string) (string, error) {
 	return cachedPath, nil
 }
 
-func resolveDrives(drives []VMDrive, nodeName, socket string) (map[int]OverlayImage, error) {
+func createDrives(drives []VMDrive, nodeName, socket string) (map[int]OverlayImage, error) {
 	overlays := make(map[int]OverlayImage)
 	for i := range drives {
 		imagePath := drives[i].File

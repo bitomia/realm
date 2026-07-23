@@ -2,16 +2,19 @@ package common
 
 import (
 	"encoding/json"
-
-	"github.com/bitomia/realm/common/cloudinit"
+	"errors"
 )
 
 type NodeEntry struct {
 	NodeName   string
 	NodeDriver NodeDriver
-	CloudInit  *cloudinit.CloudInit
 	Metadata   any
 }
+
+var (
+	ErrNodeNotConfigured     = errors.New("node not configured")
+	ErrNodeAlreadyConfigured = errors.New("node already configured")
+)
 
 // Store interface for nodes
 //
@@ -20,7 +23,7 @@ type NodeEntry struct {
 // so no memory references must be used
 type NodesRepository interface {
 	// SetSelf creates or updates the node for the caller
-	SetSelf(nodeName string, driver NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error
+	SetSelf(nodeName string, driver NodeDriver, metadata any) error
 
 	// GetSelf return nodeentry for the caller node
 	GetSelf() (NodeEntry, error)
@@ -35,7 +38,7 @@ type NodesRepository interface {
 	GetByAgentId(agentId string) (NodeEntry, error)
 
 	// SetGuestNode creates or update the guest node entry for the caller host node
-	SetGuestNode(guestNodeName string, guestDriver NodeDriver, cloudInit *cloudinit.CloudInit, metadata any) error
+	SetGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
 
 	// GetGuestNode returns a guest node of the caller host node
 	GetGuestNode(guestNodeName string) (NodeEntry, error)

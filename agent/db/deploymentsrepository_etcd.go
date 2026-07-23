@@ -263,7 +263,7 @@ func (r *EtcdDeploymentsRepository) UpdateMetadata(deploymentID common.Deploymen
 		return err
 	}
 
-	return r.db.OptimisticUpdate(deploymentKey, func(deploymentData []byte) ([]byte, error) {
+	return r.db.optimisticUpdate(deploymentKey, func(deploymentData []byte) ([]byte, error) {
 		var deployment DeploymentValue
 		if err := json.Unmarshal(deploymentData, &deployment); err != nil {
 			return nil, err

@@ -2,7 +2,7 @@ package db
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"os"
 	"sync"
@@ -15,6 +15,11 @@ import (
 	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/common"
+)
+
+var (
+	ErrKeyNotFound      = errors.New("key not found")
+	ErrKeyAlreadyExists = errors.New("key already exists")
 )
 
 type AgentDB struct {
@@ -188,17 +193,6 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-func (db *AgentDB) PutWithLease(key, value string, leaseID clientv3.LeaseID) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	_, err := db.client.Put(ctx, key, value, clientv3.WithLease(leaseID))
-	if err != nil {
-		slog.Error("Error putting key %s with lease", "key", key, "error", err.Error())
-	}
-	return err
-}
-
 func (db *AgentDB) CreateLease(ttl int64) (clientv3.LeaseID, error) {
 	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
 	defer cancel()
@@ -213,78 +207,4 @@ func (db *AgentDB) CreateLease(ttl int64) (clientv3.LeaseID, error) {
 
 func (db *AgentDB) KeepAlive(leaseID clientv3.LeaseID) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	return db.client.KeepAlive(db.ctx, leaseID)
-}
-
-// createIfNotExists creates a key only if it doesn't already exist.
-// Returns an error if the key already exists or if there's an etcd error.
-func (db *AgentDB) createIfNotExists(key, value string) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	// Use transaction to check if key doesn't exist (CreateRevision == 0)
-	txn := db.client.Txn(ctx)
-	txn = txn.If(clientv3.Compare(clientv3.CreateRevision(key), "=", 0))
-	txn = txn.Then(clientv3.OpPut(key, value))
-
-	tresp, err := txn.Commit()
-	if err != nil {
-		slog.Error("createIfNotExists: error committing transaction", "key", key, "error", err.Error())
-		return err
-	}
-
-	if !tresp.Succeeded {
-		return fmt.Errorf("key '%s' already exists", key)
-	}
-
-	return nil
-}
-
-// OptimisticUpdate performs an optimistic lock update on a key.
-// The updateFn receives the current value and should return the updated value.
-// Returns an error if the key doesn't exist or if there's an etcd error.
-func (db *AgentDB) OptimisticUpdate(key string, updateFn func(currentValue []byte) ([]byte, error)) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	// Retry loop for optimistic locking
-	for {
-		// Get current value and revision
-		resp, err := db.client.Get(ctx, key)
-		if err != nil {
-			slog.Error("OptimisticUpdate: error getting key", "key", key, "error", err.Error())
-			return err
-		}
-
-		if len(resp.Kvs) == 0 {
-			return fmt.Errorf("key '%s' not found", key)
-		}
-
-		currentValue := resp.Kvs[0].Value
-		currentRevision := resp.Kvs[0].ModRevision
-
-		// Apply the update function
-		newValue, err := updateFn(currentValue)
-		if err != nil {
-			return err
-		}
-
-		// Use transaction with compare-and-swap to ensure atomicity
-		txn := db.client.Txn(ctx)
-		txn = txn.If(clientv3.Compare(clientv3.ModRevision(key), "=", currentRevision))
-		txn = txn.Then(clientv3.OpPut(key, string(newValue)))
-
-		tresp, err := txn.Commit()
-		if err != nil {
-			slog.Error("OptimisticUpdate: error committing transaction", "key", key, "error", err.Error())
-			return err
-		}
-
-		if tresp.Succeeded {
-			return nil
-		}
-
-		// Transaction failed due to concurrent modification, retry
-		slog.Debug("OptimisticUpdate: concurrent modification detected, retrying", "key", key)
-		time.Sleep(10 * time.Millisecond)
-	}
 }
