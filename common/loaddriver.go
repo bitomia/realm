@@ -16,16 +16,10 @@ type LoadDriverInfo struct {
 
 type LoadDriver interface {
 	// GetLoadDriverID returns the unique identifier for this load driver.
-	GetLoadDriverID() LoadDriverID
+	ID() LoadDriverID
 
-	// DriverInfo returns metadata describing the driver for internal factory use.
-	DriverInfo() LoadDriverInfo
-
-	// MarshalJSON serializes the driver into JSON.
-	MarshalJSON() ([]byte, error)
-
-	// UnmarshalJSON deserializes the driver from JSON.
-	UnmarshalJSON(data []byte) error
+	// Info returns driver description for internal factory use.
+	Info() LoadDriverInfo
 
 	// Provision validates prerequisites and creates a deployment in "provisioned" status.
 	// It shall check load requirements but it won't check depending loads.

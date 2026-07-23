@@ -33,7 +33,7 @@ func (e *LoadDriverError) Error() string {
 var loadDrivers = make(map[LoadDriverID]LoadDriverInfo)
 
 func RegisterLoadDriver(d LoadDriver) error {
-	info := d.DriverInfo()
+	info := d.Info()
 	if _, exists := loadDrivers[info.ID]; exists {
 		return &LoadDriverError{Code: LoadDriverErrAlreadyRegistered, DriverID: info.ID}
 	}

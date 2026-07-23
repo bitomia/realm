@@ -80,33 +80,15 @@ func NewProcessDriver(c any) (common.LoadDriver, error) {
 	return driver, nil
 }
 
-func (c ProcessDriver) DriverInfo() common.LoadDriverInfo {
+func (c ProcessDriver) ID() common.LoadDriverID {
+	return ProcessDriverID
+}
+
+func (c ProcessDriver) Info() common.LoadDriverInfo {
 	return common.LoadDriverInfo{
 		ID:  ProcessDriverID,
 		New: NewProcessDriver,
 	}
-}
-
-func (c ProcessDriver) GetLoadDriverID() common.LoadDriverID {
-	return ProcessDriverID
-}
-
-func (p *ProcessDriver) MarshalJSON() ([]byte, error) {
-	return json.Marshal(p.GetDriverConfig())
-}
-
-func (p *ProcessDriver) UnmarshalJSON(data []byte) error {
-	var config map[string]any
-	if err := json.Unmarshal(data, &config); err != nil {
-		return err
-	}
-
-	loadDriver, err := NewProcessDriver(config)
-	if err != nil {
-		return err
-	}
-	*p = *loadDriver.(*ProcessDriver)
-	return nil
 }
 
 func (p *ProcessDriver) verifyConfig() error {
