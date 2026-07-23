@@ -23,7 +23,7 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-func setDefaults(networkConfig NetworkConfig) {
+func setDefaults() {
 	// Set platform-specific default paths
 	var dataPath, containerdSock, cniPath string
 	if runtime.GOOS == "windows" {
@@ -46,11 +46,6 @@ func setDefaults(networkConfig NetworkConfig) {
 		cniPath = "/usr/lib/cni"
 	}
 
-	etcdListenIPAdddress := "127.0.0.1"
-	if networkConfig.IPAddress != nil {
-		etcdListenIPAdddress = networkConfig.IPAddress.String()
-	}
-
 	viper.SetDefault("data_path", dataPath)
 	viper.SetDefault("agent.cni_path", cniPath)
 	viper.SetDefault("agent.volumes_pool", "realm_volumes")
@@ -63,11 +58,6 @@ func setDefaults(networkConfig NetworkConfig) {
 	viper.SetDefault("agent.master_caddy_url", "localhost:2019")
 	viper.SetDefault("agent.containerd_sock", containerdSock)
 	viper.SetDefault("agent.containerd_namespace", "realm")
-	viper.SetDefault("agent.etcd_mode", "server")
-	viper.SetDefault("agent.etcd_endpoints", []string{})
-	viper.SetDefault("agent.etcd_listen_client_url", fmt.Sprintf("http://%s:2379", etcdListenIPAdddress))
-	viper.SetDefault("agent.etcd_listen_peer_url", fmt.Sprintf("http://%s:2380", etcdListenIPAdddress))
-	viper.SetDefault("agent.etcd_initial_cluster", "")
 	viper.SetDefault("agent.artifacts.auth_required", false)
 }
 
@@ -213,8 +203,8 @@ func checkForCycles(l map[string]*common.Load) error {
 }
 
 func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, configFilePath string) (*Config, error) {
-	networkConfig := autodetectNetworkConfig()
-	setDefaults(networkConfig)
+
+	setDefaults()
 
 	viper.AutomaticEnv()
 	viper.SetEnvPrefix("realm")
@@ -239,6 +229,7 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 		return nil, err
 	}
 
+	networkConfig := autodetectNetworkConfig()
 	// If listen_address is configured with a specific IP (not 127.0.0.1 or 0.0.0.0), use it to find the network interface
 	if viper.IsSet("agent.listen_address") && config.Agent.ListenAddress != "127.0.0.1" && config.Agent.ListenAddress != "0.0.0.0" {
 		configuredNetworkConfig, err := getNetworkConfigFromIP(config.Agent.ListenAddress)
@@ -249,19 +240,7 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 			slog.Info("Using network interface from configured listen_address", "ip", networkConfig.IPAddress.String(), "interface", networkConfig.Iface.Name)
 		}
 	}
-
 	config.NetworkConfig = networkConfig
-
-	if !viper.IsSet("agent.etcd_listen_client_url") {
-		if networkConfig.IPAddress != nil {
-			slog.Warn("etcd_listen_client_url not configured, using auto-detected network", "ip", networkConfig.IPAddress.String(), "url", config.Agent.EtcdListenClientUrl)
-		}
-	}
-	if !viper.IsSet("agent.etcd_listen_peer_url") {
-		if networkConfig.IPAddress != nil {
-			slog.Warn("etcd_listen_peer_url not configured, using auto-detected network", "ip", networkConfig.IPAddress, "url", config.Agent.EtcdListenPeerUrl)
-		}
-	}
 
 	// Populate node names from map keys
 	for nodeName, node := range config.Nodes {

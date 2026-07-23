@@ -1,19 +1,11 @@
 package db
 
 import (
-	"context"
-	"fmt"
-	"net"
-	"net/url"
-	"os"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/server/v3/embed"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/crypto/bcrypt"
 
 	agentConfig "github.com/bitomia/realm/agent/config"
@@ -30,70 +22,25 @@ func init() {
 	agentConfig.Set(cfg)
 }
 
-// getFreePort returns a free port on localhost
-func getFreePort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return 0, err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return 0, err
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port, nil
-}
-
-// setupTestDB creates a temporary etcd instance for testing
+// setupTestDB creates a temporary bbolt database for testing
 func setupTestDB(t *testing.T) (*AgentDB, func()) {
-	tmpDir := filepath.Join(os.TempDir(), fmt.Sprintf("realm-test-%d", time.Now().UnixNano()))
+	dbPath := t.TempDir() + "/realm.db"
 
-	// Get random free ports
-	clientPort, err := getFreePort()
-	require.NoError(t, err)
-	peerPort, err := getFreePort()
+	database, err := bolt.Open(dbPath, 0o600, nil)
 	require.NoError(t, err)
 
-	cfg := embed.NewConfig()
-	cfg.Dir = tmpDir
-	cfg.LogLevel = "error"
-
-	// Use random ports to avoid conflicts
-	clientURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", clientPort))
-	peerURL, _ := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", peerPort))
-
-	cfg.ListenClientUrls = []url.URL{*clientURL}
-	cfg.AdvertiseClientUrls = []url.URL{*clientURL}
-	cfg.ListenPeerUrls = []url.URL{*peerURL}
-	cfg.AdvertisePeerUrls = []url.URL{*peerURL}
-	cfg.InitialCluster = fmt.Sprintf("%s=%s", cfg.Name, peerURL.String())
-
-	e, err := embed.StartEtcd(cfg)
-	require.NoError(t, err)
-
-	select {
-	case <-e.Server.ReadyNotify():
-	case <-time.After(10 * time.Second):
-		e.Server.Stop()
-		t.Fatal("Etcd server took too long to start")
-	}
-
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{clientURL.String()},
-		DialTimeout: ETCD_TIMEOUT,
+	err = database.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists(bucketName)
+		return err
 	})
 	require.NoError(t, err)
 
 	db := &AgentDB{
-		client: client,
-		server: e,
-		ctx:    context.Background(),
+		bolt: database,
 	}
 
 	cleanup := func() {
 		db.Close()
-		os.RemoveAll(tmpDir)
 	}
 
 	return db, cleanup
@@ -399,15 +346,12 @@ func TestHealthStatus_PublishAndGet(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	leaseID, err := db.CreateLease(10)
-	require.NoError(t, err)
-
 	metadata := map[string]any{
 		"cpu":    "50%",
 		"memory": "2GB",
 	}
 
-	err = db.PublishHealthStatus("node1", leaseID, "healthy", metadata)
+	err := db.PublishHealthStatus("node1", "healthy", metadata)
 	assert.NoError(t, err)
 
 	status, err := db.GetHealthStatus("node1")
@@ -422,16 +366,10 @@ func TestHealthStatus_GetAll(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	leaseID1, err := db.CreateLease(10)
-	require.NoError(t, err)
-
-	leaseID2, err := db.CreateLease(10)
-	require.NoError(t, err)
-
-	err = db.PublishHealthStatus("node1", leaseID1, "healthy", nil)
+	err := db.PublishHealthStatus("node1", "healthy", nil)
 	assert.NoError(t, err)
 
-	err = db.PublishHealthStatus("node2", leaseID2, "unhealthy", nil)
+	err = db.PublishHealthStatus("node2", "unhealthy", nil)
 	assert.NoError(t, err)
 
 	statuses, err := db.GetAllHealthStatuses()
@@ -456,10 +394,7 @@ func TestHealthStatus_Delete(t *testing.T) {
 	db, cleanup := setupTestDB(t)
 	defer cleanup()
 
-	leaseID, err := db.CreateLease(10)
-	require.NoError(t, err)
-
-	err = db.PublishHealthStatus("node1", leaseID, "healthy", nil)
+	err := db.PublishHealthStatus("node1", "healthy", nil)
 	assert.NoError(t, err)
 
 	err = db.DeleteHealthStatus("node1")
@@ -469,51 +404,12 @@ func TestHealthStatus_Delete(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestLease_CreateAndKeepAlive(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	leaseID, err := db.CreateLease(5)
-	assert.NoError(t, err)
-	assert.NotZero(t, leaseID)
-
-	ch, err := db.KeepAlive(leaseID)
-	assert.NoError(t, err)
-	assert.NotNil(t, ch)
-
-	// Wait for at least one keep-alive response
-	select {
-	case resp := <-ch:
-		assert.NotNil(t, resp)
-	case <-time.After(2 * time.Second):
-		t.Fatal("Did not receive keep-alive response")
-	}
-}
-
-func TestPutWithLease(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-
-	leaseID, err := db.CreateLease(10)
-	require.NoError(t, err)
-
-	err = db.putWithLease("test-key", "test-value", leaseID)
-	assert.NoError(t, err)
-
-	value, err := db.get("test-key")
-	assert.NoError(t, err)
-	assert.Equal(t, "test-value", value)
-}
-
 func TestDB_Close(t *testing.T) {
 	db, _ := setupTestDB(t)
 
 	assert.NotPanics(t, func() {
 		db.Close()
 	})
-
-	tmpDir := db.server.Config().Dir
-	os.RemoveAll(tmpDir)
 }
 
 func TestDB_InternalOperations(t *testing.T) {
@@ -532,7 +428,7 @@ func TestDB_InternalOperations(t *testing.T) {
 	err = db.put("prefix/key2", "value2")
 	assert.NoError(t, err)
 
-	results, err := db.getKey("prefix/")
+	results, err := db.getPrefix("prefix/")
 	assert.NoError(t, err)
 	assert.Len(t, results, 2)
 

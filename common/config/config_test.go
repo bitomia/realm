@@ -60,13 +60,13 @@ func TestConfigIncludes_Nested(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(subdir, "etcd_mode.yaml"), []byte("server\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(subdir, "namespace.yaml"), []byte("realm-test\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	agentYAML := `
 listen_port: 12345
-etcd_mode: !include sub/etcd_mode.yaml
+containerd_namespace: !include sub/namespace.yaml
 `
 	if err := os.WriteFile(filepath.Join(dir, "agent.yaml"), []byte(agentYAML), 0644); err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ etcd_mode: !include sub/etcd_mode.yaml
 	config, err := InitFromBuffer(string(resolved))
 	require.NoError(t, err)
 	require.NotNil(t, config)
-	assert.Equal(t, config.Agent.EtcdMode, "server")
+	assert.Equal(t, config.Agent.ContainerdNamespace, "realm-test")
 	assert.Equal(t, config.Agent.ListenPort, 12345)
 }
 
