@@ -1,18 +1,16 @@
 package db
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/server/v3/embed"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/common"
 )
@@ -23,128 +21,59 @@ var (
 )
 
 type AgentDB struct {
-	client                *clientv3.Client
-	server                *embed.Etcd
-	ctx                   context.Context
+	bolt                  *bolt.DB
 	DeploymentsRepository common.DeploymentsRepository
 	NodesRepository       common.NodesRepository
 }
 
 var (
-	instance *AgentDB
-	once     sync.Once
+	instance   *AgentDB
+	once       sync.Once
+	bucketName = []byte("agent")
 )
 
-const ETCD_TIMEOUT = 5 * time.Second
+const BOLT_TIMEOUT = 5 * time.Second
 
 func GetDB() *AgentDB {
 	once.Do(func() {
-		agentCfg := config.Get().Agent
-		etcdMode := agentCfg.EtcdMode
-		if etcdMode == "" {
-			etcdMode = "server"
-		}
+		dbPath := getDBPath()
+		slog.Info("Initializing bbolt database", "path", dbPath)
 
-		var client *clientv3.Client
-		var server *embed.Etcd
-		var err error
-		var endpoints []string
-
-		ctx := context.Background()
-
-		switch etcdMode {
-		case "server":
-			// Server mode: start embedded etcd server
-			cfg := getEtcdConfig()
-			slog.Info("Initializing etcd server",
-				"data_dir", cfg.Dir,
-				"name", cfg.Name,
-				"cluster_state", cfg.ClusterState,
-				"initial_cluster", cfg.InitialCluster)
-
-			// Start embedded etcd server
-			server, err = embed.StartEtcd(cfg)
-			if err != nil {
-				slog.Error("Error starting etcd server", "error", err.Error())
-				os.Exit(1)
-			}
-
-			// Wait for etcd to be ready
-			select {
-			case <-server.Server.ReadyNotify():
-				slog.Info("Etcd server is ready")
-			case <-time.After(60 * time.Second):
-				server.Server.Stop()
-				slog.Error("Etcd server took too long to start")
-				os.Exit(1)
-			}
-
-			endpoints = []string{cfg.ListenClientUrls[0].String()}
-		case "client":
-			// Client mode: connect to external etcd
-			endpoints = agentCfg.EtcdEndpoints
-			if len(endpoints) == 0 {
-				slog.Error("Etcd mode is 'client' but no etcd_endpoints configured")
-				os.Exit(1)
-			}
-			slog.Info("Connecting to external etcd", "endpoints", endpoints)
-		default:
-			slog.Error("Invalid etcd_mode", "mode", etcdMode)
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
+			slog.Error("Error creating database directory", "path", filepath.Dir(dbPath), "error", err.Error())
 			os.Exit(1)
 		}
 
-		// Create etcd client
-		client, err = clientv3.New(clientv3.Config{
-			Endpoints:   endpoints,
-			DialTimeout: ETCD_TIMEOUT,
-		})
-
+		database, err := bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: BOLT_TIMEOUT})
 		if err != nil {
-			slog.Error("Error creating etcd client", "error", err.Error())
-			if server != nil {
-				server.Close()
-			}
+			slog.Error("Error opening bbolt database", "path", dbPath, "error", err.Error())
 			os.Exit(1)
 		}
 
-		// Test connection
-		ctxTimeout, cancel := context.WithTimeout(ctx, ETCD_TIMEOUT)
-		defer cancel()
-		status, err := client.Status(ctxTimeout, endpoints[0])
-		if err != nil {
-			slog.Error("Error connecting to etcd", "endpoints", endpoints, "error", err.Error())
-			client.Close()
-			if server != nil {
-				server.Close()
-			}
+		if err := database.Update(func(tx *bolt.Tx) error {
+			_, err := tx.CreateBucketIfNotExists(bucketName)
+			return err
+		}); err != nil {
+			slog.Error("Error creating database bucket", "error", err.Error())
+			database.Close()
 			os.Exit(1)
 		}
-		slog.Info("Etcd test connection done", "status", status)
 
 		instance = &AgentDB{
-			client: client,
-			server: server,
-			ctx:    ctx,
+			bolt: database,
 		}
-		instance.DeploymentsRepository = &EtcdDeploymentsRepository{instance}
-		instance.NodesRepository = &EtcdNodesRepository{instance}
+		instance.DeploymentsRepository = &BoltDeploymentsRepository{instance}
+		instance.NodesRepository = &BoltNodesRepository{instance}
 
-		if etcdMode == "server" {
-			slog.Info("Database initialized with etcd server")
-		} else {
-			slog.Info("Database initialized with external etcd client")
-		}
+		slog.Info("Database initialized with bbolt")
 	})
 
 	return instance
 }
 
 func (db *AgentDB) Close() {
-	if db.client != nil {
-		db.client.Close()
-	}
-	if db.server != nil {
-		db.server.Close()
+	if db.bolt != nil {
+		db.bolt.Close()
 	}
 }
 
@@ -156,32 +85,18 @@ func (db *AgentDB) PurgeDB() error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	// Get all keys with agent ID prefix to count them before deletion
-	getAllResp, err := db.client.Get(ctx, agentId, clientv3.WithPrefix())
-	if err != nil {
-		slog.Error("Error getting keys for purge", "error", err.Error())
-		return err
-	}
-
-	keysCount := len(getAllResp.Kvs)
-	if keysCount == 0 {
-		slog.Info("Database is already empty for this agent, nothing to purge", "agent_id", agentId)
-		return nil
-	}
-
-	slog.Warn("Purging all database contents for agent", "agent_id", agentId)
-
-	// Delete all keys for this agent
-	resp, err := db.client.Delete(ctx, agentId, clientv3.WithPrefix())
+	deleted, err := db.deletePrefix(agentId)
 	if err != nil {
 		slog.Error("Error purging database", "error", err.Error())
 		return err
 	}
 
-	slog.Info("Database purged successfully", "agent_id", agentId, "keys_deleted", resp.Deleted)
+	if deleted == 0 {
+		slog.Info("Database is already empty for this agent, nothing to purge", "agent_id", agentId)
+		return nil
+	}
+
+	slog.Info("Database purged successfully", "agent_id", agentId, "keys_deleted", deleted)
 	return nil
 }
 
@@ -191,20 +106,4 @@ func HashPassword(password string) (string, error) {
 		return "", err
 	}
 	return string(hashedPassword), nil
-}
-
-func (db *AgentDB) CreateLease(ttl int64) (clientv3.LeaseID, error) {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	resp, err := db.client.Grant(ctx, ttl)
-	if err != nil {
-		slog.Error("Error creating lease", "error", err.Error())
-		return 0, err
-	}
-	return resp.ID, nil
-}
-
-func (db *AgentDB) KeepAlive(leaseID clientv3.LeaseID) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
-	return db.client.KeepAlive(db.ctx, leaseID)
 }

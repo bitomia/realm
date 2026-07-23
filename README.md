@@ -27,7 +27,7 @@ Realm running as client does not require any external dependencies. For detailed
 ## Documentation
 
 - [Getting Started](docs/getting-started.md) - Installation and setup for Linux and Windows
-- [Configuration](docs/configuration.md) - Configuration reference (agent, nodes, loads, etcd, registries, discovery, environment variables)
+- [Configuration](docs/configuration.md) - Configuration reference (agent, nodes, loads, registries, discovery, environment variables)
 - [Container Driver](docs/container-driver.md) - Container driver: entrypoint, volumes, networking
 - [Process Driver](docs/process-driver.md) - Process driver: commands, signals, lifecycle
 - [VM Driver](docs/vm-driver.md) - VM driver: disks, networking, serial, cloud-init

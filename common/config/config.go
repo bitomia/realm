@@ -101,29 +101,6 @@ type AgentConfig struct {
 	// Default: realm
 	ContainerdNamespace string `json:"containerd_namespace"`
 
-	// Etcd mode: "server" to run embedded etcd server, "client" to connect to external etcd.
-	// Valid values: "server", "client"
-	// Default: server
-	EtcdMode string `json:"etcd_mode"`
-
-	// Etcd endpoints to connect to when mode is "client".
-	// Example: ["http://node1:2379", "http://node2:2379"]
-	// Default: empty (uses EtcdListenClientUrl when in server mode)
-	EtcdEndpoints []string `json:"etcd_endpoints"`
-
-	// Etcd client URL.
-	// Default: http://<main-network-interface-ip>:2379 (auto-detected)
-	EtcdListenClientUrl string `json:"etcd_listen_client_url"`
-
-	// Etcd peer URL.
-	// Default: http://<main-network-interface-ip>:2380 (auto-detected)
-	EtcdListenPeerUrl string `json:"etcd_listen_peer_url"`
-
-	// Expected members of the cluster, and this is how to reach them via peer URLs.
-	// Left empty for single-node cluster
-	// Default: empty
-	EtcdInitialCluster string `json:"etcd_initial_cluster"`
-
 	// Artifacts repository (experimental)
 	Artifacts ArtifactsRepository `json:"artifacts"`
 }
@@ -149,7 +126,7 @@ type MeshConfig struct {
 }
 
 type Config struct {
-	// Path to store realm data (ID file, etcd data, logs, mesh configs...).
+	// Path to store realm data (ID file, database, logs, mesh configs...).
 	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
 	DataPath string `json:"data_path"`
 

@@ -1,17 +1,13 @@
 package db
 
 import (
-	"context"
+	"bytes"
 	"fmt"
-	"log/slog"
-	"net/url"
 	"path"
 	"path/filepath"
 	"strconv"
-	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/server/v3/embed"
+	bolt "go.etcd.io/bbolt"
 
 	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/agent/id"
@@ -31,62 +27,15 @@ const (
 	guestNodesPrefix  = "guest_nodes"
 )
 
-func getEtcdDataDir() string {
+func getDBPath() string {
 	dataPath := config.Get().DataPath
 	if dataPath == "" {
 		dataPath = "/var/lib/realm"
 	}
-	return filepath.Join(dataPath, "etcd")
+	return filepath.Join(dataPath, "realm.db")
 }
 
-func getEtcdConfig() *embed.Config {
-	agentCfg := config.Get().Agent
-	cfg := embed.NewConfig()
-
-	// Basic configuration
-	cfg.Dir = getEtcdDataDir()
-	cfg.LogLevel = "error"
-
-	// Set name
-	agentId, err := id.GetAgentId()
-	if err != nil {
-		slog.Error("Error getting agent ID", "error", err.Error())
-		agentId = "default-agent"
-	}
-	cfg.Name = agentId
-
-	// Parse and set client URL
-	clientUrl, err := url.Parse(agentCfg.EtcdListenClientUrl)
-	if err != nil {
-		slog.Error("Invalid etcd client URL", "url", agentCfg.EtcdListenClientUrl, "error", err.Error())
-		clientUrl, _ = url.Parse("http://127.0.0.1:2379")
-	}
-	cfg.ListenClientUrls = []url.URL{*clientUrl}
-	cfg.AdvertiseClientUrls = []url.URL{*clientUrl}
-
-	// Parse and set peer URL
-	peerUrl, err := url.Parse(agentCfg.EtcdListenPeerUrl)
-	if err != nil {
-		slog.Error("Invalid etcd peer URL", "url", agentCfg.EtcdListenPeerUrl, "error", err.Error())
-		peerUrl, _ = url.Parse("http://127.0.0.1:2380")
-	}
-	cfg.ListenPeerUrls = []url.URL{*peerUrl}
-	cfg.AdvertisePeerUrls = []url.URL{*peerUrl}
-
-	// Set initial cluster configuration
-	if agentCfg.EtcdInitialCluster != "" {
-		cfg.InitialCluster = agentCfg.EtcdInitialCluster
-	} else {
-		// Single node cluster by default
-		cfg.InitialCluster = fmt.Sprintf("%s=%s", cfg.Name, peerUrl.String())
-	}
-
-	cfg.ClusterState = embed.ClusterStateFlagNew
-
-	return cfg
-}
-
-// Helper functions to build etcd keys
+// Helper functions to build db keys
 func (db *AgentDB) containerKey(name string) (string, error) {
 	agentId, err := id.GetAgentId()
 	if err != nil {
@@ -195,158 +144,151 @@ func (db *AgentDB) nodeKeyByAgentId(agentId string) (string, error) {
 	return path.Join(agentId, nodePrefix), nil
 }
 
-func (db *AgentDB) txn(ops ...clientv3.Op) (*clientv3.TxnResponse, error) {
-	if len(ops) == 0 {
-		return nil, nil
-	}
-
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	txnRes, err := db.client.Txn(ctx).Then(ops...).Commit()
-	if err != nil {
-		slog.Error("Error on transaction", "ops", ops, "error", err.Error())
-		return nil, err
-	}
-
-	return txnRes, nil
-}
-
 // Generic put operation
 func (db *AgentDB) put(key, value string) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketName).Put([]byte(key), []byte(value))
+	})
+}
 
-	_, err := db.client.Put(ctx, key, value)
-	if err != nil {
-		slog.Error("Error key put %s: %s", key, err.Error())
-	}
-	return err
+// putMulti writes several key/value pairs atomically in a single transaction
+func (db *AgentDB) putMulti(kvs map[string]string) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		for key, value := range kvs {
+			if err := bucket.Put([]byte(key), []byte(value)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // Generic get operation
 func (db *AgentDB) get(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	resp, err := db.client.Get(ctx, key)
+	var value []byte
+	err := db.bolt.View(func(tx *bolt.Tx) error {
+		v := tx.Bucket(bucketName).Get([]byte(key))
+		if v == nil {
+			return ErrKeyNotFound
+		}
+		// Copy: bbolt values are only valid inside the transaction
+		value = append([]byte(nil), v...)
+		return nil
+	})
 	if err != nil {
-		slog.Error("Error getting key %s: %s", key, err.Error())
 		return "", err
 	}
-
-	if len(resp.Kvs) == 0 {
-		return "", ErrKeyNotFound
-	}
-
-	return string(resp.Kvs[0].Value), nil
+	return string(value), nil
 }
 
 // Generic get with prefix
-func (db *AgentDB) getKey(prefix string) (map[string]string, error) {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	resp, err := db.client.Get(ctx, prefix, clientv3.WithPrefix())
+func (db *AgentDB) getPrefix(prefix string) (map[string]string, error) {
+	result := make(map[string]string)
+	err := db.bolt.View(func(tx *bolt.Tx) error {
+		c := tx.Bucket(bucketName).Cursor()
+		p := []byte(prefix)
+		for k, v := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, v = c.Next() {
+			result[string(k)] = string(v)
+		}
+		return nil
+	})
 	if err != nil {
-		slog.Error("Error getting with prefix %s: %s", prefix, err.Error())
 		return nil, err
 	}
-
-	result := make(map[string]string)
-	for _, kv := range resp.Kvs {
-		result[string(kv.Key)] = string(kv.Value)
-	}
-
 	return result, nil
 }
 
 // Generic delete operation
 func (db *AgentDB) delete(key string) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	_, err := db.client.Delete(ctx, key)
-	if err != nil {
-		slog.Error("Error deleting key %s: %s", key, err.Error())
-	}
-	return err
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketName).Delete([]byte(key))
+	})
 }
 
-// Atomic increment for subnet allocation
-func (db *AgentDB) getNextSubnet(network string) (int32, error) {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
+// deleteKeys deletes several keys atomically in a single transaction
+func (db *AgentDB) deleteKeys(keys ...string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		for _, key := range keys {
+			if err := bucket.Delete([]byte(key)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
 
-	// Try to get existing subnet for the network
+// deletePrefix deletes all keys with the given prefix, returning the number deleted
+func (db *AgentDB) deletePrefix(prefix string) (int, error) {
+	deleted := 0
+	err := db.bolt.Update(func(tx *bolt.Tx) error {
+		c := tx.Bucket(bucketName).Cursor()
+		p := []byte(prefix)
+		for k, _ := c.Seek(p); k != nil && bytes.HasPrefix(k, p); k, _ = c.Next() {
+			if err := c.Delete(); err != nil {
+				return err
+			}
+			deleted++
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return deleted, nil
+}
+
+// getNextSubnet returns the subnet assigned to a network, allocating the next
+// one from the counter if the network doesn't have one yet
+func (db *AgentDB) getNextSubnet(network string) (int32, error) {
 	subnetKey, err := db.subnetKey(network)
 	if err != nil {
 		return 0, err
 	}
-	resp, err := db.client.Get(ctx, subnetKey)
+
+	counterKey := "subnet_counter"
+
+	var subnet int32
+	err = db.bolt.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+
+		// Network already has a subnet assigned
+		if v := bucket.Get([]byte(subnetKey)); v != nil {
+			parsed, err := strconv.Atoi(string(v))
+			if err != nil {
+				return err
+			}
+			subnet = int32(parsed)
+			return nil
+		}
+
+		// Assign a new subnet from the counter
+		var currentVal int64 = 0
+		if v := bucket.Get([]byte(counterKey)); v != nil {
+			currentVal, err = strconv.ParseInt(string(v), 10, 64)
+			if err != nil {
+				return err
+			}
+		}
+
+		newVal := strconv.FormatInt(currentVal+1, 10)
+		if err := bucket.Put([]byte(counterKey), []byte(newVal)); err != nil {
+			return err
+		}
+		if err := bucket.Put([]byte(subnetKey), []byte(newVal)); err != nil {
+			return err
+		}
+		subnet = int32(currentVal + 1)
+		return nil
+	})
 	if err != nil {
 		return 0, err
 	}
-
-	if len(resp.Kvs) > 0 {
-		// Network already has a subnet assigned
-		subnet, err := strconv.Atoi(string(resp.Kvs[0].Value))
-		if err != nil {
-			return 0, err
-		}
-		return int32(subnet), nil
-	}
-
-	// Need to assign a new subnet - use atomic transaction
-	counterKey := "subnet_counter"
-
-	for {
-		// Get current counter
-		resp, err := db.client.Get(ctx, counterKey)
-		if err != nil {
-			return 0, err
-		}
-
-		var currentVal int64 = 0
-		var revision int64
-
-		if len(resp.Kvs) > 0 {
-			currentVal, err = strconv.ParseInt(string(resp.Kvs[0].Value), 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			revision = resp.Kvs[0].ModRevision
-		}
-
-		newVal := currentVal + 1
-
-		// Try to update counter and set subnet atomically
-		txn := db.client.Txn(ctx)
-		if len(resp.Kvs) == 0 {
-			// Counter doesn't exist, create it
-			txn = txn.If(clientv3.Compare(clientv3.CreateRevision(counterKey), "=", 0))
-		} else {
-			// Counter exists, check it hasn't changed
-			txn = txn.If(clientv3.Compare(clientv3.ModRevision(counterKey), "=", revision))
-		}
-
-		txn = txn.Then(
-			clientv3.OpPut(counterKey, strconv.FormatInt(newVal, 10)),
-			clientv3.OpPut(subnetKey, strconv.FormatInt(newVal, 10)),
-		)
-
-		tresp, err := txn.Commit()
-		if err != nil {
-			return 0, err
-		}
-
-		if tresp.Succeeded {
-			return int32(newVal), nil
-		}
-
-		// Transaction failed, retry
-		time.Sleep(10 * time.Millisecond)
-	}
+	return subnet, nil
 }
 
 // deleteSubnetOffset removes the subnet assignment for a network
@@ -358,88 +300,34 @@ func (db *AgentDB) deleteSubnetOffset(network string) error {
 	return db.delete(subnetKey)
 }
 
-// putIfNotExists atomically creates a key only if it doesn't already exist,
-// applying any extra put options (e.g. a lease). Returns ErrKeyAlreadyExists if
-// the key already exists, or an etcd error.
-func (db *AgentDB) putIfNotExists(key, value string, opts ...clientv3.OpOption) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	// Use transaction to check if key doesn't exist (CreateRevision == 0)
-	txn := db.client.Txn(ctx)
-	txn = txn.If(clientv3.Compare(clientv3.CreateRevision(key), "=", 0))
-	txn = txn.Then(clientv3.OpPut(key, value, opts...))
-
-	tresp, err := txn.Commit()
-	if err != nil {
-		slog.Error("putIfNotExists: error committing transaction", "key", key, "error", err.Error())
-		return err
-	}
-
-	if !tresp.Succeeded {
-		return ErrKeyAlreadyExists
-	}
-
-	return nil
+// putIfNotExists atomically creates a key only if it doesn't already exist.
+// Returns ErrKeyAlreadyExists if the key already exists.
+func (db *AgentDB) putIfNotExists(key, value string) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		if bucket.Get([]byte(key)) != nil {
+			return ErrKeyAlreadyExists
+		}
+		return bucket.Put([]byte(key), []byte(value))
+	})
 }
 
-// optimisticUpdate performs an optimistic lock update on a key.
+// updateValue performs a read-modify-write update on a key in a single transaction.
 // The updateFn receives the current value and should return the updated value.
-// Returns an error if the key doesn't exist or if there's an etcd error.
-func (db *AgentDB) optimisticUpdate(key string, updateFn func(currentValue []byte) ([]byte, error)) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	// Retry loop for optimistic locking
-	for {
-		// Get current value and revision
-		resp, err := db.client.Get(ctx, key)
-		if err != nil {
-			slog.Error("OptimisticUpdate: error getting key", "key", key, "error", err.Error())
-			return err
-		}
-
-		if len(resp.Kvs) == 0 {
+// Returns an error if the key doesn't exist.
+func (db *AgentDB) updateValue(key string, updateFn func(currentValue []byte) ([]byte, error)) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		currentValue := bucket.Get([]byte(key))
+		if currentValue == nil {
 			return fmt.Errorf("key '%s' not found", key)
 		}
 
-		currentValue := resp.Kvs[0].Value
-		currentRevision := resp.Kvs[0].ModRevision
-
-		// Apply the update function
 		newValue, err := updateFn(currentValue)
 		if err != nil {
 			return err
 		}
 
-		// Use transaction with compare-and-swap to ensure atomicity
-		txn := db.client.Txn(ctx)
-		txn = txn.If(clientv3.Compare(clientv3.ModRevision(key), "=", currentRevision))
-		txn = txn.Then(clientv3.OpPut(key, string(newValue)))
-
-		tresp, err := txn.Commit()
-		if err != nil {
-			slog.Error("OptimisticUpdate: error committing transaction", "key", key, "error", err.Error())
-			return err
-		}
-
-		if tresp.Succeeded {
-			return nil
-		}
-
-		// Transaction failed due to concurrent modification, retry
-		slog.Debug("OptimisticUpdate: concurrent modification detected, retrying", "key", key)
-		time.Sleep(10 * time.Millisecond)
-	}
-}
-
-func (db *AgentDB) putWithLease(key, value string, leaseID clientv3.LeaseID) error {
-	ctx, cancel := context.WithTimeout(db.ctx, ETCD_TIMEOUT)
-	defer cancel()
-
-	_, err := db.client.Put(ctx, key, value, clientv3.WithLease(leaseID))
-	if err != nil {
-		slog.Error("Error putting key %s with lease", "key", key, "error", err.Error())
-	}
-	return err
+		return bucket.Put([]byte(key), newValue)
+	})
 }

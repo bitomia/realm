@@ -61,8 +61,9 @@ var provisionLoads = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 		if err := doProvisionLoads(&client, loads); err != nil {
 			log.Warn("Error provisioning load: %s", err.Error())
+		} else {
+			log.Info("Successfully verified loads on cluster")
 		}
-		log.Info("Successfully verified loads on cluster")
 	},
 }
 

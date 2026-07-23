@@ -99,9 +99,9 @@ func init() {
 }
 
 // Test helpers
-func setupNodesRepository(t *testing.T) (*EtcdNodesRepository, func()) {
+func setupNodesRepository(t *testing.T) (*BoltNodesRepository, func()) {
 	db, cleanup := setupTestDB(t)
-	repo := &EtcdNodesRepository{db: db}
+	repo := &BoltNodesRepository{db: db}
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
 		return common.NodeContext{Repository: repo, NodeName: nodeName, RunMode: common.AgentMode}
 	})
@@ -109,7 +109,7 @@ func setupNodesRepository(t *testing.T) (*EtcdNodesRepository, func()) {
 }
 
 // Tests for self node
-func TestEtcdNodesRepository_SetSelf(t *testing.T) {
+func TestBoltNodesRepository_SetSelf(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -119,7 +119,7 @@ func TestEtcdNodesRepository_SetSelf(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEtcdNodesRepository_GetSelf(t *testing.T) {
+func TestBoltNodesRepository_GetSelf(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -136,7 +136,7 @@ func TestEtcdNodesRepository_GetSelf(t *testing.T) {
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
 
-func TestEtcdNodesRepository_GetSelf_NotConfigured(t *testing.T) {
+func TestBoltNodesRepository_GetSelf_NotConfigured(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -145,7 +145,7 @@ func TestEtcdNodesRepository_GetSelf_NotConfigured(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
 }
 
-func TestEtcdNodesRepository_DeleteSelf(t *testing.T) {
+func TestBoltNodesRepository_DeleteSelf(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -159,7 +159,7 @@ func TestEtcdNodesRepository_DeleteSelf(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
 }
 
-func TestEtcdNodesRepository_DeleteSelf_NotConfigured(t *testing.T) {
+func TestBoltNodesRepository_DeleteSelf_NotConfigured(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -168,7 +168,7 @@ func TestEtcdNodesRepository_DeleteSelf_NotConfigured(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
 }
 
-func TestEtcdNodesRepository_UpdateSelfMetadata(t *testing.T) {
+func TestBoltNodesRepository_UpdateSelfMetadata(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -188,7 +188,7 @@ func TestEtcdNodesRepository_UpdateSelfMetadata(t *testing.T) {
 }
 
 // Tests for guest nodes
-func TestEtcdNodesRepository_SetGuestNode(t *testing.T) {
+func TestBoltNodesRepository_SetGuestNode(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -198,7 +198,7 @@ func TestEtcdNodesRepository_SetGuestNode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEtcdNodesRepository_GetGuestNode(t *testing.T) {
+func TestBoltNodesRepository_GetGuestNode(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -215,7 +215,7 @@ func TestEtcdNodesRepository_GetGuestNode(t *testing.T) {
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
 
-func TestEtcdNodesRepository_GetGuestNode_NotFound(t *testing.T) {
+func TestBoltNodesRepository_GetGuestNode_NotFound(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -224,7 +224,7 @@ func TestEtcdNodesRepository_GetGuestNode_NotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEtcdNodesRepository_GetAllGuestNodes(t *testing.T) {
+func TestBoltNodesRepository_GetAllGuestNodes(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -239,7 +239,7 @@ func TestEtcdNodesRepository_GetAllGuestNodes(t *testing.T) {
 	assert.ElementsMatch(t, []string{"guest-1", "guest-2"}, names)
 }
 
-func TestEtcdNodesRepository_GetAllGuestNodes_Empty(t *testing.T) {
+func TestBoltNodesRepository_GetAllGuestNodes_Empty(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -249,7 +249,7 @@ func TestEtcdNodesRepository_GetAllGuestNodes_Empty(t *testing.T) {
 	assert.Empty(t, nodes)
 }
 
-func TestEtcdNodesRepository_DeleteGuestNode(t *testing.T) {
+func TestBoltNodesRepository_DeleteGuestNode(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -263,7 +263,7 @@ func TestEtcdNodesRepository_DeleteGuestNode(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEtcdNodesRepository_DeleteGuestNode_NotFound(t *testing.T) {
+func TestBoltNodesRepository_DeleteGuestNode_NotFound(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
@@ -273,7 +273,7 @@ func TestEtcdNodesRepository_DeleteGuestNode_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
 }
 
-func TestEtcdNodesRepository_UpdateGuestMetadata(t *testing.T) {
+func TestBoltNodesRepository_UpdateGuestMetadata(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
