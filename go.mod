@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4
-	github.com/bitomia/netplane/bindings/gonetplane v0.0.0-20260511161152-589cefbd4ac6
+	github.com/bitomia/netplane/bindings/gonetplane v0.0.0-20260727073608-a6bd0429736c
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.28
 	github.com/containernetworking/cni v1.3.0
@@ -17,6 +17,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/hetznercloud/hcloud-go v1.59.2
 	github.com/miekg/dns v1.1.68
 	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/pkg/errors v0.9.1
@@ -142,3 +143,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/bitomia/netplane/bindings/gonetplane => /home/juan/repos/netplane/bindings/gonetplane
