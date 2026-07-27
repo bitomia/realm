@@ -1,6 +1,6 @@
-//go:build EE
+//go:build MESH
 
-package ee
+package mesh
 
 import "github.com/bitomia/realm/common/config"
 

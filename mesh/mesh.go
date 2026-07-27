@@ -1,6 +1,6 @@
-//go:build EE
+//go:build MESH
 
-package ee
+package mesh
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ func startMesh(cfg *config.Config, errChan chan error) {
 	if cfg.Agent.LogFormat == "json" {
 		logFormat = netplane.LogFormatJSON
 	}
-	netplane.InitLogger(logFormat)
+	netplane.ClientInitLogger(logFormat)
 
 	meshDir := filepath.Join(cfg.DataPath, "mesh")
 	if err := os.MkdirAll(meshDir, 0o700); err != nil {
@@ -60,17 +60,15 @@ func startMesh(cfg *config.Config, errChan chan error) {
 	}
 
 	netplane.ClientAuth(authKeyPath, publicKeyPath, privateKeyPath, host, cfg.MeshConfig.LinkCode, 8000)
-	token, err := netplane.Run("netplane0", host, 5000, transport, authKeyPath, publicKeyPath, privateKeyPath)
+	err := netplane.ClientRun("netplane0", host, 5000, transport, authKeyPath, publicKeyPath, privateKeyPath)
 	if err != nil {
 		errChan <- fmt.Errorf("netplane run: %w", err)
 		return
 	}
-	defer token.Free()
 	errChan <- nil
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	<-sigCh
 
-	token.Cancel()
-	netplane.Stop()
+	netplane.ClientStop()
 }

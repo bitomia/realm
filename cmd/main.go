@@ -10,7 +10,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/drivers"
-	"github.com/bitomia/realm/ee"
+	"github.com/bitomia/realm/mesh"
 )
 
 var (
@@ -50,7 +50,7 @@ func main() {
 			log.Error("Config error: %s", configError)
 			os.Exit(1)
 		}
-		if err := ee.Start(cfg); err != nil {
+		if err := mesh.Start(cfg); err != nil {
 			log.Error("%s", err)
 			os.Exit(1)
 		}

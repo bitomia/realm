@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/bitomia/go-libzfs v0.0.0-20260127110600-d8079a3e86f4
-	github.com/bitomia/netplane/bindings/gonetplane v0.0.0-20260625055114-3cb772861373
+	github.com/bitomia/netplane/bindings/gonetplane v0.0.0-20260727073608-a6bd0429736c
 	github.com/containerd/cgroups v1.1.0
 	github.com/containerd/containerd v1.7.34
 	github.com/containernetworking/cni v1.3.0
@@ -114,3 +114,5 @@ require (
 	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+replace github.com/bitomia/netplane/bindings/gonetplane => /home/juan/repos/netplane/bindings/gonetplane
