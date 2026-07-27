@@ -62,7 +62,7 @@ func (db *AgentDB) AddNetConfig(network string, container string, config []byte,
 }
 
 func (db *AgentDB) IsHostIfaceUsedExceptForContainer(hostIface string, container string) (bool, error) {
-	data, err := db.getKey(networkPrefix)
+	data, err := db.getPrefix(networkPrefix)
 	if err != nil {
 		return false, err
 	}
@@ -88,7 +88,7 @@ func (db *AgentDB) GetNetConfigs(container string) ([]NetConfig, error) {
 		slog.Error("Error getting network key", "error", err.Error())
 		return nil, err
 	}
-	data, err := db.getKey(containerNetPrefix)
+	data, err := db.getPrefix(containerNetPrefix)
 	if err != nil {
 		slog.Error("Error on GetNetConfigs", "error", err.Error())
 		return nil, err
@@ -121,7 +121,7 @@ func (db *AgentDB) DeleteAllNetConfigs(container string) error {
 		slog.Error("Error getting network key", "error", err.Error())
 		return err
 	}
-	data, err := db.getKey(containerNetPrefix)
+	data, err := db.getPrefix(containerNetPrefix)
 	if err != nil {
 		return err
 	}
@@ -166,7 +166,7 @@ func (db *AgentDB) ReleaseSubnet(network string) error {
 
 // GetNetworkContainerCount returns the number of containers using a network
 func (db *AgentDB) GetNetworkContainerCount(network string) (int, error) {
-	data, err := db.getKey(networkPrefix)
+	data, err := db.getPrefix(networkPrefix)
 	if err != nil {
 		return 0, err
 	}

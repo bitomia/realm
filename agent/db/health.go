@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"time"
-
-	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 type HealthStatus struct {
@@ -15,7 +13,7 @@ type HealthStatus struct {
 	Metadata  map[string]any `json:"metadata,omitempty"`
 }
 
-func (db *AgentDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID, status string, metadata map[string]any) error {
+func (db *AgentDB) PublishHealthStatus(hostname string, status string, metadata map[string]any) error {
 	healthStatus := HealthStatus{
 		Hostname:  hostname,
 		Status:    status,
@@ -33,7 +31,7 @@ func (db *AgentDB) PublishHealthStatus(hostname string, leaseId clientv3.LeaseID
 		return err
 	}
 
-	return db.putWithLease(healthKey, string(value), leaseId)
+	return db.put(healthKey, string(value))
 }
 
 func (db *AgentDB) GetHealthStatus(hostname string) (HealthStatus, error) {
@@ -56,7 +54,7 @@ func (db *AgentDB) GetHealthStatus(hostname string) (HealthStatus, error) {
 }
 
 func (db *AgentDB) GetAllHealthStatuses() ([]HealthStatus, error) {
-	data, err := db.getKey(healthPrefix)
+	data, err := db.getPrefix(healthPrefix)
 	if err != nil {
 		slog.Error("Error on GetAllHealthStatuses", "error", err.Error())
 		return nil, err

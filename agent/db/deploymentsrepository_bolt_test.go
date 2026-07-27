@@ -119,14 +119,14 @@ func init() {
 }
 
 // Test helpers
-func setupDeploymentsRepository(t *testing.T) (*EtcdDeploymentsRepository, func()) {
+func setupDeploymentsRepository(t *testing.T) (*BoltDeploymentsRepository, func()) {
 	db, cleanup := setupTestDB(t)
-	repo := &EtcdDeploymentsRepository{db: db}
+	repo := &BoltDeploymentsRepository{db: db}
 	return repo, cleanup
 }
 
 // Tests for Create method
-func TestEtcdDeploymentsRepository_Create(t *testing.T) {
+func TestBoltDeploymentsRepository_Create(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -137,7 +137,7 @@ func TestEtcdDeploymentsRepository_Create(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, deploymentID)
 }
 
-func TestEtcdDeploymentsRepository_Create_ValidatesDeploymentIDIsUnique(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_ValidatesDeploymentIDIsUnique(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -155,7 +155,7 @@ func TestEtcdDeploymentsRepository_Create_ValidatesDeploymentIDIsUnique(t *testi
 	assert.NotEqual(t, deploymentID1, deploymentID2)
 }
 
-func TestEtcdDeploymentsRepository_Create_MultipleDeploymentsForSameLoad(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_MultipleDeploymentsForSameLoad(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -178,7 +178,7 @@ func TestEtcdDeploymentsRepository_Create_MultipleDeploymentsForSameLoad(t *test
 }
 
 // Tests for GetByLoad method
-func TestEtcdDeploymentsRepository_GetByLoad(t *testing.T) {
+func TestBoltDeploymentsRepository_GetByLoad(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -196,7 +196,7 @@ func TestEtcdDeploymentsRepository_GetByLoad(t *testing.T) {
 	assert.Equal(t, deploymentID, deployments[0].ID)
 }
 
-func TestEtcdDeploymentsRepository_GetByLoad_MultipleDeployments(t *testing.T) {
+func TestBoltDeploymentsRepository_GetByLoad_MultipleDeployments(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -227,7 +227,7 @@ func TestEtcdDeploymentsRepository_GetByLoad_MultipleDeployments(t *testing.T) {
 	assert.True(t, ids[id3])
 }
 
-func TestEtcdDeploymentsRepository_GetByLoad_NonExistentLoad(t *testing.T) {
+func TestBoltDeploymentsRepository_GetByLoad_NonExistentLoad(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -237,7 +237,7 @@ func TestEtcdDeploymentsRepository_GetByLoad_NonExistentLoad(t *testing.T) {
 	assert.Len(t, deployments, 0)
 }
 
-func TestEtcdDeploymentsRepository_GetByLoad_EmptyLoadName(t *testing.T) {
+func TestBoltDeploymentsRepository_GetByLoad_EmptyLoadName(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -250,7 +250,7 @@ func TestEtcdDeploymentsRepository_GetByLoad_EmptyLoadName(t *testing.T) {
 }
 
 // Tests for GetDeployment method
-func TestEtcdDeploymentsRepository_GetDeployment(t *testing.T) {
+func TestBoltDeploymentsRepository_GetDeployment(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -267,7 +267,7 @@ func TestEtcdDeploymentsRepository_GetDeployment(t *testing.T) {
 	assert.Equal(t, deploymentID, deployment.ID)
 }
 
-func TestEtcdDeploymentsRepository_GetDeployment_NonExistent(t *testing.T) {
+func TestBoltDeploymentsRepository_GetDeployment_NonExistent(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -277,7 +277,7 @@ func TestEtcdDeploymentsRepository_GetDeployment_NonExistent(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEtcdDeploymentsRepository_GetDeployment_NilUUID(t *testing.T) {
+func TestBoltDeploymentsRepository_GetDeployment_NilUUID(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -287,7 +287,7 @@ func TestEtcdDeploymentsRepository_GetDeployment_NilUUID(t *testing.T) {
 }
 
 // Tests for DeleteByLoad method
-func TestEtcdDeploymentsRepository_DeleteByLoad(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteByLoad(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -316,7 +316,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEtcdDeploymentsRepository_DeleteByLoad_MultipleDeployments(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteByLoad_MultipleDeployments(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -345,7 +345,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_MultipleDeployments(t *testing.T
 	assert.Error(t, err)
 }
 
-func TestEtcdDeploymentsRepository_DeleteByLoad_NonExistentLoad(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteByLoad_NonExistentLoad(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -354,7 +354,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_NonExistentLoad(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestEtcdDeploymentsRepository_DeleteByLoad_DoesNotAffectOtherDeployments(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteByLoad_DoesNotAffectOtherDeployments(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -384,7 +384,7 @@ func TestEtcdDeploymentsRepository_DeleteByLoad_DoesNotAffectOtherDeployments(t 
 }
 
 // Tests for DeleteDeployment method
-func TestEtcdDeploymentsRepository_DeleteDeployment(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteDeployment(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -408,7 +408,7 @@ func TestEtcdDeploymentsRepository_DeleteDeployment(t *testing.T) {
 	assert.Len(t, deployments, 0)
 }
 
-func TestEtcdDeploymentsRepository_DeleteDeployment_NonExistent(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteDeployment_NonExistent(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -418,7 +418,7 @@ func TestEtcdDeploymentsRepository_DeleteDeployment_NonExistent(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestEtcdDeploymentsRepository_DeleteDeployment_OneOfMany(t *testing.T) {
+func TestBoltDeploymentsRepository_DeleteDeployment_OneOfMany(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -466,7 +466,7 @@ func TestEtcdDeploymentsRepository_DeleteDeployment_OneOfMany(t *testing.T) {
 }
 
 // Integration tests
-func TestEtcdDeploymentsRepository_FullLifecycle(t *testing.T) {
+func TestBoltDeploymentsRepository_FullLifecycle(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -497,7 +497,7 @@ func TestEtcdDeploymentsRepository_FullLifecycle(t *testing.T) {
 	assert.Len(t, deployments, 0)
 }
 
-func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
+func TestBoltDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -539,7 +539,7 @@ func TestEtcdDeploymentsRepository_ConcurrentOperations(t *testing.T) {
 }
 
 // Tests for Metadata field storage
-func TestEtcdDeploymentsRepository_Create_WithNilMetadata(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_WithNilMetadata(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -555,7 +555,7 @@ func TestEtcdDeploymentsRepository_Create_WithNilMetadata(t *testing.T) {
 	assert.Nil(t, deployment.Metadata)
 }
 
-func TestEtcdDeploymentsRepository_Create_WithStringMetadata(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_WithStringMetadata(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -573,7 +573,7 @@ func TestEtcdDeploymentsRepository_Create_WithStringMetadata(t *testing.T) {
 	assert.Equal(t, metadata, deployment.Metadata)
 }
 
-func TestEtcdDeploymentsRepository_Create_WithMapMetadata(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_WithMapMetadata(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -608,7 +608,7 @@ func TestEtcdDeploymentsRepository_Create_WithMapMetadata(t *testing.T) {
 	assert.Equal(t, "data", nested["inner"])
 }
 
-func TestEtcdDeploymentsRepository_Create_WithStructMetadata(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_WithStructMetadata(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -636,7 +636,7 @@ func TestEtcdDeploymentsRepository_Create_WithStructMetadata(t *testing.T) {
 	assert.NotNil(t, deployment.Metadata)
 }
 
-func TestEtcdDeploymentsRepository_Create_DifferentMetadataForMultipleDeployments(t *testing.T) {
+func TestBoltDeploymentsRepository_Create_DifferentMetadataForMultipleDeployments(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -686,7 +686,7 @@ func TestEtcdDeploymentsRepository_Create_DifferentMetadataForMultipleDeployment
 }
 
 // Tests for UpdateMetadata method
-func TestEtcdDeploymentsRepository_UpdateMetadata(t *testing.T) {
+func TestBoltDeploymentsRepository_UpdateMetadata(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -716,7 +716,7 @@ func TestEtcdDeploymentsRepository_UpdateMetadata(t *testing.T) {
 	assert.Equal(t, "updated", updatedMetadata["status"])
 }
 
-func TestEtcdDeploymentsRepository_UpdateMetadata_FromNilToValue(t *testing.T) {
+func TestBoltDeploymentsRepository_UpdateMetadata_FromNilToValue(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -744,7 +744,7 @@ func TestEtcdDeploymentsRepository_UpdateMetadata_FromNilToValue(t *testing.T) {
 	assert.Equal(t, "value", updatedMetadata["new"])
 }
 
-func TestEtcdDeploymentsRepository_UpdateMetadata_IncrementCounter(t *testing.T) {
+func TestBoltDeploymentsRepository_UpdateMetadata_IncrementCounter(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -780,7 +780,7 @@ func TestEtcdDeploymentsRepository_UpdateMetadata_IncrementCounter(t *testing.T)
 	assert.Equal(t, float64(3), updatedMetadata["counter"])
 }
 
-func TestEtcdDeploymentsRepository_UpdateMetadata_UpdateFnReturnsError(t *testing.T) {
+func TestBoltDeploymentsRepository_UpdateMetadata_UpdateFnReturnsError(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 
@@ -808,7 +808,7 @@ func TestEtcdDeploymentsRepository_UpdateMetadata_UpdateFnReturnsError(t *testin
 	assert.Equal(t, "original", meta["value"])
 }
 
-func TestEtcdDeploymentsRepository_UpdateMetadata_DoesNotAffectOtherFields(t *testing.T) {
+func TestBoltDeploymentsRepository_UpdateMetadata_DoesNotAffectOtherFields(t *testing.T) {
 	repo, cleanup := setupDeploymentsRepository(t)
 	defer cleanup()
 

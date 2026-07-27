@@ -11,7 +11,7 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-type EtcdNodesRepository struct {
+type BoltNodesRepository struct {
 	db *AgentDB
 }
 
@@ -21,8 +21,8 @@ type NodeValue struct {
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
-	slog.Info("EtcdNodesRepository.SetSelf", "nodeName", nodeName)
+func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
+	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName)
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
@@ -32,18 +32,18 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 
 	nodeJson, err := json.Marshal(nodeValue)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshaling node", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
 	}
 
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "creating node key", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetSelf", "nodeName", nodeName, "msg", "creating node key", "error", err.Error())
 		return err
 	}
 
 	if err := r.db.putIfNotExists(nodeKey, string(nodeJson)); err != nil {
-		slog.Error("EtcdNodesRepository.SetSelf", "nodeName", nodeName, "msg", "db put", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetSelf", "nodeName", nodeName, "msg", "db put", "error", err.Error())
 		if errors.Is(err, ErrKeyAlreadyExists) {
 			return common.ErrNodeAlreadyConfigured
 		} else {
@@ -54,8 +54,8 @@ func (r *EtcdNodesRepository) SetSelf(nodeName string, driver common.NodeDriver,
 	return nil
 }
 
-func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
-	slog.Debug("EtcdNodesRepository.GetSelf")
+func (r *BoltNodesRepository) GetSelf() (common.NodeEntry, error) {
+	slog.Debug("BoltNodesRepository.GetSelf")
 
 	if agentId, err := id.GetAgentId(); err != nil {
 		return common.NodeEntry{}, err
@@ -64,18 +64,18 @@ func (r *EtcdNodesRepository) GetSelf() (common.NodeEntry, error) {
 	}
 }
 
-func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, error) {
-	slog.Debug("EtcdNodesRepository.GetByAgentId", "agentId", agentId)
+func (r *BoltNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, error) {
+	slog.Debug("BoltNodesRepository.GetByAgentId", "agentId", agentId)
 
 	nodeKey, err := r.db.nodeKeyByAgentId(agentId)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "nodeKey failed", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	nodeStr, err := r.db.get(nodeKey)
 	if err != nil {
-		slog.Debug("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "getting node", "error", err.Error())
+		slog.Debug("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "getting node", "error", err.Error())
 		if errors.Is(err, ErrKeyNotFound) {
 			return common.NodeEntry{}, common.ErrNodeNotConfigured
 		} else {
@@ -85,13 +85,13 @@ func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 
 	var nodeValue NodeValue
 	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
-		slog.Error("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "unmarshalling node", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "unmarshalling node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetByAgentId", "agentId", agentId, "msg", "building node driver", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
@@ -102,32 +102,32 @@ func (r *EtcdNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 	}, nil
 }
 
-func (r *EtcdNodesRepository) DeleteSelf() error {
-	slog.Info("EtcdNodesRepository.DeleteSelf")
+func (r *BoltNodesRepository) DeleteSelf() error {
+	slog.Info("BoltNodesRepository.DeleteSelf")
 
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
-		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "nodeKey failed", "error", err.Error())
 		return err
 	}
 
 	// Check if node exists first
 	_, err = r.db.get(nodeKey)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "node not found", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "node not found", "error", err.Error())
 		return common.ErrNodeNotConfigured
 	}
 
 	if err := r.db.delete(nodeKey); err != nil {
-		slog.Error("EtcdNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "deleting node", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteSelf", "nodeKey", nodeKey, "msg", "deleting node", "error", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
-	slog.Info("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
+func (r *BoltNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+	slog.Info("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeValue := NodeValue{
 		NodeName:         guestNodeName,
@@ -137,18 +137,18 @@ func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 
 	guestNodeJson, err := json.Marshal(guestNodeValue)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshaling node", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
 	}
 
 	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
 		return err
 	}
 
 	if err := r.db.putIfNotExists(guestNodeKey, string(guestNodeJson)); err != nil {
-		slog.Error("EtcdNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "db put", "error", err.Error())
+		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "db put", "error", err.Error())
 		if errors.Is(err, ErrKeyAlreadyExists) {
 			return common.ErrNodeAlreadyConfigured
 		} else {
@@ -159,54 +159,54 @@ func (r *EtcdNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 	return nil
 }
 
-func (r *EtcdNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
-	slog.Info("EtcdNodesRepository.DeleteGuestNode", "guestNodeName", guestNodeName)
+func (r *BoltNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+	slog.Info("BoltNodesRepository.DeleteGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "nodeKey failed", "error", err.Error())
 		return err
 	}
 
 	// Check if node exists first
 	_, err = r.db.get(guestNodeKey)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "node not found", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "node not found", "error", err.Error())
 		return common.ErrNodeNotConfigured
 	}
 
 	if err := r.db.delete(guestNodeKey); err != nil {
-		slog.Error("EtcdNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "deleting node", "error", err.Error())
+		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "deleting node", "error", err.Error())
 		return err
 	}
 
 	return nil
 }
 
-func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEntry, error) {
-	slog.Info("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName)
+func (r *BoltNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEntry, error) {
+	slog.Info("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	nodeStr, err := r.db.get(guestNodeKey)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "getting node", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "getting node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	var nodeValue NodeValue
 	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
-		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "unmarshalling node", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "unmarshalling node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
 	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
+		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
@@ -217,15 +217,15 @@ func (r *EtcdNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEnt
 	}, nil
 }
 
-func (r *EtcdNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
-	slog.Debug("EtcdNodesRepository.GetAllGuestNodes")
+func (r *BoltNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
+	slog.Debug("BoltNodesRepository.GetAllGuestNodes")
 
 	prefix, err := r.db.guestNodesKeyPrefix()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build guest nodes prefix: %w", err)
 	}
 
-	entries, err := r.db.getKey(prefix)
+	entries, err := r.db.getPrefix(prefix)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list guest nodes: %w", err)
 	}
@@ -243,14 +243,14 @@ func (r *EtcdNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
 	return nodes, nil
 }
 
-func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) error) error {
+func (r *BoltNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) error) error {
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
-		slog.Error("EtcdNodesRepository.UpdateSelfMetadata", "msg", "creating node key", "error", err.Error())
+		slog.Error("BoltNodesRepository.UpdateSelfMetadata", "msg", "creating node key", "error", err.Error())
 		return err
 	}
 
-	return r.db.optimisticUpdate(nodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.updateValue(nodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
@@ -262,16 +262,16 @@ func (r *EtcdNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 	})
 }
 
-func (r *EtcdNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error {
-	slog.Info("EtcdNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName)
+func (r *BoltNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error {
+	slog.Info("BoltNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName)
 
 	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
 	if err != nil {
-		slog.Error("EtcdNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
+		slog.Error("BoltNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
 		return err
 	}
 
-	return r.db.optimisticUpdate(guestNodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.updateValue(guestNodeKey, func(valueData []byte) ([]byte, error) {
 		var value NodeValue
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err

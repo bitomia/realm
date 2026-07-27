@@ -15,7 +15,7 @@ type Container struct {
 }
 
 func (db *AgentDB) GetAllContainers() ([]Container, error) {
-	data, err := db.getKey(containerPrefix)
+	data, err := db.getPrefix(containerPrefix)
 	if err != nil {
 		slog.Error("Error on GetAllContainers", "error", err.Error())
 		return nil, err
@@ -94,7 +94,7 @@ func (db *AgentDB) UpdateContainerImage(containerName string, image string) (str
 		return "", err
 	}
 
-	err = db.optimisticUpdate(containerKey, func(currentValue []byte) ([]byte, error) {
+	err = db.updateValue(containerKey, func(currentValue []byte) ([]byte, error) {
 		var container Container
 		if err := json.Unmarshal(currentValue, &container); err != nil {
 			slog.Error("Error unmarshaling container", "error", err.Error())

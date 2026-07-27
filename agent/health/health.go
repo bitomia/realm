@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	clientv3 "go.etcd.io/etcd/client/v3"
-
 	"github.com/bitomia/realm/agent/db"
 	"github.com/bitomia/realm/common/config"
 )
@@ -15,7 +13,6 @@ import (
 type HealthPublisher struct {
 	db              *db.AgentDB
 	hostname        string
-	leaseID         clientv3.LeaseID
 	publishChan     chan bool
 	stopChan        chan bool
 	wg              sync.WaitGroup
@@ -28,7 +25,6 @@ const (
 	STATUS_STARTING  = "starting"
 	STATUS_STOPPING  = "stopping"
 
-	DEFAULT_TTL              = 30 // seconds
 	DEFAULT_PUBLISH_INTERVAL = 10 * time.Second
 )
 
@@ -55,36 +51,14 @@ func GetHealthPublisher() *HealthPublisher {
 	return instance
 }
 
-func (hp *HealthPublisher) createLease() error {
-	leaseID, err := hp.db.CreateLease(DEFAULT_TTL)
-	if err != nil {
-		slog.Error("Failed to create lease", "error", err.Error())
-		return err
-	}
-	hp.leaseID = leaseID
-	return nil
-}
-
 func (hp *HealthPublisher) Start() error {
 	slog.Info("Starting health publisher for node", "hostname", hp.hostname)
 
-	if err := hp.createLease(); err != nil {
-		slog.Error("Failed to create lease", "error", err.Error())
-		return err
-	}
+	hp.wg.Add(1)
 
-	keepAliveChan, err := hp.db.KeepAlive(hp.leaseID)
-	if err != nil {
-		slog.Error("Failed to start lease keep-alive", "error", err.Error())
-		return err
-	}
-
-	hp.wg.Add(2)
-
-	go hp.keepAliveHandler(keepAliveChan)
 	go hp.publishHealthLoop()
 
-	err = hp.PublishStatus(STATUS_STARTING, nil)
+	err := hp.PublishStatus(STATUS_STARTING, nil)
 	if err != nil {
 		slog.Error("Failed to publish initial health status", "error", err.Error())
 		return err
@@ -113,7 +87,7 @@ func (hp *HealthPublisher) Stop() {
 func (hp *HealthPublisher) PublishStatus(status string, metadata map[string]any) error {
 	db := db.GetDB()
 
-	err := db.PublishHealthStatus(hp.hostname, hp.leaseID, status, metadata)
+	err := db.PublishHealthStatus(hp.hostname, status, metadata)
 	if err != nil {
 		slog.Error("Failed to publish health status", "error", err.Error())
 		return err
@@ -134,53 +108,6 @@ func (hp *HealthPublisher) TriggerPublish() {
 	select {
 	case hp.publishChan <- true:
 	default:
-	}
-}
-
-func (hp *HealthPublisher) keepAliveHandler(keepAliveChan <-chan *clientv3.LeaseKeepAliveResponse) {
-	defer hp.wg.Done()
-
-	for {
-		select {
-		case <-hp.stopChan:
-			return
-		case resp := <-keepAliveChan:
-			if resp == nil {
-				slog.Warn("Health publisher lease keep-alive channel closed, recreating lease")
-				for {
-					select {
-					case <-hp.stopChan:
-						return
-					default:
-					}
-
-					if err := hp.createLease(); err != nil {
-						slog.Error("Failed to recreate lease, retrying...", "error", err.Error())
-						select {
-						case <-hp.stopChan:
-							return
-						case <-time.After(5 * time.Second):
-						}
-						continue
-					}
-
-					newChan, err := hp.db.KeepAlive(hp.leaseID)
-					if err != nil {
-						slog.Error("Failed to restart keep-alive, retrying...", "error", err.Error())
-						select {
-						case <-hp.stopChan:
-							return
-						case <-time.After(5 * time.Second):
-						}
-						continue
-					}
-
-					slog.Info("Lease and keep-alive restored successfully")
-					keepAliveChan = newChan
-					break
-				}
-			}
-		}
 	}
 }
 

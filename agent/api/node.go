@@ -200,7 +200,7 @@ func getNode(nodeName *string) (*common.NodeEntry, error) {
 func PowerOffNode(nodeName *string) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not registerd")
+		return fmt.Errorf("node configuration not loaded")
 	}
 
 	if err := node.NodeDriver.PowerOff(); err != nil {
@@ -215,7 +215,7 @@ func PowerOffNode(nodeName *string) error {
 func ShutdownNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not registered")
+		return fmt.Errorf("node configuration not loaded")
 	}
 
 	if err := node.NodeDriver.Shutdown(message, time); err != nil {
@@ -230,7 +230,7 @@ func ShutdownNode(nodeName *string, message string, time uint32) error {
 func RestartNode(nodeName *string, message string, time uint32) error {
 	node, err := getNode(nodeName)
 	if err != nil {
-		return fmt.Errorf("node not registered")
+		return fmt.Errorf("node configuration not loaded")
 	}
 
 	if err := node.NodeDriver.Restart(message, time); err != nil {

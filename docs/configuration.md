@@ -7,7 +7,7 @@ Realm is configured through a YAML file. By default, Realm looks for a `config.y
 A Realm configuration file has four top-level sections:
 
 ```yaml
-agent: # Agent settings (paths, etcd, registries)
+agent: # Agent settings (paths, registries)
 nodes: # Remote nodes to manage
 loads: # Workloads to deploy
 discovery: # Discovery settings
@@ -17,7 +17,7 @@ discovery: # Discovery settings
 
 | Field       | Type   | Default          | Description                                              |
 | ----------- | ------ | ---------------- | -------------------------------------------------------- |
-| `data_path` | string | `/var/lib/realm` | Path to store client or agent data (ID file, etcd data) |
+| `data_path` | string | `/var/lib/realm` | Path to store client or agent data (ID file, database) |
 
 ```yaml
 data_path: ./data
@@ -354,43 +354,9 @@ Realm agents can expose artifacts when configured.
 | `auth_required`    | bool                 | false    | Endpoints available only for authed requests                        | 
 | `raw_path`         | string               | nil      | Point to a local directory with raw artifacts (nesting not allowed) |
 
-### Etcd
+### Database
 
-Realm uses etcd for cluster state. It can run an embedded etcd server or connect as a client to an external cluster.
-
-| Field                    | Type   | Default                          | Description                                           |
-| ------------------------ | ------ | -------------------------------- | ----------------------------------------------------- |
-| `etcd_mode`              | string | `server`                         | Etcd mode: `server` (embedded) or `client` (external) |
-| `etcd_endpoints`         | list   | `[]`                             | Etcd endpoints for client mode                        |
-| `etcd_listen_client_url` | string | `http://<auto-detected-ip>:2379` | Etcd client URL                                       |
-| `etcd_listen_peer_url`   | string | `http://<auto-detected-ip>:2380` | Etcd peer URL                                         |
-| `etcd_initial_cluster`   | string | `""`                             | Initial cluster members (empty for single-node)       |
-
-**Single-node (default):**
-
-```yaml
-agent:
-  listen_address: 0.0.0.0
-```
-
-**Multi-node server:**
-
-```yaml
-agent:
-  etcd_listen_client_url: http://192.168.1.10:2379
-  etcd_listen_peer_url: http://192.168.1.10:2380
-  listen_address: 0.0.0.0
-```
-
-**Client connecting to external etcd:**
-
-```yaml
-agent:
-  etcd_mode: client
-  etcd_endpoints: ["http://192.168.1.10:2379"]
-  etcd_listen_client_url: http://192.168.1.20:2379
-  listen_address: 0.0.0.0
-```
+Realm stores agent state in an embedded [bbolt](https://github.com/etcd-io/bbolt) database at `<data_path>/realm.db`. No configuration is required.
 
 ### Container Registries
 
