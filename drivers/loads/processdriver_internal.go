@@ -29,5 +29,5 @@ func retrieveProcessByName(name string) (*process.Process, error) {
 }
 
 func (p *ProcessDriver) shallUseProcessName() bool {
-	return p.Config.UseProcessName != nil && *p.Config.UseProcessName
+	return p.config.UseProcessName != nil && *p.config.UseProcessName
 }

@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"os/exec"
 
@@ -61,6 +60,7 @@ func NewLinuxDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver
 
 	return &LinuxDriver{
 		config: config,
+		ctx:    ctx,
 	}, nil
 }
 
@@ -73,21 +73,6 @@ func (l *LinuxDriver) Info() (common.NodeDriverInfo, error) {
 
 func (l *LinuxDriver) ID() common.NodeDriverID {
 	return LinuxDriverID
-}
-
-func (l *LinuxDriver) Register() error {
-	// Verify commands as shutdown_cmd exists and other prerequisites
-
-	if err := l.ctx.Repository.SetSelf(l.ctx.NodeName, l, nil); err != nil {
-		slog.Error("LinuxDriver.Register", "msg", "failed to register node", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (l *LinuxDriver) Unregister() error {
-	return l.ctx.Repository.DeleteSelf()
 }
 
 func (l *LinuxDriver) Config() common.NodeDriverConfig {

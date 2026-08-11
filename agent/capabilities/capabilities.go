@@ -1,6 +1,7 @@
 package capabilities
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/digitalocean/go-libvirt"

@@ -29,7 +29,7 @@ func GetLoadsDeployments() (*dto.LoadsDeployments, error) {
 			DeploymentId:     d.ID.String(),
 			DeploymentStatus: status,
 			Driver:           string(d.LoadDriver.ID()),
-			DriverConfig:     d.LoadDriver.GetDriverConfig().DriverConfig,
+			DriverConfig:     d.LoadDriver.Config().DriverConfig,
 			Metadata:         d.Metadata,
 		})
 	}

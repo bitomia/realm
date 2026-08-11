@@ -21,13 +21,12 @@ type NodeValue struct {
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, metadata any) error {
+func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver) error {
 	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName)
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
 		NodeDriverConfig: driver.Config(),
-		Metadata:         metadata,
 	}
 
 	nodeJson, err := json.Marshal(nodeValue)
@@ -98,7 +97,6 @@ func (r *BoltNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 	return common.NodeEntry{
 		NodeName:   nodeValue.NodeName,
 		NodeDriver: nodeDriver,
-		Metadata:   nodeValue.Metadata,
 	}, nil
 }
 
@@ -126,13 +124,12 @@ func (r *BoltNodesRepository) DeleteSelf() error {
 	return nil
 }
 
-func (r *BoltNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+func (r *BoltNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver) error {
 	slog.Info("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeValue := NodeValue{
 		NodeName:         guestNodeName,
 		NodeDriverConfig: guestDriver.Config(),
-		Metadata:         metadata,
 	}
 
 	guestNodeJson, err := json.Marshal(guestNodeValue)
@@ -159,7 +156,7 @@ func (r *BoltNodesRepository) SetGuestNode(guestNodeName string, guestDriver com
 	return nil
 }
 
-func (r *BoltNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver, metadata any) error {
+func (r *BoltNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver) error {
 	slog.Info("BoltNodesRepository.DeleteGuestNode", "guestNodeName", guestNodeName)
 
 	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)

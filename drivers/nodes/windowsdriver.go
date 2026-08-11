@@ -2,7 +2,6 @@ package nodes
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"os/exec"
 
@@ -56,6 +55,7 @@ func NewWindowsDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriv
 
 	return &WindowsDriver{
 		config: config,
+		ctx:    ctx,
 	}, nil
 }
 
@@ -68,19 +68,6 @@ func (w *WindowsDriver) Info() (common.NodeDriverInfo, error) {
 
 func (w *WindowsDriver) ID() common.NodeDriverID {
 	return WindowsDriverID
-}
-
-func (w *WindowsDriver) Register() error {
-	if err := w.ctx.Repository.SetSelf(w.ctx.NodeName, w, nil); err != nil {
-		slog.Error("WindowsDriver.Register", "msg", "failed to register node", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (w *WindowsDriver) Unregister() error {
-	return w.ctx.Repository.DeleteSelf()
 }
 
 func (w *WindowsDriver) Config() common.NodeDriverConfig {

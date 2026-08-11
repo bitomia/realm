@@ -102,8 +102,19 @@ func LoadNodeConfig(node *common.Node) error {
 	if db == nil {
 		return fmt.Errorf("db not initialized")
 	}
-	if err := db.NodesRepository.SetSelf(node.Name, node.Driver, nil); err != nil {
+
+	info, err := node.Driver.Info()
+	if err != nil {
 		return err
+	}
+	if info.GuestMode {
+		if err := db.NodesRepository.SetGuestNode(node.Name, node.Driver); err != nil {
+			return err
+		}
+	} else {
+		if err := db.NodesRepository.SetSelf(node.Name, node.Driver); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -120,7 +131,7 @@ func UnloadGuestNodeConfig(nodeName string) error {
 		return err
 	}
 
-	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.NodeDriver, nil); err != nil {
+	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.NodeDriver); err != nil {
 		return err
 	}
 
@@ -128,6 +139,7 @@ func UnloadGuestNodeConfig(nodeName string) error {
 }
 
 func UnloadNodeConfig() error {
+
 	db := db.GetDB()
 	if db == nil {
 		return fmt.Errorf("db not initialized")

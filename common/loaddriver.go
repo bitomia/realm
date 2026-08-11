@@ -53,8 +53,8 @@ type LoadDriver interface {
 	// UpdateStatus update and returns current status based on internal drivers factors.
 	UpdateStatus(repository DeploymentsRepository, deployment Deployment) (DeploymentStatus, error)
 
-	// GetDriverConfig returns the configuration for this load driver.
-	GetDriverConfig() LoadDriverConfig
+	// Config returns the configuration for this load driver.
+	Config() LoadDriverConfig
 
 	// Stream load stdout to writer
 	StreamStdout(repository DeploymentsRepository, deployment Deployment, w io.Writer) error

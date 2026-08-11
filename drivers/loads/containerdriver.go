@@ -40,7 +40,7 @@ type ContainerConfig struct {
 }
 
 type ContainerDriver struct {
-	Config ContainerConfig
+	config ContainerConfig
 }
 
 type ContainerEntryMetadata struct {
@@ -68,7 +68,7 @@ func NewContainerDriver(c any) (common.LoadDriver, error) {
 	}
 
 	driver := &ContainerDriver{
-		Config: config,
+		config: config,
 	}
 
 	if err := driver.verifyConfig(); err != nil {
@@ -89,13 +89,13 @@ func (c *ContainerDriver) Info() common.LoadDriverInfo {
 }
 
 func (c *ContainerDriver) verifyConfig() error {
-	if c.Config.Image == "" {
+	if c.config.Image == "" {
 		return fmt.Errorf("container image not specified")
 	}
 
 	// Validate network configuration
-	if c.Config.Network != nil {
-		mode := c.Config.Network.Mode
+	if c.config.Network != nil {
+		mode := c.config.Network.Mode
 		if mode == "" {
 			mode = "bridge" // default mode
 		}
@@ -106,22 +106,22 @@ func (c *ContainerDriver) verifyConfig() error {
 		}
 
 		// If not using host mode, network name is required
-		if mode != "host" && c.Config.Network.Network == "" {
+		if mode != "host" && c.config.Network.Network == "" {
 			return fmt.Errorf("network name is required when using bridge mode")
 		}
 
 		// Warn during provisioning if host mode has conflicting settings
 		if mode == "host" {
-			if len(c.Config.Network.PortMap) > 0 {
+			if len(c.config.Network.PortMap) > 0 {
 				slog.Warn("ContainerDriver.Verify", "msg", "port_map will be ignored in host network mode")
 			}
-			if c.Config.Network.IPMasq {
+			if c.config.Network.IPMasq {
 				slog.Warn("ContainerDriver.Verify", "msg", "ip_masq will be ignored in host network mode")
 			}
-			if c.Config.Network.DNS {
+			if c.config.Network.DNS {
 				slog.Warn("ContainerDriver.Verify", "msg", "dns will be ignored in host network mode")
 			}
-			if c.Config.Network.Network != "" {
+			if c.config.Network.Network != "" {
 				slog.Warn("ContainerDriver.Verify", "msg", "network name will be ignored in host network mode")
 			}
 		}
@@ -161,7 +161,7 @@ func (c *ContainerDriver) Provision(nodeDriver common.NodeDriver, repository com
 	}
 	defer client.Close()
 
-	_, err = containers.TryPullAndGetImage(ctx, client, c.Config.Image)
+	_, err = containers.TryPullAndGetImage(ctx, client, c.config.Image)
 	if err != nil {
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
@@ -210,19 +210,19 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 	slog.Info("ContainerDriver.Start", "msg", "starting container", "container", containerName)
 
 	createOpts := dto.CreateContainerRequest{
-		Image:       c.Config.Image,
-		Quotas:      c.Config.Quotas,
-		Env:         c.Config.Env,
-		MountVolume: c.Config.MountVolume,
-		BindMounts:  c.Config.BindMounts,
-		Entrypoint:  c.Config.Entrypoint,
-		Args:        c.Config.Args,
-		WorkingDir:  c.Config.WorkingDir,
+		Image:       c.config.Image,
+		Quotas:      c.config.Quotas,
+		Env:         c.config.Env,
+		MountVolume: c.config.MountVolume,
+		BindMounts:  c.config.BindMounts,
+		Entrypoint:  c.config.Entrypoint,
+		Args:        c.config.Args,
+		WorkingDir:  c.config.WorkingDir,
 	}
 
 	// Prepare extra OCI spec options for host networking if needed
 	var extraSpecOpts []oci.SpecOpts
-	if c.Config.Network != nil && c.Config.Network.Mode == "host" {
+	if c.config.Network != nil && c.config.Network.Mode == "host" {
 		slog.Info("ContainerDriver.Start", "msg", "using host network mode", "container", containerName)
 		extraSpecOpts = containers.GetHostNetworkSpecOpts()
 	}
@@ -251,10 +251,10 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 	var ipAddressPtr *net.IP
 
 	// Attach network if configured (only for bridge mode, not host mode)
-	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
-		slog.Info("ContainerDriver.Start", "msg", "attaching network", "container", containerName, "network", c.Config.Network.Network)
+	if c.config.Network != nil && c.config.Network.Mode != "host" {
+		slog.Info("ContainerDriver.Start", "msg", "attaching network", "container", containerName, "network", c.config.Network.Network)
 
-		if _, gwAddress, ipAddress, err := network.StartNetwork(containerName, *c.Config.Network); err != nil {
+		if _, gwAddress, ipAddress, err := network.StartNetwork(containerName, *c.config.Network); err != nil {
 			err = fmt.Errorf("failed to attach network. rolling back: %s", err.Error())
 			slog.Error("ContainerDriver.Start", "msg", "failed to attach network", "error", err)
 
@@ -369,7 +369,7 @@ func (c *ContainerDriver) Kill(repository common.DeploymentsRepository, deployme
 func (c *ContainerDriver) cleanupContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {
 	// Detach network before killing the task (network needs the netns which requires the process to be alive)
 	// Only detach if not using host mode (host mode doesn't use CNI networking)
-	if c.Config.Network != nil && c.Config.Network.Mode != "host" {
+	if c.config.Network != nil && c.config.Network.Mode != "host" {
 		slog.Info("ContainerDriver.cleanupContainer", "msg", "detaching network", "container", containerName)
 
 		if err := network.DeleteNetwork(containerName); err != nil {
@@ -422,8 +422,8 @@ func (c *ContainerDriver) UpdateStatus(r common.DeploymentsRepository, d common.
 	return s, nil
 }
 
-func (c *ContainerDriver) GetDriverConfig() common.LoadDriverConfig {
-	return common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c.Config}
+func (c *ContainerDriver) Config() common.LoadDriverConfig {
+	return common.LoadDriverConfig{Driver: ContainerDriverID, DriverConfig: c.config}
 }
 
 func (c *ContainerDriver) StreamStdout(repository common.DeploymentsRepository, deployment common.Deployment, w io.Writer) error {

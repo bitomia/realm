@@ -5,9 +5,10 @@ var (
 )
 
 type NodeContext struct {
-	Repository NodesRepository
-	NodeName   string
-	RunMode    RunMode
+	Repository   NodesRepository // Only available when agent is running
+	Capabilities Capabilities
+	NodeName     string
+	RunMode      RunMode
 }
 
 type NodeContexBuilder func(nodeName string) NodeContext

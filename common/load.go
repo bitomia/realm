@@ -60,7 +60,7 @@ func (l *Load) MarshalJSON() ([]byte, error) {
 		Name:           l.Name,
 		Node:           nodeName,
 		Driver:         l.Driver.ID(),
-		DriverConfig:   l.Driver.GetDriverConfig().DriverConfig,
+		DriverConfig:   l.Driver.Config().DriverConfig,
 		DependsOn:      l.GetDependencies(),
 		StartChainHash: base64.StdEncoding.EncodeToString(startChainHash[:]),
 		StopChainHash:  base64.StdEncoding.EncodeToString(stopChainHash[:]),
@@ -92,7 +92,7 @@ func (l *Load) Hash() [32]byte {
 		Name:         l.Name,
 		Node:         l.Node.Name,
 		Driver:       l.Driver.ID(),
-		DriverConfig: l.Driver.GetDriverConfig().DriverConfig,
+		DriverConfig: l.Driver.Config().DriverConfig,
 		DependsOn:    l.GetDependencies(),
 	})
 	if err != nil {

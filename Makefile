@@ -74,6 +74,10 @@ verify-fmt:
 vet:
 	$(GO) vet ./...
 
+.PHONY: install
+install: all
+	sudo install -C bin/realm /usr/local/bin
+
 .PHONY: test
 test:
 	$(GO) test -v ./drivers/...

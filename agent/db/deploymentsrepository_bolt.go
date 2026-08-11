@@ -26,7 +26,7 @@ func (r *BoltDeploymentsRepository) Create(loadName string, driver common.LoadDr
 		ID:               uuid.New(),
 		LoadName:         loadName,
 		Status:           status,
-		LoadDriverConfig: driver.GetDriverConfig(),
+		LoadDriverConfig: driver.Config(),
 		Metadata:         metadata,
 	}
 

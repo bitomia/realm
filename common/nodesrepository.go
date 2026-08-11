@@ -23,7 +23,7 @@ var (
 // so no memory references must be used
 type NodesRepository interface {
 	// SetSelf creates or updates the node for the caller
-	SetSelf(nodeName string, driver NodeDriver, metadata any) error
+	SetSelf(nodeName string, driver NodeDriver) error
 
 	// GetSelf return nodeentry for the caller node
 	GetSelf() (NodeEntry, error)
@@ -38,7 +38,7 @@ type NodesRepository interface {
 	GetByAgentId(agentId string) (NodeEntry, error)
 
 	// SetGuestNode creates or update the guest node entry for the caller host node
-	SetGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
+	SetGuestNode(guestNodeName string, guestDriver NodeDriver) error
 
 	// GetGuestNode returns a guest node of the caller host node
 	GetGuestNode(guestNodeName string) (NodeEntry, error)
@@ -47,7 +47,7 @@ type NodesRepository interface {
 	GetAllGuestNodes() ([]NodeEntry, error)
 
 	// DeleteGuestNode deletes the guest node entry for the caller host node
-	DeleteGuestNode(guestNodeName string, guestDriver NodeDriver, metadata any) error
+	DeleteGuestNode(guestNodeName string, guestDriver NodeDriver) error
 
 	// Update guest node metadata
 	UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error

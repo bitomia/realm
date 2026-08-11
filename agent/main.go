@@ -90,7 +90,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	}
 
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
-		return common.NodeContext{Repository: db.NodesRepository, NodeName: nodeName, RunMode: common.AgentMode}
+		return common.NodeContext{Repository: db.NodesRepository, Capabilities: capabilities.Get(), NodeName: nodeName, RunMode: common.AgentMode}
 	})
 
 	if err := dns.Initialize(); err != nil {

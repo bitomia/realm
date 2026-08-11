@@ -34,7 +34,7 @@ type ProcessConfig struct {
 
 type ProcessDriver struct {
 	StopSignal *int
-	Config     ProcessConfig
+	config     ProcessConfig
 }
 
 type ProcessEntryMetadata struct {
@@ -71,7 +71,7 @@ func NewProcessDriver(c any) (common.LoadDriver, error) {
 
 	driver := &ProcessDriver{
 		StopSignal: stopSignal,
-		Config:     config,
+		config:     config,
 	}
 
 	if err := driver.verifyConfig(); err != nil {
@@ -92,7 +92,7 @@ func (c ProcessDriver) Info() common.LoadDriverInfo {
 }
 
 func (p *ProcessDriver) verifyConfig() error {
-	if p.Config.StartCmd == "" {
+	if p.config.StartCmd == "" {
 		return fmt.Errorf("startCmd not specified")
 	}
 
@@ -100,15 +100,15 @@ func (p *ProcessDriver) verifyConfig() error {
 }
 
 func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository common.DeploymentsRepository, loadName string) (common.DeploymentID, error) {
-	resolved, err := common.ResolveExecPath(p.Config.StartCmd, p.Config.WorkingDir)
+	resolved, err := common.ResolveExecPath(p.config.StartCmd, p.config.WorkingDir)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	p.Config.StartCmd = resolved
+	p.config.StartCmd = resolved
 
 	// Check WorkingDir exists
-	if p.Config.WorkingDir != nil {
-		if err := internal.DirExists(*p.Config.WorkingDir); err != nil {
+	if p.config.WorkingDir != nil {
+		if err := internal.DirExists(*p.config.WorkingDir); err != nil {
 			return uuid.Nil, err
 		}
 	}
@@ -136,14 +136,14 @@ func (p *ProcessDriver) Provision(nodeDriver common.NodeDriver, repository commo
 
 func (p *ProcessDriver) Start(repository common.DeploymentsRepository, deployment common.Deployment) error {
 	var args []string
-	if p.Config.StartArgs != nil {
-		args = strings.Fields(*p.Config.StartArgs)
+	if p.config.StartArgs != nil {
+		args = strings.Fields(*p.config.StartArgs)
 	}
 
-	cmd := exec.Command(p.Config.StartCmd, args...)
+	cmd := exec.Command(p.config.StartCmd, args...)
 
-	if p.Config.WorkingDir != nil {
-		cmd.Dir = *p.Config.WorkingDir
+	if p.config.WorkingDir != nil {
+		cmd.Dir = *p.config.WorkingDir
 	}
 
 	config := configPkg.Get()
@@ -168,8 +168,8 @@ func (p *ProcessDriver) Start(repository common.DeploymentsRepository, deploymen
 	cmd.Stdout = stdoutFile
 	cmd.Stderr = stderrFile
 
-	if p.Config.WorkingDir != nil {
-		cmd.Dir = *p.Config.WorkingDir
+	if p.config.WorkingDir != nil {
+		cmd.Dir = *p.config.WorkingDir
 	}
 	if err := cmd.Start(); err != nil {
 		return common.SetDeploymentError(repository, deployment, "ProcessDriver.Start", "deployment", deployment.ID, "error", fmt.Sprintf("Failed to start process: %v", err))
@@ -199,7 +199,7 @@ func (p *ProcessDriver) Stop(repository common.DeploymentsRepository, deployment
 	var err error
 
 	if p.shallUseProcessName() {
-		name := filepath.Base(p.Config.StartCmd)
+		name := filepath.Base(p.config.StartCmd)
 		proc, err = retrieveProcessByName(name)
 	} else {
 		proc, err = retrieveProcess(deployment)
@@ -227,7 +227,7 @@ func (p *ProcessDriver) Kill(repository common.DeploymentsRepository, deployment
 	var err error
 
 	if p.shallUseProcessName() {
-		name := filepath.Base(p.Config.StartCmd)
+		name := filepath.Base(p.config.StartCmd)
 		proc, err = retrieveProcessByName(name)
 	} else {
 		proc, err = retrieveProcess(deployment)
@@ -267,8 +267,8 @@ func (p *ProcessDriver) Deprovision(repository common.DeploymentsRepository, dep
 	return nil
 }
 
-func (p *ProcessDriver) GetDriverConfig() common.LoadDriverConfig {
-	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.Config}
+func (p *ProcessDriver) Config() common.LoadDriverConfig {
+	return common.LoadDriverConfig{Driver: ProcessDriverID, DriverConfig: p.config}
 }
 
 func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.Deployment) (common.DeploymentStatus, error) {
@@ -283,7 +283,7 @@ func (p *ProcessDriver) UpdateStatus(r common.DeploymentsRepository, d common.De
 	var err error
 
 	if p.shallUseProcessName() {
-		name := filepath.Base(p.Config.StartCmd)
+		name := filepath.Base(p.config.StartCmd)
 		proc, err = retrieveProcessByName(name)
 	} else {
 		proc, err = retrieveProcess(d)

@@ -19,6 +19,5 @@ func RegisterStdDrivers() error {
 	if err := common.RegisterNodeDriver(&nodes.WindowsDriver{}); err != nil {
 		return err
 	}
-	return nil
-	//	return common.RegisterNodeDriver(&nodes.VMDriver{})
+	return common.RegisterNodeDriver(&nodes.VMDriver{})
 }

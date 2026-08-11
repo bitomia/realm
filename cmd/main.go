@@ -25,7 +25,7 @@ func main() {
 	}
 
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
-		return common.NodeContext{Repository: nil, NodeName: nodeName, RunMode: common.ClientMode}
+		return common.NodeContext{Repository: nil, Capabilities: nil, NodeName: nodeName, RunMode: common.ClientMode}
 	})
 
 	rootCmd.Use = "realm"

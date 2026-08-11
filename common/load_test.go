@@ -59,7 +59,7 @@ func (m *MockLoadDriver) UpdateStatus(repository DeploymentsRepository, deployme
 	return DeploymentStatus{}, nil
 }
 
-func (m *MockLoadDriver) GetDriverConfig() LoadDriverConfig {
+func (m *MockLoadDriver) Config() LoadDriverConfig {
 	return LoadDriverConfig{
 		Driver:       m.driver,
 		DriverConfig: m.driverConfig,

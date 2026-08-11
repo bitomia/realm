@@ -94,7 +94,7 @@ func (m mockLoadDriver) UpdateStatus(repository common.DeploymentsRepository, de
 	return common.DeploymentStatus{}, nil
 }
 
-func (m mockLoadDriver) GetDriverConfig() common.LoadDriverConfig {
+func (m mockLoadDriver) Config() common.LoadDriverConfig {
 	return m.config
 }
 
