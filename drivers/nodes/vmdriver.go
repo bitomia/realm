@@ -112,11 +112,8 @@ func (q *VMDriver) Config() common.NodeDriverConfig {
 	return common.NodeDriverConfig{Driver: VMDriverID, DriverConfig: &c}
 }
 
-func (q *VMDriver) libvirtSocket() string {
-	if q.config.LibVirtSocket != nil {
-		return *q.config.LibVirtSocket
-	}
-	return defaultLibVirtSocket
+func (q *VMDriver) libvirtSocket() *string {
+	return q.config.LibVirtSocket
 }
 
 func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]OverlayImage, cloudInitHost *string) (string, error) {

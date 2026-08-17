@@ -1,7 +1,6 @@
 package capabilities
 
 import (
-	"fmt"
 	"log/slog"
 
 	"github.com/digitalocean/go-libvirt"
@@ -105,8 +104,16 @@ func (c SystemCapabilities) evalVolumes(cfg *config.Config) {
 func (c SystemCapabilities) evalVMM() {
 	l := libvirt.NewWithDialer(dialers.NewLocal())
 	if err := l.Connect(); err != nil {
+		slog.Warn("Cannot connect to libvirt", "error", err.Error())
 		systemCaps.vmm = false
+		return
 	}
+	defer func() {
+		if err := l.Disconnect(); err != nil {
+			slog.Warn("Cannot disconnect from libvirt", "error", err.Error())
+		}
+	}()
+
 	systemCaps.vmm = true
 }
 

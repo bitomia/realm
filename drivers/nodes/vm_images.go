@@ -20,10 +20,6 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-const (
-	defaultLibVirtSocket = "/var/run/libvirt/libvirt-sock"
-)
-
 type OverlayImage struct {
 	ID       uuid.UUID
 	FilePath string
@@ -138,7 +134,7 @@ func downloadImage(rawURL string) (string, error) {
 	return cachedPath, nil
 }
 
-func createDrives(drives []VMDrive, nodeName, socket string) (map[int]OverlayImage, error) {
+func createDrives(drives []VMDrive, nodeName string, socket *string) (map[int]OverlayImage, error) {
 	overlays := make(map[int]OverlayImage)
 	for i := range drives {
 		imagePath := drives[i].File
@@ -193,7 +189,7 @@ func parseDriveSize(size string) (uint64, error) {
 	return n * mult, nil
 }
 
-func resizeOverlay(filePath, size, socket string) error {
+func resizeOverlay(filePath, size string, socket *string) error {
 	capacity, err := parseDriveSize(size)
 	if err != nil {
 		return fmt.Errorf("vm: invalid resize for %s: %w", filePath, err)

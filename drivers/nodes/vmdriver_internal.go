@@ -14,15 +14,21 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-func dialLibvirt(socket string) (*libvirt.Libvirt, error) {
-	l := libvirt.NewWithDialer(dialers.NewLocal(dialers.WithSocket(socket)))
+// dialLibvirt connects to a local libvirtd over its unix socket. A nil socket
+// leaves the path to the dialer's own default (/var/run/libvirt/libvirt-sock).
+func dialLibvirt(socket *string) (*libvirt.Libvirt, error) {
+	var opts []dialers.LocalOption
+	if socket != nil {
+		opts = append(opts, dialers.WithSocket(*socket))
+	}
+	l := libvirt.NewWithDialer(dialers.NewLocal(opts...))
 	if err := l.Connect(); err != nil {
 		return nil, fmt.Errorf("libvirt: dial failed: %w", err)
 	}
 	return l, nil
 }
 
-func withLibvirt(socket string, fn func(*libvirt.Libvirt) error) error {
+func withLibvirt(socket *string, fn func(*libvirt.Libvirt) error) error {
 	l, err := dialLibvirt(socket)
 	if err != nil {
 		return err
