@@ -216,7 +216,7 @@ var powerOnNodes = &cobra.Command{
 			if err := client.PowerOnNode(n); err != nil {
 				log.Warn("Power-on node '%s' failed: %s", n.Name, err.Error())
 			} else {
-				log.Info("Node '%s' power-on started", n.Name)
+				log.Info("Node '%s' power-on done", n.Name)
 			}
 		}
 	},
@@ -236,7 +236,7 @@ var powerOffNodes = &cobra.Command{
 			if err := client.PowerOffNode(n); err != nil {
 				log.Warn("Power off node '%s' failed: %s", n.Name, err.Error())
 			} else {
-				log.Info("Node '%s' power-off started", n.Name)
+				log.Info("Node '%s' power-off done", n.Name)
 			}
 		}
 	},

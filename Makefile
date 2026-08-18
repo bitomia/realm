@@ -72,6 +72,10 @@ vet:
 install: all
 	sudo install -C bin/realm /usr/local/bin
 
+.PHONY: install-mesh
+install-mesh: mesh
+	sudo install -C bin/realm /usr/local/bin
+
 .PHONY: test
 test:
 	$(GO) test -v ./drivers/...

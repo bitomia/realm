@@ -17,7 +17,7 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
-const requestTimeout = 60 * time.Second
+const requestTimeout = 120 * time.Second
 
 type Client struct {
 	header http.Header
