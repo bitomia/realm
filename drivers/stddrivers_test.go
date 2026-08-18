@@ -72,7 +72,7 @@ loads:
 	assert.NotNil(t, loads["web"])
 	assert.Equal(t, loads["web"].Name, "web")
 	assert.Equal(t, loads["web"].Driver.ID(), loadsPkg.ContainerDriverID)
-	assert.Equal(t, loads["web"].Driver.(*loadsPkg.ContainerDriver).Config.Image, "docker.io/nginx")
+	assert.Equal(t, loads["web"].Driver.Config().DriverConfig.(loadsPkg.ContainerConfig).Image, "docker.io/nginx")
 }
 
 func TestConfigCycleError(t *testing.T) {
@@ -155,29 +155,29 @@ loads:
 	assert.NotNil(t, webLoad)
 	assert.Equal(t, webLoad.Driver.ID(), loadsPkg.ContainerDriverID)
 
-	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
-	assert.Equal(t, "docker.io/nginx", containerDriver.Config.Image)
-	assert.Len(t, containerDriver.Config.BindMounts, 4)
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver).Config().DriverConfig.(loadsPkg.ContainerConfig)
+	assert.Equal(t, "docker.io/nginx", containerDriver.Image)
+	assert.Len(t, containerDriver.BindMounts, 4)
 
 	// Verify first bind mount
-	assert.Equal(t, "./si2", containerDriver.Config.BindMounts[0].Source)
-	assert.Equal(t, "/home/runner/si2", containerDriver.Config.BindMounts[0].Destination)
-	assert.False(t, containerDriver.Config.BindMounts[0].ReadOnly)
+	assert.Equal(t, "./si2", containerDriver.BindMounts[0].Source)
+	assert.Equal(t, "/home/runner/si2", containerDriver.BindMounts[0].Destination)
+	assert.False(t, containerDriver.BindMounts[0].ReadOnly)
 
 	// Verify second bind mount
-	assert.Equal(t, "./entrypoint", containerDriver.Config.BindMounts[1].Source)
-	assert.Equal(t, "/home/runner/entrypoint", containerDriver.Config.BindMounts[1].Destination)
-	assert.False(t, containerDriver.Config.BindMounts[1].ReadOnly)
+	assert.Equal(t, "./entrypoint", containerDriver.BindMounts[1].Source)
+	assert.Equal(t, "/home/runner/entrypoint", containerDriver.BindMounts[1].Destination)
+	assert.False(t, containerDriver.BindMounts[1].ReadOnly)
 
 	// Verify third bind mount (read-only)
-	assert.Equal(t, "/opt/si2_license", containerDriver.Config.BindMounts[2].Source)
-	assert.Equal(t, "/opt/si2_license", containerDriver.Config.BindMounts[2].Destination)
-	assert.True(t, containerDriver.Config.BindMounts[2].ReadOnly)
+	assert.Equal(t, "/opt/si2_license", containerDriver.BindMounts[2].Source)
+	assert.Equal(t, "/opt/si2_license", containerDriver.BindMounts[2].Destination)
+	assert.True(t, containerDriver.BindMounts[2].ReadOnly)
 
 	// Verify fourth bind mount
-	assert.Equal(t, "/opt/terrainData", containerDriver.Config.BindMounts[3].Source)
-	assert.Equal(t, "/opt/terrainData", containerDriver.Config.BindMounts[3].Destination)
-	assert.False(t, containerDriver.Config.BindMounts[3].ReadOnly)
+	assert.Equal(t, "/opt/terrainData", containerDriver.BindMounts[3].Source)
+	assert.Equal(t, "/opt/terrainData", containerDriver.BindMounts[3].Destination)
+	assert.False(t, containerDriver.BindMounts[3].ReadOnly)
 }
 
 func TestContainerDriverNoBindMounts(t *testing.T) {
@@ -205,8 +205,8 @@ loads:
 	webLoad := loads["nomount_web"]
 	assert.NotNil(t, webLoad)
 
-	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
-	assert.Nil(t, containerDriver.Config.BindMounts)
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver).Config().DriverConfig.(loadsPkg.ContainerConfig)
+	assert.Nil(t, containerDriver.BindMounts)
 }
 
 func TestContainerDriverEmptyBindMounts(t *testing.T) {
@@ -235,7 +235,7 @@ loads:
 	webLoad := loads["emptymount_web"]
 	assert.NotNil(t, webLoad)
 
-	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver)
-	assert.NotNil(t, containerDriver.Config.BindMounts)
-	assert.Len(t, containerDriver.Config.BindMounts, 0)
+	containerDriver := webLoad.Driver.(*loadsPkg.ContainerDriver).Config().DriverConfig.(loadsPkg.ContainerConfig)
+	assert.NotNil(t, containerDriver.BindMounts)
+	assert.Len(t, containerDriver.BindMounts, 0)
 }

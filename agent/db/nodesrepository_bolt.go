@@ -97,6 +97,7 @@ func (r *BoltNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 	return common.NodeEntry{
 		NodeName:   nodeValue.NodeName,
 		NodeDriver: nodeDriver,
+		Metadata:   nodeValue.Metadata,
 	}, nil
 }
 
