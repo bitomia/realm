@@ -207,16 +207,8 @@ func (q *VMDriver) PowerOn(cloudInit *cloudinit.CloudInit) error {
 		return fmt.Errorf("VMDriver.PowerOn: failed to resolve drive images: %w", err)
 	}
 
-	metadata := VMNodeMetadata{
-		Drives: overlayDrives,
-	}
-
-	err = q.ctx.Repository.UpdateGuestMetadata(q.ctx.NodeName, func(metadataPtr any) error {
-		ptr, ok := metadataPtr.(*VMNodeMetadata)
-		if !ok {
-			return fmt.Errorf("unexpected metadata pointer type %T", metadataPtr)
-		}
-		*ptr = metadata
+	err = common.UpdateGuestNodeMetadata(q.ctx.NodeName, q.ctx.Repository, func(metadata *VMNodeMetadata) error {
+		metadata.Drives = overlayDrives
 		return nil
 	})
 	if err != nil {
@@ -233,7 +225,7 @@ func (q *VMDriver) PowerOn(cloudInit *cloudinit.CloudInit) error {
 		}
 	}
 
-	domainXML, err := q.buildDomainXML(q.ctx.NodeName, metadata.Drives, cloudInitHost)
+	domainXML, err := q.buildDomainXML(q.ctx.NodeName, overlayDrives, cloudInitHost)
 	if err != nil {
 		cleanupOverlays(q.ctx.NodeName)
 		return fmt.Errorf("VMDriver.PowerOn: failed to build domain XML: %w", err)
