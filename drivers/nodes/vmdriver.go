@@ -28,17 +28,17 @@ type VMDrive struct {
 }
 
 type VMNetdev struct {
-	Type       string `json:"type,omitempty"`
-	ID         string `json:"id,omitempty"`
-	Ifname     string `json:"ifname,omitempty"`
-	Script     string `json:"script,omitempty"`
-	Downscript string `json:"downscript,omitempty"`
-	BR         string `json:"br,omitempty"`
-	Helper     string `json:"helper,omitempty"`
-	Net        string `json:"net,omitempty"`
-	DHCPStart  string `json:"dhcpstart,omitempty"`
-	Hostfwd    string `json:"hostfwd,omitempty"`
-	Mac        string `json:"mac,omitempty"`
+	Type       string   `json:"type,omitempty"`
+	ID         string   `json:"id,omitempty"`
+	Ifname     string   `json:"ifname,omitempty"`
+	Script     string   `json:"script,omitempty"`
+	Downscript string   `json:"downscript,omitempty"`
+	BR         string   `json:"br,omitempty"`
+	Helper     string   `json:"helper,omitempty"`
+	Net        string   `json:"net,omitempty"`
+	DHCPStart  string   `json:"dhcpstart,omitempty"`
+	Hostfwd    []string `json:"hostfwd,omitempty"`
+	Mac        string   `json:"mac,omitempty"`
 }
 
 type VMConfig struct {
@@ -158,7 +158,18 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		dom.Devices.Disks = append(dom.Devices.Disks, d)
 	}
 
-	for _, nd := range q.config.Netdev {
+	// Netdevs asking for port forwards bypass <interface> entirely: libvirt has
+	// no XML for SLIRP's hostfwd, so they are emitted as raw QEMU arguments.
+	var netdevArgs []string
+	for i, nd := range q.config.Netdev {
+		if len(nd.Hostfwd) > 0 {
+			args, err := buildHostfwdArgs(nd, i)
+			if err != nil {
+				return "", err
+			}
+			netdevArgs = append(netdevArgs, args...)
+			continue
+		}
 		iface, err := buildInterface(nd)
 		if err != nil {
 			return "", err
@@ -173,10 +184,10 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 		}
 	}
 
-	if len(q.config.Params) > 0 {
+	if len(q.config.Params) > 0 || len(netdevArgs) > 0 {
 		dom.QemuXMLNS = qemuCommandlineNS
 		cmdline := &xQemuCmdline{}
-		for _, arg := range q.config.Params {
+		for _, arg := range append(netdevArgs, q.config.Params...) {
 			cmdline.Args = append(cmdline.Args, xQemuArg{Value: arg})
 		}
 		dom.QemuCmdline = cmdline

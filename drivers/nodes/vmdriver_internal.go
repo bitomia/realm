@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 
@@ -50,6 +51,9 @@ func lookupDomain(l *libvirt.Libvirt, name string) (libvirt.Domain, bool, error)
 
 // qemuCommandlineNS is the libvirt QEMU namespace required to pass arbitrary
 const qemuCommandlineNS = "http://libvirt.org/schemas/domain/qemu/1.0"
+
+// hostfwdBaseSlot is the pcie.0 slot the first passthrough NIC is pinned to.
+const hostfwdBaseSlot = 0x1e
 
 type xDomain struct {
 	XMLName     xml.Name      `xml:"domain"`
@@ -296,6 +300,118 @@ func buildInterface(nd VMNetdev) (xInterface, error) {
 		return i, nil
 	}
 	return xInterface{}, fmt.Errorf("vm: unsupported netdev type %q", nd.Type)
+}
+
+// buildHostfwdArgs renders a user netdev with port forwards as raw QEMU
+// arguments. libvirt's <portForward> element only works with the passt
+// backend, but SLIRP forwards ports perfectly well through hostfwd=, so the
+// netdev is passed through the qemu:commandline namespace instead.
+//
+// Each spec takes the QEMU form
+//
+//	[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport
+//
+// Specs are validated rather than passed through blindly: QEMU exits at
+// startup on a malformed one, which takes the serial console down with it.
+func buildHostfwdArgs(nd VMNetdev, index int) ([]string, error) {
+	if t := strings.ToLower(nd.Type); t != "user" && t != "" {
+		return nil, fmt.Errorf("vm: hostfwd is only supported on user netdevs, not %q", nd.Type)
+	}
+
+	id := nd.ID
+	if id == "" {
+		id = fmt.Sprintf("hostnet%d", index)
+	}
+
+	netdev := "user,id=" + id
+	if nd.Net != "" {
+		netdev += ",net=" + nd.Net
+	}
+	if nd.DHCPStart != "" {
+		netdev += ",dhcpstart=" + nd.DHCPStart
+	}
+	for _, spec := range nd.Hostfwd {
+		fwd, err := normalizeHostfwd(spec)
+		if err != nil {
+			return nil, err
+		}
+		if fwd == "" {
+			continue
+		}
+		netdev += ",hostfwd=" + fwd
+	}
+
+	device := "virtio-net-pci,netdev=" + id
+	if nd.Mac != "" {
+		device += ",mac=" + nd.Mac
+	}
+	// Without an explicit address QEMU claims the first free slot on pcie.0,
+	// which is the one libvirt is about to hand its own pcie-root-port, and the
+	// domain dies on a slot conflict. Count down from the top of the bus
+	// instead: 0x1f is the q35 LPC bridge, and libvirt allocates upward from
+	// 0x1, so the high slots stay clear.
+	slot := hostfwdBaseSlot - index
+	if slot <= 0 {
+		return nil, fmt.Errorf("vm: too many hostfwd netdevs (%d), no free PCI slot", index+1)
+	}
+	device += fmt.Sprintf(",bus=pcie.0,addr=%#x", slot)
+
+	return []string{"-netdev", netdev, "-device", device}, nil
+}
+
+// normalizeHostfwd validates one hostfwd spec and returns it in QEMU's
+// canonical proto:hostaddr:hostport-guestaddr:guestport form.
+func normalizeHostfwd(spec string) (string, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return "", nil
+	}
+	if strings.ContainsAny(spec, ", ") {
+		return "", fmt.Errorf("vm: hostfwd %q: one forward per entry, use a list for several", spec)
+	}
+
+	proto, rest := "tcp", spec
+	// The protocol is optional; without it the spec starts straight at the
+	// (possibly empty) host address.
+	if head, tail, ok := strings.Cut(spec, ":"); ok {
+		if p := strings.ToLower(head); p == "tcp" || p == "udp" {
+			proto, rest = p, tail
+		}
+	}
+
+	hostPart, guestPart, ok := strings.Cut(rest, "-")
+	if !ok {
+		return "", fmt.Errorf("vm: hostfwd %q: expected <hostaddr>:<hostport>-<guestaddr>:<guestport>", spec)
+	}
+
+	hostAddr, hostPort, err := splitHostfwdAddr(hostPart, spec, "host")
+	if err != nil {
+		return "", err
+	}
+	guestAddr, guestPort, err := splitHostfwdAddr(guestPart, spec, "guest")
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s:%s:%d-%s:%d", proto, hostAddr, hostPort, guestAddr, guestPort), nil
+}
+
+func splitHostfwdAddr(s, spec, side string) (string, uint16, error) {
+	addr, portStr := "", s
+	if i := strings.LastIndex(s, ":"); i >= 0 {
+		addr, portStr = s[:i], s[i+1:]
+	}
+	if addr != "" && net.ParseIP(addr) == nil {
+		return "", 0, fmt.Errorf("vm: hostfwd %q: invalid %s address %q", spec, side, addr)
+	}
+	if portStr == "" {
+		return "", 0, fmt.Errorf("vm: hostfwd %q: missing %s port", spec, side)
+	}
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil || port == 0 {
+		return "", 0, fmt.Errorf("vm: hostfwd %q: invalid %s port %q", spec, side, portStr)
+	}
+	return addr, uint16(port), nil
 }
 
 func queryGuestInterfaces(l *libvirt.Libvirt, d libvirt.Domain) []common.NetworkInterface {
