@@ -73,7 +73,7 @@ func stringToSliceHook(from reflect.Type, to reflect.Type, data any) (any, error
 }
 
 func NewVMDriverFromConfig(ctx common.NodeContext, c *any) (common.NodeDriver, error) {
-	if ctx.Capabilities != nil && ctx.Capabilities.VMM() == false {
+	if ctx.Capabilities != nil && !ctx.Capabilities.VMM() {
 		return nil, fmt.Errorf("VMM capability required")
 	}
 

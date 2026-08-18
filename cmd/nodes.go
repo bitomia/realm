@@ -162,7 +162,7 @@ var loadNodeConfig = &cobra.Command{
 			}
 		}
 
-		if validationSuccess == false {
+		if !validationSuccess {
 			log.Error("Validation failed. Load aborted.")
 			return
 		}

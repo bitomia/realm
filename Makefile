@@ -56,15 +56,9 @@ $(BIN_DIR):
 clean:
 	-$(RM) "$(REALM_OUT)"
 
-.PHONY: verify-lint-cmd
-verify-lint-cmd:
-	$(GO) run $(GOLANGCI_LINT_PACKAGE) run cmd/...
-
-.PHONY: verify-lint-agent
-verify-lint-agent:
-	$(GO) run $(GOLANGCI_LINT_PACKAGE) run agent/...
-
-lint: verify-lint-cmd verify-lint-agent
+.PHONY: lint
+lint:
+	$(GO) run $(GOLANGCI_LINT_PACKAGE) run ./...
 
 .PHONY: verify-fmt
 verify-fmt:

@@ -80,7 +80,7 @@ func LoadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
 		onlyValidate = parsed
 	}
 
-	if onlyValidate == false {
+	if !onlyValidate {
 		if err := api.LoadNodeConfig(&node); err != nil {
 			if errors.Is(err, common.ErrNodeAlreadyConfigured) {
 				w.WriteHeader(http.StatusConflict)
