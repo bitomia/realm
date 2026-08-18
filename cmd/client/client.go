@@ -435,6 +435,16 @@ func (c *Client) LoadNodeConfig(node *common.Node) error {
 	}
 }
 
+func (c *Client) ValidateNodeConfig(node *common.Node) error {
+	url := fmt.Sprintf("%s/node/config?validate=true", node.Url)
+	_, statusCode, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	if statusCode == http.StatusConflict {
+		return common.ErrNodeAlreadyConfigured
+	} else {
+		return err
+	}
+}
+
 func (c *Client) UnloadNodeConfig(node *common.Node) error {
 	driverInfo, err := node.Driver.Info()
 	if err != nil {

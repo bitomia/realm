@@ -119,6 +119,12 @@ func LoadNodeConfig(node *common.Node) error {
 	return nil
 }
 
+func ValidateNodeConfig(node *common.Node) error {
+	// Node builders shall validate context conditions such as node capabilities
+	_, err := common.BuildNodeDriver(common.NewNodeContext(node.Name), node.Driver.Config())
+	return err
+}
+
 func UnloadGuestNodeConfig(nodeName string) error {
 	db := db.GetDB()
 	if db == nil {

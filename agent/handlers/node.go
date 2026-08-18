@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/bitomia/realm/agent/api"
 	"github.com/bitomia/realm/common"
@@ -69,15 +70,27 @@ func LoadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("handlers.LoadNodeConfigHandler", "node", node.Name, "driver", node.Driver)
 
-	if err := api.LoadNodeConfig(&node); err != nil {
-		if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-			w.WriteHeader(http.StatusConflict)
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+	onlyValidate := false
+	if v := r.URL.Query().Get("validate"); v != "" {
+		parsed, err := strconv.ParseBool(v)
+		if err != nil {
+			http.Error(w, "invalid value for validate", http.StatusBadRequest)
+			return
 		}
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	} else {
-		w.WriteHeader(http.StatusOK)
+		onlyValidate = parsed
+	}
+
+	if onlyValidate == false {
+		if err := api.LoadNodeConfig(&node); err != nil {
+			if errors.Is(err, common.ErrNodeAlreadyConfigured) {
+				w.WriteHeader(http.StatusConflict)
+			} else {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
 	}
 }
 

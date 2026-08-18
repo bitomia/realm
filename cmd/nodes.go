@@ -142,38 +142,34 @@ var nodeStates = &cobra.Command{
 	},
 }
 
-func checkNodesCmd(cmd *cobra.Command, nodeNames []string) {
-	nodes := cfg.GetNodes(nodeNames...)
-	client := clientPkg.NewClient(cfg)
-
-	log.Info("Checking node configurations:")
-	for _, n := range nodes {
-		if nodeDriverConfig, err := client.GetNodeConfig(n); err != nil {
-			log.Warn("Node '%s' config error: %s", n.Name, err.Error())
-		} else if !n.Driver.Config().Equal(*nodeDriverConfig) {
-			log.Warn("Node '%s' config mismatch: loaded config differs from local config", n.Name)
-		} else {
-			log.Info("Node '%s' config valid", n.Name)
-		}
-	}
-}
-
-var checkNodeConfig = &cobra.Command{
-	Use:                   "check [--all | node...]",
-	Short:                 "Check node configurations are valid",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run:                   checkNodesCmd,
-}
-
 var loadNodeConfig = &cobra.Command{
-	Use:                   "load [--all | node...]",
+	Use:                   "load [--all | node...] [--validate]",
 	Short:                 "Load node configurations",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
 		client := clientPkg.NewClient(cfg)
+
+		validationSuccess := true
+		log.Info("Validating node configurations:")
+		for _, n := range nodes {
+			if err := client.ValidateNodeConfig(n); err != nil {
+				log.Error("Node '%s' config loading error: %s", n.Name, err.Error())
+				validationSuccess = false
+			} else {
+				log.Info("Node '%s' config loaded", n.Name)
+			}
+		}
+
+		if validationSuccess == false {
+			log.Error("Validation failed. Load aborted.")
+			return
+		}
+		if validate, _ := cmd.Flags().GetBool("validate"); validate {
+			log.Info("ONly validation")
+			return
+		}
 
 		log.Info("Loading node configurations:")
 		for _, n := range nodes {
@@ -290,11 +286,10 @@ var shutdownNodes = &cobra.Command{
 func init() {
 	// Node config commands
 	loadNodeConfig.Flags().Bool("all", false, "All nodes")
+	loadNodeConfig.Flags().Bool("validate", false, "Validate only")
 	unloadNodeConfig.Flags().Bool("all", false, "All nodes")
-	checkNodeConfig.Flags().Bool("all", false, "All nodes")
 
 	configCmd.AddCommand(loadNodeConfig)
-	configCmd.AddCommand(checkNodeConfig)
 	configCmd.AddCommand(unloadNodeConfig)
 
 	// General commands
