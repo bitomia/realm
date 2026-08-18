@@ -155,10 +155,10 @@ var loadNodeConfig = &cobra.Command{
 		log.Info("Validating node configurations:")
 		for _, n := range nodes {
 			if err := client.ValidateNodeConfig(n); err != nil {
-				log.Error("Node '%s' config loading error: %s", n.Name, err.Error())
+				log.Error("Node '%s' config validatioin error: %s", n.Name, err.Error())
 				validationSuccess = false
 			} else {
-				log.Info("Node '%s' config loaded", n.Name)
+				log.Info("Node '%s' config validated", n.Name)
 			}
 		}
 

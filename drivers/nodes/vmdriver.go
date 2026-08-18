@@ -212,7 +212,10 @@ func (q *VMDriver) PowerOn(cloudInit *cloudinit.CloudInit) error {
 	}
 
 	err = q.ctx.Repository.UpdateGuestMetadata(q.ctx.NodeName, func(metadataPtr any) error {
-		ptr := metadataPtr.(*VMNodeMetadata)
+		ptr, ok := metadataPtr.(*VMNodeMetadata)
+		if !ok {
+			return fmt.Errorf("unexpected metadata pointer type %T", metadataPtr)
+		}
 		*ptr = metadata
 		return nil
 	})
