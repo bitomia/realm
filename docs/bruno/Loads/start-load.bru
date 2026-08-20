@@ -1,0 +1,11 @@
+meta {
+  name: Start Load
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/loads/{{loadName}}/start
+  body: none
+  auth: inherit
+}

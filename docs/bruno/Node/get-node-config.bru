@@ -1,0 +1,15 @@
+meta {
+  name: Get Node Config
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/node/config
+  body: none
+  auth: inherit
+}
+
+docs {
+  204 No Content when the node is not configured.
+}

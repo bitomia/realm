@@ -1,0 +1,11 @@
+meta {
+  name: List Load Deployments
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/loads
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,20 @@
+meta {
+  name: Power On Node
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/node/poweron
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "node-1",
+    "url": "https://node-1.local:9000",
+    "driver": "libvirt",
+    "driver_config": {}
+  }
+}

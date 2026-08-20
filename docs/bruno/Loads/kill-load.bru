@@ -1,0 +1,11 @@
+meta {
+  name: Kill Load
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/loads/{{loadName}}/kill
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,11 @@
+meta {
+  name: Stop Load
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/loads/{{loadName}}/stop
+  body: none
+  auth: inherit
+}

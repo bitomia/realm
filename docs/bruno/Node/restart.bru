@@ -1,0 +1,24 @@
+meta {
+  name: Restart Node
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/node/restart
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "wall_message": "Rebooting",
+    "time": 60,
+    "node_name": "node-1"
+  }
+}
+
+docs {
+  dto.RestartNodeRequest. `time` is the delay in seconds, `node_name` is
+  optional (omit to target this node).
+}

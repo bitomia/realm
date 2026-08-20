@@ -1,0 +1,29 @@
+meta {
+  name: Load Node Config
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/node/config?validate=false
+  body: json
+  auth: inherit
+}
+
+params:query {
+  ~validate: false
+}
+
+body:json {
+  {
+    "name": "node-1",
+    "url": "https://node-1.local:9000",
+    "driver": "libvirt",
+    "driver_config": {}
+  }
+}
+
+docs {
+  Body is a NodeConfig (common.NodeConfig). Set `validate=true` to only validate
+  the config without applying it. Returns 409 Conflict if already configured.
+}

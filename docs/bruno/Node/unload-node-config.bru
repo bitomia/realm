@@ -1,0 +1,20 @@
+meta {
+  name: Unload Node Config
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/node/config?guest={{guestNode}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~guest: {{guestNode}}
+}
+
+docs {
+  Without `guest`, unloads this node's own config; with `guest`, unloads that
+  guest node's config.
+}

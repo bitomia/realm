@@ -1,0 +1,20 @@
+meta {
+  name: Get Node State
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/node?guest={{guestNode}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~guest: {{guestNode}}
+}
+
+docs {
+  Returns the state of this node. Pass the optional `guest` query param to get
+  the state of a guest node managed by this agent.
+}

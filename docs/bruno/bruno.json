@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Realm Agent API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

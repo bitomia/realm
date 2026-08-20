@@ -1,0 +1,15 @@
+meta {
+  name: Read Load Stderr
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/loads/{{loadName}}/stderr
+  body: none
+  auth: inherit
+}
+
+docs {
+  Streams the load's stderr.
+}

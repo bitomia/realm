@@ -1,0 +1,11 @@
+meta {
+  name: Deprovision Load
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/loads/{{loadName}}/deprovision
+  body: none
+  auth: inherit
+}
