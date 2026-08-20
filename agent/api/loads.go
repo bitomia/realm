@@ -131,6 +131,9 @@ func KillLoadDeployments(loadName string) error {
 func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 	database := db.GetDB()
 
+	unlock := lockLoad(load.Name)
+	defer unlock()
+
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
 		return nil, fmt.Errorf("node not provisioned")
@@ -167,6 +170,9 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 
 func DeprovisionLoadDeployments(loadName string) error {
 	database := db.GetDB()
+
+	unlock := lockLoad(loadName)
+	defer unlock()
 
 	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
