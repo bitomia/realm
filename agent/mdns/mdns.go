@@ -42,6 +42,10 @@ func (m *MDNSService) Start() error {
 		networkInterfaces = append(networkInterfaces, *networkConfig.Iface)
 
 	}
+	if config.Get().MeshConfig != nil {
+		meshIface, _ := net.InterfaceByName("netplane0")
+		networkInterfaces = append(networkInterfaces, *meshIface)
+	}
 	slog.Info("mDNS network configuration", "ifaces", networkInterfaces)
 
 	hostname, err := os.Hostname()
@@ -50,7 +54,7 @@ func (m *MDNSService) Start() error {
 		return fmt.Errorf("failed to start mDNS server: cannot get hostname")
 	}
 
-	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, nil, networkInterfaces)
+	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, []string{"txtv=0"}, networkInterfaces)
 	if err != nil {
 		return fmt.Errorf("failed to start mDNS server: %w", err)
 	}
