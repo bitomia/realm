@@ -25,14 +25,14 @@ var startJob = &cobra.Command{
 	SilenceUsage:          true,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("Job not specified")
+			return fmt.Errorf("job not specified")
 		}
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		job := cfg.GetJob(args[0])
 		if job == nil {
-			return fmt.Errorf("Job %s not found", args[0])
+			return fmt.Errorf("job %s not found", args[0])
 		}
 
 		client := clientPkg.NewClient(cfg)
@@ -43,9 +43,9 @@ var startJob = &cobra.Command{
 			if ret.Err != nil {
 				log.Info("Job failed: %s", *ret.Err)
 			} else if ret.Value != nil {
-				log.Info("Job succeded: %s", *ret.Value)
+				log.Info("Job succeeded: %s", *ret.Value)
 			} else {
-				log.Info("Job succeded")
+				log.Info("Job succeeded")
 			}
 		}
 

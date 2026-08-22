@@ -6,11 +6,11 @@ const HelloDriverID common.JobDriverID = "hello"
 
 type HelloDriver struct{}
 
-func (_ *HelloDriver) ID() common.JobDriverID {
+func (h *HelloDriver) ID() common.JobDriverID {
 	return HelloDriverID
 }
 
-func (_ *HelloDriver) Info() common.JobDriverInfo {
+func (h *HelloDriver) Info() common.JobDriverInfo {
 	return common.JobDriverInfo{
 		ID: HelloDriverID,
 		New: func(config any) (common.JobDriver, error) {
@@ -19,7 +19,7 @@ func (_ *HelloDriver) Info() common.JobDriverInfo {
 	}
 }
 
-func (_ *HelloDriver) Run(args ...string) (*string, error) {
+func (h *HelloDriver) Run(args ...string) (*string, error) {
 	msg := "hello world"
 	return &msg, nil
 }
