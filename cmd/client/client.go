@@ -485,3 +485,20 @@ func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime u
 	_, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
 	return err
 }
+
+func (c *Client) RunJob(job *common.Job, arguments ...string) (*dto.JobResult, error) {
+	url := fmt.Sprintf("%s/jobs", job.Node.Url)
+
+	request := dto.JobRequest{Job: job, Arguments: arguments}
+	data, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	var result dto.JobResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}

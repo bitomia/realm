@@ -2,6 +2,7 @@ package drivers
 
 import (
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/drivers/jobs"
 	"github.com/bitomia/realm/drivers/loads"
 	"github.com/bitomia/realm/drivers/nodes"
 )
@@ -19,5 +20,8 @@ func RegisterStdDrivers() error {
 	if err := common.RegisterNodeDriver(&nodes.WindowsDriver{}); err != nil {
 		return err
 	}
-	return common.RegisterNodeDriver(&nodes.VMDriver{})
+	if err := common.RegisterNodeDriver(&nodes.VMDriver{}); err != nil {
+		return err
+	}
+	return common.RegisterJobDriver(&jobs.HelloDriver{})
 }

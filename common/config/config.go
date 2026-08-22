@@ -105,7 +105,9 @@ type AgentConfig struct {
 	Artifacts ArtifactsRepository `json:"artifacts"`
 }
 
+type NodesConfig map[string]*common.NodeConfig
 type LoadsConfig map[string]common.LoadConfig
+type JobsConfig map[string]common.JobConfig
 
 type NetworkConfig struct {
 	IPAddress *net.IP
@@ -130,18 +132,17 @@ type Config struct {
 	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
 	DataPath string `json:"data_path"`
 
-	// Client config
-	Nodes map[string]*common.NodeConfig `json:"nodes"`
-
-	// Agent config
 	Agent AgentConfig `json:"agent"`
+	Nodes NodesConfig `json:"nodes"`
 	Loads LoadsConfig `json:"loads"`
+	Jobs  JobsConfig  `json:"jobs"`
 
 	// Autoconfigured network Config
 	NetworkConfig NetworkConfig `json:"-"`
 
 	// Processed state (populated during Init)
 	processedNodes map[string]*common.Node     `json:"-"`
+	processedJobs  map[string]*common.Job      `json:"-"`
 	processedLoads map[string]*common.Load     `json:"-"`
 	loadsGraph     graph.Graph[string, string] `json:"-"`
 
@@ -175,6 +176,14 @@ func Init(configFilePath *string) (*Config, error) {
 		return nil, fmt.Errorf("%s", err.Error())
 	}
 	return cfg, nil
+}
+
+func (c *Config) GetJob(jobName string) *common.Job {
+	job, exists := c.processedJobs[jobName]
+	if exists {
+		return job
+	}
+	return nil
 }
 
 func (c *Config) GetNodes(nodesFilter ...string) map[string]*common.Node {

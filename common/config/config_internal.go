@@ -245,24 +245,51 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	// Populate node names from map keys
 	for nodeName, node := range config.Nodes {
 		node.Name = nodeName
+
 		if len(node.Driver) == 0 {
 			return nil, fmt.Errorf("driver required for node '%s'", nodeName)
-		} else {
-			driver, err := common.BuildNodeDriver(common.NewNodeContext(nodeName), common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
-			if err != nil {
-				return nil, fmt.Errorf("error building node driver '%s': %s", nodeName, err.Error())
-			}
-			if _, err := newNodeConfig(nodeName, node, driver); err != nil {
-				return nil, err
-			}
 		}
+
+		driver, err := common.BuildNodeDriver(common.NewNodeContext(nodeName), common.NodeDriverConfig{Driver: node.Driver, DriverConfig: node.DriverConfig})
+		if err != nil {
+			return nil, fmt.Errorf("error building node driver '%s': %s", nodeName, err.Error())
+		}
+		if _, err := newNodeConfig(nodeName, node, driver); err != nil {
+			return nil, err
+		}
+
 	}
 
 	// Check load uniqueness
 	l := make(map[string]bool)
 	getUniqueValues(l, config.Loads)
 
-	// Create all loads
+	// Populate jobs
+	for jobName, jobConfig := range config.Jobs {
+		if jobConfig.Node == "" {
+			return nil, fmt.Errorf("job '%s' with empty node field", jobName)
+		}
+
+		if len(jobConfig.Driver) == 0 {
+			return nil, fmt.Errorf("driver required for job '%s'", jobName)
+		}
+
+		node, exists := nodesConfig[jobConfig.Node]
+		if !exists {
+			return nil, fmt.Errorf("node '%s' referenced by job '%s' does not exist", jobConfig.Node, jobName)
+		}
+
+		driver, err := common.BuildJobDriver(common.JobDriverConfig{Driver: jobConfig.Driver, DriverConfig: jobConfig.DriverConfig})
+		if err != nil {
+			return nil, fmt.Errorf("error building node driver '%s': %s", jobName, err.Error())
+		}
+
+		if _, err := newJobConfig(jobName, node, driver); err != nil {
+			return nil, err
+		}
+	}
+
+	// Populate loads
 	allLoadDeps := make(map[string][]string)
 
 	for loadName, loadConfig := range config.Loads {
@@ -345,6 +372,9 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	// Populate instance fields
 	config.processedNodes = make(map[string]*common.Node, len(nodesConfig))
 	maps.Copy(config.processedNodes, nodesConfig)
+
+	config.processedJobs = make(map[string]*common.Job, len(jobsConfig))
+	maps.Copy(config.processedJobs, jobsConfig)
 
 	config.processedLoads = make(map[string]*common.Load, len(loadsConfig))
 	maps.Copy(config.processedLoads, loadsConfig)

@@ -24,6 +24,7 @@ func init() {
 func resetConfigs() {
 	config.ResetLoadsConfig()
 	config.ResetNodesConfig()
+	config.ResetJobsConfig()
 }
 
 func TestConfig(t *testing.T) {
