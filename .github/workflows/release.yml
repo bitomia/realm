@@ -72,7 +72,7 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p bin
-          go build -C ./cmd -o ../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
+          go build -C ./cmd/realm -o ../../bin/${{ matrix.binary_name }} -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
 
       - name: Build universal binary (Darwin)
         if: matrix.goarch == 'universal'
@@ -80,8 +80,8 @@ jobs:
           CGO_ENABLED: 0
         run: |
           mkdir -p bin
-          GOOS=darwin GOARCH=amd64 go build -C ./cmd -o ../bin/realm-amd64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
-          GOOS=darwin GOARCH=arm64 go build -C ./cmd -o ../bin/realm-arm64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
+          GOOS=darwin GOARCH=amd64 go build -C ./cmd/realm -o ../../bin/realm-amd64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
+          GOOS=darwin GOARCH=arm64 go build -C ./cmd/realm -o ../../bin/realm-arm64 -mod=readonly -buildvcs=false -ldflags="$LDFLAGS"
           lipo -create -output bin/realm bin/realm-amd64 bin/realm-arm64
 
       - name: Compress binary (Unix)
