@@ -1,6 +1,10 @@
 package common
 
-import "fmt"
+import (
+	"cmp"
+	"fmt"
+	"slices"
+)
 
 type JobDriverConfig struct {
 	Driver       JobDriverID `json:"driver"`
@@ -60,4 +64,17 @@ func BuildJobDriver(d JobDriverConfig) (JobDriver, error) {
 	}
 
 	return driver, nil
+}
+
+func RegisteredJobDrivers() []JobDriverInfo {
+	infos := make([]JobDriverInfo, 0, len(jobDrivers))
+
+	for _, info := range jobDrivers {
+		infos = append(infos, info)
+	}
+	slices.SortFunc(infos, func(a, b JobDriverInfo) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	return infos
 }

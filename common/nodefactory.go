@@ -1,9 +1,11 @@
 package common
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 )
 
 type NodeDriverConfig struct {
@@ -79,4 +81,17 @@ func BuildNodeDriver(ctx NodeContext, d NodeDriverConfig) (NodeDriver, error) {
 	}
 
 	return driver, nil
+}
+
+func RegisteredNodeDrivers() []NodeDriverInfo {
+	infos := make([]NodeDriverInfo, 0, len(nodeDrivers))
+
+	for _, info := range nodeDrivers {
+		infos = append(infos, info)
+	}
+	slices.SortFunc(infos, func(a, b NodeDriverInfo) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	return infos
 }

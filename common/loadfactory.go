@@ -1,7 +1,9 @@
 package common
 
 import (
+	"cmp"
 	"fmt"
+	"slices"
 )
 
 type LoadDriverConfig struct {
@@ -58,4 +60,17 @@ func BuildLoadDriver(d LoadDriverConfig) (LoadDriver, error) {
 		return nil, &LoadDriverError{Code: LoadDriverErrBuildFailed, DriverID: d.Driver, Err: err}
 	}
 	return driver, nil
+}
+
+func RegisteredLoadDrivers() []LoadDriverInfo {
+	infos := make([]LoadDriverInfo, 0, len(loadDrivers))
+
+	for _, info := range loadDrivers {
+		infos = append(infos, info)
+	}
+	slices.SortFunc(infos, func(a, b LoadDriverInfo) int {
+		return cmp.Compare(a.ID, b.ID)
+	})
+
+	return infos
 }
