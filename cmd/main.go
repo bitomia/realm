@@ -18,7 +18,7 @@ var (
 	cfg     *config.Config
 )
 
-func main() {
+func Main() {
 	if err := drivers.RegisterStdDrivers(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to register std drivers: %s\n", err.Error())
 		os.Exit(1)
@@ -60,4 +60,8 @@ func main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
+
+func main() {
+	Main()
 }
