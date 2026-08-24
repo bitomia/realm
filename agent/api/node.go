@@ -33,7 +33,7 @@ func GetHealthStatus() (map[string]any, error) {
 	return result, nil
 }
 
-// GetNode returns the node state (CPU, memory, etc) and status (provisioned, error, etc..)
+// GetNode returns the node state (CPU, memory, etc) and status
 // If a node is provided, it will be used to query the node state. Otherwise, the self node is used.
 func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 	database := db.GetDB()

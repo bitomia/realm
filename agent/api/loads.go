@@ -136,7 +136,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
-		return nil, fmt.Errorf("node not provisioned")
+		return nil, fmt.Errorf("node not configured")
 	}
 
 	nodeStatus, err := node.NodeDriver.RefreshStatus()
@@ -144,7 +144,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}
 	if nodeStatus.StatusCode != common.NodeStatusReady {
-		return nil, fmt.Errorf("node not provisioned, current status %s", nodeStatus.StatusCode)
+		return nil, fmt.Errorf("node not ready, current status %s", nodeStatus.StatusCode)
 	}
 
 	// Check if deployments already exist for this load
