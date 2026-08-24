@@ -1,7 +1,11 @@
 package cruntime
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/containerd/containerd"
@@ -71,6 +75,40 @@ func GetCredentialsFunc(agentCfg *config.AgentConfig) docker.Authorizer {
 	)
 }
 
+func registryClient(regCfg *config.RegistryConfig) (*http.Client, error) {
+	if !regCfg.SkipTLSVerify && regCfg.CAFile == "" {
+		return http.DefaultClient, nil
+	}
+
+	tlsCfg := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: regCfg.SkipTLSVerify, //nolint:gosec // opt-in per registry
+	}
+
+	if regCfg.CAFile != "" {
+		pem, err := os.ReadFile(regCfg.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA file for registry %s: %w", regCfg.Host, err)
+		}
+
+		pool, err := x509.SystemCertPool()
+		if err != nil || pool == nil {
+			pool = x509.NewCertPool()
+		}
+
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("no certificates found in CA file %s", regCfg.CAFile)
+		}
+
+		tlsCfg.RootCAs = pool
+	}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = tlsCfg
+
+	return &http.Client{Transport: transport}, nil
+}
+
 func createRegistryHosts(agentCfg *config.AgentConfig) docker.RegistryHosts {
 	authorizer := GetCredentialsFunc(agentCfg)
 
@@ -92,13 +130,18 @@ func createRegistryHosts(agentCfg *config.AgentConfig) docker.RegistryHosts {
 			scheme = "http"
 		}
 
+		client, err := registryClient(regCfg)
+		if err != nil {
+			return nil, err
+		}
+
 		registryHost := docker.RegistryHost{
 			Host:         host,
 			Scheme:       scheme,
 			Path:         "/v2",
 			Capabilities: docker.HostCapabilityPull | docker.HostCapabilityResolve,
 			Authorizer:   authorizer,
-			Client:       http.DefaultClient,
+			Client:       client,
 		}
 
 		return []docker.RegistryHost{registryHost}, nil

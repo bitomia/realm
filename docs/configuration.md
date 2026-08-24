@@ -373,15 +373,27 @@ agent:
       auth:
         username: admin
         password: secret
+    - host: nexus.example.com
+      ca_file: /etc/realm/certs/nexus-ca.pem
+      auth:
+        username: admin
+        password: secret
 ```
 
-| Field           | Type   | Description                                             |
-| --------------- | ------ | ------------------------------------------------------- |
-| `host`          | string | Registry host (e.g., `ghcr.io`, `docker.io`)            |
-| `insecure`      | bool   | Allow HTTP instead of HTTPS                             |
-| `auth.username` | string | Username (use with `password`)                          |
-| `auth.password` | string | Password (use with `username`)                          |
-| `auth.token`    | string | Authentication token (alternative to username/password) |
+`insecure` downgrades the connection to plain HTTP. For a registry that speaks
+HTTPS but presents a certificate Go refuses (for example one that relies on the
+legacy Common Name field instead of SANs), point `ca_file` at its CA bundle, or
+set `skip_tls_verify: true` to bypass verification altogether.
+
+| Field             | Type   | Description                                             |
+| ----------------- | ------ | ------------------------------------------------------- |
+| `host`            | string | Registry host (e.g., `ghcr.io`, `docker.io`)            |
+| `insecure`        | bool   | Allow HTTP instead of HTTPS                             |
+| `skip_tls_verify` | bool   | Do not verify the registry's TLS certificate            |
+| `ca_file`         | string | PEM bundle with extra CAs trusted for this registry     |
+| `auth.username`   | string | Username (use with `password`)                          |
+| `auth.password`   | string | Password (use with `username`)                          |
+| `auth.token`      | string | Authentication token (alternative to username/password) |
 
 ## Discovery
 

@@ -38,6 +38,12 @@ type RegistryConfig struct {
 	Host     string       `json:"host"` // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
 	Auth     RegistryAuth `json:"auth"`
 	Insecure bool         `json:"insecure,omitempty"` // Allow HTTP instead of HTTPS
+
+	// Skip verification of the registry's TLS certificate.
+	SkipTLSVerify bool `json:"skip_tls_verify,omitempty"`
+
+	// Path to a PEM bundle with additional CAs trusted for this registry.
+	CAFile string `json:"ca_file,omitempty"`
 }
 
 // AgentConfig holds the configuration for the realm agent.
