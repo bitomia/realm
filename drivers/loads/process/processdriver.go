@@ -1,4 +1,4 @@
-package loads
+package process
 
 import (
 	"encoding/json"
@@ -423,4 +423,8 @@ func isDefunct(p *process.Process) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func init() {
+	_ = common.RegisterLoadDriver(&ProcessDriver{})
 }

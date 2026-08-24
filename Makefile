@@ -28,17 +28,17 @@ EXT_LDFLAGS := -extldflags '-L$(NETPLANE_DIR) -lm'
 .PHONY: all
 all:
 	@echo "Building $(VERSION)..."
-	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
+	$(GO) build -C ./cmd/realm -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
 
 .PHONY: debug
 debug:
 	@echo "Building debug $(VERSION)..."
-	$(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -gcflags="all=-N -l" -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
+	$(GO) build -C ./cmd/realm -o $(REALM_OUT) -mod=readonly -buildvcs=false -gcflags="all=-N -l" -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)'"
 
 .PHONY: mesh
 mesh: netplane
 	@echo "Building $(VERSION)-mesh (static musl via zig)..."
-	CC="zig cc -target x86_64-linux-musl" CGO_ENABLED=1 CGO_CFLAGS="-I$(NETPLANE_DIR)" CGO_LDFLAGS="-L$(NETPLANE_DIR)" $(GO) build -C ./cmd -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)-mesh' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)' -extldflags '-L$(NETPLANE_DIR) -lm -lunwind'" -tags=MESH
+	CC="zig cc -target x86_64-linux-musl" CGO_ENABLED=1 CGO_CFLAGS="-I$(NETPLANE_DIR)" CGO_LDFLAGS="-L$(NETPLANE_DIR)" $(GO) build -C ./cmd/realm -o $(REALM_OUT) -mod=readonly -buildvcs=false -ldflags="-X 'github.com/bitomia/realm/common/config.BuildGitCommit=$(GIT_COMMIT)-mesh' -X 'github.com/bitomia/realm/common/config.Version=$(GIT_TAG)' -extldflags '-L$(NETPLANE_DIR) -lm -lunwind'" -tags=MESH
 
 .PHONY: netplane
 netplane:

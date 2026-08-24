@@ -1,4 +1,4 @@
-package nodes
+package vm
 
 import (
 	"encoding/xml"

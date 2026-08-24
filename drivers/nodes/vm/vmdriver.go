@@ -1,4 +1,4 @@
-package nodes
+package vm
 
 import (
 	"encoding/xml"
@@ -443,4 +443,8 @@ func (q *VMDriver) resolveCloudInitHost(cfg *commonConfig.Config) string {
 	slog.Warn("VMDriver.resolveCloudInitHost",
 		"msg", "bridged networking detected but could not determine host IP; falling back to 10.0.2.2 which may not be reachable from the guest")
 	return "10.0.2.2"
+}
+
+func init() {
+	_ = common.RegisterNodeDriver(&VMDriver{})
 }

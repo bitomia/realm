@@ -10,6 +10,8 @@ import (
 	"github.com/bitomia/realm/agent/cpu"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
+
+	nodesCommon "github.com/bitomia/realm/drivers/nodes/common"
 )
 
 const WindowsDriverID common.NodeDriverID = "windows"
@@ -80,7 +82,7 @@ func (w *WindowsDriver) PowerOn(_ *cloudinit.CloudInit) error {
 		return nil
 	}
 
-	return launchWakeOnLan(w.config.MAC)
+	return nodesCommon.LaunchWakeOnLan(w.config.MAC)
 }
 
 func (w *WindowsDriver) PowerOff() error {
@@ -123,4 +125,8 @@ func (w *WindowsDriver) RefreshStatus() (common.NodeStatus, error) {
 
 func (l *WindowsDriver) State() (common.NodeState, error) {
 	return cpu.GetNodeState()
+}
+
+func init() {
+	_ = common.RegisterNodeDriver(&WindowsDriver{})
 }

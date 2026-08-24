@@ -8,14 +8,10 @@ import (
 
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
-	loadsPkg "github.com/bitomia/realm/drivers/loads"
+	loadsPkg "github.com/bitomia/realm/drivers/loads/container"
 )
 
 func init() {
-	if err := RegisterStdDrivers(); err != nil {
-		panic(err)
-	}
-
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
 		return common.NodeContext{Repository: nil, NodeName: nodeName, RunMode: common.ClientMode}
 	})

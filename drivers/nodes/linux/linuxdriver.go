@@ -1,4 +1,4 @@
-package nodes
+package linux
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 	"github.com/bitomia/realm/agent/cpu"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/cloudinit"
+
+	nodesCommon "github.com/bitomia/realm/drivers/nodes/common"
 )
 
 const LinuxDriverID common.NodeDriverID = "linux"
@@ -85,7 +87,7 @@ func (l *LinuxDriver) PowerOn(_ *cloudinit.CloudInit) error {
 		return nil
 	}
 
-	return launchWakeOnLan(l.config.MAC)
+	return nodesCommon.LaunchWakeOnLan(l.config.MAC)
 }
 
 func (l *LinuxDriver) PowerOff() error {
@@ -128,4 +130,8 @@ func (l *LinuxDriver) RefreshStatus() (common.NodeStatus, error) {
 
 func (l *LinuxDriver) State() (common.NodeState, error) {
 	return cpu.GetNodeState()
+}
+
+func init() {
+	_ = common.RegisterNodeDriver(&LinuxDriver{})
 }

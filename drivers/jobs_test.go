@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitomia/realm/common/config"
-	jobsPkg "github.com/bitomia/realm/drivers/jobs"
+	jobsPkg "github.com/bitomia/realm/drivers/jobs/hello"
 )
 
 const jobsTestNodes = `

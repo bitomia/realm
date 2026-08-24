@@ -1,4 +1,4 @@
-package jobs
+package hello
 
 import (
 	"testing"

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
-	"github.com/bitomia/realm/drivers"
+	_ "github.com/bitomia/realm/drivers"
 	"github.com/bitomia/realm/mesh"
 )
 
@@ -19,11 +19,6 @@ var (
 )
 
 func Main() {
-	if err := drivers.RegisterStdDrivers(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to register std drivers: %s\n", err.Error())
-		os.Exit(1)
-	}
-
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
 		return common.NodeContext{Repository: nil, Capabilities: nil, NodeName: nodeName, RunMode: common.ClientMode}
 	})
@@ -60,8 +55,4 @@ func Main() {
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
-}
-
-func main() {
-	Main()
 }

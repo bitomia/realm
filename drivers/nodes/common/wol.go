@@ -1,11 +1,11 @@
-package nodes
+package common
 
 import (
 	"fmt"
 	"net"
 )
 
-func launchWakeOnLan(macAddress string) error {
+func LaunchWakeOnLan(macAddress string) error {
 	mac, err := net.ParseMAC(macAddress)
 	if err != nil {
 		return fmt.Errorf("invalid mac address: %w", err)

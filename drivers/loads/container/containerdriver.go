@@ -1,4 +1,4 @@
-package loads
+package container
 
 import (
 	"encoding/json"
@@ -490,4 +490,8 @@ func getContainerMetadata(d common.Deployment) (*ContainerEntryMetadata, error) 
 		}
 	}
 	return &metadata, nil
+}
+
+func init() {
+	_ = common.RegisterLoadDriver(&ContainerDriver{})
 }

@@ -115,4 +115,4 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 )
 
-replace github.com/bitomia/netplane/bindings/gonetplane => /home/juan/repos/netplane/bindings/gonetplane
+replace github.com/bitomia/netplane/bindings/gonetplane => ../netplane/bindings/gonetplane

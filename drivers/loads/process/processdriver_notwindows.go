@@ -1,6 +1,6 @@
 //go:build !windows
 
-package loads
+package process
 
 import (
 	"syscall"

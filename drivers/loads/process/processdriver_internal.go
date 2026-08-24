@@ -1,4 +1,4 @@
-package loads
+package process
 
 import (
 	"fmt"

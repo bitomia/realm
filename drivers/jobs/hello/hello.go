@@ -1,4 +1,4 @@
-package jobs
+package hello
 
 import "github.com/bitomia/realm/common"
 
@@ -26,4 +26,8 @@ func (h *HelloDriver) Run(args ...string) (*string, error) {
 
 func (h *HelloDriver) Config() common.JobDriverConfig {
 	return common.JobDriverConfig{Driver: HelloDriverID, DriverConfig: nil}
+}
+
+func init() {
+	_ = common.RegisterJobDriver(&HelloDriver{})
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/bitomia/realm/agent/handlers"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
-	jobsPkg "github.com/bitomia/realm/drivers/jobs"
+	jobsPkg "github.com/bitomia/realm/drivers/jobs/hello"
 )
 
 const failingJobDriverID common.JobDriverID = "client-failing"
@@ -40,9 +40,7 @@ func (d *failingJobDriver) Config() common.JobDriverConfig {
 }
 
 func init() {
-	if err := common.RegisterJobDriver(&jobsPkg.HelloDriver{}); err != nil {
-		panic(err)
-	}
+	// The hello driver registers itself via the hello package's init.
 	if err := common.RegisterJobDriver(&failingJobDriver{}); err != nil {
 		panic(err)
 	}
