@@ -33,5 +33,5 @@ func createBaseRoutes(router *mux.Router) {
 	router.Handle("/loads/{loadName}/stdout", auth.WithAuth(handlers.ReadLoadStdoutHandler)).Methods("GET")
 	router.Handle("/loads/{loadName}/stderr", auth.WithAuth(handlers.ReadLoadStderrHandler)).Methods("GET")
 
-	router.Handle("/jobs", auth.WithAuth(handlers.RunJobHandler)).Methods("POST") // Basic synchronous jobs execution
+	router.Handle("/jobs", auth.WithAuth(handlers.RunJobHandler)).Methods("POST")
 }

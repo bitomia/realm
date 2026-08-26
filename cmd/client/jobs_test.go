@@ -13,7 +13,6 @@ import (
 
 	"github.com/bitomia/realm/agent/handlers"
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/dto"
 	jobsPkg "github.com/bitomia/realm/drivers/jobs/hello"
 )
 
@@ -31,8 +30,8 @@ func (d *failingJobDriver) Info() common.JobDriverInfo {
 	}
 }
 
-func (d *failingJobDriver) Run(args ...string) (*string, error) {
-	return nil, fmt.Errorf("job blew up")
+func (d *failingJobDriver) Run(w common.JobResultWriter, args ...string) error {
+	return fmt.Errorf("job blew up")
 }
 
 func (d *failingJobDriver) Config() common.JobDriverConfig {
@@ -66,44 +65,54 @@ func jobOn(server *httptest.Server, name string, driver common.JobDriver) *commo
 	}
 }
 
+// collect runs the job and returns the results the client handed back.
+func collect(client Client, job *common.Job, arguments ...string) ([]common.JobResult, error) {
+	var results []common.JobResult
+	err := client.RunJob(job, func(r common.JobResult) { results = append(results, r) }, arguments...)
+	return results, err
+}
+
 func TestClientRunJob(t *testing.T) {
 	server := newAgentServer(t)
 	client := NewUnauthClient()
 
-	result, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}))
+	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
 	require.NoError(t, err)
-	require.NotNil(t, result)
-	require.NotNil(t, result.Value)
-	assert.Equal(t, "hello world", *result.Value)
-	assert.Nil(t, result.Err)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].Value)
+	assert.Equal(t, "hello world", *results[0].Value)
+	assert.Nil(t, results[0].Err)
 }
 
+// The hello driver repeats itself as many times as its first argument asks for,
+// and every greeting reaches the client.
 func TestClientRunJobWithArguments(t *testing.T) {
 	server := newAgentServer(t)
 	client := NewUnauthClient()
 
-	result, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}), "one", "two")
+	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}), "2")
 
 	require.NoError(t, err)
-	require.NotNil(t, result.Value)
-	assert.Equal(t, "hello world", *result.Value, "the hello driver ignores its arguments")
+	require.Len(t, results, 2)
+	assert.Equal(t, "hello world", *results[0].Value)
+	assert.Equal(t, "hello world", *results[1].Value)
 }
 
 func TestClientRunJobFailedJob(t *testing.T) {
 	server := newAgentServer(t)
 	client := NewUnauthClient()
 
-	result, err := client.RunJob(jobOn(server, "boom", &failingJobDriver{}))
+	results, err := collect(client, jobOn(server, "boom", &failingJobDriver{}))
 
 	require.NoError(t, err, "a failed job is not a transport error")
-	require.NotNil(t, result)
-	assert.Nil(t, result.Value)
-	require.NotNil(t, result.Err)
-	assert.Equal(t, "job blew up", *result.Err)
+	require.Len(t, results, 1)
+	assert.Nil(t, results[0].Value)
+	require.NotNil(t, results[0].Err)
+	assert.Equal(t, "job blew up", *results[0].Err)
 }
 
-// The request the agent receives must carry the job serialized by name/driver
+// The request the agent receives must carry the job name and driver config
 // plus the arguments given on the command line.
 func TestClientRunJobRequestPayload(t *testing.T) {
 	var method, path string
@@ -114,15 +123,15 @@ func TestClientRunJobRequestPayload(t *testing.T) {
 		body, _ = io.ReadAll(r.Body)
 
 		value := "ok"
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(dto.JobResult{Value: &value})
+		_ = json.NewEncoder(w).Encode(common.JobResult{Value: &value})
 	}))
 	t.Cleanup(server.Close)
 
 	client := NewUnauthClient()
-	result, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}), "one", "two")
+	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}), "one", "two")
 	require.NoError(t, err)
-	assert.Equal(t, "ok", *result.Value)
+	require.Len(t, results, 1)
+	assert.Equal(t, "ok", *results[0].Value)
 
 	assert.Equal(t, http.MethodPost, method)
 	assert.Equal(t, "/jobs", path)
@@ -131,11 +140,10 @@ func TestClientRunJobRequestPayload(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body, &sent))
 
 	assert.Equal(t, []any{"one", "two"}, sent["arguments"])
-	job, ok := sent["job"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "greet", job["name"])
-	assert.Equal(t, "lab1", job["node"])
-	assert.Equal(t, "hello", job["driver"])
+	assert.Equal(t, "greet", sent["name"])
+	assert.Equal(t, "hello", sent["driver"])
+	assert.NotContains(t, sent, "node", "the agent runs the driver, it never resolves the node")
+	assert.NotContains(t, sent, "job", "the job is no longer embedded in the request")
 }
 
 func TestClientRunJobOmitsEmptyArguments(t *testing.T) {
@@ -143,12 +151,11 @@ func TestClientRunJobOmitsEmptyArguments(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ = io.ReadAll(r.Body)
-		_, _ = w.Write([]byte(`{}`))
 	}))
 	t.Cleanup(server.Close)
 
 	client := NewUnauthClient()
-	_, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}))
+	_, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 	require.NoError(t, err)
 
 	var sent map[string]any
@@ -158,16 +165,16 @@ func TestClientRunJobOmitsEmptyArguments(t *testing.T) {
 
 func TestClientRunJobAgentError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "Job cannot be nil on request", http.StatusBadRequest)
+		http.Error(w, "driver not registered", http.StatusBadRequest)
 	}))
 	t.Cleanup(server.Close)
 
 	client := NewUnauthClient()
-	result, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}))
+	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
-	assert.Nil(t, result)
+	assert.Empty(t, results)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Job cannot be nil on request")
+	assert.Contains(t, err.Error(), "driver not registered")
 }
 
 func TestClientRunJobUnreachableAgent(t *testing.T) {
@@ -178,9 +185,9 @@ func TestClientRunJobUnreachableAgent(t *testing.T) {
 	client := NewUnauthClient()
 	job := &common.Job{Name: "greet", Node: &common.Node{Name: "lab1", Url: url}, Driver: &jobsPkg.HelloDriver{}}
 
-	result, err := client.RunJob(job)
+	results, err := collect(client, job)
 
-	assert.Nil(t, result)
+	assert.Empty(t, results)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to make request")
 }
@@ -192,8 +199,36 @@ func TestClientRunJobInvalidResponseBody(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	client := NewUnauthClient()
-	result, err := client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}))
+	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
-	assert.Nil(t, result)
-	assert.Error(t, err)
+	assert.Empty(t, results)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse job result")
+}
+
+// Results are handed over as they arrive, not buffered until the job ends.
+func TestClientRunJobHandlesResultsAsTheyArrive(t *testing.T) {
+	seen := make(chan string, 2)
+	released := make(chan struct{})
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writer := common.NewJobResultWriter(w)
+		require.NoError(t, writer.WriteValue("first"))
+		<-released
+		require.NoError(t, writer.WriteValue("second"))
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewUnauthClient()
+	done := make(chan error, 1)
+	go func() {
+		done <- client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}), func(r common.JobResult) {
+			seen <- *r.Value
+		})
+	}()
+
+	assert.Equal(t, "first", <-seen, "the first result arrives before the job finishes")
+	close(released)
+	assert.Equal(t, "second", <-seen)
+	require.NoError(t, <-done)
 }

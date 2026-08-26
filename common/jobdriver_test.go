@@ -3,8 +3,8 @@ package common
 import "testing"
 
 // testJobDriver is a JobDriver double used across the job tests in this
-// package. Run returns the configured value/error and records the arguments it
-// was called with.
+// package. Run streams the configured value or returns the configured error,
+// and records the arguments it was called with.
 type testJobDriver struct {
 	id        JobDriverID
 	config    any
@@ -31,10 +31,16 @@ func (d *testJobDriver) Info() JobDriverInfo {
 	}
 }
 
-func (d *testJobDriver) Run(args ...string) (*string, error) {
+func (d *testJobDriver) Run(w JobResultWriter, args ...string) error {
 	d.callCount++
 	d.lastArgs = args
-	return d.value, d.err
+	if d.err != nil {
+		return d.err
+	}
+	if d.value != nil {
+		return w.WriteValue(*d.value)
+	}
+	return nil
 }
 
 func (d *testJobDriver) Config() JobDriverConfig {

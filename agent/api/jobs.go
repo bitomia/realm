@@ -1,24 +1,17 @@
 package api
 
 import (
-	"fmt"
-
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 )
 
-func RunJob(request dto.JobRequest) (*dto.JobResult, error) {
-	if request.Job == nil {
-		return nil, fmt.Errorf("job nil")
-	}
-
-	value, err := request.Job.Driver.Run(request.Arguments...)
+func RunJob(w common.JobResultWriter, request dto.JobRequest) error {
+	driver, err := common.BuildJobDriver(request.JobDriverConfig)
 	if err != nil {
-		err := err.Error()
-		return &dto.JobResult{Value: nil, Err: &err}, nil
+		return err
 	}
-	if value != nil {
-		return &dto.JobResult{Value: value, Err: nil}, nil
+	if err := driver.Run(w, request.Arguments...); err != nil {
+		return w.WriteError(err)
 	}
-
-	return &dto.JobResult{}, nil
+	return nil
 }

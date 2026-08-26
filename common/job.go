@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"net/http"
 )
 
 type Job struct {
@@ -55,4 +56,39 @@ func (j *Job) Hash() [32]byte {
 	}
 
 	return sha256.Sum256(data)
+}
+
+type JobResult struct {
+	Value *string `json:"value,omitempty"`
+	Err   *string `json:"err,omitempty"`
+}
+
+type JobResultWriter struct {
+	enc     *json.Encoder
+	flusher http.Flusher
+}
+
+func NewJobResultWriter(w http.ResponseWriter) JobResultWriter {
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	flusher, _ := w.(http.Flusher)
+	return JobResultWriter{enc: json.NewEncoder(w), flusher: flusher}
+}
+
+func (j *JobResultWriter) Write(r JobResult) error {
+	if err := j.enc.Encode(r); err != nil {
+		return err
+	}
+	if j.flusher != nil {
+		j.flusher.Flush()
+	}
+	return nil
+}
+
+func (j *JobResultWriter) WriteValue(value string) error {
+	return j.Write(JobResult{Value: &value})
+}
+
+func (j *JobResultWriter) WriteError(err error) error {
+	msg := err.Error()
+	return j.Write(JobResult{Err: &msg})
 }

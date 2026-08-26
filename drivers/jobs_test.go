@@ -1,11 +1,14 @@
 package drivers
 
 import (
+	"encoding/json"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	jobsPkg "github.com/bitomia/realm/drivers/jobs/hello"
 )
@@ -212,10 +215,13 @@ jobs:
 	cfg, err := config.InitFromBuffer(yamlConfig)
 	require.NoError(t, err)
 
-	value, err := cfg.GetJob("greet").Driver.Run()
-	require.NoError(t, err)
-	require.NotNil(t, value)
-	assert.Equal(t, "hello world", *value)
+	rec := httptest.NewRecorder()
+	require.NoError(t, cfg.GetJob("greet").Driver.Run(common.NewJobResultWriter(rec)))
+
+	var result common.JobResult
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&result))
+	require.NotNil(t, result.Value)
+	assert.Equal(t, "hello world", *result.Value)
 }
 
 func TestJobsConfigHashIsStableAcrossReloads(t *testing.T) {

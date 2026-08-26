@@ -7,6 +7,7 @@ import (
 
 	clientPkg "github.com/bitomia/realm/cmd/client"
 	"github.com/bitomia/realm/cmd/log"
+	"github.com/bitomia/realm/common"
 )
 
 var jobsCmd = &cobra.Command{
@@ -18,7 +19,7 @@ var jobsCmd = &cobra.Command{
 	},
 }
 
-var startJob = &cobra.Command{
+var runJob = &cobra.Command{
 	Use:                   "run [job]",
 	Short:                 "Run a job",
 	DisableFlagsInUseLine: true,
@@ -37,16 +38,16 @@ var startJob = &cobra.Command{
 
 		client := clientPkg.NewClient(cfg)
 
-		if ret, err := client.RunJob(job, args[1:]...); err != nil {
-			log.Warn("Error running job: %s", err.Error())
-		} else {
-			if ret.Err != nil {
-				log.Info("Job failed: %s", *ret.Err)
-			} else if ret.Value != nil {
-				log.Info("Job succeeded: %s", *ret.Value)
-			} else {
-				log.Info("Job succeeded")
+		handle := func(result common.JobResult) {
+			if result.Err != nil {
+				log.Info("Job failed: %s", *result.Err)
+			} else if result.Value != nil {
+				log.Info("Job result: %s", *result.Value)
 			}
+		}
+
+		if err := client.RunJob(job, handle, args[1:]...); err != nil {
+			log.Warn("Error running job: %s", err.Error())
 		}
 
 		return nil
@@ -54,6 +55,6 @@ var startJob = &cobra.Command{
 }
 
 func init() {
-	jobsCmd.AddCommand(startJob)
+	jobsCmd.AddCommand(runJob)
 	rootCmd.AddCommand(jobsCmd)
 }

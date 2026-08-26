@@ -1,6 +1,8 @@
 package hello
 
 import (
+	"encoding/json"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,20 +40,65 @@ func TestHelloDriverInfoIgnoresDriverConfig(t *testing.T) {
 	assert.Nil(t, built.Config().DriverConfig)
 }
 
-func TestHelloDriverRun(t *testing.T) {
-	value, err := (&HelloDriver{}).Run()
+// runHello runs the driver against a recorder and returns what it streamed.
+func runHello(t *testing.T, args ...string) ([]common.JobResult, error) {
+	t.Helper()
 
-	require.NoError(t, err)
-	require.NotNil(t, value)
-	assert.Equal(t, "hello world", *value)
+	rec := httptest.NewRecorder()
+	err := (&HelloDriver{}).Run(common.NewJobResultWriter(rec), args...)
+
+	var results []common.JobResult
+	decoder := json.NewDecoder(rec.Body)
+	for decoder.More() {
+		var result common.JobResult
+		require.NoError(t, decoder.Decode(&result))
+		results = append(results, result)
+	}
+	return results, err
 }
 
-func TestHelloDriverRunIgnoresArguments(t *testing.T) {
-	value, err := (&HelloDriver{}).Run("one", "two", "three")
+func TestHelloDriverRun(t *testing.T) {
+	results, err := runHello(t)
 
 	require.NoError(t, err)
-	require.NotNil(t, value)
-	assert.Equal(t, "hello world", *value)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].Value)
+	assert.Equal(t, "hello world", *results[0].Value)
+}
+
+// The first argument is a repeat count, and every greeting is streamed.
+func TestHelloDriverRunRepeats(t *testing.T) {
+	results, err := runHello(t, "3")
+
+	require.NoError(t, err)
+	require.Len(t, results, 3)
+	for _, result := range results {
+		assert.Equal(t, "hello world", *result.Value)
+	}
+}
+
+func TestHelloDriverRunIgnoresExtraArguments(t *testing.T) {
+	results, err := runHello(t, "1", "two", "three")
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "hello world", *results[0].Value)
+}
+
+func TestHelloDriverRunInvalidRepeatCount(t *testing.T) {
+	results, err := runHello(t, "many")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `invalid repeat count "many"`)
+	assert.Empty(t, results)
+}
+
+func TestHelloDriverRunNonPositiveRepeatCount(t *testing.T) {
+	results, err := runHello(t, "0")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least 1")
+	assert.Empty(t, results)
 }
 
 func TestHelloDriverConfig(t *testing.T) {

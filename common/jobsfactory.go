@@ -8,7 +8,7 @@ import (
 
 type JobDriverConfig struct {
 	Driver       JobDriverID `json:"driver"`
-	DriverConfig any         `json:"driver_config"`
+	DriverConfig any         `json:"driver_config,omitempty"`
 }
 
 type JobDriverErrorCode string

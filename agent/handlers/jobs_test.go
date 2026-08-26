@@ -12,19 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bitomia/realm/common"
-	"github.com/bitomia/realm/common/dto"
 )
 
 const handlerJobDriverID common.JobDriverID = "handler-test"
 
-// handlerJobDriver is rebuilt by common.Job.UnmarshalJSON from the
-// driver_config carried in the request body:
+// handlerJobDriver is rebuilt per request from the driver_config carried in the
+// request body:
 //
-//	{"reply": "hola"}  -> Run returns "hola[args...]"
+//	{"reply": "hola"}  -> Run streams "hola[args...]"
 //	{"fail": "boom"}   -> Run returns an error
+//	{"times": 3}       -> Run streams the reply that many times
 type handlerJobDriver struct {
 	reply string
 	fail  string
+	times int
 }
 
 func (d *handlerJobDriver) ID() common.JobDriverID { return handlerJobDriverID }
@@ -33,7 +34,7 @@ func (d *handlerJobDriver) Info() common.JobDriverInfo {
 	return common.JobDriverInfo{
 		ID: handlerJobDriverID,
 		New: func(config any) (common.JobDriver, error) {
-			driver := &handlerJobDriver{}
+			driver := &handlerJobDriver{times: 1}
 			if settings, ok := config.(map[string]any); ok {
 				if reply, ok := settings["reply"].(string); ok {
 					driver.reply = reply
@@ -41,25 +42,33 @@ func (d *handlerJobDriver) Info() common.JobDriverInfo {
 				if fail, ok := settings["fail"].(string); ok {
 					driver.fail = fail
 				}
+				if times, ok := settings["times"].(float64); ok {
+					driver.times = int(times)
+				}
 			}
 			return driver, nil
 		},
 	}
 }
 
-func (d *handlerJobDriver) Run(args ...string) (*string, error) {
+func (d *handlerJobDriver) Run(w common.JobResultWriter, args ...string) error {
 	if d.fail != "" {
-		return nil, fmt.Errorf("%s", d.fail)
+		return fmt.Errorf("%s", d.fail)
 	}
 	if d.reply == "" {
-		return nil, nil
+		return nil
 	}
 
 	value := d.reply
 	if len(args) > 0 {
 		value = fmt.Sprintf("%s[%s]", d.reply, strings.Join(args, ","))
 	}
-	return &value, nil
+	for range d.times {
+		if err := w.WriteValue(value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *handlerJobDriver) Config() common.JobDriverConfig {
@@ -81,70 +90,80 @@ func postJob(t *testing.T, body string) *httptest.ResponseRecorder {
 	return rec
 }
 
-func decodeJobResult(t *testing.T, rec *httptest.ResponseRecorder) dto.JobResult {
+func decodeJobResults(t *testing.T, rec *httptest.ResponseRecorder) []common.JobResult {
 	t.Helper()
 
-	var result dto.JobResult
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &result))
-	return result
+	var results []common.JobResult
+	decoder := json.NewDecoder(rec.Body)
+	for decoder.More() {
+		var result common.JobResult
+		require.NoError(t, decoder.Decode(&result))
+		results = append(results, result)
+	}
+	return results
 }
 
 func TestRunJobHandlerSuccess(t *testing.T) {
-	rec := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test","driver_config":{"reply":"hola"}}}`)
+	rec := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"reply":"hola"}}`)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "application/x-ndjson", rec.Header().Get("Content-Type"))
 
-	result := decodeJobResult(t, rec)
-	require.NotNil(t, result.Value)
-	assert.Equal(t, "hola", *result.Value)
-	assert.Nil(t, result.Err)
+	results := decodeJobResults(t, rec)
+	require.Len(t, results, 1)
+	require.NotNil(t, results[0].Value)
+	assert.Equal(t, "hola", *results[0].Value)
+	assert.Nil(t, results[0].Err)
+}
+
+// Every result the driver produces is a separate JSON object in the response.
+func TestRunJobHandlerStreamsResults(t *testing.T) {
+	rec := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"reply":"hola","times":3}}`)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Len(t, decodeJobResults(t, rec), 3)
 }
 
 func TestRunJobHandlerForwardsArguments(t *testing.T) {
-	rec := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test","driver_config":{"reply":"hola"}},"arguments":["one","two"]}`)
+	rec := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"reply":"hola"},"arguments":["one","two"]}`)
 
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	result := decodeJobResult(t, rec)
-	require.NotNil(t, result.Value)
-	assert.Equal(t, "hola[one,two]", *result.Value)
+	results := decodeJobResults(t, rec)
+	require.Len(t, results, 1)
+	assert.Equal(t, "hola[one,two]", *results[0].Value)
 }
 
 func TestRunJobHandlerDriverFailure(t *testing.T) {
-	rec := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test","driver_config":{"fail":"boom"}}}`)
+	rec := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"fail":"boom"}}`)
 
 	require.Equal(t, http.StatusOK, rec.Code, "a failing job is a successful request")
 
-	result := decodeJobResult(t, rec)
-	assert.Nil(t, result.Value)
-	require.NotNil(t, result.Err)
-	assert.Equal(t, "boom", *result.Err)
+	results := decodeJobResults(t, rec)
+	require.Len(t, results, 1)
+	assert.Nil(t, results[0].Value)
+	require.NotNil(t, results[0].Err)
+	assert.Equal(t, "boom", *results[0].Err)
 }
 
 func TestRunJobHandlerEmptyResult(t *testing.T) {
-	rec := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test"}}`)
+	rec := postJob(t, `{"name":"greet","driver":"handler-test"}`)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	assert.JSONEq(t, `{}`, rec.Body.String(), "value and err are both omitted when the job returns nothing")
+	assert.Empty(t, rec.Body.String(), "a job that produces nothing streams nothing")
 }
 
-func TestRunJobHandlerNilJob(t *testing.T) {
+// A request without a driver cannot be built, and nothing has been streamed
+// yet, so the handler answers with a status code.
+func TestRunJobHandlerMissingDriver(t *testing.T) {
 	rec := postJob(t, `{"arguments":["one"]}`)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Job cannot be nil on request")
-}
-
-func TestRunJobHandlerExplicitNullJob(t *testing.T) {
-	rec := postJob(t, `{"job":null}`)
-
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Job cannot be nil on request")
+	assert.Contains(t, rec.Body.String(), "not_registered")
 }
 
 func TestRunJobHandlerMalformedBody(t *testing.T) {
-	rec := postJob(t, `{"job":`)
+	rec := postJob(t, `{"name":`)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 }
@@ -157,7 +176,7 @@ func TestRunJobHandlerEmptyBody(t *testing.T) {
 }
 
 func TestRunJobHandlerUnknownDriver(t *testing.T) {
-	rec := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"nosuchdriver"}}`)
+	rec := postJob(t, `{"name":"greet","driver":"nosuchdriver"}`)
 
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "nosuchdriver")
@@ -165,12 +184,12 @@ func TestRunJobHandlerUnknownDriver(t *testing.T) {
 }
 
 func TestRunJobHandlerRebuildsDriverPerRequest(t *testing.T) {
-	first := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test","driver_config":{"reply":"hola"}}}`)
-	second := postJob(t, `{"job":{"name":"greet","node":"lab1","driver":"handler-test","driver_config":{"reply":"adeu"}}}`)
+	first := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"reply":"hola"}}`)
+	second := postJob(t, `{"name":"greet","driver":"handler-test","driver_config":{"reply":"adeu"}}`)
 
 	require.Equal(t, http.StatusOK, first.Code)
 	require.Equal(t, http.StatusOK, second.Code)
 
-	assert.Equal(t, "hola", *decodeJobResult(t, first).Value)
-	assert.Equal(t, "adeu", *decodeJobResult(t, second).Value)
+	assert.Equal(t, "hola", *decodeJobResults(t, first)[0].Value)
+	assert.Equal(t, "adeu", *decodeJobResults(t, second)[0].Value)
 }

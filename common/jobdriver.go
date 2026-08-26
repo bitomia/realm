@@ -12,7 +12,7 @@ type JobDriver interface {
 
 	Info() JobDriverInfo
 
-	Run(args ...string) (*string, error)
+	Run(w JobResultWriter, args ...string) error
 
 	Config() JobDriverConfig
 }

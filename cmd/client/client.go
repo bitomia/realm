@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -119,9 +120,9 @@ func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Dur
 }
 
 // doStreamRequest executes an HTTP request and returns the raw response for streaming.
-func (c *Client) doStreamRequest(method, url string) (*http.Response, error) {
+func (c *Client) doStreamRequest(method, url string, body io.Reader) (*http.Response, error) {
 	client := &http.Client{Timeout: 0}
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -381,7 +382,7 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 
 func (c *Client) ReadLoadStdout(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/stdout", load.Node.Url, load.Name)
-	resp, err := c.doStreamRequest("GET", url)
+	resp, err := c.doStreamRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
@@ -396,7 +397,7 @@ func (c *Client) ReadLoadStdout(load *common.Load) error {
 
 func (c *Client) ReadLoadStderr(load *common.Load) error {
 	url := fmt.Sprintf("%s/loads/%s/stderr", load.Node.Url, load.Name)
-	resp, err := c.doStreamRequest("GET", url)
+	resp, err := c.doStreamRequest("GET", url, nil)
 	if err != nil {
 		return err
 	}
@@ -486,19 +487,34 @@ func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime u
 	return err
 }
 
-func (c *Client) RunJob(job *common.Job, arguments ...string) (*dto.JobResult, error) {
+func (c *Client) RunJob(job *common.Job, handle func(common.JobResult), arguments ...string) error {
 	url := fmt.Sprintf("%s/jobs", job.Node.Url)
+	request := dto.JobRequest{
+		Name:            job.Name,
+		JobDriverConfig: job.Driver.Config(),
+		Arguments:       arguments,
+	}
 
-	request := dto.JobRequest{Job: job, Arguments: arguments}
-	data, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
+	payload := new(bytes.Buffer)
+	if err := json.NewEncoder(payload).Encode(request); err != nil {
+		return err
+	}
+
+	resp, err := c.doStreamRequest("POST", url, payload)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer resp.Body.Close()
 
-	var result dto.JobResult
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, err
+	decoder := json.NewDecoder(resp.Body)
+	for {
+		var result common.JobResult
+		if err := decoder.Decode(&result); err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return fmt.Errorf("failed to parse job result: %v", err)
+		}
+		handle(result)
 	}
-
-	return &result, nil
 }

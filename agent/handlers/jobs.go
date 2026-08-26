@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/bitomia/realm/agent/api"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 )
 
@@ -19,19 +20,9 @@ func RunJobHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Job == nil {
-		http.Error(w, "Job cannot be nil on request", http.StatusBadRequest)
-		return
-	}
-
-	slog.Info("handlers.RunJobHandler", "job", req.Job.Name, "driver", req.Job.Driver)
-
-	result, err := api.RunJob(req)
-	if err != nil {
+	slog.Info("handlers.RunJobHandler", "job", req.Name, "driver", req.Driver)
+	if err := api.RunJob(common.NewJobResultWriter(w), req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(result)
 }

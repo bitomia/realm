@@ -22,7 +22,7 @@ func (d *stubJobDriver) Info() common.JobDriverInfo {
 	}
 }
 
-func (d *stubJobDriver) Run(args ...string) (*string, error) { return nil, nil }
+func (d *stubJobDriver) Run(w common.JobResultWriter, args ...string) error { return nil }
 
 func (d *stubJobDriver) Config() common.JobDriverConfig {
 	return common.JobDriverConfig{Driver: d.id, DriverConfig: nil}
