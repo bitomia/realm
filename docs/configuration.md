@@ -86,7 +86,7 @@ nodes:
       memory: 2048
       smp: "2"
       serial: telnet:localhost:4444,server,nowait
-      netdevs:
+      netdev:
         - type: user
           id: net0
       drives:
@@ -164,7 +164,7 @@ nodes:
         - file: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
           format: qcow2
           if: virtio
-      netdevs:
+      netdev:
         - type: user
           id: net0
 ```

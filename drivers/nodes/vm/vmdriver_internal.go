@@ -89,7 +89,21 @@ type xVCPU struct {
 
 type xOS struct {
 	Type   xOSType    `xml:"type"`
+	Loader *xOSLoader `xml:"loader,omitempty"`
+	NVRam  *xOSNVRam  `xml:"nvram,omitempty"`
 	SMBIOS *xOSSMBIOS `xml:"smbios,omitempty"`
+}
+
+type xOSLoader struct {
+	ReadOnly string `xml:"readonly,attr,omitempty"`
+	Secure   string `xml:"secure,attr,omitempty"`
+	Type     string `xml:"type,attr,omitempty"`
+	Path     string `xml:",chardata"`
+}
+
+type xOSNVRam struct {
+	Template string `xml:"template,attr,omitempty"`
+	Path     string `xml:",chardata"`
 }
 
 type xOSType struct {
@@ -122,7 +136,12 @@ type xSysInfoEntry struct {
 }
 
 type xFeatures struct {
-	ACPI *struct{} `xml:"acpi,omitempty"`
+	ACPI *struct{}      `xml:"acpi,omitempty"`
+	SMM  *xFeatureState `xml:"smm,omitempty"`
+}
+
+type xFeatureState struct {
+	State string `xml:"state,attr"`
 }
 
 type xDevices struct {
@@ -131,6 +150,36 @@ type xDevices struct {
 	Serials    []xSerial    `xml:"serial,omitempty"`
 	Consoles   []xSerial    `xml:"console,omitempty"`
 	Memballoon *xMemballoon `xml:"memballoon,omitempty"`
+	TPM        *xTPM        `xml:"tpm,omitempty"`
+	Graphics   *xGraphics   `xml:"graphics,omitempty"`
+	Video      *xVideo      `xml:"video,omitempty"`
+}
+
+type xGraphics struct {
+	Type     string `xml:"type,attr"`
+	Port     int    `xml:"port,attr,omitempty"`
+	AutoPort string `xml:"autoport,attr,omitempty"`
+	Listen   string `xml:"listen,attr,omitempty"`
+}
+
+type xVideo struct {
+	Model xVideoModel `xml:"model"`
+}
+
+type xVideoModel struct {
+	Type    string `xml:"type,attr"`
+	Heads   int    `xml:"heads,attr,omitempty"`
+	Primary string `xml:"primary,attr,omitempty"`
+}
+
+type xTPM struct {
+	Model   string      `xml:"model,attr,omitempty"`
+	Backend xTPMBackend `xml:"backend"`
+}
+
+type xTPMBackend struct {
+	Type    string `xml:"type,attr"`
+	Version string `xml:"version,attr,omitempty"`
 }
 
 type xDisk struct {
@@ -300,6 +349,91 @@ func buildInterface(nd VMNetdev) (xInterface, error) {
 		return i, nil
 	}
 	return xInterface{}, fmt.Errorf("vm: unsupported netdev type %q", nd.Type)
+}
+
+func buildCPU(cpu string) *xCPU {
+	switch strings.ToLower(strings.TrimSpace(cpu)) {
+	case "":
+		return nil
+	case "host", "host-passthrough", "passthrough":
+		return &xCPU{Mode: "host-passthrough"}
+	case "host-model":
+		return &xCPU{Mode: "host-model"}
+	}
+	return &xCPU{Mode: "custom", Model: cpu}
+}
+
+func buildBios(b *VMBios) (*xOSLoader, *xOSNVRam, error) {
+	if b == nil || b.Loader == "" {
+		if b != nil && (b.NVRam != "" || b.Secure) {
+			return nil, nil, errors.New("vm: bios requires loader=<path> when nvram or secure is set")
+		}
+		return nil, nil, nil
+	}
+
+	loader := &xOSLoader{ReadOnly: "yes", Type: "pflash", Path: b.Loader}
+	if b.Secure {
+		loader.Secure = "yes"
+	}
+
+	if b.NVRam == "" {
+		return nil, nil, errors.New("vm: bios requires nvram=<path> alongside loader")
+	}
+	nvram := &xOSNVRam{Path: b.NVRam, Template: b.NVRamTemplate}
+
+	return loader, nvram, nil
+}
+
+func buildTPM(t *VMTPM) *xTPM {
+	if t == nil {
+		return nil
+	}
+	model := t.Model
+	if model == "" {
+		model = "tpm-crb"
+	}
+	version := t.Version
+	if version == "" {
+		version = "2.0"
+	}
+	return &xTPM{Model: model, Backend: xTPMBackend{Type: "emulator", Version: version}}
+}
+
+func buildGraphics(g *VMGraphics) (*xGraphics, *xVideo, error) {
+	if g == nil {
+		return nil, nil, nil
+	}
+
+	t := strings.ToLower(g.Type)
+	switch t {
+	case "vnc", "":
+		t = "vnc"
+	case "spice":
+	default:
+		return nil, nil, fmt.Errorf("vm: unsupported graphics type %q, want vnc or spice", g.Type)
+	}
+
+	listen := g.Listen
+	if listen == "" {
+		// Loopback by default
+		listen = "127.0.0.1"
+	}
+
+	gfx := &xGraphics{Type: t, Listen: listen}
+	if g.Port > 0 {
+		gfx.Port = g.Port
+		gfx.AutoPort = "no"
+	} else {
+		gfx.Port = -1
+		gfx.AutoPort = "yes"
+	}
+
+	video := g.Video
+	if video == "" {
+		video = "virtio"
+	}
+
+	return gfx, &xVideo{Model: xVideoModel{Type: video, Heads: 1, Primary: "yes"}}, nil
 }
 
 // buildHostfwdArgs renders a user netdev with port forwards as raw QEMU

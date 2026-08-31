@@ -41,17 +41,39 @@ type VMNetdev struct {
 	Mac        string   `json:"mac,omitempty"`
 }
 
+type VMBios struct {
+	Loader        string `json:"loader,omitempty"`
+	NVRam         string `json:"nvram,omitempty"`
+	NVRamTemplate string `json:"nvram_template,omitempty"`
+	Secure        bool   `json:"secure,omitempty"`
+}
+
+type VMGraphics struct {
+	Type   string `json:"type,omitempty"`
+	Listen string `json:"listen,omitempty"`
+	Port   int    `json:"port,omitempty"`
+	Video  string `json:"video,omitempty"`
+}
+
+type VMTPM struct {
+	Model   string `json:"model,omitempty"`
+	Version string `json:"version,omitempty"`
+}
+
 type VMConfig struct {
-	Machine       string     `json:"machine,omitempty"`
-	Accel         []string   `json:"accel,omitempty"`
-	CPU           string     `json:"cpu,omitempty"`
-	Memory        int        `json:"memory,omitempty"`
-	SMP           string     `json:"smp,omitempty"`
-	Serial        string     `json:"serial,omitempty"`
-	Drives        []VMDrive  `json:"drives,omitempty"`
-	Netdev        []VMNetdev `json:"netdev,omitempty"`
-	Params        []string   `json:"params,omitempty"`
-	LibVirtSocket *string    `json:"libvirt_socket,omitempty"`
+	Machine       string      `json:"machine,omitempty"`
+	Accel         []string    `json:"accel,omitempty"`
+	CPU           string      `json:"cpu,omitempty"`
+	Memory        int         `json:"memory,omitempty"`
+	SMP           string      `json:"smp,omitempty"`
+	Serial        string      `json:"serial,omitempty"`
+	Bios          *VMBios     `json:"bios,omitempty"`
+	TPM           *VMTPM      `json:"tpm,omitempty"`
+	Graphics      *VMGraphics `json:"graphics,omitempty"`
+	Drives        []VMDrive   `json:"drives,omitempty"`
+	Netdev        []VMNetdev  `json:"netdev,omitempty"`
+	Params        []string    `json:"params,omitempty"`
+	LibVirtSocket *string     `json:"libvirt_socket,omitempty"`
 }
 
 // VMNodeMetadata is persisted in the nodes repository and used to
@@ -135,8 +157,33 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	if vcpus := parseSMP(q.config.SMP); vcpus > 0 {
 		dom.VCPU = &xVCPU{Value: vcpus}
 	}
-	if q.config.CPU != "" {
-		dom.CPU = &xCPU{Mode: "custom", Model: q.config.CPU}
+	dom.CPU = buildCPU(q.config.CPU)
+
+	// UEFI has to be declared in the XML rather than pushed through
+	// qemu:commandline: virt-aa-helper only grants the guest AppArmor profile
+	// access to paths it can see here, so a pflash drive passed as a raw QEMU
+	// argument is denied at open().
+	if loader, nvram, err := buildBios(q.config.Bios); err != nil {
+		return "", err
+	} else if loader != nil {
+		dom.OS.Loader = loader
+		dom.OS.NVRam = nvram
+		if loader.Secure == "yes" {
+			// Secure boot is only enforceable with SMM, and libvirt rejects
+			// secure='yes' without it.
+			dom.Features.SMM = &xFeatureState{State: "on"}
+		}
+	}
+
+	if tpm := buildTPM(q.config.TPM); tpm != nil {
+		dom.Devices.TPM = tpm
+	}
+
+	if g, v, err := buildGraphics(q.config.Graphics); err != nil {
+		return "", err
+	} else if g != nil {
+		dom.Devices.Graphics = g
+		dom.Devices.Video = v
 	}
 
 	for idx, drive := range q.config.Drives {
