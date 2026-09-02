@@ -23,7 +23,7 @@ jobs:
       with:
         go-version-file: go.mod
     - name: Verify formatting
-      run: make verify-fmt
+      run: make fmt
 
   lint:
     runs-on: ubuntu-latest

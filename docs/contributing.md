@@ -14,7 +14,7 @@ This project follows standard Go conventions as outlined in [Effective Go](https
 ### Code Organization
 
 - Organize imports into groups: standard library, third-party, local packages
-- Use `make verify-fmt` to format all code before committing
+- Use `make fmt` to format all code before committing
 - Run `make vet` to catch common mistakes
 
 ### Error Handling

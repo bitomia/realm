@@ -119,7 +119,7 @@ func (w *WindowsDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (w *WindowsDriver) RefreshStatus() (common.NodeStatus, error) {
+func (w *WindowsDriver) UpdateStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 

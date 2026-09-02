@@ -82,7 +82,7 @@ func (m *mockNodeDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (m *mockNodeDriver) RefreshStatus() (common.NodeStatus, error) {
+func (m *mockNodeDriver) UpdateStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady}, nil
 }
 

@@ -59,7 +59,7 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.RefreshStatus()
+	status, err := nodeEntry.NodeDriver.UpdateStatus()
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}

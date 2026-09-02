@@ -124,7 +124,7 @@ func (l *LinuxDriver) Restart(message string, time uint32) error {
 	return nil
 }
 
-func (l *LinuxDriver) RefreshStatus() (common.NodeStatus, error) {
+func (l *LinuxDriver) UpdateStatus() (common.NodeStatus, error) {
 	return common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: ""}, nil
 }
 

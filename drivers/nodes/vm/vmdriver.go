@@ -1,3 +1,5 @@
+//go:build linux
+
 package vm
 
 import (
@@ -352,7 +354,7 @@ func (q *VMDriver) Restart(_ string, _ uint32) error {
 	})
 }
 
-func (q *VMDriver) RefreshStatus() (common.NodeStatus, error) {
+func (q *VMDriver) UpdateStatus() (common.NodeStatus, error) {
 	var status common.NodeStatus
 	err := withLibvirt(q.libvirtSocket(), func(l *libvirt.Libvirt) error {
 		d, found, err := lookupDomain(l, q.ctx.NodeName)

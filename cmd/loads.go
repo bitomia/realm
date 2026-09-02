@@ -67,10 +67,10 @@ var provisionLoads = &cobra.Command{
 	},
 }
 
-var listLoads = &cobra.Command{
-	Use:                   "list [--all | load...]",
+var deploymentsState = &cobra.Command{
+	Use:                   "state [--all | load...]",
 	Aliases:               []string{"ls"},
-	Short:                 "List loads deployments",
+	Short:                 "Show state of deployments",
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
@@ -317,13 +317,13 @@ var stderrLoad = &cobra.Command{
 func init() {
 	startLoads.Flags().Bool("all", false, "All loads")
 	provisionLoads.Flags().Bool("all", false, "All loads")
-	listLoads.Flags().Bool("all", false, "All loads")
+	deploymentsState.Flags().Bool("all", false, "All loads")
 	stopLoads.Flags().Bool("all", false, "All loads")
 	killLoads.Flags().Bool("all", false, "All loads")
 	deprovisionLoads.Flags().Bool("all", false, "All loads")
 
 	loadsCmd.AddCommand(graphLoads)
-	loadsCmd.AddCommand(listLoads)
+	loadsCmd.AddCommand(deploymentsState)
 	loadsCmd.AddCommand(provisionLoads)
 	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stdoutLoad)

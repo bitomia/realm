@@ -112,7 +112,7 @@ func KillLoadDeployments(loadName string) error {
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
-		return s == common.DeploymentStatusRunning
+		return s == common.DeploymentStatusRunning || s == common.DeploymentStatusError
 	}, "KillLoadDeployments"); err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, fmt.Errorf("node not configured")
 	}
 
-	nodeStatus, err := node.NodeDriver.RefreshStatus()
+	nodeStatus, err := node.NodeDriver.UpdateStatus()
 	if err != nil {
 		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}

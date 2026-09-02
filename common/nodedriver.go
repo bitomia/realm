@@ -83,8 +83,8 @@ type NodeDriver interface {
 	// State returns current node state (e.g. cpu, mem, etc...)
 	State() (NodeState, error)
 
-	// RefreshStatus update and returns current status based on internal drivers factors
+	// UpdateStatus update and returns current status based on internal drivers factors
 	//
 	// nodeName as nil for self-node
-	RefreshStatus() (NodeStatus, error)
+	UpdateStatus() (NodeStatus, error)
 }
