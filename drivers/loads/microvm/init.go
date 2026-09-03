@@ -1,3 +1,5 @@
+//go:build ignore
+
 // Minimal PID 1 for microVM guests whose rootfs has no init
 // Boot args:
 //
