@@ -37,6 +37,9 @@ SIZE="${SIZE:-2G}"
 OUT_DIR=$(pwd)
 OUT_FILE="${OUT_FILE:-$OUT_DIR/rootfs.ext4}"
 INSTALL_PACKAGES="${INSTALL_PACKAGES:-1}"
+# Node major to install from NodeSource. The distro package is too old for
+# modern toolchains and cannot strip TypeScript types
+NODE_MAJOR="${NODE_MAJOR:-24}"
 
 REPO_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
@@ -50,6 +53,8 @@ PACKAGES=(
   iproute2
   iputils-ping
   ca-certificates
+  curl               # fetches the NodeSource setup script below
+  gnupg              # NodeSource signs its apt repository
 )
 
 BUILD_TAG="realm-microvm-rootfs:${BASE_IMAGE//[^a-zA-Z0-9._-]/-}"
@@ -81,6 +86,11 @@ if [ "$INSTALL_PACKAGES" = "1" ]; then
 RUN apt-get update \\
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${PACKAGES[*]} \\
  && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash - \\
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends nodejs \\
+ && rm -rf /var/lib/apt/lists/*
+# Mount point for the drive an application load ships on
+RUN mkdir -p /opt/app /etc/realm
 # An empty root password, so the serial console gives a usable login on a
 # microVM that has no keys provisioned yet
 RUN passwd -d root
@@ -102,6 +112,9 @@ $SUDO mkdir -p "$ROOTFS_DIR/dev"
 $SUDO rm -f "$ROOTFS_DIR/dev/console" "$ROOTFS_DIR/dev/null"
 $SUDO mknod -m 600 "$ROOTFS_DIR/dev/console" c 5 1
 $SUDO mknod -m 666 "$ROOTFS_DIR/dev/null" c 1 3
+
+$SUDO rm -f "$ROOTFS_DIR/etc/resolv.conf"
+printf 'nameserver 8.8.8.8\nnameserver 8.8.4.4\n' | $SUDO tee "$ROOTFS_DIR/etc/resolv.conf" > /dev/null
 
 rm -f "$OUT_FILE"
 truncate -s "$SIZE" "$OUT_FILE"
