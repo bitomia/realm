@@ -59,7 +59,7 @@ func (m *mockNodeDriver) Info() (common.NodeDriverInfo, error) {
 }
 
 func (m *mockNodeDriver) Register() error {
-	return m.ctx.Repository.SetSelf(m.ctx.NodeName, m)
+	return m.ctx.Repository.SetSelf(m.ctx.NodeName, m, nil)
 }
 
 func (m *mockNodeDriver) Unregister() error {
@@ -114,7 +114,7 @@ func TestBoltNodesRepository_SetSelf(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	err := repo.SetSelf("test-node", driver)
+	err := repo.SetSelf("test-node", driver, nil)
 
 	assert.NoError(t, err)
 }
@@ -124,7 +124,8 @@ func TestBoltNodesRepository_GetSelf(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	require.NoError(t, repo.SetSelf("test-node", driver))
+	registries := []common.RegistryConfig{{Host: "ghcr.io", Auth: common.RegistryAuth{Token: "token"}}}
+	require.NoError(t, repo.SetSelf("test-node", driver, registries))
 	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
 
 	entry, err := repo.GetSelf()
@@ -133,6 +134,7 @@ func TestBoltNodesRepository_GetSelf(t *testing.T) {
 	assert.Equal(t, "test-node", entry.NodeName)
 	require.IsType(t, &mockNodeDriver{}, entry.NodeDriver)
 	assert.Equal(t, "test-driver", entry.NodeDriver.(*mockNodeDriver).Value)
+	assert.Equal(t, registries, entry.Registries)
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
 
@@ -150,7 +152,7 @@ func TestBoltNodesRepository_DeleteSelf(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	require.NoError(t, repo.SetSelf("test-node", driver))
+	require.NoError(t, repo.SetSelf("test-node", driver, nil))
 
 	err := repo.DeleteSelf()
 
@@ -173,7 +175,7 @@ func TestBoltNodesRepository_UpdateSelfMetadata(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	require.NoError(t, repo.SetSelf("test-node", driver))
+	require.NoError(t, repo.SetSelf("test-node", driver, nil))
 	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
 
 	err := repo.UpdateSelfMetadata(func(metadataPtr any) error {

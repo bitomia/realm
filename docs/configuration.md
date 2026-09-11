@@ -7,7 +7,7 @@ Realm is configured through a YAML file. By default, Realm looks for a `config.y
 A Realm configuration file has four top-level sections:
 
 ```yaml
-agent: # Agent settings (paths, registries)
+agent: # Agent settings (paths, containerd, artifacts)
 nodes: # Remote nodes to manage
 loads: # Workloads to deploy
 discovery: # Discovery settings
@@ -15,8 +15,8 @@ discovery: # Discovery settings
 
 ## Root config
 
-| Field       | Type   | Default          | Description                                              |
-| ----------- | ------ | ---------------- | -------------------------------------------------------- |
+| Field       | Type   | Default          | Description                                            |
+| ----------- | ------ | ---------------- | ------------------------------------------------------ |
 | `data_path` | string | `/var/lib/realm` | Path to store client or agent data (ID file, database) |
 
 ```yaml
@@ -47,13 +47,13 @@ nodes:
 ...
 ```
 
-
 | Field           | Type   | Required | Description                                    |
 | --------------- | ------ | -------- | ---------------------------------------------- |
-| `url`           | string | Yes      | URL of the node's agent API                   |
+| `url`           | string | Yes      | URL of the node's agent API                    |
 | `driver`        | string | Yes      | Node driver type. Currently supported: `linux` |
 | `driver_config` | object | No       | Driver-specific configuration                  |
 | `cloud_init`    | object | No       | Cloud init configuration                       |
+| `registries`    | list   | No       | Container registries used by the node          |
 
 **Cloud init**
 
@@ -94,6 +94,41 @@ nodes:
           format: qcow2
           if: virtio
 ```
+
+### Container Registries
+
+Container registries can be configured per node:
+
+```yaml
+nodes:
+  lab1:
+    url: http://192.168.1.59:9000
+    driver: linux
+    registries:
+      - host: ghcr.io
+        auth:
+          token: ghp_xxxxxxxxxxxx
+      - host: registry.example.com:5000
+        insecure: true
+        auth:
+          username: admin
+          password: secret
+      - host: nexus.example.com
+        ca_file: /etc/realm/certs/nexus-ca.pem
+        auth:
+          username: admin
+          password: secret
+```
+
+| Field             | Type   | Description                                             |
+| ----------------- | ------ | ------------------------------------------------------- |
+| `host`            | string | Registry host (e.g., `ghcr.io`, `docker.io`)            |
+| `insecure`        | bool   | Allow HTTP instead of HTTPS                             |
+| `skip_tls_verify` | bool   | Do not verify the registry's TLS certificate            |
+| `ca_file`         | string | PEM bundle with extra CAs trusted for this registry     |
+| `auth.username`   | string | Username (use with `password`)                          |
+| `auth.password`   | string | Password (use with `username`)                          |
+| `auth.token`      | string | Authentication token (alternative to username/password) |
 
 ### Linux Node Driver
 
@@ -316,8 +351,8 @@ agent:
 
 | Field            | Type   | Default   | Description                         |
 | ---------------- | ------ | --------- | ----------------------------------- |
-| `listen_address` | string | `0.0.0.0` | Address to bind the agent API      |
-| `listen_port`    | int    | `9000`    | Port to bind the agent API         |
+| `listen_address` | string | `0.0.0.0` | Address to bind the agent API       |
+| `listen_port`    | int    | `9000`    | Port to bind the agent API          |
 | `log_format`     | string | `text`    | Log output format: `text` or `json` |
 
 ### Container Runtime
@@ -342,58 +377,20 @@ agent:
 
 Realm agents can expose artifacts when configured.
 
-| Field              | Type                 | Default          | Description                 |
-| ------------------ | -------------------- | ---------------- | --------------------------- |
-| `artifacts`        | ArtifactsRepository  | Empty            | Artifacts repository config | 
-
+| Field       | Type                | Default | Description                 |
+| ----------- | ------------------- | ------- | --------------------------- |
+| `artifacts` | ArtifactsRepository | Empty   | Artifacts repository config |
 
 `artifacts` field expects the following attributes:
 
-| Field              | Type                 | Default  | Description                                                         |
-| ------------------ | -------------------- | -------- | ------------------------------------------------------------------- |
-| `auth_required`    | bool                 | false    | Endpoints available only for authed requests                        | 
-| `raw_path`         | string               | nil      | Point to a local directory with raw artifacts (nesting not allowed) |
+| Field           | Type   | Default | Description                                                         |
+| --------------- | ------ | ------- | ------------------------------------------------------------------- |
+| `auth_required` | bool   | false   | Endpoints available only for authed requests                        |
+| `raw_path`      | string | nil     | Point to a local directory with raw artifacts (nesting not allowed) |
 
 ### Database
 
 Realm stores agent state in an embedded [bbolt](https://github.com/etcd-io/bbolt) database at `<data_path>/realm.db`. No configuration is required.
-
-### Container Registries
-
-Configure authentication for private container registries:
-
-```yaml
-agent:
-  registries:
-    - host: ghcr.io
-      auth:
-        token: ghp_xxxxxxxxxxxx
-    - host: registry.example.com:5000
-      insecure: true
-      auth:
-        username: admin
-        password: secret
-    - host: nexus.example.com
-      ca_file: /etc/realm/certs/nexus-ca.pem
-      auth:
-        username: admin
-        password: secret
-```
-
-`insecure` downgrades the connection to plain HTTP. For a registry that speaks
-HTTPS but presents a certificate Go refuses (for example one that relies on the
-legacy Common Name field instead of SANs), point `ca_file` at its CA bundle, or
-set `skip_tls_verify: true` to bypass verification altogether.
-
-| Field             | Type   | Description                                             |
-| ----------------- | ------ | ------------------------------------------------------- |
-| `host`            | string | Registry host (e.g., `ghcr.io`, `docker.io`)            |
-| `insecure`        | bool   | Allow HTTP instead of HTTPS                             |
-| `skip_tls_verify` | bool   | Do not verify the registry's TLS certificate            |
-| `ca_file`         | string | PEM bundle with extra CAs trusted for this registry     |
-| `auth.username`   | string | Username (use with `password`)                          |
-| `auth.password`   | string | Password (use with `username`)                          |
-| `auth.token`      | string | Authentication token (alternative to username/password) |
 
 ## Discovery
 
@@ -426,15 +423,15 @@ data_path: /opt/realm_data
 agent:
   listen_address: 0.0.0.0
   zfs: false
-  registries:
-    - host: ghcr.io
-      auth:
-        token: ghp_xxxxxxxxxxxx
 
 nodes:
   lab1:
     url: http://192.168.1.59:9000
     driver: linux
+    registries:
+      - host: ghcr.io
+        auth:
+          token: ghp_xxxxxxxxxxxx
   lab2:
     url: http://192.168.1.51:9000
     driver: linux

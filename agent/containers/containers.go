@@ -14,10 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
-	"github.com/bitomia/realm/agent/config"
 	"github.com/bitomia/realm/agent/cruntime"
 	"github.com/bitomia/realm/agent/db"
 	"github.com/bitomia/realm/agent/volumes"
+	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 )
 
@@ -306,6 +306,21 @@ func SendSignal(containerName string, signal syscall.Signal) error {
 	return nil
 }
 
+func nodeRegistries() []common.RegistryConfig {
+	database := db.GetDB()
+	if database == nil {
+		return nil
+	}
+
+	node, err := database.NodesRepository.GetSelf()
+	if err != nil {
+		slog.Warn("nodeRegistries", "msg", "node config not available", "error", err)
+		return nil
+	}
+
+	return node.Registries
+}
+
 func TryPullAndGetImage(ctx context.Context, client *containerd.Client, imageName string) (containerd.Image, error) {
 	images, err := client.ImageService().List(ctx, fmt.Sprintf("name==%s", imageName))
 	if err != nil {
@@ -316,7 +331,7 @@ func TryPullAndGetImage(ctx context.Context, client *containerd.Client, imageNam
 	if len(images) == 0 {
 		slog.Info("TryPullAndGetImage", "msg", "pulling image", "image", imageName)
 
-		pullOpts := cruntime.GetPullOptions(&config.Get().Agent)
+		pullOpts := cruntime.GetPullOptions(nodeRegistries())
 		image, err := client.Pull(ctx, imageName, pullOpts...)
 		if err != nil {
 			slog.Error("TryPullAndGetImage", "error", err)

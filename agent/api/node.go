@@ -112,7 +112,7 @@ func LoadNodeConfig(node *common.Node) error {
 			return err
 		}
 	} else {
-		if err := db.NodesRepository.SetSelf(node.Name, node.Driver); err != nil {
+		if err := db.NodesRepository.SetSelf(node.Name, node.Driver, node.Registries); err != nil {
 			return err
 		}
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/remotes/docker"
 
-	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common"
 )
 
 const DefaultDockerHost = "docker.io"
@@ -37,24 +37,14 @@ func GetRegistryHost(imageName string) string {
 	return DefaultDockerHost
 }
 
-// findRegistryConfig finds the registry configuration for a given host.
-func findRegistryConfig(registries []config.RegistryConfig, host string) *config.RegistryConfig {
-	for i := range registries {
-		if registries[i].Host == host {
-			return &registries[i]
-		}
-	}
-	return nil
-}
-
-func GetCredentialsFunc(agentCfg *config.AgentConfig) docker.Authorizer {
+func GetCredentialsFunc(registries []common.RegistryConfig) docker.Authorizer {
 	return docker.NewDockerAuthorizer(
 		docker.WithAuthCreds(func(host string) (string, string, error) {
-			if len(agentCfg.Registries) == 0 {
+			if len(registries) == 0 {
 				return "", "", nil
 			}
 
-			regCfg := findRegistryConfig(agentCfg.Registries, host)
+			regCfg := common.FindRegistryConfig(registries, host)
 			if regCfg == nil {
 				return "", "", nil
 			}
@@ -75,7 +65,7 @@ func GetCredentialsFunc(agentCfg *config.AgentConfig) docker.Authorizer {
 	)
 }
 
-func registryClient(regCfg *config.RegistryConfig) (*http.Client, error) {
+func registryClient(regCfg *common.RegistryConfig) (*http.Client, error) {
 	if !regCfg.SkipTLSVerify && regCfg.CAFile == "" {
 		return http.DefaultClient, nil
 	}
@@ -109,8 +99,8 @@ func registryClient(regCfg *config.RegistryConfig) (*http.Client, error) {
 	return &http.Client{Transport: transport}, nil
 }
 
-func createRegistryHosts(agentCfg *config.AgentConfig) docker.RegistryHosts {
-	authorizer := GetCredentialsFunc(agentCfg)
+func createRegistryHosts(registries []common.RegistryConfig) docker.RegistryHosts {
+	authorizer := GetCredentialsFunc(registries)
 
 	// default hosts with anonymous authorizer for public registries like Docker Hub
 	defaultHosts := docker.ConfigureDefaultRegistries(
@@ -118,7 +108,7 @@ func createRegistryHosts(agentCfg *config.AgentConfig) docker.RegistryHosts {
 	)
 
 	return func(host string) ([]docker.RegistryHost, error) {
-		regCfg := findRegistryConfig(agentCfg.Registries, host)
+		regCfg := common.FindRegistryConfig(registries, host)
 
 		// if no config for this host, use default configuration with anonymous auth
 		if regCfg == nil {
@@ -148,17 +138,17 @@ func createRegistryHosts(agentCfg *config.AgentConfig) docker.RegistryHosts {
 	}
 }
 
-func GetPullOptions(agentCfg *config.AgentConfig) []containerd.RemoteOpt {
+func GetPullOptions(registries []common.RegistryConfig) []containerd.RemoteOpt {
 	opts := []containerd.RemoteOpt{
 		containerd.WithPullUnpack,
 	}
 
-	if len(agentCfg.Registries) == 0 {
+	if len(registries) == 0 {
 		return opts
 	}
 
 	resolver := docker.NewResolver(docker.ResolverOptions{
-		Hosts: createRegistryHosts(agentCfg),
+		Hosts: createRegistryHosts(registries),
 	})
 
 	opts = append(opts, containerd.WithResolver(resolver))

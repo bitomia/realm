@@ -17,33 +17,12 @@ var (
 	Version        = "dev"
 )
 
-// RegistryAuth holds authentication credentials for a container registry.
-// Token OR Username/Password should be set, not both.
-type RegistryAuth struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
-	Token    string `json:"token,omitempty"`
-}
-
 // ArtifactRepositoryConfig
 type ArtifactsRepository struct {
 	AuthRequired bool `json:"auth_required"`
 
 	// Path to raw artifacts
 	RawArtifactsPath *string `json:"raw_path,omitempty"`
-}
-
-// RegistryConfig holds configuration for a container registry.
-type RegistryConfig struct {
-	Host     string       `json:"host"` // Registry host (e.g., "ghcr.io", "docker.io", "registry.example.com:5000")
-	Auth     RegistryAuth `json:"auth"`
-	Insecure bool         `json:"insecure,omitempty"` // Allow HTTP instead of HTTPS
-
-	// Skip verification of the registry's TLS certificate.
-	SkipTLSVerify bool `json:"skip_tls_verify,omitempty"`
-
-	// Path to a PEM bundle with additional CAs trusted for this registry.
-	CAFile string `json:"ca_file,omitempty"`
 }
 
 // AgentConfig holds the configuration for the realm agent.
@@ -75,10 +54,6 @@ type AgentConfig struct {
 	// Valid values: "text", "json"
 	// Default: text
 	LogFormat string `json:"log_format"`
-
-	// Registries holds authentication configuration for container registries.
-	// Default: empty (anonymous pulls)
-	Registries []RegistryConfig `json:"registries,omitempty"`
 
 	// Containerd socket path.
 	// Default: /run/containerd/containerd.sock (Linux) or npipe://./pipe/containerd-containerd (Windows)

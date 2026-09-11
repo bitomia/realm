@@ -8,6 +8,7 @@ import (
 type NodeEntry struct {
 	NodeName   string
 	NodeDriver NodeDriver
+	Registries []RegistryConfig
 	Metadata   any
 }
 
@@ -23,7 +24,7 @@ var (
 // so no memory references must be used
 type NodesRepository interface {
 	// SetSelf creates or updates the node for the caller
-	SetSelf(nodeName string, driver NodeDriver) error
+	SetSelf(nodeName string, driver NodeDriver, registries []RegistryConfig) error
 
 	// GetSelf return nodeentry for the caller node
 	GetSelf() (NodeEntry, error)

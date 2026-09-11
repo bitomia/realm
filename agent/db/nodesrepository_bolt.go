@@ -18,15 +18,17 @@ type BoltNodesRepository struct {
 type NodeValue struct {
 	NodeName         string                  `json:"node_name"`
 	NodeDriverConfig common.NodeDriverConfig `json:"node_driver_config"`
+	Registries       []common.RegistryConfig `json:"registries,omitempty"`
 	Metadata         any                     `json:"metadata"`
 }
 
-func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver) error {
-	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName)
+func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, registries []common.RegistryConfig) error {
+	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName, "registries", len(registries))
 
 	nodeValue := NodeValue{
 		NodeName:         nodeName,
 		NodeDriverConfig: driver.Config(),
+		Registries:       registries,
 	}
 
 	nodeJson, err := json.Marshal(nodeValue)
@@ -97,6 +99,7 @@ func (r *BoltNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 	return common.NodeEntry{
 		NodeName:   nodeValue.NodeName,
 		NodeDriver: nodeDriver,
+		Registries: nodeValue.Registries,
 		Metadata:   nodeValue.Metadata,
 	}, nil
 }

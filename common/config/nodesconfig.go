@@ -24,7 +24,7 @@ func newNodeConfig(nodeName string, node *common.NodeConfig, driver common.NodeD
 		return nil, err
 	}
 
-	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Url: agentURL, Driver: driver}
+	nodesConfig[nodeName] = &common.Node{Name: nodeName, CloudInit: node.CloudInit, Registries: node.Registries, Url: agentURL, Driver: driver}
 	return nodesConfig[nodeName], nil
 }
 
