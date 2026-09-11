@@ -38,12 +38,8 @@ func Initialize(cfg *config.Config) {
 	}
 
 	systemCaps = &SystemCapabilities{false, false, false, false, false}
-	if cfg.Agent.Containers {
-		systemCaps.evalContainersEngine()
-		systemCaps.evalContainersNetworking()
-	} else {
-		slog.Info("Containers support disabled")
-	}
+	systemCaps.evalContainersEngine()
+	systemCaps.evalContainersNetworking()
 	systemCaps.evalVolumes(cfg)
 	systemCaps.evalVMM()
 }

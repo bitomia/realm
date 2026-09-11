@@ -49,6 +49,14 @@ type RegistryConfig struct {
 // AgentConfig holds the configuration for the realm agent.
 // All fields are optional and have platform-specific or sensible defaults.
 type AgentConfig struct {
+	// Address to bind the agent API.
+	// Default: 127.0.0.1
+	ListenAddress string `json:"listen_address"`
+
+	// Port to bind the agent API.
+	// Default: 9000
+	ListenPort int `json:"listen_port"`
+
 	// Path to CNI plugins.
 	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)
 	CniPath string `json:"cni_path"`
@@ -63,41 +71,14 @@ type AgentConfig struct {
 	// Default: false
 	ZFS bool `json:"zfs"`
 
-	// Address to bind the agent API.
-	// Default: 127.0.0.1
-	ListenAddress string `json:"listen_address"`
-
-	// Port to bind the agent API.
-	// Default: 9000
-	ListenPort int `json:"listen_port"`
-
 	// Log output format.
 	// Valid values: "text", "json"
 	// Default: text
 	LogFormat string `json:"log_format"`
 
-	// Enables containers support.
-	// Default: true
-	Containers bool `json:"containers"`
-
-	// Enables or disables the reverse proxy.
-	// Default: false
-	ProxyEnabled bool `json:"proxy_enabled"`
-
-	// Local Caddy proxy URL.
-	// Default: localhost:2019
-	LocalCaddyUrl string `json:"local_caddy_url"`
-
-	// Master Caddy proxy URL.
-	// Default: localhost:2019
-	MasterCaddyUrl string `json:"master_caddy_url"`
-
 	// Registries holds authentication configuration for container registries.
 	// Default: empty (anonymous pulls)
 	Registries []RegistryConfig `json:"registries,omitempty"`
-
-	// Multicast address for herd communication.
-	HerdMcastAddress string `json:"herd_mcast_address"`
 
 	// Containerd socket path.
 	// Default: /run/containerd/containerd.sock (Linux) or npipe://./pipe/containerd-containerd (Windows)

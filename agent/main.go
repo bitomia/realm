@@ -25,7 +25,6 @@ import (
 	"github.com/bitomia/realm/agent/health"
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/agent/mdns"
-	"github.com/bitomia/realm/agent/proxy"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 )
@@ -96,11 +95,6 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	if err := dns.Initialize(); err != nil {
 		slog.Error("DNS initialization failed", "error", err.Error())
 		os.Exit(1)
-	}
-	if cfg.Agent.ProxyEnabled {
-		proxy.Initialize()
-	} else {
-		slog.Info("Proxy is disabled, skipping initialization")
 	}
 
 	healthPublisher := health.GetHealthPublisher()
