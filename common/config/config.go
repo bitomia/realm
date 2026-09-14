@@ -55,6 +55,12 @@ type AgentConfig struct {
 	// Default: text
 	LogFormat string `json:"log_format"`
 
+	// Minimum log level.
+	// Valid values: "debug", "info", "warn" (or "warning"), "error"
+	// Overridden by the LOG_LEVEL environment variable when set.
+	// Default: info
+	LogLevel string `json:"log_level"`
+
 	// Containerd socket path.
 	// Default: /run/containerd/containerd.sock (Linux) or npipe://./pipe/containerd-containerd (Windows)
 	ContainerdSock string `json:"containerd_sock"`

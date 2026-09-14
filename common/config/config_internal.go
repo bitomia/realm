@@ -52,6 +52,7 @@ func setDefaults() {
 	viper.SetDefault("agent.listen_address", "0.0.0.0")
 	viper.SetDefault("agent.listen_port", "9000")
 	viper.SetDefault("agent.log_format", "text")
+	viper.SetDefault("agent.log_level", "info")
 	viper.SetDefault("agent.containerd_sock", containerdSock)
 	viper.SetDefault("agent.containerd_namespace", "realm")
 	viper.SetDefault("agent.artifacts.auth_required", false)

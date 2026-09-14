@@ -167,7 +167,6 @@ var loadNodeConfig = &cobra.Command{
 			return
 		}
 		if validate, _ := cmd.Flags().GetBool("validate"); validate {
-			log.Info("ONly validation")
 			return
 		}
 

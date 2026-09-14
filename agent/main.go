@@ -27,6 +27,7 @@ import (
 	"github.com/bitomia/realm/agent/mdns"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/logging"
 )
 
 var (
@@ -36,30 +37,51 @@ var (
 func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	agentConfig.Set(cfg)
 
-	// Configure slog handler based on log format
+	// Configure slog handler based on log level and format. The LOG_LEVEL
+	// environment variable, when set, takes precedence over the config file.
+	levelName := cfg.Agent.LogLevel
+	if envLevel := os.Getenv("LOG_LEVEL"); envLevel != "" {
+		levelName = envLevel
+	}
 	logLevel := slog.LevelInfo // default log level
-	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
+	invalidLevel := false
+	switch strings.ToLower(levelName) {
 	case "debug":
 		logLevel = slog.LevelDebug
+	case "info", "":
+		logLevel = slog.LevelInfo
 	case "warn", "warning":
 		logLevel = slog.LevelWarn
 	case "error":
 		logLevel = slog.LevelError
+	default:
+		invalidLevel = true
 	}
 	logOptions := slog.HandlerOptions{
 		Level: logLevel,
 	}
 	var handler slog.Handler
+	invalidFormat := false
 	switch cfg.Agent.LogFormat {
 	case "json":
 		handler = slog.NewJSONHandler(os.Stdout, &logOptions)
 	case "text":
 		handler = slog.NewTextHandler(os.Stdout, &logOptions)
 	default:
-		slog.Warn("Invalid log format, defaulting to text", "format", cfg.Agent.LogFormat)
+		invalidFormat = true
 		handler = slog.NewTextHandler(os.Stdout, &logOptions)
 	}
 	slog.SetDefault(slog.New(handler))
+
+	// Warn through the configured handler, not the one it replaced.
+	if invalidLevel {
+		slog.Warn("Invalid log level, defaulting to info", "level", levelName)
+	}
+	if invalidFormat {
+		slog.Warn("Invalid log format, defaulting to text", "format", cfg.Agent.LogFormat)
+	}
+
+	logging.BridgeContainerd(logLevel)
 
 	agentId, err := id.GetAgentId()
 	if err != nil {

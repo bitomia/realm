@@ -345,6 +345,7 @@ agent:
   listen_address: 0.0.0.0
   listen_port: 9000
   log_format: text
+  log_level: info
 ```
 
 ### General
@@ -354,6 +355,7 @@ agent:
 | `listen_address` | string | `0.0.0.0` | Address to bind the agent API       |
 | `listen_port`    | int    | `9000`    | Port to bind the agent API          |
 | `log_format`     | string | `text`    | Log output format: `text` or `json` |
+| `log_level`      | string | `info`    | Minimum log level: `debug`, `info`, `warn` or `error`. The `LOG_LEVEL` environment variable overrides it |
 
 ### Container Runtime
 
