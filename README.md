@@ -1,8 +1,12 @@
-# Realm - Simple orchestration service
+# Realm - Lightweight orchestration service
 
-Realm is a extendable, embeddable and simple orchestration service for different type of loads such as native processes or OCI containers.
+Realm is a lightweight, embeddable, and extensible open-source orchestration service.
 
-It's simple because it is just one executable to command the cluster where Realm runs as agent on each one of the cluster nodes. It's also extendable because it uses a driver systems to extend it with custom loads or node drivers. Managing the cluster can be commanded from command-line interface or using the REST API that each agent exposes. It's embeddable because Realm provides a C API to interface with clusters.
+It's lightweight because it ships as a single executable: one binary runs as an agent on each node in the cluster and also serves as the command-line client.
+
+It's extensible through a driver system, which lets you add support for custom workloads or node types.
+
+It's embeddable via a C API, so other programs can drive a cluster directly.
 
 ## Quick Installation
 
@@ -22,21 +26,11 @@ The install location can be overridden via the `REALM_INSTALL_DIR` environment v
 
 ## Getting Started
 
-Realm running as client does not require any external dependencies. For detailed agent installation on Linux or Windows, see the [Getting Started Guide](docs/getting-started.md).
+Realm running as client does not require any external dependencies. For detailed agent installation on Linux or Windows, see the [Getting Started Guide](https://bitomia.com/realm).
 
 ## Documentation
 
-- [Getting Started](docs/getting-started.md) - Installation and setup for Linux and Windows
-- [Configuration](docs/configuration.md) - Configuration reference (agent, nodes, loads, registries, discovery, environment variables)
-- [Container Driver](docs/container-driver.md) - Container driver: entrypoint, volumes, networking
-- [Process Driver](docs/process-driver.md) - Process driver: commands, signals, lifecycle
-- [VM Driver](docs/vm-driver.md) - VM driver: disks, networking, serial, cloud-init
-- [Development Guide](docs/development-guide.md) - Development environment setup
-- [Contributing](docs/contributing.md) - Contributing guidelines
-
-## Configuration
-
-Realm is configured through a YAML file with four top-level sections: `agent`, `nodes`, `loads`, and `discovery`. Configuration values can also be set via environment variables with the `REALM_` prefix. See the full [Configuration Reference](docs/configuration.md) for details.
+Documentation can be found at the [Realm documentation site](https://bitomia.com/realm).
 
 ## Contributing
 
@@ -51,13 +45,8 @@ realm/
 ├── drivers/               # Standard drivers
 ├── internal/              # Private application code
 ├── config/                # Configuration management
-├── dev/                   # Development tools and scripts
-└── docs/                  # Documentation
+└── dev/                   # Development tools and scripts
 ```
-
-## Development Environment
-
-See the [Development Guide](docs/development-guide.md) for setting up your development environment on Debian 12 or Windows 11 Pro.
 
 ## License
 
