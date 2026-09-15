@@ -201,8 +201,9 @@ class Realm:
         """Power a node on (Wake-On-LAN for the linux driver)."""
         self._send(ops.power_on(node_config))
 
-    def power_off(self, name: str) -> None:
-        self._send(ops.power_off(name))
+    def power_off(self, node_config: JsonDict) -> None:
+        """Power a node off immediately. Only guest nodes can be targeted."""
+        self._send(ops.power_off(node_config))
 
     def shutdown(
         self, wall_message: str = "", delay: int = 0, node_name: str | None = None
@@ -385,8 +386,8 @@ class AsyncRealm:
     async def power_on(self, node_config: JsonDict) -> None:
         await self._send(ops.power_on(node_config))
 
-    async def power_off(self, name: str) -> None:
-        await self._send(ops.power_off(name))
+    async def power_off(self, node_config: JsonDict) -> None:
+        await self._send(ops.power_off(node_config))
 
     async def shutdown(
         self, wall_message: str = "", delay: int = 0, node_name: str | None = None

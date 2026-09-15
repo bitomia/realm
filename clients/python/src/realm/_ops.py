@@ -134,8 +134,8 @@ def power_on(node_config: JsonDict) -> Request:
 
 
 @endpoint("POST", "/node/poweroff")
-def power_off(name: str) -> Request:
-    return Request("POST", "/node/poweroff", json={"name": name}, timeout=REQUEST_TIMEOUT)
+def power_off(node_config: JsonDict) -> Request:
+    return Request("POST", "/node/poweroff", json=node_config, timeout=REQUEST_TIMEOUT)
 
 
 @endpoint("POST", "/node/shutdown")
