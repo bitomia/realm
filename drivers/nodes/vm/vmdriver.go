@@ -362,7 +362,7 @@ func (q *VMDriver) UpdateStatus() (common.NodeStatus, error) {
 			return err
 		}
 		if !found {
-			status = common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: "not started"}
+			status = common.NodeStatus{StatusCode: common.NodeStatusReady, Reason: "VM not powered on"}
 			return nil
 		}
 		state, _, err := l.DomainGetState(d, 0)
