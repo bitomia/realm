@@ -153,3 +153,20 @@ agent:
 	require.NotNil(t, config)
 	assert.Equal(t, config.Agent.ListenPort, 202123)
 }
+
+func TestAgentListenSocket(t *testing.T) {
+	config, err := InitFromBuffer(`
+agent:
+  listen_socket: /run/realm/agent.sock
+`)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, "/run/realm/agent.sock", config.Agent.ListenSocket)
+}
+
+func TestAgentListenSocketDisabledByDefault(t *testing.T) {
+	config, err := InitFromBuffer("data_path: ./test_data\n")
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Empty(t, config.Agent.ListenSocket)
+}

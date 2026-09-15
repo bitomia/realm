@@ -36,6 +36,11 @@ type AgentConfig struct {
 	// Default: 9000
 	ListenPort int `json:"listen_port"`
 
+	// Path to an additional unix socket to expose the agent API on.
+	// When empty, the API is only served over TCP.
+	// Default: empty (disabled)
+	ListenSocket string `json:"listen_socket"`
+
 	// Path to CNI plugins.
 	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)
 	CniPath string `json:"cni_path"`
