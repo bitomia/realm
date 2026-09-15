@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -148,27 +147,30 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		os.Exit(1)
 	}
 
-	serverAddr := fmt.Sprintf("%s:%d", cfg.Agent.ListenAddress, cfg.Agent.ListenPort)
-	listener, err := net.Listen("tcp", serverAddr)
-	if err != nil {
-		slog.Error("Failed to listen", "addr", serverAddr, "error", err)
-		os.Exit(1)
-	}
-
 	server := &http.Server{
 		Handler: router,
 	}
 
-	go func() {
-		slog.Info("Agent running", "addr", serverAddr)
-		_ = server.Serve(listener)
-		slog.Info("HTTP server stopped", "addr", serverAddr)
-	}()
+	// The TCP listener can be disabled to only serve the API over the unix socket
+	if !cfg.Agent.DisableTCP {
+		serverAddr := fmt.Sprintf("%s:%d", cfg.Agent.ListenAddress, cfg.Agent.ListenPort)
+		listener, err := net.Listen("tcp", serverAddr)
+		if err != nil {
+			slog.Error("Failed to listen", "addr", serverAddr, "error", err)
+			os.Exit(1)
+		}
+
+		go func() {
+			slog.Info("Agent running", "addr", serverAddr)
+			_ = server.Serve(listener)
+			slog.Info("HTTP server stopped", "addr", serverAddr)
+		}()
+	}
 
 	// Optionally expose the same API over a unix socket.
 	socketPath := cfg.Agent.ListenSocket
 	if socketPath != "" {
-		socketListener, err := listenOnSocket(socketPath)
+		socketListener, err := listenOnSocket(socketPath, cfg.Agent.ListenSocketGroup)
 		if err != nil {
 			slog.Error("Failed to listen on unix socket", "socket", socketPath, "error", err)
 			os.Exit(1)
@@ -180,7 +182,8 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		}()
 
 		go func() {
-			slog.Info("Agent running on unix socket", "socket", socketPath)
+			slog.Info("Agent running on unix socket", "socket", socketPath,
+				"group", cfg.Agent.ListenSocketGroup)
 			_ = server.Serve(socketListener)
 			slog.Info("HTTP server stopped", "socket", socketPath)
 		}()
@@ -214,44 +217,6 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	mdnsService.Stop()
 	healthPublisher.Stop()
 	db.Close()
-}
-
-// listenOnSocket creates a unix socket listener at the given path, making sure
-// the parent directory exists and that a stale socket left behind by a previous
-// run does not prevent binding.
-func listenOnSocket(socketPath string) (net.Listener, error) {
-	if err := os.MkdirAll(filepath.Dir(socketPath), 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create socket directory: %w", err)
-	}
-
-	// A socket file left over by an unclean shutdown is not connectable, so it
-	// is safe to remove it before binding.
-	if info, err := os.Stat(socketPath); err == nil {
-		if info.Mode()&os.ModeSocket == 0 {
-			return nil, fmt.Errorf("%s exists and is not a socket", socketPath)
-		}
-		if conn, err := net.Dial("unix", socketPath); err == nil {
-			conn.Close()
-			return nil, fmt.Errorf("%s is already in use by another agent", socketPath)
-		}
-		if err := os.Remove(socketPath); err != nil {
-			return nil, fmt.Errorf("failed to remove stale socket: %w", err)
-		}
-	} else if !os.IsNotExist(err) {
-		return nil, err
-	}
-
-	listener, err := net.Listen("unix", socketPath)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := os.Chmod(socketPath, 0o660); err != nil {
-		listener.Close()
-		return nil, fmt.Errorf("failed to set socket permissions: %w", err)
-	}
-
-	return listener, nil
 }
 
 func Stop() {

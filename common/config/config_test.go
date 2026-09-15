@@ -170,3 +170,59 @@ func TestAgentListenSocketDisabledByDefault(t *testing.T) {
 	require.NotNil(t, config)
 	assert.Empty(t, config.Agent.ListenSocket)
 }
+
+func TestAgentDisableTCP(t *testing.T) {
+	config, err := InitFromBuffer(`
+agent:
+  listen_socket: /run/realm/agent.sock
+  disable_tcp: true
+`)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.True(t, config.Agent.DisableTCP)
+}
+
+func TestAgentDisableTCPDisabledByDefault(t *testing.T) {
+	config, err := InitFromBuffer("data_path: ./test_data\n")
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.False(t, config.Agent.DisableTCP)
+}
+
+func TestAgentDisableTCPRequiresSocket(t *testing.T) {
+	_, err := InitFromBuffer(`
+agent:
+  disable_tcp: true
+`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "agent.listen_socket")
+}
+
+func TestAgentListenSocketGroupDefault(t *testing.T) {
+	config, err := InitFromBuffer("data_path: ./test_data\n")
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, "realm", config.Agent.ListenSocketGroup)
+}
+
+func TestAgentListenSocketGroup(t *testing.T) {
+	config, err := InitFromBuffer(`
+agent:
+  listen_socket: /run/realm/agent.sock
+  listen_socket_group: devs
+`)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, "devs", config.Agent.ListenSocketGroup)
+}
+
+func TestAgentListenSocketGroupCanBeDisabled(t *testing.T) {
+	config, err := InitFromBuffer(`
+agent:
+  listen_socket: /run/realm/agent.sock
+  listen_socket_group: ""
+`)
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Empty(t, config.Agent.ListenSocketGroup, "an empty group leaves the socket alone")
+}

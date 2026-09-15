@@ -77,9 +77,14 @@ func NewUnauthClient() Client {
 // the HTTP status code. If the request fails before a response is received
 // (e.g. transport error or malformed request), the returned status code is -1.
 // A non-200 status yields an error whose message is the raw response body.
-func (c *Client) doRequest(method, url string, payload io.Reader, timeout time.Duration) ([]byte, int, error) {
-	client := &http.Client{Timeout: timeout}
-	req, err := http.NewRequest(method, url, payload)
+func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, timeout time.Duration) ([]byte, int, error) {
+	target, err := common.ResolveAgentTarget(agentURL)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	client := target.Client(timeout)
+	req, err := http.NewRequest(method, target.URL(path), payload)
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -107,7 +112,7 @@ func (c *Client) doRequest(method, url string, payload io.Reader, timeout time.D
 // fails before a response is received (e.g. transport error or malformed
 // request), the returned status code is -1. A non-200 status yields an error
 // whose message is the raw response body.
-func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Duration) ([]byte, int, error) {
+func (c *Client) doJSONRequest(method, agentURL, path string, payload any, timeout time.Duration) ([]byte, int, error) {
 	var body io.Reader
 	if payload != nil {
 		buf := new(bytes.Buffer)
@@ -116,13 +121,18 @@ func (c *Client) doJSONRequest(method, url string, payload any, timeout time.Dur
 		}
 		body = buf
 	}
-	return c.doRequest(method, url, body, timeout)
+	return c.doRequest(method, agentURL, path, body, timeout)
 }
 
 // doStreamRequest executes an HTTP request and returns the raw response for streaming.
-func (c *Client) doStreamRequest(method, url string, body io.Reader) (*http.Response, error) {
-	client := &http.Client{Timeout: 0}
-	req, err := http.NewRequest(method, url, body)
+func (c *Client) doStreamRequest(method, agentURL, path string, body io.Reader) (*http.Response, error) {
+	target, err := common.ResolveAgentTarget(agentURL)
+	if err != nil {
+		return nil, err
+	}
+
+	client := target.Client(0)
+	req, err := http.NewRequest(method, target.URL(path), body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -144,8 +154,7 @@ func (c *Client) doStreamRequest(method, url string, body io.Reader) (*http.Resp
 func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
 	var nodeImagesMap dto.NodeImagesMapResponse
 	for _, node := range config.GetNodes() {
-		url := fmt.Sprintf("%s/images", node.Url)
-		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", node.Url, "/images", nil, 10*time.Second)
 		if err != nil {
 			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
 			continue
@@ -175,8 +184,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 
 	containersPerNode := make(map[string]map[string]Container)
 	for _, node := range config.GetNodes() {
-		url := fmt.Sprintf("%s/containers", node.Url)
-		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", node.Url, "/containers", nil, 10*time.Second)
 		if err != nil {
 			log.Error("Failed to get containers from %s: %v", node.Name, err)
 			continue
@@ -195,8 +203,7 @@ func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
 func (c *Client) ListNetworks() (map[string]any, error) {
 	networksPerNode := make(map[string]any)
 	for _, node := range config.GetNodes() {
-		url := fmt.Sprintf("%s/network", node.Url)
-		body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
+		body, _, err := c.doRequest("GET", node.Url, "/network", nil, 10*time.Second)
 		if err != nil {
 			log.Fatal("Failed to get networks from %s: %v", node.Name, err)
 		}
@@ -221,12 +228,12 @@ func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 		return nodeRes, err
 	}
 
-	agentURL := fmt.Sprintf("%s/node", node.Url)
+	path := "/node"
 	if driverInfo.GuestMode {
-		agentURL += fmt.Sprintf("?guest=%s", node.Name)
+		path += fmt.Sprintf("?guest=%s", node.Name)
 	}
 
-	body, statusCode, err := c.doRequest("GET", agentURL, nil, 10*time.Second)
+	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 10*time.Second)
 	if statusCode != -1 {
 		// Node is online by default if it replied (with success or error)
 		nodeRes.Status.StatusCode = common.NodeStatusOnline
@@ -244,8 +251,7 @@ func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 }
 
 func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
-	url := fmt.Sprintf("%s/system", node)
-	body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
+	body, _, err := c.doRequest("GET", node, "/system", nil, 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +265,7 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 }
 
 func (c *Client) GetContainerLogs(node string, container string) error {
-	url := fmt.Sprintf("%s/containers/%s/logs", node, container)
-	body, _, err := c.doRequest("GET", url, nil, 30*time.Second)
+	body, _, err := c.doRequest("GET", node, fmt.Sprintf("/containers/%s/logs", container), nil, 30*time.Second)
 	if err != nil {
 		return err
 	}
@@ -270,8 +275,7 @@ func (c *Client) GetContainerLogs(node string, container string) error {
 }
 
 func (c *Client) GetProxyConfig(node string, container string) error {
-	url := fmt.Sprintf("%s/containers/%s/server", node, container)
-	body, _, err := c.doRequest("GET", url, nil, 10*time.Second)
+	body, _, err := c.doRequest("GET", node, fmt.Sprintf("/containers/%s/server", container), nil, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -291,10 +295,11 @@ type LoginResponse struct {
 }
 
 func (c *Client) Login(node string, username string, password string) (string, error) {
-	client := &http.Client{
-		Timeout: 10 * time.Second,
+	target, err := common.ResolveAgentTarget(node)
+	if err != nil {
+		return "", err
 	}
-	url := fmt.Sprintf("%s/login", node)
+	client := target.Client(10 * time.Second)
 
 	request := LoginRequest{
 		Username: username,
@@ -305,7 +310,7 @@ func (c *Client) Login(node string, username string, password string) (string, e
 		return "", fmt.Errorf("failed to encode request: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", url, payload)
+	req, err := http.NewRequest("POST", target.URL("/login"), payload)
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %v", err)
 	}
@@ -336,38 +341,32 @@ func (c *Client) Login(node string, username string, password string) (string, e
 }
 
 func (c *Client) ProvisionLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/provision", load.Node.Url)
-	_, _, err := c.doJSONRequest("POST", url, load, requestTimeout)
+	_, _, err := c.doJSONRequest("POST", load.Node.Url, "/loads/provision", load, requestTimeout)
 	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/start", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/start", load.Name), nil, requestTimeout)
 	return err
 }
 
 func (c *Client) StopLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stop", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/stop", load.Name), nil, requestTimeout)
 	return err
 }
 
 func (c *Client) KillLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/kill", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/kill", load.Name), nil, requestTimeout)
 	return err
 }
 
 func (c *Client) DeprovisionLoad(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/deprovision", load.Node.Url, load.Name)
-	_, _, err := c.doRequest("POST", url, nil, requestTimeout)
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
 	return err
 }
 
 func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
-	url := fmt.Sprintf("%s/loads", nodeUrl)
-	body, _, err := c.doRequest("GET", url, nil, requestTimeout)
+	body, _, err := c.doRequest("GET", nodeUrl, "/loads", nil, requestTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -381,8 +380,7 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 }
 
 func (c *Client) ReadLoadStdout(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stdout", load.Node.Url, load.Name)
-	resp, err := c.doStreamRequest("GET", url, nil)
+	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/stdout", load.Name), nil)
 	if err != nil {
 		return err
 	}
@@ -396,8 +394,7 @@ func (c *Client) ReadLoadStdout(load *common.Load) error {
 }
 
 func (c *Client) ReadLoadStderr(load *common.Load) error {
-	url := fmt.Sprintf("%s/loads/%s/stderr", load.Node.Url, load.Name)
-	resp, err := c.doStreamRequest("GET", url, nil)
+	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/stderr", load.Name), nil)
 	if err != nil {
 		return err
 	}
@@ -411,8 +408,7 @@ func (c *Client) ReadLoadStderr(load *common.Load) error {
 }
 
 func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, error) {
-	url := fmt.Sprintf("%s/node/config", node.Url)
-	payload, statusCode, err := c.doRequest("GET", url, nil, requestTimeout)
+	payload, statusCode, err := c.doRequest("GET", node.Url, "/node/config", nil, requestTimeout)
 	if statusCode == http.StatusNoContent {
 		return nil, common.ErrNodeNotConfigured
 	} else if err != nil {
@@ -427,8 +423,7 @@ func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, err
 }
 
 func (c *Client) LoadNodeConfig(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/config", node.Url)
-	_, statusCode, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config", node, requestTimeout)
 	if statusCode == http.StatusConflict {
 		return common.ErrNodeAlreadyConfigured
 	} else {
@@ -437,8 +432,7 @@ func (c *Client) LoadNodeConfig(node *common.Node) error {
 }
 
 func (c *Client) ValidateNodeConfig(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/config?validate=true", node.Url)
-	_, statusCode, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config?validate=true", node, requestTimeout)
 	if statusCode == http.StatusConflict {
 		return common.ErrNodeAlreadyConfigured
 	} else {
@@ -452,43 +446,38 @@ func (c *Client) UnloadNodeConfig(node *common.Node) error {
 		return err
 	}
 
-	url := fmt.Sprintf("%s/node/config", node.Url)
+	path := "/node/config"
 	if driverInfo.GuestMode {
-		url += fmt.Sprintf("?guest=%s", node.Name)
+		path += fmt.Sprintf("?guest=%s", node.Name)
 	}
 
-	_, _, err = c.doRequest("DELETE", url, nil, requestTimeout)
+	_, _, err = c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
 	return err
 }
 
 func (c *Client) PowerOnNode(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/poweron", node.Url)
-	_, _, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweron", node, requestTimeout)
 	return err
 }
 
 func (c *Client) PowerOffNode(node *common.Node) error {
-	url := fmt.Sprintf("%s/node/poweroff", node.Url)
-	_, _, err := c.doJSONRequest("POST", url, node, requestTimeout)
+	_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweroff", node, requestTimeout)
 	return err
 }
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	url := fmt.Sprintf("%s/node/shutdown", node.Url)
 	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
+	_, _, err := c.doJSONRequest("POST", node.Url, "/node/shutdown", request, requestTimeout)
 	return err
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	url := fmt.Sprintf("%s/node/restart", node.Url)
 	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, _, err := c.doJSONRequest("POST", url, request, requestTimeout)
+	_, _, err := c.doJSONRequest("POST", node.Url, "/node/restart", request, requestTimeout)
 	return err
 }
 
 func (c *Client) RunJob(job *common.Job, handle func(common.JobResult), arguments ...string) error {
-	url := fmt.Sprintf("%s/jobs", job.Node.Url)
 	request := dto.JobRequest{
 		Name:            job.Name,
 		JobDriverConfig: job.Driver.Config(),
@@ -500,7 +489,7 @@ func (c *Client) RunJob(job *common.Job, handle func(common.JobResult), argument
 		return err
 	}
 
-	resp, err := c.doStreamRequest("POST", url, payload)
+	resp, err := c.doStreamRequest("POST", job.Node.Url, "/jobs", payload)
 	if err != nil {
 		return err
 	}

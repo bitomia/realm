@@ -17,6 +17,8 @@ var (
 	Version        = "dev"
 )
 
+const DefaultSocketGroup = "realm"
+
 // ArtifactRepositoryConfig
 type ArtifactsRepository struct {
 	AuthRequired bool `json:"auth_required"`
@@ -40,6 +42,16 @@ type AgentConfig struct {
 	// When empty, the API is only served over TCP.
 	// Default: empty (disabled)
 	ListenSocket string `json:"listen_socket"`
+
+	// Group given ownership of the unix socket, as a group name or a numeric
+	// gid.
+	// Default: realm
+	ListenSocketGroup string `json:"listen_socket_group"`
+
+	// Disable the TCP listener, serving the agent API only over the unix
+	// socket configured in ListenSocket.
+	// Default: false (TCP enabled)
+	DisableTCP bool `json:"disable_tcp"`
 
 	// Path to CNI plugins.
 	// Default: /usr/lib/cni (Linux) or %ProgramData%\realm\cni (Windows)

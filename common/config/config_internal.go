@@ -51,6 +51,8 @@ func setDefaults() {
 	viper.SetDefault("agent.volumes_pool", "realm_volumes")
 	viper.SetDefault("agent.listen_address", "0.0.0.0")
 	viper.SetDefault("agent.listen_port", "9000")
+	viper.SetDefault("agent.disable_tcp", false)
+	viper.SetDefault("agent.listen_socket_group", DefaultSocketGroup)
 	viper.SetDefault("agent.log_format", "text")
 	viper.SetDefault("agent.log_level", "info")
 	viper.SetDefault("agent.containerd_sock", containerdSock)
@@ -224,6 +226,10 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	config, err := unmarshall(in)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.Agent.DisableTCP && config.Agent.ListenSocket == "" {
+		return nil, fmt.Errorf("agent.disable_tcp requires agent.listen_socket to be set")
 	}
 
 	networkConfig := autodetectNetworkConfig()

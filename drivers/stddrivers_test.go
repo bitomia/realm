@@ -236,3 +236,38 @@ loads:
 	assert.NotNil(t, containerDriver.BindMounts)
 	assert.Len(t, containerDriver.BindMounts, 0)
 }
+
+func TestNodeUnixSocketURL(t *testing.T) {
+	resetConfigs()
+	_, err := config.InitFromBuffer(`
+nodes:
+  lab1:
+    url: unix:///run/realm/agent.sock
+    driver: linux
+`)
+	assert.NoError(t, err)
+	nodes := config.GetNodes()
+	assert.Contains(t, nodes, "lab1")
+	assert.Equal(t, "unix:///run/realm/agent.sock", nodes["lab1"].Url)
+}
+
+func TestNodeUnsupportedURLScheme(t *testing.T) {
+	resetConfigs()
+	_, err := config.InitFromBuffer(`
+nodes:
+  lab1:
+    url: ftp://192.168.1.54:9000
+    driver: linux
+`)
+	assert.ErrorContains(t, err, "scheme")
+}
+
+func TestNodeEmptyURL(t *testing.T) {
+	resetConfigs()
+	_, err := config.InitFromBuffer(`
+nodes:
+  lab1:
+    driver: linux
+`)
+	assert.ErrorContains(t, err, "url")
+}

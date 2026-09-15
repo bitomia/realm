@@ -33,6 +33,12 @@ func (m *MDNSService) Start() error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
+	// Without the TCP listener there is no endpoint to advertise.
+	if config.Get().Agent.DisableTCP {
+		slog.Info("Skipping mDNS service, TCP listener is disabled")
+		return nil
+	}
+
 	slog.Info("Starting mDNS service")
 
 	port := config.Get().Agent.ListenPort
