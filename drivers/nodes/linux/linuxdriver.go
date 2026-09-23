@@ -70,6 +70,7 @@ func (l *LinuxDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		LinuxDriverID,
 		NewLinuxDriverFromConfig,
+		common.WithPowerOnMode(common.ClientMode),
 	)
 }
 

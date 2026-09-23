@@ -271,3 +271,23 @@ nodes:
 `)
 	assert.ErrorContains(t, err, "url")
 }
+
+// Nodes that are powered off have no agent to talk to, so drivers that can
+// power on remotely (e.g. wake-on-lan) must do it from the client.
+func TestNodeDriversRunModes(t *testing.T) {
+	clientPowerOn := map[common.NodeDriverID]bool{
+		"linux":   true,
+		"windows": true,
+	}
+
+	for _, info := range common.RegisteredNodeDrivers() {
+		expectedPowerOn := common.AgentMode
+		if clientPowerOn[info.ID] {
+			expectedPowerOn = common.ClientMode
+		}
+		assert.Equal(t, expectedPowerOn, info.PowerOnMode, "driver %s poweron mode", info.ID)
+		assert.Equal(t, common.AgentMode, info.PowerOffMode, "driver %s poweroff mode", info.ID)
+		assert.Equal(t, common.AgentMode, info.ShutdownMode, "driver %s shutdown mode", info.ID)
+		assert.Equal(t, common.AgentMode, info.RestartMode, "driver %s restart mode", info.ID)
+	}
+}

@@ -65,6 +65,7 @@ func (w *WindowsDriver) Info() (common.NodeDriverInfo, error) {
 	return common.NewNodeDriverInfo(
 		WindowsDriverID,
 		NewWindowsDriverFromConfig,
+		common.WithPowerOnMode(common.ClientMode),
 	)
 }
 

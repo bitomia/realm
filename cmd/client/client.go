@@ -455,26 +455,63 @@ func (c *Client) UnloadNodeConfig(node *common.Node) error {
 	return err
 }
 
+// runNodeOperation executes the operation locally when the driver declares it
+// in client mode, or through the node agent otherwise.
+func runNodeOperation(node *common.Node, mode func(common.NodeDriverInfo) common.RunMode, local func() error, remote func() error) error {
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return fmt.Errorf("driver info: %w", err)
+	}
+	if mode(driverInfo) == common.ClientMode {
+		return local()
+	}
+	return remote()
+}
+
 func (c *Client) PowerOnNode(node *common.Node) error {
-	_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweron", node, requestTimeout)
-	return err
+	return runNodeOperation(node,
+		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOnMode },
+		func() error { return node.Driver.PowerOn(node.CloudInit) },
+		func() error {
+			_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweron", node, requestTimeout)
+			return err
+		},
+	)
 }
 
 func (c *Client) PowerOffNode(node *common.Node) error {
-	_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweroff", node, requestTimeout)
-	return err
+	return runNodeOperation(node,
+		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOffMode },
+		node.Driver.PowerOff,
+		func() error {
+			_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweroff", node, requestTimeout)
+			return err
+		},
+	)
 }
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, _, err := c.doJSONRequest("POST", node.Url, "/node/shutdown", request, requestTimeout)
-	return err
+	return runNodeOperation(node,
+		func(i common.NodeDriverInfo) common.RunMode { return i.ShutdownMode },
+		func() error { return node.Driver.Shutdown(wallMessage, offsetTime) },
+		func() error {
+			request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
+			_, _, err := c.doJSONRequest("POST", node.Url, "/node/shutdown", request, requestTimeout)
+			return err
+		},
+	)
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-	_, _, err := c.doJSONRequest("POST", node.Url, "/node/restart", request, requestTimeout)
-	return err
+	return runNodeOperation(node,
+		func(i common.NodeDriverInfo) common.RunMode { return i.RestartMode },
+		func() error { return node.Driver.Restart(wallMessage, offsetTime) },
+		func() error {
+			request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
+			_, _, err := c.doJSONRequest("POST", node.Url, "/node/restart", request, requestTimeout)
+			return err
+		},
+	)
 }
 
 func (c *Client) RunJob(job *common.Job, handle func(common.JobResult), arguments ...string) error {

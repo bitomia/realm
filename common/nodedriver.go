@@ -14,12 +14,44 @@ const (
 type NodeDriverBuilder func(ctx NodeContext, config *any) (NodeDriver, error)
 
 type NodeDriverInfo struct {
-	ID        NodeDriverID
-	New       NodeDriverBuilder
-	GuestMode bool
+	ID           NodeDriverID
+	New          NodeDriverBuilder
+	PowerOnMode  RunMode
+	PowerOffMode RunMode
+	ShutdownMode RunMode
+	RestartMode  RunMode
+	GuestMode    bool
 }
 
 type NewNodeDriverInfoOpts func(i *NodeDriverInfo) error
+
+func WithPowerOnMode(m RunMode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.PowerOnMode = m
+		return nil
+	}
+}
+
+func WithPowerOffMode(m RunMode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.PowerOffMode = m
+		return nil
+	}
+}
+
+func WithShutdownMode(m RunMode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.ShutdownMode = m
+		return nil
+	}
+}
+
+func WithRestartMode(m RunMode) NewNodeDriverInfoOpts {
+	return func(i *NodeDriverInfo) error {
+		i.RestartMode = m
+		return nil
+	}
+}
 
 func WithGuestMode() NewNodeDriverInfoOpts {
 	return func(i *NodeDriverInfo) error {
@@ -30,9 +62,13 @@ func WithGuestMode() NewNodeDriverInfoOpts {
 
 func NewNodeDriverInfo(id NodeDriverID, builder NodeDriverBuilder, opts ...NewNodeDriverInfoOpts) (NodeDriverInfo, error) {
 	info := NodeDriverInfo{
-		ID:        id,
-		New:       builder,
-		GuestMode: false,
+		ID:           id,
+		New:          builder,
+		PowerOnMode:  AgentMode,
+		PowerOffMode: AgentMode,
+		ShutdownMode: AgentMode,
+		RestartMode:  AgentMode,
+		GuestMode:    false,
 	}
 	for _, o := range opts {
 		if err := o(&info); err != nil {
