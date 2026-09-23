@@ -98,9 +98,21 @@ jobs:
           Compress-Archive -Path ${{ matrix.binary_name }} -DestinationPath ${{ matrix.asset_name }}.zip
           (Get-FileHash ${{ matrix.asset_name }}.zip -Algorithm SHA256).Hash.ToLower() + "  ${{ matrix.asset_name }}.zip" | Out-File -FilePath ${{ matrix.asset_name }}.zip.sha256 -Encoding ASCII
 
+      - name: Extract release notes
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          version="${version%%-*}"
+          awk -v h="## $version" '$0 == h {f=1; next} /^## / {if (f) exit} f' CHANGELOG.md > bin/RELEASE_NOTES.md
+          if [ ! -s bin/RELEASE_NOTES.md ]; then
+            echo "::error::No CHANGELOG.md entry found for $version"
+            exit 1
+          fi
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: bin/RELEASE_NOTES.md
           files: |
             bin/${{ matrix.asset_name }}.*
         env:
