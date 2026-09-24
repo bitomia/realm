@@ -1,0 +1,16 @@
+meta {
+  name: Get Guest Nodes
+  type: http
+  seq: 0
+}
+
+get {
+  url: {{baseUrl}}/node/guests
+  body: none
+  auth: inherit
+}
+
+docs {
+  Returns every guest node managed by this agent with its name, driver config,
+  state and status. Returns an empty array when no guest nodes are loaded.
+}

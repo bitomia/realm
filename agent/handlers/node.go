@@ -166,6 +166,17 @@ func RestartNode(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func GetGuestNodes(w http.ResponseWriter, r *http.Request) {
+	guests, err := api.GetGuestNodes()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(guests)
+}
+
 func GetGuestNodeState(w http.ResponseWriter, r *http.Request) {
 	guestName := mux.Vars(r)["guestName"]
 

@@ -9,6 +9,13 @@ type NodeResponse struct {
 	Status common.NodeStatus `json:"status"`
 }
 
+// GuestNodeResponse describes a guest node managed by the agent
+type GuestNodeResponse struct {
+	Name   string                  `json:"name"`
+	Config common.NodeDriverConfig `json:"config"`
+	NodeResponse
+}
+
 func NewNodeResponse() NodeResponse {
 	return NodeResponse{
 		State: common.NewNodeState(),

@@ -54,18 +54,50 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 
 	}
 
-	state, err := nodeEntry.NodeDriver.State()
+	return nodeResponse(nodeEntry.NodeDriver)
+}
+
+// nodeResponse queries the driver for the node state and status
+func nodeResponse(driver common.NodeDriver) (*dto.NodeResponse, error) {
+	state, err := driver.State()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get node state: %w", err)
 	}
 
-	status, err := nodeEntry.NodeDriver.UpdateStatus()
+	status, err := driver.UpdateStatus()
 	if err != nil {
 		return &dto.NodeResponse{State: state, Status: common.NodeStatus{StatusCode: common.NodeStatusError, Reason: err.Error()}}, nil
 	}
 
 	return &dto.NodeResponse{State: state, Status: status}, nil
+}
 
+// GetGuestNodes returns the name, config, state and status of every guest node
+func GetGuestNodes() ([]dto.GuestNodeResponse, error) {
+	database := db.GetDB()
+	if database == nil {
+		return nil, fmt.Errorf("db not initialized")
+	}
+
+	nodes, err := database.NodesRepository.GetAllGuestNodes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get guest nodes: %w", err)
+	}
+
+	guests := make([]dto.GuestNodeResponse, 0, len(nodes))
+	for _, node := range nodes {
+		response, err := nodeResponse(node.NodeDriver)
+		if err != nil {
+			return nil, fmt.Errorf("guest node %s: %w", node.NodeName, err)
+		}
+		guests = append(guests, dto.GuestNodeResponse{
+			Name:         node.NodeName,
+			Config:       node.NodeDriver.Config(),
+			NodeResponse: *response,
+		})
+	}
+
+	return guests, nil
 }
 
 // GetSystemInfo returns static system information about the host

@@ -21,6 +21,7 @@ func createBaseRoutes(router *mux.Router) {
 	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNode)).Methods("POST")
 	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNode)).Methods("POST")
 
+	router.Handle("/node/guests", auth.WithAuth(handlers.GetGuestNodes)).Methods("GET")
 	router.Handle("/node/guests/{guestName}", auth.WithAuth(handlers.GetGuestNodeState)).Methods("GET")
 	router.Handle("/node/guests/{guestName}/config", auth.WithAuth(handlers.GetGuestNodeConfig)).Methods("GET")
 	router.Handle("/node/guests/{guestName}/config", auth.WithAuth(handlers.LoadGuestNodeConfig)).Methods("POST")
