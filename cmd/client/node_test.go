@@ -15,18 +15,23 @@ import (
 // operations executed locally.
 type modeNodeDriver struct {
 	mode       common.RunMode
+	guest      bool
 	localCalls int
 }
 
 func (d *modeNodeDriver) ID() common.NodeDriverID { return "client-mode-node" }
 
 func (d *modeNodeDriver) Info() (common.NodeDriverInfo, error) {
-	return common.NewNodeDriverInfo(d.ID(), nil,
+	opts := []common.NewNodeDriverInfoOpts{
 		common.WithPowerOnMode(d.mode),
 		common.WithPowerOffMode(d.mode),
 		common.WithShutdownMode(d.mode),
 		common.WithRestartMode(d.mode),
-	)
+	}
+	if d.guest {
+		opts = append(opts, common.WithGuestMode())
+	}
+	return common.NewNodeDriverInfo(d.ID(), nil, opts...)
 }
 
 func (d *modeNodeDriver) Config() common.NodeDriverConfig {
@@ -42,38 +47,52 @@ func (d *modeNodeDriver) UpdateStatus() (common.NodeStatus, error) { return comm
 
 func TestClientNodeOperationsRunMode(t *testing.T) {
 	operations := map[string]struct {
-		path string
-		run  func(Client, *common.Node) error
+		path      string
+		guestPath string
+		run       func(Client, *common.Node) error
 	}{
-		"poweron":  {"/node/poweron", func(c Client, n *common.Node) error { return c.PowerOnNode(n) }},
-		"poweroff": {"/node/poweroff", func(c Client, n *common.Node) error { return c.PowerOffNode(n) }},
-		"shutdown": {"/node/shutdown", func(c Client, n *common.Node) error { return c.ShutdownNode(n, "", 0) }},
-		"restart":  {"/node/restart", func(c Client, n *common.Node) error { return c.RestartNode(n, "", 0) }},
+		"poweron":  {"/node/poweron", "/node/guests/lab1/poweron", func(c Client, n *common.Node) error { return c.PowerOnNode(n) }},
+		"poweroff": {"/node/poweroff", "/node/guests/lab1/poweroff", func(c Client, n *common.Node) error { return c.PowerOffNode(n) }},
+		"shutdown": {"/node/shutdown", "/node/guests/lab1/shutdown", func(c Client, n *common.Node) error { return c.ShutdownNode(n, "", 0) }},
+		"restart":  {"/node/restart", "/node/guests/lab1/restart", func(c Client, n *common.Node) error { return c.RestartNode(n, "", 0) }},
 	}
 
 	for name, op := range operations {
 		for _, mode := range []common.RunMode{common.ClientMode, common.AgentMode} {
-			var agentCalls int
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, op.path, r.URL.Path)
-				agentCalls++
-				w.WriteHeader(http.StatusOK)
-			}))
-
-			driver := &modeNodeDriver{mode: mode}
-			node := &common.Node{Name: "lab1", Url: server.URL, Driver: driver}
-
-			err := op.run(NewUnauthClient(), node)
-			server.Close()
-
-			assert.NoError(t, err, name)
-			if mode == common.ClientMode {
-				assert.Equal(t, 1, driver.localCalls, "%s in client mode must run locally", name)
-				assert.Equal(t, 0, agentCalls, "%s in client mode must not call the agent", name)
-			} else {
-				assert.Equal(t, 0, driver.localCalls, "%s in agent mode must not run locally", name)
-				assert.Equal(t, 1, agentCalls, "%s in agent mode must call the agent", name)
+			for _, guest := range []bool{false, true} {
+				runNodeOperationCase(t, name, op.path, op.guestPath, op.run, mode, guest)
 			}
 		}
+	}
+}
+
+func runNodeOperationCase(t *testing.T, name, path, guestPath string, run func(Client, *common.Node) error, mode common.RunMode, guest bool) {
+	t.Helper()
+
+	expectedPath := path
+	if guest {
+		expectedPath = guestPath
+	}
+
+	var agentCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, expectedPath, r.URL.Path)
+		agentCalls++
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	driver := &modeNodeDriver{mode: mode, guest: guest}
+	node := &common.Node{Name: "lab1", Url: server.URL, Driver: driver}
+
+	err := run(NewUnauthClient(), node)
+	server.Close()
+
+	assert.NoError(t, err, name)
+	if mode == common.ClientMode {
+		assert.Equal(t, 1, driver.localCalls, "%s in client mode must run locally", name)
+		assert.Equal(t, 0, agentCalls, "%s in client mode must not call the agent", name)
+	} else {
+		assert.Equal(t, 0, driver.localCalls, "%s in agent mode must not run locally", name)
+		assert.Equal(t, 1, agentCalls, "%s in agent mode must call the agent", name)
 	}
 }

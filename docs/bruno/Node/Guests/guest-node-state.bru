@@ -1,0 +1,15 @@
+meta {
+  name: Get Guest Node State
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/node/guests/{{guestNode}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Returns the state of the guest node.
+}

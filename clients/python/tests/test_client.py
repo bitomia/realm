@@ -182,19 +182,25 @@ def test_stream_errors_are_raised_before_iterating() -> None:
 # --- requests ---------------------------------------------------------------
 
 
-def test_guest_query_parameter_is_sent() -> None:
-    seen: list[httpx.URL] = []
+def test_guest_node_uses_guest_path() -> None:
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(request.url)
+        seen.append(request)
         return json_response({"state": {}, "status": {}})
 
     with client(handler) as agent:
         agent.node(guest="vm1")
         agent.node()
+        agent.unload_node_config(guest="vm/1")
+        agent.unload_node_config()
 
-    assert seen[0].params["guest"] == "vm1"
-    assert "guest" not in seen[1].params
+    assert [(r.method, r.url.raw_path, r.url.params) for r in seen] == [
+        ("GET", b"/node/guests/vm1", httpx.QueryParams()),
+        ("GET", b"/node", httpx.QueryParams()),
+        ("DELETE", b"/node/guests/vm%2F1/config", httpx.QueryParams()),
+        ("DELETE", b"/node/config", httpx.QueryParams()),
+    ]
 
 
 def test_validate_only_is_sent_as_a_query_parameter() -> None:
@@ -224,16 +230,39 @@ def test_load_names_are_escaped_into_the_path() -> None:
 
 
 def test_shutdown_sends_message_and_delay() -> None:
-    seen: list[dict[str, object]] = []
+    seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
-        seen.append(json.loads(request.content))
+        seen.append(request)
         return httpx.Response(200)
 
     with client(handler) as agent:
-        agent.shutdown("going down", delay=5, node_name="lab1")
+        agent.shutdown("going down", delay=5)
+        agent.shutdown("going down", delay=5, guest="lab1")
 
-    assert seen[0] == {"wall_message": "going down", "time": 5, "node_name": "lab1"}
+    assert [r.url.raw_path for r in seen] == [b"/node/shutdown", b"/node/guests/lab1/shutdown"]
+    assert all(json.loads(r.content) == {"wall_message": "going down", "time": 5} for r in seen)
+
+
+def test_power_operations_target_guest_path() -> None:
+    seen: list[bytes] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.raw_path)
+        return httpx.Response(200)
+
+    with client(handler) as agent:
+        agent.power_on({"name": "vm1"}, guest="vm1")
+        agent.power_off(guest="vm1")
+        agent.restart(guest="vm1")
+        agent.power_off()
+
+    assert seen == [
+        b"/node/guests/vm1/poweron",
+        b"/node/guests/vm1/poweroff",
+        b"/node/guests/vm1/restart",
+        b"/node/poweroff",
+    ]
 
 
 # --- streaming --------------------------------------------------------------

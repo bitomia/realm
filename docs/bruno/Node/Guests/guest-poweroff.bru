@@ -1,0 +1,15 @@
+meta {
+  name: Power Off Guest Node
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/poweroff
+  body: none
+  auth: inherit
+}
+
+docs {
+  No body.
+}

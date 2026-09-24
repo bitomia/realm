@@ -83,17 +83,11 @@ type SystemInfo struct {
 }
 
 type ShutdownNodeRequest struct {
-	WallMessage string  `json:"wall_message"`
-	Time        uint32  `json:"time"`
-	NodeName    *string `json:"node_name,omitempty"`
-}
-
-type PowerOffRequest struct {
-	NodeName *string `json:"node_name,omitempty"`
+	WallMessage string `json:"wall_message"`
+	Time        uint32 `json:"time"`
 }
 
 type RestartNodeRequest struct {
-	WallMessage string  `json:"wall_message"`
-	Time        uint32  `json:"time"`
-	NodeName    *string `json:"node_name,omitempty"`
+	WallMessage string `json:"wall_message"`
+	Time        uint32 `json:"time"`
 }

@@ -6,19 +6,11 @@ meta {
 
 post {
   url: {{baseUrl}}/node/poweroff
-  body: json
+  body: none
   auth: inherit
 }
 
-body:json {
-  {
-    "name": "node-1",
-    "url": "https://node-1.local:9000",
-    "driver": "libvirt",
-    "driver_config": {}
-  }
-}
-
 docs {
-  Body is a NodeConfig; only `name` is used to resolve the target node.
+  No body. Targets this node; use `POST /node/guests/{guestName}/poweroff` for a
+  guest node.
 }

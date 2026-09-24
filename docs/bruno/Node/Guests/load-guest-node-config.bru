@@ -1,0 +1,31 @@
+meta {
+  name: Load Guest Node Config
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/config?validate=false
+  body: json
+  auth: inherit
+}
+
+params:query {
+  ~validate: false
+}
+
+body:json {
+  {
+    "name": "{{guestNode}}",
+    "url": "https://{{guestNode}}.local:9000",
+    "driver": "libvirt",
+    "driver_config": {}
+  }
+}
+
+docs {
+  Body is a NodeConfig (common.NodeConfig). `name` is optional; if set it must
+  match the guest name in the path. The driver must support guest mode. Set
+  `validate=true` to only validate the config without applying it. Returns 409
+  Conflict if already configured.
+}

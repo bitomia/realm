@@ -5,16 +5,12 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/node?guest={{guestNode}}
+  url: {{baseUrl}}/node
   body: none
   auth: inherit
 }
 
-params:query {
-  ~guest: {{guestNode}}
-}
-
 docs {
-  Returns the state of this node. Pass the optional `guest` query param to get
+  Returns the state of this node. Use `GET /node/guests/{guestName}` to get
   the state of a guest node managed by this agent.
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -230,7 +231,7 @@ func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 
 	path := "/node"
 	if driverInfo.GuestMode {
-		path += fmt.Sprintf("?guest=%s", node.Name)
+		path = guestNodePath(node.Name, "")
 	}
 
 	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 10*time.Second)
@@ -448,16 +449,22 @@ func (c *Client) UnloadNodeConfig(node *common.Node) error {
 
 	path := "/node/config"
 	if driverInfo.GuestMode {
-		path += fmt.Sprintf("?guest=%s", node.Name)
+		path = guestNodePath(node.Name, "/config")
 	}
 
 	_, _, err = c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
 	return err
 }
 
+// guestNodePath returns the agent path for a guest node, optionally followed by suffix.
+func guestNodePath(name string, suffix string) string {
+	return "/node/guests/" + url.PathEscape(name) + suffix
+}
+
 // runNodeOperation executes the operation locally when the driver declares it
-// in client mode, or through the node agent otherwise.
-func runNodeOperation(node *common.Node, mode func(common.NodeDriverInfo) common.RunMode, local func() error, remote func() error) error {
+// in client mode, or through the node agent otherwise. remote receives the agent
+// path for the operation, which targets the guest node routes for guest drivers.
+func runNodeOperation(node *common.Node, operation string, mode func(common.NodeDriverInfo) common.RunMode, local func() error, remote func(path string) error) error {
 	driverInfo, err := node.Driver.Info()
 	if err != nil {
 		return fmt.Errorf("driver info: %w", err)
@@ -465,50 +472,53 @@ func runNodeOperation(node *common.Node, mode func(common.NodeDriverInfo) common
 	if mode(driverInfo) == common.ClientMode {
 		return local()
 	}
-	return remote()
+	if driverInfo.GuestMode {
+		return remote(guestNodePath(node.Name, "/"+operation))
+	}
+	return remote("/node/" + operation)
 }
 
 func (c *Client) PowerOnNode(node *common.Node) error {
-	return runNodeOperation(node,
+	return runNodeOperation(node, "poweron",
 		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOnMode },
 		func() error { return node.Driver.PowerOn(node.CloudInit) },
-		func() error {
-			_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweron", node, requestTimeout)
+		func(path string) error {
+			_, _, err := c.doJSONRequest("POST", node.Url, path, node, requestTimeout)
 			return err
 		},
 	)
 }
 
 func (c *Client) PowerOffNode(node *common.Node) error {
-	return runNodeOperation(node,
+	return runNodeOperation(node, "poweroff",
 		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOffMode },
 		node.Driver.PowerOff,
-		func() error {
-			_, _, err := c.doJSONRequest("POST", node.Url, "/node/poweroff", node, requestTimeout)
+		func(path string) error {
+			_, _, err := c.doRequest("POST", node.Url, path, nil, requestTimeout)
 			return err
 		},
 	)
 }
 
 func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	return runNodeOperation(node,
+	return runNodeOperation(node, "shutdown",
 		func(i common.NodeDriverInfo) common.RunMode { return i.ShutdownMode },
 		func() error { return node.Driver.Shutdown(wallMessage, offsetTime) },
-		func() error {
-			request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-			_, _, err := c.doJSONRequest("POST", node.Url, "/node/shutdown", request, requestTimeout)
+		func(path string) error {
+			request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+			_, _, err := c.doJSONRequest("POST", node.Url, path, request, requestTimeout)
 			return err
 		},
 	)
 }
 
 func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
-	return runNodeOperation(node,
+	return runNodeOperation(node, "restart",
 		func(i common.NodeDriverInfo) common.RunMode { return i.RestartMode },
 		func() error { return node.Driver.Restart(wallMessage, offsetTime) },
-		func() error {
-			request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime, NodeName: &node.Name}
-			_, _, err := c.doJSONRequest("POST", node.Url, "/node/restart", request, requestTimeout)
+		func(path string) error {
+			request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+			_, _, err := c.doJSONRequest("POST", node.Url, path, request, requestTimeout)
 			return err
 		},
 	)

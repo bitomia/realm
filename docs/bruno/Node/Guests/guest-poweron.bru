@@ -1,0 +1,25 @@
+meta {
+  name: Power On Guest Node
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/poweron
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "{{guestNode}}",
+    "url": "https://{{guestNode}}.local:9000",
+    "driver": "libvirt",
+    "driver_config": {}
+  }
+}
+
+docs {
+  Body is a NodeConfig. `name` is optional; if set it must match the guest name
+  in the path.
+}

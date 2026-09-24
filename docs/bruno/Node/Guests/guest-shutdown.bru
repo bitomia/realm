@@ -1,0 +1,22 @@
+meta {
+  name: Shutdown Guest Node
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/shutdown
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "wall_message": "Shutting down for maintenance",
+    "time": 60
+  }
+}
+
+docs {
+  dto.ShutdownNodeRequest. `time` is the delay in seconds. Body is optional.
+}

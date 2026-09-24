@@ -5,16 +5,12 @@ meta {
 }
 
 delete {
-  url: {{baseUrl}}/node/config?guest={{guestNode}}
+  url: {{baseUrl}}/node/config
   body: none
   auth: inherit
 }
 
-params:query {
-  ~guest: {{guestNode}}
-}
-
 docs {
-  Without `guest`, unloads this node's own config; with `guest`, unloads that
-  guest node's config.
+  Unloads this node's own config (and every guest node). Use
+  `DELETE /node/guests/{guestName}/config` to unload a single guest node.
 }

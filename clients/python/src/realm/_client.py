@@ -197,21 +197,19 @@ class Realm:
     def unload_node_config(self, guest: str | None = None) -> None:
         self._send(ops.unload_node_config(guest))
 
-    def power_on(self, node_config: JsonDict) -> None:
-        """Power a node on (Wake-On-LAN for the linux driver)."""
-        self._send(ops.power_on(node_config))
+    def power_on(self, node_config: JsonDict, guest: str | None = None) -> None:
+        """Power a node on. ``guest`` targets a guest node."""
+        self._send(ops.power_on(node_config, guest))
 
-    def power_off(self, node_config: JsonDict) -> None:
-        """Power a node off immediately. Only guest nodes can be targeted."""
-        self._send(ops.power_off(node_config))
+    def power_off(self, guest: str | None = None) -> None:
+        """Power a node off immediately. ``guest`` targets a guest node."""
+        self._send(ops.power_off(guest))
 
-    def shutdown(
-        self, wall_message: str = "", delay: int = 0, node_name: str | None = None
-    ) -> None:
-        self._send(ops.shutdown(wall_message, delay, node_name))
+    def shutdown(self, wall_message: str = "", delay: int = 0, guest: str | None = None) -> None:
+        self._send(ops.shutdown(wall_message, delay, guest))
 
-    def restart(self, wall_message: str = "", delay: int = 0, node_name: str | None = None) -> None:
-        self._send(ops.restart(wall_message, delay, node_name))
+    def restart(self, wall_message: str = "", delay: int = 0, guest: str | None = None) -> None:
+        self._send(ops.restart(wall_message, delay, guest))
 
     # --- loads -------------------------------------------------------------
 
@@ -383,21 +381,21 @@ class AsyncRealm:
     async def unload_node_config(self, guest: str | None = None) -> None:
         await self._send(ops.unload_node_config(guest))
 
-    async def power_on(self, node_config: JsonDict) -> None:
-        await self._send(ops.power_on(node_config))
+    async def power_on(self, node_config: JsonDict, guest: str | None = None) -> None:
+        await self._send(ops.power_on(node_config, guest))
 
-    async def power_off(self, node_config: JsonDict) -> None:
-        await self._send(ops.power_off(node_config))
+    async def power_off(self, guest: str | None = None) -> None:
+        await self._send(ops.power_off(guest))
 
     async def shutdown(
-        self, wall_message: str = "", delay: int = 0, node_name: str | None = None
+        self, wall_message: str = "", delay: int = 0, guest: str | None = None
     ) -> None:
-        await self._send(ops.shutdown(wall_message, delay, node_name))
+        await self._send(ops.shutdown(wall_message, delay, guest))
 
     async def restart(
-        self, wall_message: str = "", delay: int = 0, node_name: str | None = None
+        self, wall_message: str = "", delay: int = 0, guest: str | None = None
     ) -> None:
-        await self._send(ops.restart(wall_message, delay, node_name))
+        await self._send(ops.restart(wall_message, delay, guest))
 
     # --- loads -------------------------------------------------------------
 

@@ -13,12 +13,11 @@ post {
 body:json {
   {
     "wall_message": "Shutting down for maintenance",
-    "time": 60,
-    "node_name": "node-1"
+    "time": 60
   }
 }
 
 docs {
-  dto.ShutdownNodeRequest. `time` is the delay in seconds, `node_name` is
-  optional (omit to target this node).
+  dto.ShutdownNodeRequest. `time` is the delay in seconds. Targets this node; use
+  `POST /node/guests/{guestName}/shutdown` for a guest node.
 }

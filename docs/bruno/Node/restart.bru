@@ -13,12 +13,11 @@ post {
 body:json {
   {
     "wall_message": "Rebooting",
-    "time": 60,
-    "node_name": "node-1"
+    "time": 60
   }
 }
 
 docs {
-  dto.RestartNodeRequest. `time` is the delay in seconds, `node_name` is
-  optional (omit to target this node).
+  dto.RestartNodeRequest. `time` is the delay in seconds. Targets this node; use
+  `POST /node/guests/{guestName}/restart` for a guest node.
 }

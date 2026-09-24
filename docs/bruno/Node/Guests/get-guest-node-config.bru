@@ -1,0 +1,15 @@
+meta {
+  name: Get Guest Node Config
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/config
+  body: none
+  auth: inherit
+}
+
+docs {
+  204 No Content when the guest node is not configured.
+}

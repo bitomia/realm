@@ -97,6 +97,19 @@ func GetNodeConfig() (*common.NodeDriverConfig, error) {
 	}
 }
 
+func GetGuestNodeConfig(nodeName string) (*common.NodeDriverConfig, error) {
+	db := db.GetDB()
+	if db == nil {
+		return nil, fmt.Errorf("db not initialized")
+	}
+	if node, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
+		return nil, err
+	} else {
+		config := node.NodeDriver.Config()
+		return &config, nil
+	}
+}
+
 func LoadNodeConfig(node *common.Node) error {
 	db := db.GetDB()
 	if db == nil {

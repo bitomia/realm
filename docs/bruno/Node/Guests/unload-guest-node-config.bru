@@ -1,0 +1,15 @@
+meta {
+  name: Unload Guest Node Config
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{baseUrl}}/node/guests/{{guestNode}}/config
+  body: none
+  auth: inherit
+}
+
+docs {
+  Unloads the guest node's config.
+}
