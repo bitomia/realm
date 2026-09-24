@@ -12,7 +12,7 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
-func NodeStateHandler(w http.ResponseWriter, r *http.Request) {
+func GetNodeState(w http.ResponseWriter, r *http.Request) {
 	var nodeName *string
 	if guest := r.URL.Query().Get("guest"); guest != "" {
 		nodeName = &guest
@@ -28,7 +28,7 @@ func NodeStateHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(state)
 }
 
-func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
+func GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	info, err := api.GetSystemInfo()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -39,7 +39,7 @@ func GetSystemInfoHandler(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(info)
 }
 
-func GetNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+func GetNodeConfig(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("handlers.GetNodeConfigHandler")
 
 	if nodeConfig, err := api.GetNodeConfig(); err != nil {
@@ -58,7 +58,7 @@ func GetNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func LoadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+func LoadNodeConfig(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.LoadNodeConfigHandler")
 
 	var node common.Node
@@ -94,7 +94,7 @@ func LoadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func UnloadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
+func UnloadNodeConfig(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.UnloadNodeConfigHandler")
 
 	if guestNodeName := r.URL.Query().Get("guest"); guestNodeName != "" {
@@ -114,7 +114,7 @@ func UnloadNodeConfigHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func PowerOnNodeHandler(w http.ResponseWriter, r *http.Request) {
+func PowerOnNode(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.PowerOnNodeHandler")
 
 	var node common.Node
@@ -132,7 +132,7 @@ func PowerOnNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
+func ShutdownNode(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.ShutdownNodeHandler")
 
 	var request dto.ShutdownNodeRequest
@@ -150,7 +150,7 @@ func ShutdownNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func PowerOffNodeHandler(w http.ResponseWriter, r *http.Request) {
+func PowerOffNode(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.PowerOffNodeHandler")
 
 	var node common.Node
@@ -168,7 +168,7 @@ func PowerOffNodeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func RestartNodeHandler(w http.ResponseWriter, r *http.Request) {
+func RestartNode(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.RestartNodeHandler")
 
 	var request dto.RestartNodeRequest
