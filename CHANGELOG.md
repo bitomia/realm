@@ -5,6 +5,7 @@
 - Client: added unix socket support.
 - Fix: containerd logs not bridged to the agent log.
 - Fix: power and restart client modes not working.
+- Fix: wake on lan packet now broadcast on every interface.
 - Fix: invalid poweroff payload in the python client.
 - Fix: clarified power state reporting on the vm driver.
 - Documentation moved to a dedicated website.
