@@ -11,9 +11,6 @@ func createBaseRoutes(router *mux.Router) {
 	router.HandleFunc("/version", handlers.VersionHandler).Methods("GET")
 
 	router.Handle("/system", auth.WithAuth(handlers.GetSystemInfoHandler)).Methods("GET")
-	router.Handle("/images", auth.WithAuth(handlers.ListImagesHandler)).Methods("GET")
-	router.Handle("/containers", auth.WithAuth(handlers.ListContainersHandler)).Methods("GET")
-	router.Handle("/network", auth.WithAuth(handlers.ListNetworksHandler)).Methods("GET")
 
 	router.Handle("/node", auth.WithAuth(handlers.NodeStateHandler)).Methods("GET")
 	router.Handle("/node/config", auth.WithAuth(handlers.GetNodeConfigHandler)).Methods("GET")
