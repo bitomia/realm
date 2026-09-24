@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
@@ -152,75 +151,6 @@ func (c *Client) doStreamRequest(method, agentURL, path string, body io.Reader) 
 	return resp, nil
 }
 
-func (c *Client) GetAllImages() (dto.NodeImagesMapResponse, error) {
-	var nodeImagesMap dto.NodeImagesMapResponse
-	for _, node := range config.GetNodes() {
-		body, _, err := c.doRequest("GET", node.Url, "/images", nil, 10*time.Second)
-		if err != nil {
-			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
-			continue
-		}
-
-		var images dto.ImagesResponse
-		if err := json.Unmarshal(body, &images); err != nil {
-			nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Error: err.Error()})
-			continue
-		}
-		nodeImagesMap = append(nodeImagesMap, dto.NodeImagesResponse{Node: node.Name, Images: images})
-	}
-	return nodeImagesMap, nil
-}
-
-type ContainerInfo struct {
-	ID    string
-	Image string
-}
-
-type Container struct {
-	Container ContainerInfo `json:"container"`
-	Status    string        `json:"status"`
-}
-
-func (c *Client) GetAllContainers() (map[string]map[string]Container, error) {
-
-	containersPerNode := make(map[string]map[string]Container)
-	for _, node := range config.GetNodes() {
-		body, _, err := c.doRequest("GET", node.Url, "/containers", nil, 10*time.Second)
-		if err != nil {
-			log.Error("Failed to get containers from %s: %v", node.Name, err)
-			continue
-		}
-
-		var containers map[string]Container
-		if err := json.Unmarshal(body, &containers); err != nil {
-			log.Error("Failed to parse JSON: %v", err)
-			continue
-		}
-		containersPerNode[node.Name] = containers
-	}
-	return containersPerNode, nil
-}
-
-func (c *Client) ListNetworks() (map[string]any, error) {
-	networksPerNode := make(map[string]any)
-	for _, node := range config.GetNodes() {
-		body, _, err := c.doRequest("GET", node.Url, "/network", nil, 10*time.Second)
-		if err != nil {
-			log.Fatal("Failed to get networks from %s: %v", node.Name, err)
-		}
-
-		var networkConfig any
-		if err := json.Unmarshal(body, &networkConfig); err != nil {
-			log.Error("Failed to parse JSON: %v", err)
-			continue
-		}
-
-		networksPerNode[node.Name] = networkConfig
-	}
-
-	return networksPerNode, nil
-}
-
 func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 	nodeRes := dto.NewNodeResponse()
 
@@ -263,26 +193,6 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 	}
 
 	return &info, nil
-}
-
-func (c *Client) GetContainerLogs(node string, container string) error {
-	body, _, err := c.doRequest("GET", node, fmt.Sprintf("/containers/%s/logs", container), nil, 30*time.Second)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(body))
-	return nil
-}
-
-func (c *Client) GetProxyConfig(node string, container string) error {
-	body, _, err := c.doRequest("GET", node, fmt.Sprintf("/containers/%s/server", container), nil, 10*time.Second)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(string(body))
-	return nil
 }
 
 // Authentication
