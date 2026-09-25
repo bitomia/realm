@@ -28,6 +28,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/logging"
+	"github.com/bitomia/realm/common/otel"
 )
 
 var (
@@ -89,6 +90,28 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		os.Exit(1)
 	}
 
+	// OpenTelemetry export of logs, metrics and traces is opt-in, enabled by
+	// pointing OTEL_EXPORTER_OTLP_ENDPOINT at a collector.
+	if otel.Enabled() {
+		serviceName := "agent-" + agentId
+		otelShutdown, err := otel.InitializeHTTP(context.Background(), serviceName)
+		if err != nil {
+			slog.Error("Failed to initialize OpenTelemetry", "error", err)
+			os.Exit(1)
+		}
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := otelShutdown(ctx); err != nil {
+				slog.Error("OpenTelemetry shutdown error", "error", err)
+			}
+		}()
+		otel.SetErrorLogger(slog.New(handler), time.Minute)
+		slog.SetDefault(slog.New(slog.NewMultiHandler(handler, otel.NewSlogHandler(serviceName, logLevel))))
+		slog.Info("OpenTelemetry enabled", "service", serviceName,
+			"endpoint", os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+	}
+
 	slog.Info("Initializing agent", "version", config.GetVersion(), "id", agentId)
 	slog.Debug("Agent configuration", "config", *cfg)
 
@@ -147,8 +170,14 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		os.Exit(1)
 	}
 
+	var serverHandler http.Handler = router
+	if otel.Enabled() {
+		router.Use(otel.RouteMiddleware)
+		serverHandler = otel.NewHTTPHandler(router, "agent")
+	}
+
 	server := &http.Server{
-		Handler: router,
+		Handler: serverHandler,
 	}
 
 	// The TCP listener can be disabled to only serve the API over the unix socket
