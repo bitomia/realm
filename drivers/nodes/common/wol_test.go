@@ -17,6 +17,7 @@ func TestBroadcastAddr(t *testing.T) {
 		{"172.16.5.4/20", net.ParseIP("172.16.15.255").To4()},
 		{"192.168.1.10/31", nil},
 		{"192.168.1.10/32", nil},
+		{"192.168.240.101/0", net.IPv4bcast.To4()},
 		{"fe80::1/64", nil},
 	}
 	for _, tt := range tests {
@@ -29,12 +30,13 @@ func TestBroadcastAddr(t *testing.T) {
 	}
 }
 
-func TestBroadcastAddrs(t *testing.T) {
-	addrs, err := broadcastAddrs()
+func TestBroadcastTargets(t *testing.T) {
+	targets, err := broadcastTargets()
 	assert.NoError(t, err)
-	for _, ip := range addrs {
-		assert.NotNil(t, ip.To4())
-		assert.False(t, ip.IsLoopback())
+	for _, tt := range targets {
+		assert.NotNil(t, tt.bcast.To4())
+		assert.NotNil(t, tt.local.To4())
+		assert.False(t, tt.local.IsLoopback())
 	}
 }
 

@@ -25,51 +25,59 @@ func LaunchWakeOnLan(macAddress string) error {
 		copy(packet[6+i*6:], mac)
 	}
 
-	targets, err := broadcastAddrs()
+	targets, err := broadcastTargets()
 	if err != nil {
 		return fmt.Errorf("failed to list network interfaces: %w", err)
 	}
 	// Use IPv4bcast if there is no available interfaces
 	if len(targets) == 0 {
-		targets = []net.IP{net.IPv4bcast}
+		targets = []bcastTarget{{bcast: net.IPv4bcast}}
 	}
 
 	var errs []error
-	for _, ip := range targets {
-		if err := sendPacket(packet, ip, wolPort); err != nil {
+	for _, t := range targets {
+		if err := sendPacket(packet, t, wolPort); err != nil {
+			slog.Warn("wol packet not sent", "mac", mac.String(), "local", t.local, "broadcast", t.bcast.String(), "error", err)
 			errs = append(errs, err)
 			continue
 		}
-		slog.Debug("wol packet sent", "mac", mac.String(), "broadcast", ip.String())
+		slog.Debug("wol packet sent", "mac", mac.String(), "local", t.local, "broadcast", t.bcast.String())
 	}
-	if len(errs) > 0 {
+	if len(errs) == len(targets) {
 		return fmt.Errorf("failed to send wol packet: %w", errors.Join(errs...))
 	}
 	return nil
 }
 
-func sendPacket(packet []byte, ip net.IP, port int) error {
-	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: ip, Port: port})
+type bcastTarget struct {
+	local net.IP
+	bcast net.IP
+}
+
+func sendPacket(packet []byte, t bcastTarget, port int) error {
+	var laddr *net.UDPAddr
+	if t.local != nil {
+		laddr = &net.UDPAddr{IP: t.local}
+	}
+	conn, err := net.DialUDP("udp4", laddr, &net.UDPAddr{IP: t.bcast, Port: port})
 	if err != nil {
-		return fmt.Errorf("%s: %w", ip, err)
+		return fmt.Errorf("%s: %w", t.bcast, err)
 	}
 	defer conn.Close()
 
 	if _, err := conn.Write(packet); err != nil {
-		return fmt.Errorf("%s: %w", ip, err)
+		return fmt.Errorf("%s: %w", t.bcast, err)
 	}
 	return nil
 }
 
-// broadcastAddrs returns the IPv4 directed broadcast address of every
-// interface that broadcast capable and not a loopback
-func broadcastAddrs() ([]net.IP, error) {
+func broadcastTargets() ([]bcastTarget, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []net.IP
+	var result []bcastTarget
 	seen := map[string]bool{}
 	for _, iface := range ifaces {
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagRunning == 0 || iface.Flags&net.FlagBroadcast == 0 || iface.Flags&net.FlagLoopback != 0 {
@@ -84,12 +92,18 @@ func broadcastAddrs() ([]net.IP, error) {
 			if !ok {
 				continue
 			}
-			ip := broadcastAddr(ipNet)
-			if ip == nil || seen[ip.String()] {
+			bcast := broadcastAddr(ipNet)
+			if bcast == nil {
 				continue
 			}
-			seen[ip.String()] = true
-			result = append(result, ip)
+			// dedupe by (local, bcast) because several /0 interfaces all map to
+			// 255.255.255.255 but each one must still get its own packet
+			key := ipNet.IP.String() + ">" + bcast.String()
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			result = append(result, bcastTarget{local: ipNet.IP.To4(), bcast: bcast})
 		}
 	}
 	return result, nil
