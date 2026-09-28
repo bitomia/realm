@@ -47,6 +47,7 @@ func setDefaults() {
 	}
 
 	viper.SetDefault("data_path", dataPath)
+	viper.SetDefault("log_level", "info")
 	viper.SetDefault("agent.cni_path", cniPath)
 	viper.SetDefault("agent.volumes_pool", "realm_volumes")
 	viper.SetDefault("agent.listen_address", "0.0.0.0")
@@ -54,7 +55,6 @@ func setDefaults() {
 	viper.SetDefault("agent.disable_tcp", false)
 	viper.SetDefault("agent.listen_socket_group", DefaultSocketGroup)
 	viper.SetDefault("agent.log_format", "text")
-	viper.SetDefault("agent.log_level", "info")
 	viper.SetDefault("agent.containerd_sock", containerdSock)
 	viper.SetDefault("agent.containerd_namespace", "realm")
 	viper.SetDefault("agent.artifacts.auth_required", false)

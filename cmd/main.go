@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -9,6 +10,7 @@ import (
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/logging"
 	_ "github.com/bitomia/realm/drivers"
 	"github.com/bitomia/realm/mesh"
 )
@@ -45,6 +47,13 @@ func Main() {
 			log.Error("Config error: %s", configError)
 			os.Exit(1)
 		}
+
+		logLevel, levelName, validLevel := logging.ResolveLevel(cfg.LogLevel)
+		slog.SetLogLoggerLevel(logLevel)
+		if !validLevel {
+			slog.Warn("Invalid log level, defaulting to info", "level", levelName)
+		}
+
 		if err := mesh.Start(cfg); err != nil {
 			log.Error("%s", err)
 			os.Exit(1)

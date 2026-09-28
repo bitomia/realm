@@ -1,7 +1,9 @@
 package log
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/fatih/color"
@@ -50,6 +52,9 @@ func Error(format string, args ...any) {
 
 // Debug logs debug messages
 func Debug(format string, args ...any) {
+	if !slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		return
+	}
 	logMessage(DEBUG, format, args...)
 }
 

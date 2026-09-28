@@ -60,10 +60,10 @@ def agent_socket(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     config = workdir / "config.yaml"
     config.write_text(
         f"data_path: {workdir / 'data'}\n"
+        "log_level: warn\n"
         "agent:\n"
         "  disable_tcp: true\n"
         f"  listen_socket: {socket_path}\n"
-        "  log_level: warn\n"
     )
 
     env = {**os.environ, "REALM_CONFIG_FILE": str(config)}
@@ -175,10 +175,10 @@ def test_socket_is_removed_on_shutdown(tmp_path: Path) -> None:
     config = tmp_path / "config.yaml"
     config.write_text(
         f"data_path: {tmp_path / 'data'}\n"
+        "log_level: warn\n"
         "agent:\n"
         "  disable_tcp: true\n"        
         f"  listen_socket: {socket_path}\n"
-        "  log_level: warn\n"
     )
 
     process = subprocess.Popen(

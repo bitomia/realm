@@ -72,12 +72,6 @@ type AgentConfig struct {
 	// Default: text
 	LogFormat string `json:"log_format"`
 
-	// Minimum log level.
-	// Valid values: "debug", "info", "warn" (or "warning"), "error"
-	// Overridden by the LOG_LEVEL environment variable when set.
-	// Default: info
-	LogLevel string `json:"log_level"`
-
 	// Containerd socket path.
 	// Default: /run/containerd/containerd.sock (Linux) or npipe://./pipe/containerd-containerd (Windows)
 	ContainerdSock string `json:"containerd_sock"`
@@ -116,6 +110,12 @@ type Config struct {
 	// Path to store realm data (ID file, database, logs, mesh configs...).
 	// Default: /var/lib/realm (Linux) or %ProgramData%\realm (Windows)
 	DataPath string `json:"data_path"`
+
+	// Minimum log level, for both the agent and the client.
+	// Valid values: "debug", "info", "warn" (or "warning"), "error"
+	// Overridden by the LOG_LEVEL environment variable when set.
+	// Default: info
+	LogLevel string `json:"log_level"`
 
 	Agent AgentConfig `json:"agent"`
 	Nodes NodesConfig `json:"nodes"`

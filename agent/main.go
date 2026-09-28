@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -40,24 +39,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 
 	// Configure slog handler based on log level and format. The LOG_LEVEL
 	// environment variable, when set, takes precedence over the config file.
-	levelName := cfg.Agent.LogLevel
-	if envLevel := os.Getenv("LOG_LEVEL"); envLevel != "" {
-		levelName = envLevel
-	}
-	logLevel := slog.LevelInfo // default log level
-	invalidLevel := false
-	switch strings.ToLower(levelName) {
-	case "debug":
-		logLevel = slog.LevelDebug
-	case "info", "":
-		logLevel = slog.LevelInfo
-	case "warn", "warning":
-		logLevel = slog.LevelWarn
-	case "error":
-		logLevel = slog.LevelError
-	default:
-		invalidLevel = true
-	}
+	logLevel, levelName, validLevel := logging.ResolveLevel(cfg.LogLevel)
 	logOptions := slog.HandlerOptions{
 		Level: logLevel,
 	}
@@ -75,7 +57,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	slog.SetDefault(slog.New(handler))
 
 	// Warn through the configured handler, not the one it replaced.
-	if invalidLevel {
+	if !validLevel {
 		slog.Warn("Invalid log level, defaulting to info", "level", levelName)
 	}
 	if invalidFormat {
