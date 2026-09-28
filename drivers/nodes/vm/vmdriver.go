@@ -243,7 +243,7 @@ func (q *VMDriver) buildDomainXML(nodeName string, overlayDrives map[int]Overlay
 	}
 
 	if cloudInitHost != nil {
-		slog.Info("VMDriver.Register", "msg", "cloud-init host resolved", "host", *cloudInitHost, "node", nodeName)
+		slog.Info("VMDriver.buildDomainXML", "msg", "cloud-init host resolved", "host", *cloudInitHost, "node", nodeName)
 		serial := fmt.Sprintf("ds=nocloud-net;s=http://%s/cloudinit/%s/", *cloudInitHost, nodeName)
 		dom.SysInfo = &xSysInfo{
 			Type: "smbios",
@@ -278,6 +278,11 @@ func (q *VMDriver) PowerOn(cloudInit *cloudinit.CloudInit) error {
 	var cloudInitHost *string = nil
 	if cloudInit != nil {
 		cfg := config.Get()
+		// The guest fetches its cloud-init data over the agent's TCP listener
+		if cfg.Agent.DisableTCP {
+			cleanupOverlays(q.ctx.NodeName)
+			return fmt.Errorf("VMDriver.PowerOn: cloud-init requires the agent TCP listener, but agent.disable_tcp is set")
+		}
 		cloudInitHostStr := fmt.Sprintf("%s:%d", q.resolveCloudInitHost(cfg), cfg.Agent.ListenPort)
 		cloudInitHost = &cloudInitHostStr
 		if err := commonConfig.EvalVars(cloudInit, map[string]string{"cloud_init_host": cloudInitHostStr}); err != nil {
