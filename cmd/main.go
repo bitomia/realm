@@ -20,13 +20,13 @@ var (
 	cfg     *config.Config
 )
 
-func Main() {
+func Main(cmdName string, projectName string) {
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
 		return common.NodeContext{Repository: nil, Capabilities: nil, NodeName: nodeName, RunMode: common.ClientMode}
 	})
 
-	rootCmd.Use = "realm"
-	rootCmd.Short = fmt.Sprintf("Realm %s", config.GetVersion())
+	rootCmd.Use = cmdName
+	rootCmd.Short = fmt.Sprintf("%s %s", projectName, config.GetVersion())
 	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
