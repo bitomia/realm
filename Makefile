@@ -23,6 +23,8 @@ endif
 
 VERSION := $(GIT_TAG)-$(GIT_COMMIT)
 NETPLANE_DIR := $(ROOT)/bin/netplane
+NETPLANE_LIB_DIR ?= $(ROOT)/../netplane/target/x86_64-unknown-linux-musl/release
+NETPLANE_INC_DIR ?= $(ROOT)/../netplane/bindings/cpp
 EXT_LDFLAGS := -extldflags '-L$(NETPLANE_DIR) -lm'
 
 .PHONY: all

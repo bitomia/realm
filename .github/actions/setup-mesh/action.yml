@@ -1,0 +1,37 @@
+name: Setup mesh build
+description: Install zig and build the netplane static client library next to the realm checkout (../netplane), where the Makefile and go.mod expect it.
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout netplane
+      uses: actions/checkout@v4
+      with:
+        repository: bitomia/netplane
+        path: .netplane
+        persist-credentials: false
+
+    - name: Move netplane next to realm
+      shell: bash
+      run: mv .netplane ../netplane
+
+    - name: Set up zig
+      uses: mlugg/setup-zig@v2
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: x86_64-unknown-linux-musl
+
+    - name: Install musl tools
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+    - name: Build netplane client (musl)
+      shell: bash
+      working-directory: ../netplane
+      env:
+        SQLX_OFFLINE: "true"
+        CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER: musl-gcc
+        CC_x86_64_unknown_linux_musl: musl-gcc
+      run: cargo build --release -p netplane_client --lib --target x86_64-unknown-linux-musl

@@ -39,6 +39,12 @@ jobs:
             goarch: amd64
             binary_name: realm
             asset_name: realm-linux-amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            mesh: true
+            binary_name: realm
+            asset_name: realm-linux-amd64-mesh
           - os: windows-latest
             goos: windows
             goarch: amd64
@@ -64,8 +70,16 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Set up mesh build
+        if: matrix.mesh
+        uses: ./.github/actions/setup-mesh
+
+      - name: Build mesh binary
+        if: matrix.mesh
+        run: make mesh GIT_COMMIT=${{ github.sha }} GIT_TAG=${{ github.ref_name }}
+
       - name: Build binary
-        if: matrix.goarch != 'universal'
+        if: matrix.goarch != 'universal' && !matrix.mesh
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
