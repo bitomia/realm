@@ -3,13 +3,21 @@ set -e
 
 REPO="bitomia/realm"
 INSTALL_DIR="${REALM_INSTALL_DIR:-/usr/local/bin}"
+MESH=""
 
 main() {
+    parse_args "$@"
+
     os="$(detect_os)"
     arch="$(detect_arch)"
 
     if [ -z "$os" ] || [ -z "$arch" ]; then
         echo "Error: unsupported platform: $(uname -s)/$(uname -m)" >&2
+        exit 1
+    fi
+
+    if [ -n "$MESH" ] && [ "${os}-${arch}" != "linux-amd64" ]; then
+        echo "Error: the mesh build is only available for linux/amd64" >&2
         exit 1
     fi
 
@@ -32,6 +40,9 @@ main() {
     echo "Installing ${tag}..."
 
     asset_name="realm-${os}-${arch}"
+    if [ -n "$MESH" ]; then
+        asset_name="${asset_name}-mesh"
+    fi
     if [ "$os" = "windows" ]; then
         asset_name="${asset_name}.zip"
     else
@@ -63,7 +74,7 @@ main() {
     fi
     chmod +x "${INSTALL_DIR}/${binary}"
 
-    echo "realm ${tag} installed to ${INSTALL_DIR}/${binary}"
+    echo "realm ${tag}${MESH:+ (mesh)} installed to ${INSTALL_DIR}/${binary}"
 
     if [ "$os" = "linux" ]; then
         check_container_deps
@@ -75,6 +86,29 @@ main() {
         echo "Add ${INSTALL_DIR} to your PATH:"
         echo "  export PATH=\"${INSTALL_DIR}:\$PATH\""
     fi
+}
+
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --mesh) MESH="yes" ;;
+            -h|--help)
+                echo "Usage: install.sh [--mesh]"
+                echo ""
+                echo "Options:"
+                echo "  --mesh   Install the mesh-enabled build (linux/amd64 only)"
+                echo ""
+                echo "Environment:"
+                echo "  REALM_INSTALL_DIR   Install location (default: /usr/local/bin)"
+                exit 0
+                ;;
+            *)
+                echo "Error: unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+        shift
+    done
 }
 
 detect_os() {
@@ -196,4 +230,4 @@ verify_checksum() {
     fi
 }
 
-main
+main "$@"

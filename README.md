@@ -24,6 +24,12 @@ irm https://realm.bitomia.com/install.ps1 | sudo iex
 
 The install location can be overridden via the `REALM_INSTALL_DIR` environment variable.
 
+To install the mesh-enabled build (Linux amd64 only), pass `--mesh`:
+
+```sh
+curl -fsSL https://realm.bitomia.com/install.sh | sudo sh -s -- --mesh
+```
+
 ## Getting Started
 
 Realm running as client does not require any external dependencies. For detailed agent installation on Linux or Windows, see the [Getting Started Guide](https://bitomia.com/realm).
