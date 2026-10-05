@@ -13,13 +13,13 @@ It's embeddable via a C API, so other programs can drive a cluster directly.
 **Linux / macOS:**
 
 ```sh
-curl -fsSL https://realm.bitomia.com/install.sh | sudo sh
+curl -fsSL https://bitomia.com/realm/install.sh | sudo sh
 ```
 
 **Windows (PowerShell):**
 
 ```sh
-irm https://realm.bitomia.com/install.ps1 | sudo iex
+irm https://bitomia.com/realm/install.ps1 | sudo iex
 ```
 
 The install location can be overridden via the `REALM_INSTALL_DIR` environment variable.
