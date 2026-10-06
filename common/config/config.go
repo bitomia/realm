@@ -102,6 +102,7 @@ const (
 
 type MeshConfig struct {
 	ServerUrl string        `json:"server"`
+	Port      uint16        `json:"port,omitempty"` // Default: 5000
 	Transport MeshTransport `json:"transport,omitempty"`
 	LinkCode  string        `json:"link_code"`
 }

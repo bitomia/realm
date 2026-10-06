@@ -51,7 +51,6 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get guest node: %w", err)
 		}
-
 	}
 
 	return nodeResponse(nodeEntry.NodeDriver)

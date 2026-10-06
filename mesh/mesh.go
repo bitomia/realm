@@ -59,8 +59,13 @@ func startMesh(cfg *config.Config, errChan chan error) {
 		return
 	}
 
+	port := cfg.MeshConfig.Port
+	if port == 0 {
+		port = 5000
+	}
+
 	netplane.ClientAuth(authKeyPath, publicKeyPath, privateKeyPath, host, cfg.MeshConfig.LinkCode, 8000)
-	err := netplane.ClientRun("netplane0", host, 5000, transport, true, authKeyPath, publicKeyPath, privateKeyPath)
+	err := netplane.ClientRun("netplane0", host, port, transport, true, authKeyPath, publicKeyPath, privateKeyPath)
 	if err != nil {
 		errChan <- fmt.Errorf("netplane run: %w", err)
 		return
