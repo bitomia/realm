@@ -45,10 +45,12 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	}
 	var handler slog.Handler
 	invalidFormat := false
-	switch cfg.Agent.LogFormat {
-	case "json":
+	switch base := logging.BaseHandler(); {
+	case base != nil:
+		handler = logging.NewLevelHandler(logLevel, base)
+	case cfg.Agent.LogFormat == "json":
 		handler = slog.NewJSONHandler(os.Stdout, &logOptions)
-	case "text":
+	case cfg.Agent.LogFormat == "text":
 		handler = slog.NewTextHandler(os.Stdout, &logOptions)
 	default:
 		invalidFormat = true
