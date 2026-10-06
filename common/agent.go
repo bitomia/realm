@@ -52,7 +52,11 @@ func ResolveAgentTarget(agentURL string) (*AgentTarget, error) {
 		if parsed.Host == "" {
 			return nil, fmt.Errorf("invalid agent url '%s': missing host", agentURL)
 		}
-		return &AgentTarget{baseURL: strings.TrimSuffix(agentURL, "/")}, nil
+		target := &AgentTarget{baseURL: strings.TrimSuffix(agentURL, "/")}
+		if isMDNSHost(parsed.Hostname()) {
+			target.transport = agentMDNSTransport()
+		}
+		return target, nil
 
 	case AgentSchemeUnix:
 		socketPath, err := unixSocketPath(parsed)

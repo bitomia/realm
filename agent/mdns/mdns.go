@@ -49,8 +49,12 @@ func (m *MDNSService) Start() error {
 
 	}
 	if config.Get().MeshConfig != nil {
-		meshIface, _ := net.InterfaceByName("netplane0")
-		networkInterfaces = append(networkInterfaces, *meshIface)
+		meshIface, err := net.InterfaceByName("netplane0")
+		if err != nil {
+			slog.Warn("Mesh interface not available, not advertising mDNS on it", "iface", "netplane0", "error", err)
+		} else {
+			networkInterfaces = append(networkInterfaces, *meshIface)
+		}
 	}
 	slog.Info("mDNS network configuration", "ifaces", networkInterfaces)
 
