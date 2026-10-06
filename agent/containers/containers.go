@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/oci"
-	"github.com/google/uuid"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/agent/cruntime"
@@ -105,7 +106,11 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 			}
 
 			var mountSource string
-			var volumeName = fmt.Sprintf("%s-%s", containerName, uuid.New())
+			volumePrefix := opts.VolumePrefix
+			if volumePrefix == "" {
+				volumePrefix = containerName
+			}
+			volumeName := VolumeName(volumePrefix, mount.VolumeMountPoint)
 
 			if volumes.IsVolume(volumeName) {
 				slog.Info("CreateContainer", "msg", "reusing existent volume", "volume", volumeName)
@@ -214,6 +219,16 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 	}
 
 	return nil
+}
+
+var invalidVolumeNameChars = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
+
+func VolumeName(prefix string, mountPoint string) string {
+	name := strings.Trim(invalidVolumeNameChars.ReplaceAllString(mountPoint, "-"), "-")
+	if prefix == "" {
+		return name
+	}
+	return prefix + "-" + name
 }
 
 func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {

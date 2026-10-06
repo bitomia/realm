@@ -291,3 +291,27 @@ func TestNodeDriversRunModes(t *testing.T) {
 		assert.Equal(t, common.AgentMode, info.RestartMode, "driver %s restart mode", info.ID)
 	}
 }
+
+func TestContainerDriverDuplicateVolumes(t *testing.T) {
+	yamlConfig := `
+nodes:
+  dupvol_node:
+    url: http://192.168.1.54:9000
+    driver: linux
+
+loads:
+  dupvol_web:
+    node: dupvol_node
+    driver: container
+    driver_config:
+      image: docker.io/nginx
+      mount_volume:
+        - volume_mount_point: /a/b
+        - volume_mount_point: /a-b
+`
+	resetConfigs()
+
+	_, err := config.InitFromBuffer(yamlConfig)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "map to the same volume")
+}

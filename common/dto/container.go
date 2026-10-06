@@ -31,6 +31,11 @@ type CreateContainerRequest struct {
 	Entrypoint  *string        `json:"entrypoint,omitempty"`
 	Args        []string       `json:"args,omitempty"`
 	WorkingDir  *string        `json:"working_dir,omitempty"`
+
+	// Prefix for the names of the volumes in MountVolume. Volumes are named
+	// "<prefix>-<mount point>" so they're reused across container restarts.
+	// Defaults to the container name.
+	VolumePrefix string `json:"volume_prefix,omitempty"`
 }
 
 type ContainerStatus string

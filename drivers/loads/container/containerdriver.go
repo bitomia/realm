@@ -93,6 +93,21 @@ func (c *ContainerDriver) verifyConfig() error {
 		return fmt.Errorf("container image not specified")
 	}
 
+	// Mount points must map to distinct volumes
+	if c.config.MountVolume != nil {
+		seen := make(map[string]string)
+		for _, mount := range *c.config.MountVolume {
+			if mount.VolumeMountPoint == "" {
+				continue
+			}
+			name := containers.VolumeName("", mount.VolumeMountPoint)
+			if other, exists := seen[name]; exists {
+				return fmt.Errorf("mount points '%s' and '%s' map to the same volume", other, mount.VolumeMountPoint)
+			}
+			seen[name] = mount.VolumeMountPoint
+		}
+	}
+
 	// Validate network configuration
 	if c.config.Network != nil {
 		mode := c.config.Network.Mode
@@ -218,6 +233,8 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 		Entrypoint:  c.config.Entrypoint,
 		Args:        c.config.Args,
 		WorkingDir:  c.config.WorkingDir,
+		// Name volumes after the load, not the container, so data survives restarts
+		VolumePrefix: deployment.LoadName,
 	}
 
 	// Prepare extra OCI spec options for host networking if needed
@@ -272,7 +289,7 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 				ipAddressPtr = &ipAddress
 			}
 
-			if err := containers.DeleteContainer(containerName, syscall.SIGKILL, true); err != nil {
+			if err := containers.DeleteContainer(containerName, syscall.SIGKILL, false); err != nil {
 				slog.Error("ContainerDriver.Start", "msg", "delete container on network rollback failed", "error", err)
 			}
 

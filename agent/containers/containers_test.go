@@ -203,3 +203,27 @@ func TestCreateContainer_NilQuotasRegression(t *testing.T) {
 		})
 	}
 }
+
+func TestVolumeName(t *testing.T) {
+	tests := []struct {
+		prefix     string
+		mountPoint string
+		want       string
+	}{
+		{"wordpress-db", "/var/lib/mysql", "wordpress-db-var-lib-mysql"},
+		{"wordpress", "/var/www/html/", "wordpress-var-www-html"},
+		{"web", "/data dir/a:b", "web-data-dir-a-b"},
+		{"", "/var/lib/mysql", "var-lib-mysql"},
+	}
+
+	for _, tt := range tests {
+		if got := VolumeName(tt.prefix, tt.mountPoint); got != tt.want {
+			t.Errorf("VolumeName(%q, %q) = %q, want %q", tt.prefix, tt.mountPoint, got, tt.want)
+		}
+	}
+
+	// Same inputs must always produce the same name so volumes are reused
+	if VolumeName("db", "/data") != VolumeName("db", "/data") {
+		t.Error("VolumeName is not stable")
+	}
+}
