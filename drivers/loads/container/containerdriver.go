@@ -11,6 +11,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/identifiers"
 	"github.com/containerd/containerd/oci"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
@@ -151,6 +152,13 @@ func (c *ContainerDriver) Provision(nodeDriver common.NodeDriver, repository com
 		slog.Error("ContainerDriver.Provision", "error", err)
 		return uuid.Nil, err
 	}
+	// The load name is used as container name and volume name prefix
+	if err := identifiers.Validate(loadName); err != nil {
+		err = fmt.Errorf("invalid load name for a container: %w", err)
+		slog.Error("ContainerDriver.Provision", "error", err)
+		return uuid.Nil, err
+	}
+
 	sysCaps := capabilities.Get()
 	if !sysCaps.ContainersEngine() {
 		err := fmt.Errorf("containers engine capability required")
@@ -220,9 +228,15 @@ deprovision_deployment:
 }
 
 func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deployment common.Deployment) error {
-	// Use loadName to create a unique container name
-	containerName := fmt.Sprintf("%s-%s", deployment.LoadName, uuid.New())
+	// Name the container after the load so it's reachable as "<load>.realm"
+	containerName := deployment.LoadName
 	slog.Info("ContainerDriver.Start", "msg", "starting container", "container", containerName)
+
+	if err := c.cleanupContainer(containerName, syscall.SIGKILL, false); err != nil {
+		err = fmt.Errorf("failed to remove leftover container %s: %s", containerName, err.Error())
+		slog.Error("ContainerDriver.Start", "error", err)
+		return repository.UpdateStatus(deployment.ID, common.DeploymentStatus{StatusCode: common.DeploymentStatusError, Reason: err.Error()})
+	}
 
 	createOpts := dto.CreateContainerRequest{
 		Image:       c.config.Image,

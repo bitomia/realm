@@ -844,3 +844,26 @@ func TestBoltDeploymentsRepository_UpdateMetadata_DoesNotAffectOtherFields(t *te
 	assert.True(t, ok)
 	assert.Equal(t, "updated", updatedMetadata["value"])
 }
+
+func TestBoltDeploymentsRepository_GetByLoad_NamePrefix(t *testing.T) {
+	repo, cleanup := setupDeploymentsRepository(t)
+	defer cleanup()
+
+	driver := newMockLoadDriver("test-driver")
+
+	webID, err := repo.Create("web", driver, common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}, nil)
+	require.NoError(t, err)
+	_, err = repo.Create("web-db", driver, common.DeploymentStatus{StatusCode: common.DeploymentStatusReady}, nil)
+	require.NoError(t, err)
+
+	// "web" must not see the deployments of "web-db"
+	deployments, err := repo.GetByLoad("web")
+	assert.NoError(t, err)
+	assert.Len(t, deployments, 1)
+	assert.Equal(t, webID, deployments[0].ID)
+
+	require.NoError(t, repo.DeleteByLoad("web"))
+	deployments, err = repo.GetByLoad("web-db")
+	assert.NoError(t, err)
+	assert.Len(t, deployments, 1)
+}

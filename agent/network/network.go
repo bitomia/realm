@@ -198,7 +198,10 @@ func deleteNetworkConfig(ctx context.Context, containerName string, pid uint32) 
 			return fmt.Errorf("failed to parse CNI config: %s", err)
 		}
 
-		netns := fmt.Sprintf("/proc/%d/ns/net", pid)
+		netns := ""
+		if pid != 0 {
+			netns = fmt.Sprintf("/proc/%d/ns/net", pid)
+		}
 		err = cniConfig.DelNetworkList(ctx, confList, &libcni.RuntimeConf{
 			ContainerID: containerName,
 			NetNS:       netns,
@@ -382,9 +385,11 @@ func DeleteNetwork(containerName string) error {
 	}
 	defer client.Close()
 
+	// Without a task (e.g. leftovers from a failed cleanup) there's no netns,
+	// but CNI state, the host veth and the DNS record still have to go
 	pid, err := cruntime.GetContainerTaskPID(ctx, client, containerName)
 	if err != nil {
-		return err
+		pid = 0
 	}
 	_ = dns.UnregisterContainerDNS(containerName)
 

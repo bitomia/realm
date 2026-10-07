@@ -1,3 +1,5 @@
+// Package containers implement utility functions to manage containers
+// only for the containerd engine
 package containers
 
 import (
@@ -223,12 +225,15 @@ func CreateContainer(containerName string, opts dto.CreateContainerRequest, extr
 
 var invalidVolumeNameChars = regexp.MustCompile(`[^A-Za-z0-9_.-]+`)
 
-func VolumeName(prefix string, mountPoint string) string {
+// VolumeName returns a valid name for volumes of only containerd-based containers.
+func VolumeName(container string, mountPoint string) string {
 	name := strings.Trim(invalidVolumeNameChars.ReplaceAllString(mountPoint, "-"), "-")
-	if prefix == "" {
+	if container == "" {
 		return name
 	}
-	return prefix + "-" + name
+	// "--" can't appear in a valid containerd identifier so volumes of
+	// different loads never collide
+	return container + "--" + name
 }
 
 func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVolume bool) error {
@@ -239,6 +244,10 @@ func DeleteContainer(containerName string, signal syscall.Signal, shallRemoveVol
 	defer client.Close()
 
 	container, err := client.LoadContainer(ctx, containerName)
+	if errdefs.IsNotFound(err) {
+		// Nothing in containerd but the DB record may still be there
+		return db.GetDB().DeleteContainer(containerName)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to retrieve container %s on remove: %s", containerName, err.Error())
 	}

@@ -69,7 +69,8 @@ func (r *BoltDeploymentsRepository) GetByLoad(loadName string) ([]common.Deploym
 		return nil, err
 	}
 
-	loadDeployments, err := r.db.getPrefix(loadKey)
+	// Trailing slash so "web" doesn't match the deployments of "web-db"
+	loadDeployments, err := r.db.getPrefix(loadKey + "/")
 	if err != nil {
 		slog.Error("BoltDeploymentsRepository.GetByLoad", "loadName", loadName, "msg", "retrieving load deployments", "error", err.Error())
 		return nil, err
@@ -153,7 +154,8 @@ func (r *BoltDeploymentsRepository) DeleteByLoad(loadName string) error {
 		return err
 	}
 
-	loadDeployments, err := r.db.getPrefix(loadKey)
+	// Trailing slash so "web" doesn't match the deployments of "web-db"
+	loadDeployments, err := r.db.getPrefix(loadKey + "/")
 	if err != nil {
 		slog.Error("BoltDeploymentsRepository.DeleteByLoad", "loadName", loadName, "msg", "retrieving load deployments", "error", err.Error())
 		return err

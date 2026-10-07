@@ -210,9 +210,9 @@ func TestVolumeName(t *testing.T) {
 		mountPoint string
 		want       string
 	}{
-		{"wordpress-db", "/var/lib/mysql", "wordpress-db-var-lib-mysql"},
-		{"wordpress", "/var/www/html/", "wordpress-var-www-html"},
-		{"web", "/data dir/a:b", "web-data-dir-a-b"},
+		{"wordpress-db", "/var/lib/mysql", "wordpress-db--var-lib-mysql"},
+		{"wordpress", "/var/www/html/", "wordpress--var-www-html"},
+		{"web", "/data dir/a:b", "web--data-dir-a-b"},
 		{"", "/var/lib/mysql", "var-lib-mysql"},
 	}
 
@@ -220,6 +220,11 @@ func TestVolumeName(t *testing.T) {
 		if got := VolumeName(tt.prefix, tt.mountPoint); got != tt.want {
 			t.Errorf("VolumeName(%q, %q) = %q, want %q", tt.prefix, tt.mountPoint, got, tt.want)
 		}
+	}
+
+	// Loads whose names share a dash-separated prefix must not collide
+	if VolumeName("web", "/db-data") == VolumeName("web-db", "/data") {
+		t.Error("volumes of different loads collide")
 	}
 
 	// Same inputs must always produce the same name so volumes are reused

@@ -20,6 +20,13 @@ func createTask(ctx context.Context, container containerd.Container, containerNa
 		return nil, fmt.Errorf("failed to create log directory: %w", err)
 	}
 
+	// Keep the previous run's logs, the container name is reused across starts
+	for _, logPath := range []string{stdoutPath, stderrPath} {
+		if err := os.Rename(logPath, logPath+".1"); err != nil && !os.IsNotExist(err) {
+			slog.Warn("Failed to rotate container log", "path", logPath, "error", err)
+		}
+	}
+
 	stdoutFile, err := os.Create(stdoutPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout log file: %w", err)

@@ -101,6 +101,10 @@ func (db *AgentDB) GetNetConfigs(container string) ([]NetConfig, error) {
 			slog.Error("Error unmarshaling network config", "error", err.Error())
 			continue
 		}
+		// The prefix also matches containers whose name starts with this one
+		if netConfig.Container != container {
+			continue
+		}
 		// Convert to NetConfig format
 		config := NetConfig{
 			Network:        netConfig.Network,
@@ -126,7 +130,12 @@ func (db *AgentDB) DeleteAllNetConfigs(container string) error {
 		return err
 	}
 
-	for key := range data {
+	for key, value := range data {
+		// The prefix also matches containers whose name starts with this one
+		var netConfig NetworkConfig
+		if err := json.Unmarshal([]byte(value), &netConfig); err == nil && netConfig.Container != container {
+			continue
+		}
 		if err := db.delete(key); err != nil {
 			slog.Error("Error deleting network config", "key", key, "error", err.Error())
 			return err

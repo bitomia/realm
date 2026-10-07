@@ -439,3 +439,25 @@ func TestDB_InternalOperations(t *testing.T) {
 	_, err = db.get("test-key")
 	assert.Error(t, err)
 }
+
+func TestNetConfig_ContainerNamePrefix(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	require.NoError(t, db.AddNetConfig("net", "web", []byte("{}"), []byte("{}"), "eth0", "veth0"))
+	require.NoError(t, db.AddNetConfig("net", "web-db", []byte("{}"), []byte("{}"), "eth0", "veth1"))
+
+	// "web" must not see the configs of "web-db"
+	configs, err := db.GetNetConfigs("web")
+	require.NoError(t, err)
+	require.Len(t, configs, 1)
+	assert.Equal(t, "veth0", configs[0].HostIfaceName)
+
+	require.NoError(t, db.DeleteAllNetConfigs("web"))
+	configs, err = db.GetNetConfigs("web-db")
+	require.NoError(t, err)
+	assert.Len(t, configs, 1)
+	configs, err = db.GetNetConfigs("web")
+	require.NoError(t, err)
+	assert.Empty(t, configs)
+}
