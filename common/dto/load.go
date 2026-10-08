@@ -6,7 +6,7 @@ type LoadDeployment struct {
 	LoadName         string                  `json:"load_name"`
 	DeploymentId     string                  `json:"deployment_id"`
 	DeploymentStatus common.DeploymentStatus `json:"deployment_status"`
-	Driver           string                  `json:"driver"`
+	Driver           common.LoadDriverID     `json:"driver"`
 	DriverConfig     any                     `json:"driver_config"`
 	Metadata         any                     `json:"metadata,omitempty"`
 }
