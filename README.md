@@ -1,12 +1,10 @@
-# Realm - Lightweight orchestration service
+# Realm - Workload orchestration and power management for clusters
 
-Realm is a lightweight, embeddable, and extensible open-source orchestration service.
+Realm is a lightweight, open-source service that orchestrates workloads and manages power across clusters. Its plugin-based architecture makes it easy to extend to new hardware and workflows.
 
 It's lightweight because it ships as a single executable: one binary runs as an agent on each node in the cluster and also serves as the command-line client.
 
 It's extensible through a driver system, which lets you add support for custom workloads or node types.
-
-It's embeddable via a C API, so other programs can drive a cluster directly.
 
 ## Quick Installation
 
