@@ -28,7 +28,7 @@ func TestInitializeHTTPExportsSignals(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	shutdown, err := otel.InitializeHTTP(ctx, "agent-test")
+	shutdown, err := otel.InitializeHTTP(ctx, "agent-test", "test-instance")
 	if err != nil {
 		t.Fatalf("initialize: %v", err)
 	}

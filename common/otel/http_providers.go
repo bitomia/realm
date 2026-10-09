@@ -29,6 +29,7 @@ func newHTTPTracerProvider(ctx context.Context, res *resource.Resource) (*trace.
 
 	tracerProvider := trace.NewTracerProvider(
 		trace.WithResource(res),
+		trace.WithSpanProcessor(nodeSpanProcessor{}),
 		trace.WithBatcher(traceExporter, batchOptions...),
 	)
 	return tracerProvider, nil
@@ -60,6 +61,9 @@ func newHTTPLoggerProvider(ctx context.Context, res *resource.Resource) (*log.Lo
 	}
 	loggerProvider := log.NewLoggerProvider(
 		log.WithResource(res),
+		// Processors run in order on the same record, so the node name must be
+		// added before the batch processor exports it
+		log.WithProcessor(nodeLogProcessor{}),
 		log.WithProcessor(log.NewBatchProcessor(logExporter)),
 	)
 

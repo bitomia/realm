@@ -20,8 +20,10 @@ func Enabled() bool {
 }
 
 // Initialize OpenTelemetry HTTP providers for traces, log and metrics
-// Configure destination URL with OTEL_EXPORTER_OTLP_ENDPOINT env variable
-func InitializeHTTP(ctx context.Context, serviceName string) (func(context.Context) error, error) {
+// Configure destination URL with OTEL_EXPORTER_OTLP_ENDPOINT env variable.
+// serviceName identifies the kind of service and instanceID the running
+// instance of it, so all instances can be grouped under the same service
+func InitializeHTTP(ctx context.Context, serviceName, instanceID string) (func(context.Context) error, error) {
 	var shutdownFuncs []func(context.Context) error
 	var err error
 
@@ -42,6 +44,7 @@ func InitializeHTTP(ctx context.Context, serviceName string) (func(context.Conte
 	res, err := resource.Merge(resource.Default(), resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceName(serviceName),
+		semconv.ServiceInstanceID(instanceID),
 	))
 	if err != nil {
 		return nil, err

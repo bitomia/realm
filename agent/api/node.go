@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/bitomia/realm/agent/capabilities"
 	"github.com/bitomia/realm/agent/cloudinit"
@@ -10,6 +11,7 @@ import (
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
+	"github.com/bitomia/realm/common/otel"
 )
 
 // GetVersion returns the agent version
@@ -159,6 +161,8 @@ func LoadNodeConfig(node *common.Node) error {
 		if err := db.NodesRepository.SetSelf(node.Name, node.Driver, node.Registries); err != nil {
 			return err
 		}
+		otel.SetNodeName(node.Name)
+		slog.Info("Agent named", "node", node.Name)
 	}
 	return nil
 }
@@ -221,6 +225,7 @@ func UnloadNodeConfig() error {
 	if err := db.NodesRepository.DeleteSelf(); err != nil {
 		return err
 	}
+	otel.SetNodeName("")
 
 	return nil
 }

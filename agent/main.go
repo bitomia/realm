@@ -77,8 +77,8 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 	// OpenTelemetry export of logs, metrics and traces is opt-in, enabled by
 	// pointing OTEL_EXPORTER_OTLP_ENDPOINT at a collector.
 	if otel.Enabled() {
-		serviceName := "agent-" + agentId
-		otelShutdown, err := otel.InitializeHTTP(context.Background(), serviceName)
+		serviceName := "agent"
+		otelShutdown, err := otel.InitializeHTTP(context.Background(), serviceName, agentId)
 		if err != nil {
 			slog.Error("Failed to initialize OpenTelemetry", "error", err)
 			os.Exit(1)
@@ -115,6 +115,11 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 			slog.Error("Failed to purge database", "error", err.Error())
 			os.Exit(1)
 		}
+	}
+
+	// Restore the node name loaded in a previous run for OpenTelemetry
+	if self, err := db.NodesRepository.GetSelf(); err == nil {
+		otel.SetNodeName(self.NodeName)
 	}
 
 	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
