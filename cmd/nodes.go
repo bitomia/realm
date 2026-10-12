@@ -3,7 +3,15 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"net"
+	"net/url"
+	"os"
+	"slices"
 	"strings"
+	"sync"
+	"text/tabwriter"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -139,6 +147,111 @@ var nodeStates = &cobra.Command{
 				fmt.Println()
 			}
 		}
+	},
+}
+
+type nodeListEntry struct {
+	Name    string `json:"name"`
+	Url     string `json:"url"`
+	Config  bool   `json:"config"`
+	MDNS    bool   `json:"mdns"`
+	Version string `json:"version,omitempty"`
+}
+
+// matchesDiscoveredAgent tells whether a node url points to an agent discovered by mDNS,
+// either by its ".local" name or by one of its addresses.
+func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
+	parsed, err := url.Parse(nodeUrl)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+	if host == "" {
+		return false
+	}
+	if host == agent.Host {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && slices.ContainsFunc(agent.IPs, ip.Equal)
+}
+
+var listNodes = &cobra.Command{
+	Use:                   "list",
+	Aliases:               []string{"ls"},
+	Short:                 "List configured nodes and agents discovered through mDNS",
+	Args:                  cobra.NoArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		timeout, _ := cmd.Flags().GetDuration("timeout")
+		client := clientPkg.NewClient(cfg)
+		nodes := cfg.GetNodes()
+
+		var wg sync.WaitGroup
+		entries := make(map[string]*nodeListEntry, len(nodes))
+		for name, node := range nodes {
+			entry := &nodeListEntry{Name: name, Url: node.Url, Config: true}
+			entries[name] = entry
+			wg.Go(func() {
+				entry.Version, _ = client.GetVersion(entry.Url)
+			})
+		}
+
+		discovered, mdnsErr := common.DiscoverAgents(cmd.Context(), timeout)
+		wg.Wait()
+		if mdnsErr != nil {
+			log.Warn("mDNS discovery failed: %s", mdnsErr.Error())
+		}
+
+		var discoveredOnly []*nodeListEntry
+		for _, agent := range discovered {
+			matched := false
+			for _, entry := range entries {
+				if matchesDiscoveredAgent(entry.Url, agent) {
+					entry.MDNS = true
+					matched = true
+				}
+			}
+			if !matched {
+				entry := &nodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true}
+				discoveredOnly = append(discoveredOnly, entry)
+				wg.Go(func() {
+					entry.Version, _ = client.GetVersion(entry.Url)
+				})
+			}
+		}
+		wg.Wait()
+
+		names := slices.Sorted(maps.Keys(entries))
+		result := make([]*nodeListEntry, 0, len(entries)+len(discoveredOnly))
+		for _, name := range names {
+			result = append(result, entries[name])
+		}
+		result = append(result, discoveredOnly...)
+
+		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
+			json, _ := json.Marshal(result)
+			fmt.Println(string(json))
+			return
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "NAME\tSOURCE\tURL\tVERSION")
+		for _, entry := range result {
+			var sources []string
+			if entry.Config {
+				sources = append(sources, "config")
+			}
+			if entry.MDNS {
+				sources = append(sources, "mdns")
+			}
+			version := entry.Version
+			if version == "" {
+				version = "-"
+			}
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", entry.Name, strings.Join(sources, "+"), entry.Url, version)
+		}
+		_ = w.Flush()
 	},
 }
 
@@ -293,11 +406,14 @@ func init() {
 
 	// General commands
 	nodeStates.Flags().Bool("json", false, "Output as JSON")
+	listNodes.Flags().Bool("json", false, "Output as JSON")
+	listNodes.Flags().Duration("timeout", 2*time.Second, "Time to wait for mDNS discovery")
 	powerOnNodes.Flags().Bool("all", false, "All nodes")
 	powerOffNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
 	restartNodes.Flags().Bool("all", false, "All nodes")
 
+	hostCmd.AddCommand(listNodes)
 	hostCmd.AddCommand(nodeStates)
 	hostCmd.AddCommand(configCmd)
 	hostCmd.AddCommand(powerOnNodes)

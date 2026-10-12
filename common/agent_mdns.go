@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -13,7 +14,7 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
-// Agents advertise themselves as "<hostname>._realm._tcp.local." (see agent/mdns).
+// Agents advertise themselves as "<hostname>._realm._tcp.local."
 // Resolving ".local" agent hosts in-process avoids depending on the system resolver
 const (
 	agentMDNSService  = "_realm._tcp"
@@ -39,8 +40,6 @@ func isMDNSHost(host string) bool {
 	return strings.HasSuffix(strings.ToLower(strings.TrimSuffix(host, ".")), ".local")
 }
 
-// agentMDNSTransport is shared so connections to agents are pooled across requests.
-// TLS verification still uses the URL host, only the dialed address changes.
 func agentMDNSTransport() http.RoundTripper {
 	mdnsTransportOnce.Do(func() {
 		t := http.DefaultTransport.(*http.Transport).Clone()
@@ -125,4 +124,65 @@ func forgetAgentMDNS(host string) {
 	mdnsCacheMu.Lock()
 	delete(mdnsCache, strings.ToLower(strings.TrimSuffix(host, ".")))
 	mdnsCacheMu.Unlock()
+}
+
+type DiscoveredAgent struct {
+	Instance string   `json:"instance"`
+	Host     string   `json:"host"`
+	Port     int      `json:"port"`
+	IPs      []net.IP `json:"ips"`
+}
+
+func (a DiscoveredAgent) URL() string {
+	return fmt.Sprintf("%s://%s", AgentSchemeHTTP, net.JoinHostPort(a.Host, fmt.Sprint(a.Port)))
+}
+
+// DiscoverAgents browses the network for agents for the given duration
+func DiscoverAgents(ctx context.Context, timeout time.Duration) ([]DiscoveredAgent, error) {
+	resolver, err := zeroconf.NewResolver(nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating mDNS resolver: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	entries := make(chan *zeroconf.ServiceEntry)
+	if err := resolver.Browse(ctx, agentMDNSService, agentMDNSDomain, entries); err != nil {
+		return nil, fmt.Errorf("mDNS browse of %s: %w", agentMDNSService, err)
+	}
+
+	byInstance := map[string]*DiscoveredAgent{}
+	var order []string
+	for {
+		select {
+		case <-ctx.Done():
+			agents := make([]DiscoveredAgent, 0, len(order))
+			for _, instance := range order {
+				agents = append(agents, *byInstance[instance])
+			}
+			return agents, nil
+		case entry, ok := <-entries:
+			if !ok {
+				// Resolver closes the channel once the context ends.
+				entries = nil
+				continue
+			}
+			agent, exists := byInstance[entry.Instance]
+			if !exists {
+				agent = &DiscoveredAgent{
+					Instance: entry.Instance,
+					Host:     strings.ToLower(entry.Instance) + ".local",
+					Port:     entry.Port,
+				}
+				byInstance[entry.Instance] = agent
+				order = append(order, entry.Instance)
+			}
+			for _, ip := range append(append([]net.IP{}, entry.AddrIPv4...), entry.AddrIPv6...) {
+				if !slices.ContainsFunc(agent.IPs, ip.Equal) {
+					agent.IPs = append(agent.IPs, ip)
+				}
+			}
+		}
+	}
 }
