@@ -195,6 +195,22 @@ func (c *Client) GetSystemInfo(node string) (*dto.SystemInfo, error) {
 	return &info, nil
 }
 
+func (c *Client) GetVersion(node string) (string, error) {
+	body, _, err := c.doRequest("GET", node, "/version", nil, 5*time.Second)
+	if err != nil {
+		return "", err
+	}
+
+	var res struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(body, &res); err != nil {
+		return "", fmt.Errorf("failed to parse JSON: %v", err)
+	}
+
+	return res.Version, nil
+}
+
 // Authentication
 type LoginRequest struct {
 	Username string `json:"username"`
