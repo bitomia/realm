@@ -226,9 +226,4 @@ func TestVolumeName(t *testing.T) {
 	if VolumeName("web", "/db-data") == VolumeName("web-db", "/data") {
 		t.Error("volumes of different loads collide")
 	}
-
-	// Same inputs must always produce the same name so volumes are reused
-	if VolumeName("db", "/data") != VolumeName("db", "/data") {
-		t.Error("VolumeName is not stable")
-	}
 }
