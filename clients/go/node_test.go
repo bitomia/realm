@@ -84,7 +84,7 @@ func runNodeOperationCase(t *testing.T, name, path, guestPath string, run func(C
 	driver := &modeNodeDriver{mode: mode, guest: guest}
 	node := &common.Node{Name: "lab1", Url: server.URL, Driver: driver}
 
-	err := run(NewUnauthClient(), node)
+	err := run(newTestClient(), node)
 	server.Close()
 
 	assert.NoError(t, err, name)

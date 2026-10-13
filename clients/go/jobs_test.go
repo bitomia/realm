@@ -74,7 +74,7 @@ func collect(client Client, job *common.Job, arguments ...string) ([]common.JobR
 
 func TestClientRunJob(t *testing.T) {
 	server := newAgentServer(t)
-	client := NewUnauthClient()
+	client := newTestClient()
 
 	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
@@ -89,7 +89,7 @@ func TestClientRunJob(t *testing.T) {
 // and every greeting reaches the client.
 func TestClientRunJobWithArguments(t *testing.T) {
 	server := newAgentServer(t)
-	client := NewUnauthClient()
+	client := newTestClient()
 
 	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}), "2")
 
@@ -101,7 +101,7 @@ func TestClientRunJobWithArguments(t *testing.T) {
 
 func TestClientRunJobFailedJob(t *testing.T) {
 	server := newAgentServer(t)
-	client := NewUnauthClient()
+	client := newTestClient()
 
 	results, err := collect(client, jobOn(server, "boom", &failingJobDriver{}))
 
@@ -127,7 +127,7 @@ func TestClientRunJobRequestPayload(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}), "one", "two")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -154,7 +154,7 @@ func TestClientRunJobOmitsEmptyArguments(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	_, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 	require.NoError(t, err)
 
@@ -169,7 +169,7 @@ func TestClientRunJobAgentError(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
 	assert.Empty(t, results)
@@ -182,7 +182,7 @@ func TestClientRunJobUnreachableAgent(t *testing.T) {
 	url := server.URL
 	server.Close()
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	job := &common.Job{Name: "greet", Node: &common.Node{Name: "lab1", Url: url}, Driver: &jobsPkg.HelloDriver{}}
 
 	results, err := collect(client, job)
@@ -198,7 +198,7 @@ func TestClientRunJobInvalidResponseBody(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	results, err := collect(client, jobOn(server, "greet", &jobsPkg.HelloDriver{}))
 
 	assert.Empty(t, results)
@@ -219,7 +219,7 @@ func TestClientRunJobHandlesResultsAsTheyArrive(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	done := make(chan error, 1)
 	go func() {
 		done <- client.RunJob(jobOn(server, "greet", &jobsPkg.HelloDriver{}), func(r common.JobResult) {

@@ -41,14 +41,6 @@ func NewClient(cfg *config.Config) Client {
 	}
 }
 
-func NewUnauthClient() Client {
-	return Client{
-		header: http.Header{
-			"ContentType": []string{"application/json"},
-		},
-	}
-}
-
 // doRequest executes an HTTP request and returns the response body along with
 // the HTTP status code. If the request fails before a response is received
 // (e.g. transport error or malformed request), the returned status code is -1.

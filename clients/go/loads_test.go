@@ -30,7 +30,7 @@ func TestClientStartLoadsRunsEachLoadOnce(t *testing.T) {
 	api := &common.Load{Name: "api", Node: node, DependsOn: []*common.Load{db}}
 	api.StartChain = common.LoadChain{db, api}
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	var handled []string
 	client.StartLoads(map[string]*common.Load{"db": db, "api": api}, func(load *common.Load, err error) {
 		assert.NoError(t, err)
@@ -70,7 +70,7 @@ func TestClientGetLoadsStates(t *testing.T) {
 		"broken": {Name: "broken", Node: &common.Node{Name: "lab2", Url: failing.URL}},
 	}
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	states := client.GetLoadsStates(loads)
 	require.Len(t, states, 3)
 
@@ -100,7 +100,7 @@ func TestClientStreamLoadStdout(t *testing.T) {
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
 
-	client := NewUnauthClient()
+	client := newTestClient()
 	var out strings.Builder
 	err := client.StreamLoadStdout(&common.Load{Name: "web", Node: &common.Node{Url: server.URL}}, &out)
 	require.NoError(t, err)
