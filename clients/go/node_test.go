@@ -1,4 +1,4 @@
-package client
+package golang
 
 import (
 	"net/http"

@@ -16,7 +16,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	clientPkg "github.com/bitomia/realm/cmd/client"
+	clientPkg "github.com/bitomia/realm/clients/go"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
