@@ -8,9 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/bitomia/realm/common"
@@ -23,27 +20,6 @@ const requestTimeout = 120 * time.Second
 type Client struct {
 	header http.Header
 	cfg    *config.Config
-}
-
-func getAuthToken() string {
-	// First check environment variable for backwards compatibility
-	if bearer, exists := os.LookupEnv("REALM_BEARER"); exists {
-		return bearer
-	}
-
-	// Then check ~/.realmrc file
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-
-	realmrcPath := filepath.Join(homeDir, ".realmrc")
-	tokenBytes, err := os.ReadFile(realmrcPath)
-	if err != nil {
-		return ""
-	}
-
-	return strings.TrimSpace(string(tokenBytes))
 }
 
 func NewClient(cfg *config.Config) Client {
@@ -306,30 +282,15 @@ func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, erro
 	return loadDeployments, nil
 }
 
-func (c *Client) ReadLoadStdout(load *common.Load) error {
-	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/stdout", load.Name), nil)
+func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer) error {
+	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/%s", load.Name, output), nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	_, err = io.Copy(os.Stdout, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to stream stdout: %v", err)
-	}
-	return nil
-}
-
-func (c *Client) ReadLoadStderr(load *common.Load) error {
-	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/stderr", load.Name), nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	_, err = io.Copy(os.Stdout, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to stream stderr: %v", err)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		return fmt.Errorf("failed to stream %s: %v", output, err)
 	}
 	return nil
 }

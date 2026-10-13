@@ -4,27 +4,17 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"syscall"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+
+	clientPkg "github.com/bitomia/realm/clients/go"
 )
 
-//nolint:unused // TODO auth module has been temporary disabled
-func saveTokenToFile(token string) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %v", err)
-	}
-
-	realmrcPath := filepath.Join(homeDir, ".realmrc")
-	return os.WriteFile(realmrcPath, []byte(token), 0600)
-}
-
-//nolint:unused // TODO auth module has been temporary disabled
+//nolint:unused
 var authCmd = &cobra.Command{
 	Use:                   "auth",
 	Short:                 "Authorization module",
@@ -34,7 +24,7 @@ var authCmd = &cobra.Command{
 	},
 }
 
-//nolint:unused // TODO auth module has been temporary disabled
+//nolint:unused
 var initCmd = &cobra.Command{
 	Use:                   "init",
 	Short:                 "Init with a secret token",
@@ -50,7 +40,7 @@ var initCmd = &cobra.Command{
 		fmt.Println() // New line after token input
 
 		// Save token to ~/.realmrc file
-		if err := saveTokenToFile(token); err != nil {
+		if err := clientPkg.SaveAuthToken(token); err != nil {
 			color.Yellow("Warning: Failed to save token to ~/.realmrc: %v\n", err)
 			fmt.Println("\nTo use this token, set the REALM_BEARER environment variable:")
 			fmt.Printf("export REALM_BEARER=%s\n", color.CyanString(token))
@@ -60,22 +50,19 @@ var initCmd = &cobra.Command{
 	},
 }
 
-//nolint:unused // TODO auth module has been temporary disabled
+//nolint:unused
 var logoutCmd = &cobra.Command{
 	Use:                   "logout",
 	Short:                 "Logout and remove authentication token",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		homeDir, err := os.UserHomeDir()
+		// Check if a token is stored
+		hasToken, err := clientPkg.HasAuthToken()
 		if err != nil {
-			color.Red("Error getting home directory: %v\n", err)
+			color.Red("Error checking authentication token: %v\n", err)
 			return
 		}
-
-		realmrcPath := filepath.Join(homeDir, ".realmrc")
-
-		// Check if .realmrc file exists
-		if _, err := os.Stat(realmrcPath); os.IsNotExist(err) {
+		if !hasToken {
 			color.Blue("No authentication token found. Already logged out.\n")
 			return
 		}
@@ -95,8 +82,8 @@ var logoutCmd = &cobra.Command{
 			return
 		}
 
-		// Remove the .realmrc file
-		if err := os.Remove(realmrcPath); err != nil {
+		// Remove the stored token
+		if err := clientPkg.RemoveAuthToken(); err != nil {
 			color.Red("Error removing token file: %v\n", err)
 			return
 		}
@@ -105,7 +92,7 @@ var logoutCmd = &cobra.Command{
 	},
 }
 
-// TODO auth module has been temporary disabled
+// TODO auth module temporary disabled
 func init() {
 	// authCmd.AddCommand(initCmd)
 	// authCmd.AddCommand(logoutCmd)

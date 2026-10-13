@@ -3,13 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
-	"net"
-	"net/url"
 	"os"
-	"slices"
 	"strings"
-	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -64,23 +59,22 @@ var nodeStates = &cobra.Command{
 
 		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
 			result := make(map[string]any, len(nodes))
-			for id, cfgNode := range nodes {
-				node, _ := client.GetNode(cfgNode)
-				result[id] = struct {
+			for _, state := range client.GetNodesStates(nodes) {
+				result[state.Node.Name] = struct {
 					common.Node      `json:"config"`
 					dto.NodeResponse `json:"node"`
 				}{
-					*cfgNode,
-					node,
+					*state.Node,
+					state.Response,
 				}
 			}
 			json, _ := json.Marshal(result)
 			fmt.Println(string(json))
 		} else {
-			for id, cfgNode := range nodes {
-				fmt.Printf("Node: %s\n", color.CyanString(id))
-				fmt.Printf(" URL: %s\n", color.CyanString(cfgNode.Url))
-				node, err := client.GetNode(cfgNode)
+			for _, state := range client.GetNodesStates(nodes) {
+				fmt.Printf("Node: %s\n", color.CyanString(state.Node.Name))
+				fmt.Printf(" URL: %s\n", color.CyanString(state.Node.Url))
+				node, err := state.Response, state.Err
 
 				if node.Status.StatusCode == common.NodeStatusOnline {
 					log.Info(" Status: %s [%s]", node.Status.StatusCode, "no configuration loaded")
@@ -132,8 +126,7 @@ var nodeStates = &cobra.Command{
 				}
 
 				if node.Status.StatusCode != common.NodeStatusOffline {
-					info, err := client.GetSystemInfo(cfgNode.Url)
-					if err != nil {
+					if info, err := state.SystemInfo, state.SystemInfoErr; err != nil {
 						log.Info(" System Info: %s", strings.TrimSpace(err.Error()))
 					} else {
 						log.Info(" Capabilities:")
@@ -150,32 +143,6 @@ var nodeStates = &cobra.Command{
 	},
 }
 
-type nodeListEntry struct {
-	Name    string `json:"name"`
-	Url     string `json:"url"`
-	Config  bool   `json:"config"`
-	MDNS    bool   `json:"mdns"`
-	Version string `json:"version,omitempty"`
-}
-
-// matchesDiscoveredAgent tells whether a node url points to an agent discovered by mDNS,
-// either by its ".local" name or by one of its addresses.
-func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
-	parsed, err := url.Parse(nodeUrl)
-	if err != nil {
-		return false
-	}
-	host := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
-	if host == "" {
-		return false
-	}
-	if host == agent.Host {
-		return true
-	}
-	ip := net.ParseIP(host)
-	return ip != nil && slices.ContainsFunc(agent.IPs, ip.Equal)
-}
-
 var listNodes = &cobra.Command{
 	Use:                   "list",
 	Aliases:               []string{"ls"},
@@ -185,49 +152,10 @@ var listNodes = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		timeout, _ := cmd.Flags().GetDuration("timeout")
 		client := clientPkg.NewClient(cfg)
-		nodes := cfg.GetNodes()
-
-		var wg sync.WaitGroup
-		entries := make(map[string]*nodeListEntry, len(nodes))
-		for name, node := range nodes {
-			entry := &nodeListEntry{Name: name, Url: node.Url, Config: true}
-			entries[name] = entry
-			wg.Go(func() {
-				entry.Version, _ = client.GetVersion(entry.Url)
-			})
-		}
-
-		discovered, mdnsErr := common.DiscoverAgents(cmd.Context(), timeout)
-		wg.Wait()
+		result, mdnsErr := client.ListNodes(cmd.Context(), timeout)
 		if mdnsErr != nil {
 			log.Warn("mDNS discovery failed: %s", mdnsErr.Error())
 		}
-
-		var discoveredOnly []*nodeListEntry
-		for _, agent := range discovered {
-			matched := false
-			for _, entry := range entries {
-				if matchesDiscoveredAgent(entry.Url, agent) {
-					entry.MDNS = true
-					matched = true
-				}
-			}
-			if !matched {
-				entry := &nodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true}
-				discoveredOnly = append(discoveredOnly, entry)
-				wg.Go(func() {
-					entry.Version, _ = client.GetVersion(entry.Url)
-				})
-			}
-		}
-		wg.Wait()
-
-		names := slices.Sorted(maps.Keys(entries))
-		result := make([]*nodeListEntry, 0, len(entries)+len(discoveredOnly))
-		for _, name := range names {
-			result = append(result, entries[name])
-		}
-		result = append(result, discoveredOnly...)
 
 		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
 			json, _ := json.Marshal(result)
@@ -264,18 +192,15 @@ var loadNodeConfig = &cobra.Command{
 		nodes := cfg.GetNodes(nodeNames...)
 		client := clientPkg.NewClient(cfg)
 
-		validationSuccess := true
 		log.Info("Validating node configurations:")
-		for _, n := range nodes {
-			if err := client.ValidateNodeConfig(n); err != nil {
-				log.Error("Node '%s' config validatioin error: %s", n.Name, err.Error())
-				validationSuccess = false
+		err := client.ValidateNodesConfig(nodes, func(n *common.Node, err error) {
+			if err != nil {
+				log.Error("Node '%s' config validation error: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' config validated", n.Name)
 			}
-		}
-
-		if !validationSuccess {
+		})
+		if err != nil {
 			log.Error("Validation failed. Load aborted.")
 			return
 		}
@@ -284,13 +209,13 @@ var loadNodeConfig = &cobra.Command{
 		}
 
 		log.Info("Loading node configurations:")
-		for _, n := range nodes {
-			if err := client.LoadNodeConfig(n); err != nil {
+		client.LoadNodesConfig(nodes, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Node '%s' config loading error: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' config loaded", n.Name)
 			}
-		}
+		})
 	},
 }
 
@@ -304,13 +229,13 @@ var unloadNodeConfig = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		log.Info("Unloading node configurations:")
-		for _, n := range nodes {
-			if err := client.UnloadNodeConfig(n); err != nil {
+		client.UnloadNodesConfig(nodes, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Node '%s' config unloading failed: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' config unloaded", n.Name)
 			}
-		}
+		})
 	},
 }
 
@@ -324,13 +249,13 @@ var powerOnNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		log.Info("Powering on nodes:")
-		for _, n := range nodes {
-			if err := client.PowerOnNode(n); err != nil {
+		client.PowerOnNodes(nodes, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Power-on node '%s' failed: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' power-on done", n.Name)
 			}
-		}
+		})
 	},
 }
 
@@ -344,13 +269,13 @@ var powerOffNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		log.Info("Powering off nodes:")
-		for _, n := range nodes {
-			if err := client.PowerOffNode(n); err != nil {
+		client.PowerOffNodes(nodes, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Power off node '%s' failed: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' power-off done", n.Name)
 			}
-		}
+		})
 	},
 }
 
@@ -364,14 +289,13 @@ var restartNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		log.Info("Restarting nodes:")
-		for _, n := range nodes {
-			if err := client.RestartNode(n, "", 0); err != nil {
+		client.RestartNodes(nodes, "", 0, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Restarting node '%s' failed: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' restarted", n.Name)
 			}
-
-		}
+		})
 	},
 }
 
@@ -385,13 +309,13 @@ var shutdownNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		log.Info("Shutting down nodes:")
-		for _, n := range nodes {
-			if err := client.ShutdownNode(n, "", 0); err != nil {
+		client.ShutdownNodes(nodes, "", 0, func(n *common.Node, err error) {
+			if err != nil {
 				log.Warn("Shutting down node '%s' failed: %s", n.Name, err.Error())
 			} else {
 				log.Info("Node '%s' shutting down", n.Name)
 			}
-		}
+		})
 	},
 }
 

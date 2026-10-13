@@ -7,43 +7,11 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	clientPkg "github.com/bitomia/realm/clients/go"
 	"github.com/bitomia/realm/cmd/log"
-	"github.com/bitomia/realm/common"
 )
 
-type driverEntry struct {
-	ID        string `json:"id"`
-	GuestMode *bool  `json:"guest_mode,omitempty"`
-}
-
-type registeredDrivers struct {
-	Nodes []driverEntry `json:"nodes"`
-	Loads []driverEntry `json:"loads"`
-	Jobs  []driverEntry `json:"jobs"`
-}
-
-func collectDrivers() registeredDrivers {
-	drivers := registeredDrivers{
-		Nodes: []driverEntry{},
-		Loads: []driverEntry{},
-		Jobs:  []driverEntry{},
-	}
-
-	for _, info := range common.RegisteredNodeDrivers() {
-		guestMode := info.GuestMode
-		drivers.Nodes = append(drivers.Nodes, driverEntry{ID: string(info.ID), GuestMode: &guestMode})
-	}
-	for _, info := range common.RegisteredLoadDrivers() {
-		drivers.Loads = append(drivers.Loads, driverEntry{ID: string(info.ID)})
-	}
-	for _, info := range common.RegisteredJobDrivers() {
-		drivers.Jobs = append(drivers.Jobs, driverEntry{ID: string(info.ID)})
-	}
-
-	return drivers
-}
-
-func printDrivers(kind string, entries []driverEntry) {
+func printDrivers(kind string, entries []clientPkg.DriverEntry) {
 	log.Info("%s drivers:", kind)
 
 	if len(entries) == 0 {
@@ -67,7 +35,7 @@ var driversCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	PersistentPreRun:      func(cmd *cobra.Command, args []string) {},
 	Run: func(cmd *cobra.Command, args []string) {
-		drivers := collectDrivers()
+		drivers := clientPkg.GetRegisteredDrivers()
 
 		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
 			out, err := json.Marshal(drivers)
