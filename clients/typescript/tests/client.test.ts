@@ -4,11 +4,11 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Client, RequestError } from '../src/index.ts';
+import { Client, RequestError } from '../src/client.ts';
 import type { Config } from '../src/models/config.ts';
 
 class TestClient extends Client {
-  getHeaders(): Record<string, string> {
+  getHeaders(): {[k: string]: string} {
     return this.headers;
   }
 
@@ -266,7 +266,7 @@ describe('client', () => {
     });
 
     it('rejects with status -1 when the payload cannot be encoded', async () => {
-      const payload: Record<string, unknown> = {};
+      const payload: {[k: string]: unknown} = {};
       payload['self'] = payload;
 
       const err = await new TestClient(cfg)
