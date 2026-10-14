@@ -6,6 +6,7 @@ import { agentTargetURL, resolveAgentTarget } from './agent.ts';
 import { getAuthToken } from './auth.ts';
 import type { Config, NodeConfig } from './models/config.ts';
 import type { DeploymentStatus, LoadConfig, LoadDeployment, LoadsDeployments } from './models/load.ts';
+import type { SystemInfo } from './models/node.ts';
 
 export const requestTimeout = 120_000; // ms
 
@@ -150,15 +151,22 @@ export class Client {
         agentURL: string,
         path: string,
         payload?: string | Uint8Array,
+        timeout: number = requestTimeout,
     ): Promise<IncomingMessage> {
         const req = this.#newRequest(method, agentURL, path);
 
         return new Promise<IncomingMessage>((resolve, reject) => {
+            const timer = setTimeout(() => {
+                req.destroy(new Error(`timeout of ${timeout}ms exceeded`));
+            }, timeout);
+
             req.on('error', (err) => {
+                clearTimeout(timer);
                 reject(new RequestError(`failed to make request: ${err.message}`, -1, { cause: err }));
             });
 
             req.on('response', (res: IncomingMessage) => {
+                clearTimeout(timer);
                 const status = res.statusCode ?? -1;
                 if (status === 200) {
                     resolve(res);
@@ -251,8 +259,14 @@ export class Client {
         return typeof metadata.container_name === 'string' ? metadata.container_name : '';
     }
 
-    async #streamLoadOutput(load: LoadConfig, output: string, w: Writable): Promise<void> {
-        const res = await this.doStreamRequest('GET', this.cfg.nodes[load.node].url, `/loads/${load.name}/${output}`);
+    async #streamLoadOutput(load: LoadConfig, output: string, w: Writable, timeout: number): Promise<void> {
+        const res = await this.doStreamRequest(
+            'GET',
+            this.cfg.nodes[load.node].url,
+            `/loads/${load.name}/${output}`,
+            undefined,
+            timeout,
+        );
 
         try {
             await pipeline(res, w, { end: false });
@@ -261,9 +275,30 @@ export class Client {
         }
     }
 
-    async loadNodeConfig(node: NodeConfig): Promise<void> {
+    async getSystemInfo(node: string, timeout: number = requestTimeout): Promise<SystemInfo> {
+        const { body } = await this.doRequest('GET', node, '/system', undefined, timeout);
+
         try {
-            await this.doJSONRequest('POST', node.url, '/node/config', node);
+            return JSON.parse(new TextDecoder().decode(body)) as SystemInfo;
+        } catch (err) {
+            throw new Error(`failed to parse JSON: ${(err as Error).message}`, { cause: err });
+        }
+    }
+
+    async getVersion(node: string, timeout: number = requestTimeout): Promise<string> {
+        const { body } = await this.doRequest('GET', node, '/version', undefined, timeout);
+
+        try {
+            const res = JSON.parse(new TextDecoder().decode(body)) as { version: string };
+            return res.version;
+        } catch (err) {
+            throw new Error(`failed to parse JSON: ${(err as Error).message}`, { cause: err });
+        }
+    }
+
+    async loadNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
+        try {
+            await this.doJSONRequest('POST', node.url, '/node/config', node, timeout);
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeAlreadyConfigured;
@@ -272,9 +307,9 @@ export class Client {
         }
     }
 
-    async validateNodeConfig(node: NodeConfig): Promise<void> {
+    async validateNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
         try {
-            await this.doJSONRequest('POST', node.url, '/node/config?validate=true', node);
+            await this.doJSONRequest('POST', node.url, '/node/config?validate=true', node, timeout);
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeAlreadyConfigured;
@@ -283,13 +318,13 @@ export class Client {
         }
     }
 
-    async unloadNodeConfig(node: NodeConfig): Promise<void> {
+    async unloadNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
         let path = '/node/config';
         if (node.driver === 'vm') {
             path = this.#guestNodePath(node.name, '/config');
         }
 
-        await this.doRequest('DELETE', node.url, path);
+        await this.doRequest('DELETE', node.url, path, undefined, timeout);
     }
 
     // validateNodesConfig validates the config of all given nodes, throwing
@@ -318,28 +353,28 @@ export class Client {
         await this.#runOnNodes(nodes, (n) => this.unloadNodeConfig(n), handle);
     }
 
-    async provisionLoad(load: LoadConfig): Promise<void> {
-        await this.doJSONRequest('POST', this.cfg.nodes[load.node].url, '/loads/provision', load);
+    async provisionLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
+        await this.doJSONRequest('POST', this.cfg.nodes[load.node].url, '/loads/provision', load, timeout);
     }
 
-    async deprovisionLoad(load: LoadConfig): Promise<void> {
-        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/deprovision`);
+    async deprovisionLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
+        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/deprovision`, undefined, timeout);
     }
 
-    async startLoad(load: LoadConfig): Promise<void> {
-        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/start`);
+    async startLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
+        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/start`, undefined, timeout);
     }
 
-    async stopLoad(load: LoadConfig): Promise<void> {
-        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/stop`);
+    async stopLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
+        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/stop`, undefined, timeout);
     }
 
-    async killLoad(load: LoadConfig): Promise<void> {
-        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/kill`);
+    async killLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
+        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/kill`, undefined, timeout);
     }
 
-    async getLoadsDeployments(nodeUrl: string): Promise<LoadsDeployments> {
-        const { body } = await this.doRequest('GET', nodeUrl, '/loads');
+    async getLoadsDeployments(nodeUrl: string, timeout: number = requestTimeout): Promise<LoadsDeployments> {
+        const { body } = await this.doRequest('GET', nodeUrl, '/loads', undefined, timeout);
 
         try {
             return JSON.parse(new TextDecoder().decode(body)) as LoadsDeployments;
@@ -349,12 +384,16 @@ export class Client {
     }
 
     // provisionLoads provisions the given loads, stopping at the first failure.
-    async provisionLoads(loads: { [k: string]: LoadConfig }, handle: LoadResultHandler): Promise<void> {
+    async provisionLoads(
+        loads: { [k: string]: LoadConfig },
+        handle: LoadResultHandler,
+        timeout: number = requestTimeout,
+    ): Promise<void> {
         if (Object.keys(loads).length === 0) {
             throw new Error('no loads');
         }
         for (const load of Object.values(loads)) {
-            const err = await this.#tryOperation(() => this.provisionLoad(load));
+            const err = await this.#tryOperation(() => this.provisionLoad(load, timeout));
             handle(load, err);
             if (err !== undefined) {
                 throw err;
@@ -363,29 +402,45 @@ export class Client {
     }
 
     // deprovisionLoads deprovisions the given loads.
-    async deprovisionLoads(loads: { [k: string]: LoadConfig }, handle: LoadResultHandler): Promise<void> {
+    async deprovisionLoads(
+        loads: { [k: string]: LoadConfig },
+        handle: LoadResultHandler,
+        timeout: number = requestTimeout,
+    ): Promise<void> {
         for (const load of Object.values(loads)) {
-            handle(load, await this.#tryOperation(() => this.deprovisionLoad(load)));
+            handle(load, await this.#tryOperation(() => this.deprovisionLoad(load, timeout)));
         }
     }
 
     // startLoads starts the given loads following their start chains.
-    async startLoads(loads: { [k: string]: LoadConfig }, handle: LoadResultHandler): Promise<void> {
-        await this.#runChains(loads, (l) => this.#startChain(l), (l) => this.startLoad(l), handle);
+    async startLoads(
+        loads: { [k: string]: LoadConfig },
+        handle: LoadResultHandler,
+        timeout: number = requestTimeout,
+    ): Promise<void> {
+        await this.#runChains(loads, (l) => this.#startChain(l), (l) => this.startLoad(l, timeout), handle);
     }
 
     // stopLoads stops the given loads following their stop chains.
-    async stopLoads(loads: { [k: string]: LoadConfig }, handle: LoadResultHandler): Promise<void> {
-        await this.#runChains(loads, (l) => this.#stopChain(l), (l) => this.stopLoad(l), handle);
+    async stopLoads(
+        loads: { [k: string]: LoadConfig },
+        handle: LoadResultHandler,
+        timeout: number = requestTimeout,
+    ): Promise<void> {
+        await this.#runChains(loads, (l) => this.#stopChain(l), (l) => this.stopLoad(l, timeout), handle);
     }
 
     // killLoads kills the given loads following their stop chains.
-    async killLoads(loads: { [k: string]: LoadConfig }, handle: LoadResultHandler): Promise<void> {
-        await this.#runChains(loads, (l) => this.#stopChain(l), (l) => this.killLoad(l), handle);
+    async killLoads(
+        loads: { [k: string]: LoadConfig },
+        handle: LoadResultHandler,
+        timeout: number = requestTimeout,
+    ): Promise<void> {
+        await this.#runChains(loads, (l) => this.#stopChain(l), (l) => this.killLoad(l, timeout), handle);
     }
 
     // getLoadsStates returns the deployment state of the given loads.
-    async getLoadsStates(loads: { [k: string]: LoadConfig }): Promise<LoadState[]> {
+    async getLoadsStates(loads: { [k: string]: LoadConfig }, timeout: number = requestTimeout): Promise<LoadState[]> {
         type NodeDeployments = {
             byLoad: { [k: string]: LoadsDeployments };
             err?: Error;
@@ -402,7 +457,7 @@ export class Client {
                 let deployments: LoadsDeployments = [];
                 let err: Error | undefined;
                 try {
-                    deployments = await this.getLoadsDeployments(nodeUrl);
+                    deployments = await this.getLoadsDeployments(nodeUrl, timeout);
                 } catch (e) {
                     err = e as Error;
                 }
@@ -430,11 +485,11 @@ export class Client {
         return states;
     }
 
-    async streamLoadStdout(load: LoadConfig, w: Writable): Promise<void> {
-        await this.#streamLoadOutput(load, 'stdout', w);
+    async streamLoadStdout(load: LoadConfig, w: Writable, timeout: number = requestTimeout): Promise<void> {
+        await this.#streamLoadOutput(load, 'stdout', w, timeout);
     }
 
-    async streamLoadStderr(load: LoadConfig, w: Writable): Promise<void> {
-        await this.#streamLoadOutput(load, 'stderr', w);
+    async streamLoadStderr(load: LoadConfig, w: Writable, timeout: number = requestTimeout): Promise<void> {
+        await this.#streamLoadOutput(load, 'stderr', w, timeout);
     }
 }
