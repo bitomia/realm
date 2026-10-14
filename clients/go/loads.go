@@ -3,6 +3,7 @@ package golang
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"slices"
@@ -28,6 +29,58 @@ type LoadState struct {
 type LoadsDependency struct {
 	From string
 	To   string
+}
+
+func (c *Client) ProvisionLoad(load *common.Load) error {
+	_, _, err := c.doJSONRequest("POST", load.Node.Url, "/loads/provision", load, requestTimeout)
+	return err
+}
+
+func (c *Client) StartLoad(load *common.Load) error {
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/start", load.Name), nil, requestTimeout)
+	return err
+}
+
+func (c *Client) StopLoad(load *common.Load) error {
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/stop", load.Name), nil, requestTimeout)
+	return err
+}
+
+func (c *Client) KillLoad(load *common.Load) error {
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/kill", load.Name), nil, requestTimeout)
+	return err
+}
+
+func (c *Client) DeprovisionLoad(load *common.Load) error {
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
+	return err
+}
+
+func (c *Client) GetLoadsDeployments(nodeUrl string) (dto.LoadsDeployments, error) {
+	body, _, err := c.doRequest("GET", nodeUrl, "/loads", nil, requestTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	var loadDeployments dto.LoadsDeployments
+	if err := json.Unmarshal(body, &loadDeployments); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	return loadDeployments, nil
+}
+
+func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer) error {
+	resp, err := c.doStreamRequest("GET", load.Node.Url, fmt.Sprintf("/loads/%s/%s", load.Name, output), nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		return fmt.Errorf("failed to stream %s: %v", output, err)
+	}
+	return nil
 }
 
 // ProvisionLoads provisions the given loads, stopping at the first failure.

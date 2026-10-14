@@ -2,9 +2,12 @@ package golang
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -38,6 +41,36 @@ type NodeListEntry struct {
 	// MDNS is true if the node was found through mDNS discovery.
 	MDNS    bool   `json:"mdns"`
 	Version string `json:"version,omitempty"`
+}
+
+func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
+	nodeRes := dto.NewNodeResponse()
+
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return nodeRes, err
+	}
+
+	path := "/node"
+	if driverInfo.GuestMode {
+		path = guestNodePath(node.Name, "")
+	}
+
+	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 10*time.Second)
+	if statusCode != -1 {
+		// Node is online by default if it replied (with success or error)
+		nodeRes.Status.StatusCode = common.NodeStatusOnline
+	}
+	if err != nil {
+		return nodeRes, err
+	}
+
+	// Now we unmarshall the node reply and change StatusCode accordingly
+	if err := json.Unmarshal(body, &nodeRes); err != nil {
+		return nodeRes, fmt.Errorf("failed to parse JSON: %v", err)
+	}
+
+	return nodeRes, nil
 }
 
 // GetNodesStates returns the state and system info of the given nodes.
@@ -118,6 +151,76 @@ func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
 	return ip != nil && slices.ContainsFunc(agent.IPs, ip.Equal)
 }
 
+func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, error) {
+	payload, statusCode, err := c.doRequest("GET", node.Url, "/node/config", nil, requestTimeout)
+	if statusCode == http.StatusNoContent {
+		return nil, common.ErrNodeNotConfigured
+	} else if err != nil {
+		return nil, err
+	} else {
+		var nodeDriverConfig common.NodeDriverConfig
+		if err := json.Unmarshal(payload, &nodeDriverConfig); err != nil {
+			return nil, err
+		}
+		return &nodeDriverConfig, nil
+	}
+}
+
+func (c *Client) LoadNodeConfig(node *common.Node) error {
+	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config", node, requestTimeout)
+	if statusCode == http.StatusConflict {
+		return common.ErrNodeAlreadyConfigured
+	} else {
+		return err
+	}
+}
+
+func (c *Client) ValidateNodeConfig(node *common.Node) error {
+	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config?validate=true", node, requestTimeout)
+	if statusCode == http.StatusConflict {
+		return common.ErrNodeAlreadyConfigured
+	} else {
+		return err
+	}
+}
+
+func (c *Client) UnloadNodeConfig(node *common.Node) error {
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return err
+	}
+
+	path := "/node/config"
+	if driverInfo.GuestMode {
+		path = guestNodePath(node.Name, "/config")
+	}
+
+	_, _, err = c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
+	return err
+}
+
+// guestNodePath returns the agent path for a guest node, optionally followed by suffix.
+func guestNodePath(name string, suffix string) string {
+	return "/node/guests/" + url.PathEscape(name) + suffix
+}
+
+// runNodeOperation executes the operation locally when the driver declares it
+// in client mode, or through the node agent otherwise. remote receives the agent
+// path for the operation, which targets the guest node routes for guest drivers.
+func runNodeOperation(node *common.Node, operation string, mode func(common.NodeDriverInfo) common.RunMode, local func() error, remote func(path string) error) error {
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return fmt.Errorf("driver info: %w", err)
+	}
+	if mode(driverInfo) == common.ClientMode {
+		return local()
+	}
+	if driverInfo.GuestMode {
+		return remote(guestNodePath(node.Name, "/"+operation))
+	}
+	return remote("/node/" + operation)
+}
+
 // ValidateNodesConfig validates the config of all given nodes, returning
 // ErrNodesValidation if any of them is invalid.
 func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) error {
@@ -169,4 +272,50 @@ func runOnNodes(nodes map[string]*common.Node, operation func(*common.Node) erro
 	for _, node := range nodes {
 		handle(node, operation(node))
 	}
+}
+
+func (c *Client) PowerOnNode(node *common.Node) error {
+	return runNodeOperation(node, "poweron",
+		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOnMode },
+		func() error { return node.Driver.PowerOn(node.CloudInit) },
+		func(path string) error {
+			_, _, err := c.doJSONRequest("POST", node.Url, path, node, requestTimeout)
+			return err
+		},
+	)
+}
+
+func (c *Client) PowerOffNode(node *common.Node) error {
+	return runNodeOperation(node, "poweroff",
+		func(i common.NodeDriverInfo) common.RunMode { return i.PowerOffMode },
+		node.Driver.PowerOff,
+		func(path string) error {
+			_, _, err := c.doRequest("POST", node.Url, path, nil, requestTimeout)
+			return err
+		},
+	)
+}
+
+func (c *Client) ShutdownNode(node *common.Node, wallMessage string, offsetTime uint32) error {
+	return runNodeOperation(node, "shutdown",
+		func(i common.NodeDriverInfo) common.RunMode { return i.ShutdownMode },
+		func() error { return node.Driver.Shutdown(wallMessage, offsetTime) },
+		func(path string) error {
+			request := dto.ShutdownNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+			_, _, err := c.doJSONRequest("POST", node.Url, path, request, requestTimeout)
+			return err
+		},
+	)
+}
+
+func (c *Client) RestartNode(node *common.Node, wallMessage string, offsetTime uint32) error {
+	return runNodeOperation(node, "restart",
+		func(i common.NodeDriverInfo) common.RunMode { return i.RestartMode },
+		func() error { return node.Driver.Restart(wallMessage, offsetTime) },
+		func(path string) error {
+			request := dto.RestartNodeRequest{WallMessage: wallMessage, Time: offsetTime}
+			_, _, err := c.doJSONRequest("POST", node.Url, path, request, requestTimeout)
+			return err
+		},
+	)
 }
