@@ -49,8 +49,32 @@ jobs:
     - name: Run tests
       run: make test
 
+  test-typescript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clients/typescript
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 12
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: pnpm
+        cache-dependency-path: clients/typescript/pnpm-lock.yaml
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+    - name: Lint
+      run: pnpm lint
+    - name: Run tests
+      run: pnpm test
+
   build:
-    needs: [verify-format, lint, test]
+    needs: [verify-format, lint, test, test-typescript]
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
