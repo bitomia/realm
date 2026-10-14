@@ -36,6 +36,11 @@ func (c *Client) ProvisionLoad(load *common.Load) error {
 	return err
 }
 
+func (c *Client) DeprovisionLoad(load *common.Load) error {
+	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
+	return err
+}
+
 func (c *Client) StartLoad(load *common.Load) error {
 	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/start", load.Name), nil, requestTimeout)
 	return err
@@ -48,11 +53,6 @@ func (c *Client) StopLoad(load *common.Load) error {
 
 func (c *Client) KillLoad(load *common.Load) error {
 	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/kill", load.Name), nil, requestTimeout)
-	return err
-}
-
-func (c *Client) DeprovisionLoad(load *common.Load) error {
-	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
 	return err
 }
 
@@ -98,6 +98,13 @@ func (c *Client) ProvisionLoads(loads map[string]*common.Load, handle LoadResult
 	return nil
 }
 
+// DeprovisionLoads deprovisions the given loads.
+func (c *Client) DeprovisionLoads(loads map[string]*common.Load, handle LoadResultHandler) {
+	for _, load := range loads {
+		handle(load, c.DeprovisionLoad(load))
+	}
+}
+
 // StartLoads starts the given loads following their start chains.
 func (c *Client) StartLoads(loads map[string]*common.Load, handle LoadResultHandler) {
 	runChains(loads, func(l *common.Load) []*common.Load { return l.StartChain }, c.StartLoad, handle)
@@ -111,13 +118,6 @@ func (c *Client) StopLoads(loads map[string]*common.Load, handle LoadResultHandl
 // KillLoads kills the given loads following their stop chains.
 func (c *Client) KillLoads(loads map[string]*common.Load, handle LoadResultHandler) {
 	runChains(loads, func(l *common.Load) []*common.Load { return l.StopChain }, c.KillLoad, handle)
-}
-
-// DeprovisionLoads deprovisions the given loads.
-func (c *Client) DeprovisionLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	for _, load := range loads {
-		handle(load, c.DeprovisionLoad(load))
-	}
 }
 
 func runChains(loads map[string]*common.Load, chain func(*common.Load) []*common.Load, operation func(*common.Load) error, handle LoadResultHandler) {
