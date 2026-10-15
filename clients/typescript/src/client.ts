@@ -2,10 +2,13 @@ import { request as httpRequest, type ClientRequest, type IncomingMessage } from
 import { request as httpsRequest } from 'node:https';
 import type { Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { createInterface } from 'node:readline';
 import { agentTargetURL, resolveAgentTarget } from './agent.ts';
 import { getAuthToken } from './auth.ts';
-import type { Config, NodeConfig } from './models/config.ts';
+import type { Config, JobConfig, NodeConfig } from './models/config.ts';
 import type { DeploymentStatus, LoadConfig, LoadDeployment, LoadsDeployments } from './models/load.ts';
+import type { JobResult } from './models/job.ts';
+import type { JobRequest } from './models/job.dto.ts';
 import type { SystemInfo } from './models/node.ts';
 
 export const requestTimeout = 120_000; // ms
@@ -491,5 +494,40 @@ export class Client {
 
     async streamLoadStderr(load: LoadConfig, w: Writable, timeout: number = requestTimeout): Promise<void> {
         await this.#streamLoadOutput(load, 'stderr', w, timeout);
+    }
+
+    async runJob(
+        job: JobConfig,
+        handle: (result: JobResult) => void,
+        args: string[] = [],
+        timeout: number = requestTimeout,
+    ): Promise<void> {
+        const request: JobRequest = {
+            name: job.name,
+            driver: job.driver,
+            driver_config: job.driver_config,
+            arguments: args,
+        };
+
+        const res = await this.doStreamRequest(
+            'POST',
+            this.cfg.nodes[job.node].url,
+            '/jobs',
+            JSON.stringify(request),
+            timeout,
+        );
+
+        for await (const line of createInterface({ input: res, crlfDelay: Infinity })) {
+            if (line.trim() === '') {
+                continue;
+            }
+            let result: JobResult;
+            try {
+                result = JSON.parse(line) as JobResult;
+            } catch (err) {
+                throw new Error(`failed to parse job result: ${(err as Error).message}`, { cause: err });
+            }
+            handle(result);
+        }
     }
 }
