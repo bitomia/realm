@@ -22,6 +22,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc && vite build",
+    "prepare": "pnpm build",
     "lint": "tsc",
     "test": "vitest run",
     "test:watch": "vitest"
