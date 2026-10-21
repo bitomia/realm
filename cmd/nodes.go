@@ -144,15 +144,14 @@ var nodeStates = &cobra.Command{
 }
 
 var listNodes = &cobra.Command{
-	Use:                   "list",
-	Aliases:               []string{"ls"},
-	Short:                 "List configured nodes and agents discovered through mDNS",
+	Use:                   "discover",
+	Short:                 "Discover configured nodes and agents through mDNS",
 	Args:                  cobra.NoArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		timeout, _ := cmd.Flags().GetDuration("timeout")
 		client := clientPkg.NewClient(cfg)
-		result, mdnsErr := client.ListNodes(cmd.Context(), timeout)
+		result, mdnsErr := client.DiscoverNodes(cmd.Context(), timeout)
 		if mdnsErr != nil {
 			log.Warn("mDNS discovery failed: %s", mdnsErr.Error())
 		}

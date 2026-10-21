@@ -56,7 +56,7 @@ func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 		path = guestNodePath(node.Name, "")
 	}
 
-	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 10*time.Second)
+	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 50*time.Second)
 	if statusCode != -1 {
 		// Node is online by default if it replied (with success or error)
 		nodeRes.Status.StatusCode = common.NodeStatusOnline
@@ -88,8 +88,9 @@ func (c *Client) GetNodesStates(nodes map[string]*common.Node) []NodeState {
 	return states
 }
 
-// ListNodes returns the nodes available on the cluster.
-func (c *Client) ListNodes(ctx context.Context, timeout time.Duration) ([]*NodeListEntry, error) {
+// DiscoverNodes returns the nodes available on the cluster.
+func (c *Client) DiscoverNodes(ctx context.Context, timeout time.Duration) ([]*NodeListEntry, error) {
+
 	nodes := c.cfg.GetNodes()
 
 	var wg sync.WaitGroup
@@ -97,12 +98,10 @@ func (c *Client) ListNodes(ctx context.Context, timeout time.Duration) ([]*NodeL
 	for name, node := range nodes {
 		entry := &NodeListEntry{Name: name, Url: node.Url, Config: true}
 		entries[name] = entry
-		wg.Go(func() {
-			entry.Version, _ = c.GetVersion(entry.Url)
-		})
 	}
 
 	discovered, mdnsErr := common.DiscoverAgents(ctx, timeout)
+	c.discovered, c.discoverCached = discovered, true
 	wg.Wait()
 
 	var discoveredOnly []*NodeListEntry
@@ -115,14 +114,9 @@ func (c *Client) ListNodes(ctx context.Context, timeout time.Duration) ([]*NodeL
 			}
 		}
 		if !matched {
-			entry := &NodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true}
-			discoveredOnly = append(discoveredOnly, entry)
-			wg.Go(func() {
-				entry.Version, _ = c.GetVersion(entry.Url)
-			})
+			discoveredOnly = append(discoveredOnly, &NodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true})
 		}
 	}
-	wg.Wait()
 
 	result := make([]*NodeListEntry, 0, len(entries)+len(discoveredOnly))
 	for _, name := range slices.Sorted(maps.Keys(entries)) {
@@ -130,7 +124,35 @@ func (c *Client) ListNodes(ctx context.Context, timeout time.Duration) ([]*NodeL
 	}
 	result = append(result, discoveredOnly...)
 
+	for _, entry := range result {
+		wg.Go(func() {
+			entry.Version, _ = c.GetVersion(entry.Url)
+		})
+	}
+	wg.Wait()
+
 	return result, mdnsErr
+}
+
+// meshNetworks returns the IPv4 networks of the local netplane interfaces.
+func meshNetworks() []*net.IPNet {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	var networks []*net.IPNet
+	for _, iface := range ifaces {
+		if !strings.HasPrefix(iface.Name, "netplane") {
+			continue
+		}
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.To4() != nil {
+				networks = append(networks, ipNet)
+			}
+		}
+	}
+	return networks
 }
 
 // matchesDiscoveredAgent tells whether a node url points to an agent discovered by mDNS,

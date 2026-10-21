@@ -2,10 +2,15 @@ package golang
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/bitomia/realm/common"
@@ -13,11 +18,16 @@ import (
 	"github.com/bitomia/realm/common/dto"
 )
 
-const requestTimeout = 120 * time.Second
+const (
+	requestTimeout         = 120 * time.Second
+	discoveryLookupTimeout = 2 * time.Second
+)
 
 type Client struct {
-	header http.Header
-	cfg    *config.Config
+	header         http.Header
+	cfg            *config.Config
+	discovered     []common.DiscoveredAgent
+	discoverCached bool
 }
 
 func NewClient(cfg *config.Config) Client {
@@ -39,12 +49,64 @@ func NewClient(cfg *config.Config) Client {
 	}
 }
 
+func (c *Client) agentAddress(agentURL string) string {
+	filterByMeshIP := func(ips []net.IP, meshNets []*net.IPNet) net.IP {
+		candidates := ips
+		var mesh []net.IP
+		for _, ip := range ips {
+			if slices.ContainsFunc(meshNets, func(n *net.IPNet) bool { return n.Contains(ip) }) {
+				mesh = append(mesh, ip)
+			}
+		}
+		if len(mesh) > 0 {
+			candidates = mesh
+		}
+		for _, ip := range candidates {
+			if ip4 := ip.To4(); ip4 != nil {
+				return ip4
+			}
+		}
+		return nil
+	}
+
+	parsedURL, err := url.Parse(agentURL)
+	if err != nil || !strings.HasSuffix(strings.ToLower(parsedURL.Hostname()), ".local") {
+		return agentURL
+	}
+
+	if !c.discoverCached {
+		c.discovered, _ = common.DiscoverAgents(context.Background(), discoveryLookupTimeout)
+		c.discoverCached = true
+	}
+
+	for _, agent := range c.discovered {
+		if !matchesDiscoveredAgent(agentURL, agent) {
+			continue
+		}
+
+		ip := filterByMeshIP(agent.IPs, meshNetworks())
+		if ip == nil {
+			return agentURL
+		}
+
+		if port := parsedURL.Port(); port != "" {
+			parsedURL.Host = net.JoinHostPort(ip.String(), port)
+		} else {
+			parsedURL.Host = ip.String()
+		}
+
+		return parsedURL.String()
+	}
+
+	return agentURL
+}
+
 // doRequest executes an HTTP request and returns the response body along with
 // the HTTP status code. If the request fails before a response is received
 // (e.g. transport error or malformed request), the returned status code is -1.
 // A non-200 status yields an error whose message is the raw response body.
 func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, timeout time.Duration) ([]byte, int, error) {
-	target, err := common.ResolveAgentTarget(agentURL)
+	target, err := common.ResolveAgentTarget(c.agentAddress(agentURL))
 	if err != nil {
 		return nil, -1, err
 	}
@@ -92,7 +154,7 @@ func (c *Client) doJSONRequest(method, agentURL, path string, payload any, timeo
 
 // doStreamRequest executes an HTTP request and returns the raw response for streaming.
 func (c *Client) doStreamRequest(method, agentURL, path string, body io.Reader) (*http.Response, error) {
-	target, err := common.ResolveAgentTarget(agentURL)
+	target, err := common.ResolveAgentTarget(c.agentAddress(agentURL))
 	if err != nil {
 		return nil, err
 	}
