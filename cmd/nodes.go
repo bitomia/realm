@@ -163,7 +163,7 @@ var listNodes = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tSOURCE\tURL\tVERSION")
+		fmt.Fprintln(w, "NAME\tSOURCE\tURL\tIP\tVERSION")
 		for _, entry := range result {
 			var sources []string
 			if entry.Config {
@@ -176,7 +176,8 @@ var listNodes = &cobra.Command{
 			if version == "" {
 				version = "-"
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", entry.Name, strings.Join(sources, "+"), entry.Url, version)
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", entry.Name, strings.Join(sources, "+"), entry.Url, entry.MeshIP.String(), version)
 		}
 		_ = w.Flush()
 	},

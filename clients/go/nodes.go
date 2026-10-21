@@ -40,6 +40,7 @@ type NodeListEntry struct {
 	Config bool `json:"config"`
 	// MDNS is true if the node was found through mDNS discovery.
 	MDNS    bool   `json:"mdns"`
+	MeshIP  net.IP `json:"mesh_ip,omitempty"`
 	Version string `json:"version,omitempty"`
 }
 
@@ -89,8 +90,7 @@ func (c *Client) GetNodesStates(nodes map[string]*common.Node) []NodeState {
 }
 
 // DiscoverNodes returns the nodes available on the cluster.
-func (c *Client) DiscoverNodes(ctx context.Context, timeout time.Duration) ([]*NodeListEntry, error) {
-
+func (c *Client) DiscoverNodes(ctx context.Context, timeout time.Duration) (map[string]*NodeListEntry, error) {
 	nodes := c.cfg.GetNodes()
 
 	var wg sync.WaitGroup
@@ -104,34 +104,30 @@ func (c *Client) DiscoverNodes(ctx context.Context, timeout time.Duration) ([]*N
 	c.discovered, c.discoverCached = discovered, true
 	wg.Wait()
 
-	var discoveredOnly []*NodeListEntry
+	meshNetworkIPs := meshNetworks()
 	for _, agent := range discovered {
 		matched := false
 		for _, entry := range entries {
 			if matchesDiscoveredAgent(entry.Url, agent) {
 				entry.MDNS = true
+				entry.MeshIP = c.filterByMeshIP(agent.IPs, meshNetworkIPs)
 				matched = true
+				break
 			}
 		}
 		if !matched {
-			discoveredOnly = append(discoveredOnly, &NodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true})
+			entries[agent.Instance] = &NodeListEntry{Name: agent.Instance, Url: agent.URL(), MDNS: true, MeshIP: c.filterByMeshIP(agent.IPs, meshNetworkIPs)}
 		}
 	}
 
-	result := make([]*NodeListEntry, 0, len(entries)+len(discoveredOnly))
-	for _, name := range slices.Sorted(maps.Keys(entries)) {
-		result = append(result, entries[name])
-	}
-	result = append(result, discoveredOnly...)
-
-	for _, entry := range result {
+	for _, entry := range entries {
 		wg.Go(func() {
 			entry.Version, _ = c.GetVersion(entry.Url)
 		})
 	}
 	wg.Wait()
 
-	return result, mdnsErr
+	return entries, mdnsErr
 }
 
 // meshNetworks returns the IPv4 networks of the local netplane interfaces.

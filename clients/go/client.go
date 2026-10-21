@@ -50,25 +50,6 @@ func NewClient(cfg *config.Config) Client {
 }
 
 func (c *Client) agentAddress(agentURL string) string {
-	filterByMeshIP := func(ips []net.IP, meshNets []*net.IPNet) net.IP {
-		candidates := ips
-		var mesh []net.IP
-		for _, ip := range ips {
-			if slices.ContainsFunc(meshNets, func(n *net.IPNet) bool { return n.Contains(ip) }) {
-				mesh = append(mesh, ip)
-			}
-		}
-		if len(mesh) > 0 {
-			candidates = mesh
-		}
-		for _, ip := range candidates {
-			if ip4 := ip.To4(); ip4 != nil {
-				return ip4
-			}
-		}
-		return nil
-	}
-
 	parsedURL, err := url.Parse(agentURL)
 	if err != nil || !strings.HasSuffix(strings.ToLower(parsedURL.Hostname()), ".local") {
 		return agentURL
@@ -84,7 +65,7 @@ func (c *Client) agentAddress(agentURL string) string {
 			continue
 		}
 
-		ip := filterByMeshIP(agent.IPs, meshNetworks())
+		ip := c.filterByMeshIP(agent.IPs, meshNetworks())
 		if ip == nil {
 			return agentURL
 		}
@@ -263,4 +244,23 @@ func (c *Client) Login(node string, username string, password string) (string, e
 	}
 
 	return loginResp.Token, nil
+}
+
+func (c *Client) filterByMeshIP(ips []net.IP, meshNets []*net.IPNet) net.IP {
+	candidates := ips
+	var mesh []net.IP
+	for _, ip := range ips {
+		if slices.ContainsFunc(meshNets, func(n *net.IPNet) bool { return n.Contains(ip) }) {
+			mesh = append(mesh, ip)
+		}
+	}
+	if len(mesh) > 0 {
+		candidates = mesh
+	}
+	for _, ip := range candidates {
+		if ip4 := ip.To4(); ip4 != nil {
+			return ip4
+		}
+	}
+	return nil
 }
