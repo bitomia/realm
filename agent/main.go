@@ -117,14 +117,14 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 		}
 	}
 
+	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
+		return common.NodeContext{Repository: db.NodesRepository, Capabilities: capabilities.Get(), NodeName: nodeName, RunMode: common.AgentMode}
+	})
+
 	// Restore the node name loaded in a previous run for OpenTelemetry
 	if self, err := db.NodesRepository.GetSelf(); err == nil {
 		otel.SetNodeName(self.NodeName)
 	}
-
-	common.SetNodeContextBuilder(func(nodeName string) common.NodeContext {
-		return common.NodeContext{Repository: db.NodesRepository, Capabilities: capabilities.Get(), NodeName: nodeName, RunMode: common.AgentMode}
-	})
 
 	if err := dns.Initialize(); err != nil {
 		slog.Error("DNS initialization failed", "error", err.Error())
