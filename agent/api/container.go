@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/containerd/containerd"
+	containerd "github.com/containerd/containerd/v2/client"
 
 	"github.com/bitomia/realm/agent/containers"
 	"github.com/bitomia/realm/agent/cruntime"

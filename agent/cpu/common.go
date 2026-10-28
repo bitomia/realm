@@ -5,8 +5,8 @@ import (
 	"time"
 
 	cgroupstats "github.com/containerd/cgroups/v2/stats"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/errdefs"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/errdefs"
 	"github.com/shirou/gopsutil/v4/cpu"
 
 	"github.com/bitomia/realm/common"

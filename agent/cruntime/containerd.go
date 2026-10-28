@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 
 	"github.com/bitomia/realm/agent/config"
 )

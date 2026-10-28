@@ -16,8 +16,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/cio"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/cio"
 	"github.com/containernetworking/cni/libcni"
 	types100 "github.com/containernetworking/cni/pkg/types/100"
 	"github.com/opencontainers/runtime-spec/specs-go"
