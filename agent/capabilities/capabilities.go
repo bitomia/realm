@@ -1,8 +1,12 @@
 package capabilities
 
 import (
+	"errors"
 	"log/slog"
+	"os"
+	"syscall"
 
+	"github.com/containerd/errdefs"
 	"github.com/digitalocean/go-libvirt"
 	"github.com/digitalocean/go-libvirt/socket/dialers"
 
@@ -57,17 +61,19 @@ func (c SystemCapabilities) evalContainersEngine() {
 	systemCaps.containersEngine = err == nil
 
 	if err != nil {
-		slog.Warn("Cannot get containerd version", "error", err.Error())
+		if !errdefs.IsUnavailable(err) {
+			slog.Warn("Cannot get containerd version", "error", err.Error())
+		} else {
+			slog.Info("Containerd not available")
+		}
 	} else {
 		slog.Info("Containerd version", "version", containerdVersion)
 	}
 }
 
 func (c SystemCapabilities) evalContainersNetworking() {
-	slog.Info("Checking containers networking availability")
-
 	if err := network.IsCNIAvailable(); err != nil {
-		slog.Warn("CNI validation failed", "error", err.Error())
+		slog.Info("Containers networking not available")
 		return
 	}
 
@@ -100,7 +106,11 @@ func (c SystemCapabilities) evalVolumes(cfg *config.Config) {
 func (c SystemCapabilities) evalVMM() {
 	l := libvirt.NewWithDialer(dialers.NewLocal())
 	if err := l.Connect(); err != nil {
-		slog.Warn("Cannot connect to libvirt", "error", err.Error())
+		if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, os.ErrDeadlineExceeded) {
+			slog.Info("VMM not available")
+		} else {
+			slog.Warn("Cannot connect to libvirt", "error", err.Error())
+		}
 		systemCaps.vmm = false
 		return
 	}

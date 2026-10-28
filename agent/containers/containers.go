@@ -13,8 +13,9 @@ import (
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/core/containers"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/containerd/v2/pkg/oci"
+	"github.com/containerd/errdefs"
+	"github.com/containerd/errdefs/pkg/errgrpc"
 	"github.com/opencontainers/runtime-spec/specs-go"
 
 	"github.com/bitomia/realm/agent/cruntime"
@@ -55,7 +56,7 @@ func GetContainerdVersion() (*containerd.Version, error) {
 
 	version, err := client.Version(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errgrpc.ToNative(err)
 	}
 	return &version, nil
 }

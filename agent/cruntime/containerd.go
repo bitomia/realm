@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/containerd/containerd/v2/pkg/namespaces"
@@ -13,7 +14,7 @@ import (
 
 func CreateClient() (ctx context.Context, c *containerd.Client, err error) {
 	containerdSock := config.Get().Agent.ContainerdSock
-	client, error := containerd.New(containerdSock)
+	client, error := containerd.New(containerdSock, containerd.WithTimeout(3*time.Second))
 	if error != nil {
 		log.Printf("Failed to create containerd client: %v", error)
 		return nil, nil, error
