@@ -111,7 +111,7 @@ func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, tim
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, fmt.Errorf("%s", string(body))
+		return nil, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(body)))
 	}
 	return body, resp.StatusCode, nil
 }

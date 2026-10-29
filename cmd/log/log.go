@@ -17,6 +17,7 @@ const (
 	ERROR
 	DEBUG
 	FATAL
+	SUCCESS
 )
 
 func logMessage(level LogLevel, format string, args ...any) {
@@ -25,6 +26,8 @@ func logMessage(level LogLevel, format string, args ...any) {
 	switch level {
 	case INFO:
 		fmt.Printf("%s\n", msg)
+	case SUCCESS:
+		fmt.Printf("%s\n", color.GreenString(msg))
 	case WARN:
 		fmt.Printf("%s\n", color.YellowString(msg))
 	case ERROR:
@@ -38,6 +41,11 @@ func logMessage(level LogLevel, format string, args ...any) {
 
 func Info(format string, args ...any) {
 	logMessage(INFO, format, args...)
+}
+
+// Success logs messages
+func Success(format string, args ...any) {
+	logMessage(SUCCESS, format, args...)
 }
 
 // Warn logs warning messages

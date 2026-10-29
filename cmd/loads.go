@@ -45,16 +45,31 @@ var provisionLoads = &cobra.Command{
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := cfg.GetLoads(loadNames...)
 		client := clientPkg.NewClient(cfg)
-		err := client.ProvisionLoads(loads, func(load *common.Load, err error) {
+		client.ProvisionLoads(loads, func(load *common.Load, err error) {
 			if err == nil {
-				log.Info("Load %s provisioned", color.CyanString(load.Name))
+				log.Success("Provisioning %s completed", color.CyanString(load.Name))
+			} else {
+				log.Warn("Provisioning %s failed: %s", color.CyanString(load.Name), err.Error())
 			}
 		})
-		if err != nil {
-			log.Warn("Error provisioning load: %s", err.Error())
-		} else {
-			log.Info("Successfully verified loads on cluster")
-		}
+	},
+}
+
+var deprovisionLoads = &cobra.Command{
+	Use:                   "deprovision [--all | load...]",
+	Short:                 "Remove provisioned loads",
+	Args:                  validateLoadArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, loadNames []string) {
+		loads := cfg.GetLoads(loadNames...)
+		client := clientPkg.NewClient(cfg)
+		client.DeprovisionLoads(loads, func(load *common.Load, err error) {
+			if err == nil {
+				log.Success("Deprovisioning %s completed", color.CyanString(load.Name))
+			} else {
+				log.Warn("Deprovisioning %s failed: %s", color.CyanString(load.Name), err.Error())
+			}
+		})
 	},
 }
 
@@ -114,10 +129,10 @@ var startLoads = &cobra.Command{
 		loads := cfg.GetLoads(loadNames...)
 		client := clientPkg.NewClient(cfg)
 		client.StartLoads(loads, func(load *common.Load, err error) {
-			if err != nil {
-				log.Warn("Starting load %s failed: %s", color.CyanString(load.Name), err.Error())
+			if err == nil {
+				log.Success("Starting %s completed", color.CyanString(load.Name))
 			} else {
-				log.Info("Load %s started", color.CyanString(load.Name))
+				log.Warn("Starting %s failed: %s", color.CyanString(load.Name), err.Error())
 			}
 		})
 	},
@@ -132,10 +147,10 @@ var stopLoads = &cobra.Command{
 		loads := cfg.GetLoads(loadNames...)
 		client := clientPkg.NewClient(cfg)
 		client.StopLoads(loads, func(load *common.Load, err error) {
-			if err != nil {
-				log.Warn("Stopping load %s failed: %s", color.CyanString(load.Name), err.Error())
+			if err == nil {
+				log.Success("Stopping %s completed", color.CyanString(load.Name))
 			} else {
-				log.Info("Load %s stopped", color.CyanString(load.Name))
+				log.Warn("Stopping %s failed: %s", color.CyanString(load.Name), err.Error())
 			}
 		})
 	},
@@ -154,24 +169,6 @@ var killLoads = &cobra.Command{
 				log.Warn("Killing load %s failed: %s", color.CyanString(load.Name), err.Error())
 			} else {
 				log.Info("Load %s killed", color.CyanString(load.Name))
-			}
-		})
-	},
-}
-
-var deprovisionLoads = &cobra.Command{
-	Use:                   "deprovision [--all | load...]",
-	Short:                 "Remove provisioned loads",
-	Args:                  validateLoadArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
-		client.DeprovisionLoads(loads, func(load *common.Load, err error) {
-			if err != nil {
-				log.Warn("Deprovisioning load %s failed: %s", color.CyanString(load.Name), err.Error())
-			} else {
-				log.Info("Load %s deprovisioned", color.CyanString(load.Name))
 			}
 		})
 	},
