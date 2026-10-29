@@ -20,6 +20,8 @@ import (
 
 var ErrNodesValidation = errors.New("node config validation failed")
 
+const nodeReadyPollInterval = 2 * time.Second
+
 type NodeResultHandler func(node *common.Node, err error)
 
 type NodeState struct {
@@ -284,6 +286,51 @@ func (c *Client) ShutdownNodes(nodes map[string]*common.Node, wallMessage string
 // RestartNodes restarts the given nodes.
 func (c *Client) RestartNodes(nodes map[string]*common.Node, wallMessage string, offsetTime uint32, handle NodeResultHandler) {
 	runOnNodes(nodes, func(n *common.Node) error { return c.RestartNode(n, wallMessage, offsetTime) }, handle)
+}
+
+// WaitNodesReady waits concurrently for the given nodes to be ready, each one
+// bounded by its start timeout.
+func (c *Client) WaitNodesReady(ctx context.Context, nodes map[string]*common.Node, handle NodeResultHandler) {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := c.WaitNodeReady(ctx, node)
+			mu.Lock()
+			defer mu.Unlock()
+			handle(node, err)
+		}()
+	}
+	wg.Wait()
+}
+
+// WaitNodeReady polls the node agent /version endpoint until it responds or
+// the node start timeout expires.
+func (c *Client) WaitNodeReady(ctx context.Context, node *common.Node) error {
+	timeout := time.Duration(node.Timeout.WithDefaults().Start)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(nodeReadyPollInterval)
+	defer ticker.Stop()
+
+	for {
+		_, err := c.GetVersion(node.Url)
+		if err == nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return fmt.Errorf("node not ready after %s: %w", timeout, err)
+			}
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
 }
 
 func runOnNodes(nodes map[string]*common.Node, operation func(*common.Node) error, handle NodeResultHandler) {

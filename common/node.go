@@ -11,6 +11,7 @@ import (
 type NodeConfig struct {
 	Name         string               `json:"name"`
 	Url          string               `json:"url"`
+	Timeout      TimeoutConfig        `json:"timeout,omitempty"`
 	CloudInit    *cloudinit.CloudInit `json:"cloud_init,omitempty"`
 	Driver       NodeDriverID         `json:"driver,omitempty"`
 	DriverConfig *any                 `json:"driver_config,omitempty"`
@@ -20,6 +21,7 @@ type NodeConfig struct {
 type Node struct {
 	Name       string
 	Url        string
+	Timeout    TimeoutConfig
 	CloudInit  *cloudinit.CloudInit
 	Registries []RegistryConfig
 	Driver     NodeDriver
@@ -43,6 +45,7 @@ func newNodeFromConfig(ctx NodeContext, config *NodeConfig) (*Node, error) {
 	var node Node
 	node.Name = config.Name
 	node.Url = agentURL
+	node.Timeout = config.Timeout.WithDefaults()
 	node.CloudInit = config.CloudInit
 	node.Registries = config.Registries
 	node.Driver = driver
@@ -54,6 +57,7 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NodeConfig{
 		Name:         n.Name,
 		Url:          n.Url,
+		Timeout:      n.Timeout,
 		CloudInit:    n.CloudInit,
 		Registries:   n.Registries,
 		Driver:       n.Driver.ID(),
@@ -72,6 +76,7 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 	} else {
 		n.Name = naux.Name
 		n.Url = naux.Url
+		n.Timeout = naux.Timeout
 		n.CloudInit = naux.CloudInit
 		n.Registries = naux.Registries
 		n.Driver = naux.Driver

@@ -1,9 +1,12 @@
 package golang
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -95,4 +98,36 @@ func runNodeOperationCase(t *testing.T, name, path, guestPath string, run func(C
 		assert.Equal(t, 0, driver.localCalls, "%s in agent mode must not run locally", name)
 		assert.Equal(t, 1, agentCalls, "%s in agent mode must call the agent", name)
 	}
+}
+
+func TestWaitNodeReady(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/version", r.URL.Path)
+		if calls.Add(1) < 2 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"version":"test"}`))
+	}))
+	defer server.Close()
+
+	node := &common.Node{Name: "lab1", Url: server.URL, Timeout: common.TimeoutConfig{Start: common.Duration(10 * time.Second)}}
+
+	client := newTestClient()
+	assert.NoError(t, client.WaitNodeReady(context.Background(), node))
+	assert.Equal(t, int32(2), calls.Load())
+}
+
+func TestWaitNodeReadyTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	node := &common.Node{Name: "lab1", Url: server.URL, Timeout: common.TimeoutConfig{Start: common.Duration(100 * time.Millisecond)}}
+
+	client := newTestClient()
+	err := client.WaitNodeReady(context.Background(), node)
+	assert.ErrorContains(t, err, "node not ready after 100ms: unexpected status 503 Service Unavailable")
 }

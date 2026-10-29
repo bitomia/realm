@@ -57,7 +57,7 @@ func GetNodeConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func LoadNodeConfig(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.LoadNodeConfigHandler")
+	slog.Info("handlers.LoadNodeConfig")
 
 	var node common.Node
 	err := json.NewDecoder(r.Body).Decode(&node)
@@ -66,7 +66,7 @@ func LoadNodeConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("handlers.LoadNodeConfigHandler", "node", node.Name, "driver", node.Driver)
+	slog.Info("handlers.LoadNodeConfig", "node", node.Name, "driver", node.Driver)
 
 	onlyValidate := false
 	if v := r.URL.Query().Get("validate"); v != "" {

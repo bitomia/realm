@@ -29,6 +29,7 @@ func Main(cmdName string, projectName string) {
 	rootCmd.Short = fmt.Sprintf("%s %s", projectName, config.GetVersion())
 	rootCmd.Version = config.GetVersion()
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.AddGroup(&cobra.Group{ID: "main", Title: "Main commands"})
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		if cmd == rootCmd && len(args) == 0 {
 			_ = cmd.Help()

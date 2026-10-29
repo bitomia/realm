@@ -111,7 +111,10 @@ func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, tim
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, fmt.Errorf("%s", strings.TrimSpace(string(body)))
+		if msg := strings.TrimSpace(string(body)); msg != "" {
+			return nil, resp.StatusCode, fmt.Errorf("%s", msg)
+		}
+		return nil, resp.StatusCode, fmt.Errorf("unexpected status %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 	return body, resp.StatusCode, nil
 }
@@ -120,7 +123,7 @@ func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, tim
 // returning the response body along with the HTTP status code. If the request
 // fails before a response is received (e.g. transport error or malformed
 // request), the returned status code is -1. A non-200 status yields an error
-// whose message is the raw response body.
+// whose message is the raw response body, or the status when the body is empty.
 func (c *Client) doJSONRequest(method, agentURL, path string, payload any, timeout time.Duration) ([]byte, int, error) {
 	var body io.Reader
 	if payload != nil {

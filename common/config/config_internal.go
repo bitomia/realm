@@ -104,6 +104,10 @@ func unmarshalConfigHandler(in io.Reader) (*Config, error) {
 	}
 	err := viper.UnmarshalExact(&config, func(c *mapstructure.DecoderConfig) {
 		c.TagName = "json"
+		c.DecodeHook = mapstructure.ComposeDecodeHookFunc(
+			mapstructure.TextUnmarshallerHookFunc(),
+			c.DecodeHook,
+		)
 	})
 	return &config, err
 }
