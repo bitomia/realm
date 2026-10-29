@@ -11,7 +11,7 @@ import httpx
 
 from . import _ops as ops
 from ._auth import resolve_token
-from ._errors import NodeAlreadyConfigured, NodeNotConfigured, RealmError
+from ._errors import NodeNotConfigured, RealmError
 from ._target import Target, resolve_target
 
 JsonDict = dict[str, Any]
@@ -36,16 +36,19 @@ def _prepare(
     return target, resolved
 
 
-def _check(response: httpx.Response, body: str) -> None:
+def _check(
+    response: httpx.Response, body: str, errors: dict[int, type[RealmError]] | None = None
+) -> None:
     """Raise for a failed response, mapping the statuses that carry meaning.
 
-    204 is a success the agent uses for "nothing to return"; :func:`_decode`
-    turns it into :class:`NodeNotConfigured`.
+    ``errors`` maps statuses with a request-specific meaning to the error to
+    raise, even for a success status. 204 is a success the agent uses for
+    "nothing to return"; :func:`_decode` turns it into :class:`NodeNotConfigured`.
     """
-    if response.status_code in (200, 204):
+    if errors and (error := errors.get(response.status_code)):
+        raise error(response.status_code, body.strip())
+    if response.status_code in (200, 201, 204):
         return
-    if response.status_code == 409:
-        raise NodeAlreadyConfigured(response.status_code, body.strip())
     raise RealmError(response.status_code, body.strip())
 
 
@@ -116,7 +119,7 @@ class Realm:
             params=request.params or None,
             timeout=request.timeout,
         )
-        _check(response, response.text)
+        _check(response, response.text, request.errors)
         return _decode(request, response)
 
     def _stream_lines(self, request: ops.Request) -> Iterator[str]:
@@ -305,7 +308,7 @@ class AsyncRealm:
             params=request.params or None,
             timeout=request.timeout,
         )
-        _check(response, response.text)
+        _check(response, response.text, request.errors)
         return _decode(request, response)
 
     async def _stream_lines(self, request: ops.Request) -> AsyncIterator[str]:

@@ -155,7 +155,7 @@ describe('client', () => {
       expect(err).toMatchObject({ status: 404, message: 'load not found' });
     });
 
-    it('treats non-200 success codes as errors', async () => {
+    it('treats success codes other than 200 and 201 as errors', async () => {
       let url: string;
       ({ url, server } = await startServer((_req, res) => {
         res.statusCode = 204;

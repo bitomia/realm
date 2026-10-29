@@ -25,4 +25,8 @@ class NodeNotConfigured(RealmError):
 
 
 class NodeAlreadyConfigured(RealmError):
-    """A node configuration is already loaded (409 from ``POST /node/config``)."""
+    """The same node configuration is already loaded (200 from ``POST /node/config``)."""
+
+
+class NodeConfigMismatch(RealmError):
+    """A different node configuration is already loaded (409 from ``POST /node/config``)."""

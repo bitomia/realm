@@ -6,15 +6,32 @@ import (
 )
 
 type NodeEntry struct {
-	NodeName   string
-	NodeDriver NodeDriver
-	Registries []RegistryConfig
-	Metadata   any
+	Node
+	Metadata any
+}
+
+type nodeEntryJSON struct {
+	Node     *Node `json:"node"`
+	Metadata any   `json:"metadata"`
+}
+
+func (e NodeEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(nodeEntryJSON{Node: &e.Node, Metadata: e.Metadata})
+}
+
+func (e *NodeEntry) UnmarshalJSON(data []byte) error {
+	aux := nodeEntryJSON{Node: &e.Node}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	e.Metadata = aux.Metadata
+	return nil
 }
 
 var (
 	ErrNodeNotConfigured     = errors.New("node not configured")
 	ErrNodeAlreadyConfigured = errors.New("node already configured")
+	ErrNodeConfigMismatch    = errors.New("node already configured with a different config")
 )
 
 // Store interface for nodes
@@ -24,7 +41,7 @@ var (
 // so no memory references must be used
 type NodesRepository interface {
 	// SetSelf creates or updates the node for the caller
-	SetSelf(nodeName string, driver NodeDriver, registries []RegistryConfig) error
+	SetSelf(node Node) error
 
 	// GetSelf return nodeentry for the caller node
 	GetSelf() (NodeEntry, error)
@@ -39,7 +56,7 @@ type NodesRepository interface {
 	GetByAgentId(agentId string) (NodeEntry, error)
 
 	// SetGuestNode creates or update the guest node entry for the caller host node
-	SetGuestNode(guestNodeName string, guestDriver NodeDriver) error
+	SetGuestNode(guestNode Node) error
 
 	// GetGuestNode returns a guest node of the caller host node
 	GetGuestNode(guestNodeName string) (NodeEntry, error)

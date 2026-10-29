@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -78,18 +77,7 @@ func LoadNodeConfig(w http.ResponseWriter, r *http.Request) {
 		onlyValidate = parsed
 	}
 
-	if !onlyValidate {
-		if err := api.LoadNodeConfig(&node); err != nil {
-			if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				w.WriteHeader(http.StatusConflict)
-			} else {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			}
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-	}
+	writeLoadNodeConfigResult(w, &node, onlyValidate)
 }
 
 func UnloadNodeConfig(w http.ResponseWriter, r *http.Request) {
@@ -247,18 +235,7 @@ func LoadGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
 		onlyValidate = parsed
 	}
 
-	if !onlyValidate {
-		if err := api.LoadNodeConfig(&node); err != nil {
-			if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				http.Error(w, err.Error(), http.StatusConflict)
-			} else {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-			}
-			return
-		}
-	}
-
-	w.WriteHeader(http.StatusOK)
+	writeLoadNodeConfigResult(w, &node, onlyValidate)
 }
 
 func UnloadGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
@@ -342,21 +319,4 @@ func RestartGuestNode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-// checkGuestName rejects requests whose body names a different node than the URL path.
-func checkGuestName(w http.ResponseWriter, pathName, bodyName string) bool {
-	if bodyName != "" && bodyName != pathName {
-		http.Error(w, "node name in body does not match guest name in path", http.StatusBadRequest)
-		return false
-	}
-	return true
-}
-
-// decodeOptionalBody decodes a JSON body into v, treating an empty body as valid.
-func decodeOptionalBody(r *http.Request, v any) error {
-	if err := json.NewDecoder(r.Body).Decode(v); err != nil && !errors.Is(err, io.EOF) {
-		return err
-	}
-	return nil
 }

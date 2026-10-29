@@ -139,7 +139,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, fmt.Errorf("node not configured")
 	}
 
-	nodeStatus, err := node.NodeDriver.UpdateStatus()
+	nodeStatus, err := node.Driver.UpdateStatus()
 	if err != nil {
 		return nil, fmt.Errorf("cannot update node status: %s", err)
 	}
@@ -160,7 +160,7 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 		return nil, err
 	}
 
-	deploymentID, err := load.Driver.Provision(node.NodeDriver, database.DeploymentsRepository, load.Name)
+	deploymentID, err := load.Driver.Provision(node.Driver, database.DeploymentsRepository, load.Name)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import pytest
 from realm import (
     AsyncRealm,
     NodeAlreadyConfigured,
+    NodeConfigMismatch,
     NodeNotConfigured,
     Realm,
     RealmError,
@@ -163,10 +164,23 @@ def test_no_content_means_not_configured() -> None:
         agent.node_config()
 
 
-def test_conflict_means_already_configured() -> None:
+def test_created_means_node_config_loaded() -> None:
+    with client(lambda _: httpx.Response(201)) as agent:
+        agent.load_node_config({"name": "lab1"})
+
+
+def test_ok_means_already_configured() -> None:
     with (
-        client(lambda _: httpx.Response(409, text="already configured")) as agent,
+        client(lambda _: httpx.Response(200, text="already configured")) as agent,
         pytest.raises(NodeAlreadyConfigured),
+    ):
+        agent.load_node_config({"name": "lab1"})
+
+
+def test_conflict_means_config_mismatch() -> None:
+    with (
+        client(lambda _: httpx.Response(409, text="config mismatch")) as agent,
+        pytest.raises(NodeConfigMismatch),
     ):
         agent.load_node_config({"name": "lab1"})
 
@@ -208,7 +222,7 @@ def test_validate_only_is_sent_as_a_query_parameter() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request.url)
-        return httpx.Response(200)
+        return httpx.Response(201)
 
     with client(handler) as agent:
         agent.load_node_config({"name": "lab1"}, validate_only=True)

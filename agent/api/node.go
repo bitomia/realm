@@ -55,7 +55,7 @@ func GetNode(nodeName *string) (*dto.NodeResponse, error) {
 		}
 	}
 
-	return nodeResponse(nodeEntry.NodeDriver)
+	return nodeResponse(nodeEntry.Driver)
 }
 
 // nodeResponse queries the driver for the node state and status
@@ -87,13 +87,13 @@ func GetGuestNodes() ([]dto.GuestNodeResponse, error) {
 
 	guests := make([]dto.GuestNodeResponse, 0, len(nodes))
 	for _, node := range nodes {
-		response, err := nodeResponse(node.NodeDriver)
+		response, err := nodeResponse(node.Driver)
 		if err != nil {
-			return nil, fmt.Errorf("guest node %s: %w", node.NodeName, err)
+			return nil, fmt.Errorf("guest node %s: %w", node.Name, err)
 		}
 		guests = append(guests, dto.GuestNodeResponse{
-			Name:         node.NodeName,
-			Config:       node.NodeDriver.Config(),
+			Name:         node.Name,
+			Config:       node.Driver.Config(),
 			NodeResponse: *response,
 		})
 	}
@@ -125,7 +125,7 @@ func GetNodeConfig() (*common.NodeDriverConfig, error) {
 	if node, err := db.NodesRepository.GetSelf(); err != nil {
 		return nil, err
 	} else {
-		config := node.NodeDriver.Config()
+		config := node.Driver.Config()
 		return &config, nil
 	}
 }
@@ -138,9 +138,23 @@ func GetGuestNodeConfig(nodeName string) (*common.NodeDriverConfig, error) {
 	if node, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
 		return nil, err
 	} else {
-		config := node.NodeDriver.Config()
+		config := node.Driver.Config()
 		return &config, nil
 	}
+}
+
+func CheckNodeConfig(node *common.Node) error {
+	db := db.GetDB()
+	if db == nil {
+		return fmt.Errorf("db not initialized")
+	}
+
+	info, err := node.Driver.Info()
+	if err != nil {
+		return err
+	}
+
+	return checkNodeConfig(db.NodesRepository, node, info.GuestMode)
 }
 
 func LoadNodeConfig(node *common.Node) error {
@@ -153,12 +167,17 @@ func LoadNodeConfig(node *common.Node) error {
 	if err != nil {
 		return err
 	}
+
+	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); err != nil {
+		return err
+	}
+
 	if info.GuestMode {
-		if err := db.NodesRepository.SetGuestNode(node.Name, node.Driver); err != nil {
+		if err := db.NodesRepository.SetGuestNode(*node); err != nil {
 			return err
 		}
 	} else {
-		if err := db.NodesRepository.SetSelf(node.Name, node.Driver, node.Registries); err != nil {
+		if err := db.NodesRepository.SetSelf(*node); err != nil {
 			return err
 		}
 		otel.SetNodeName(node.Name)
@@ -185,7 +204,7 @@ func UnloadGuestNodeConfig(nodeName string) error {
 		return err
 	}
 
-	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.NodeDriver); err != nil {
+	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.Driver); err != nil {
 		return err
 	}
 
@@ -204,7 +223,7 @@ func UnloadNodeConfig() error {
 		return err
 	} else {
 		for _, node := range nodes {
-			if err := UnloadGuestNodeConfig(node.NodeName); err != nil {
+			if err := UnloadGuestNodeConfig(node.Name); err != nil {
 				return err
 			}
 		}
@@ -276,17 +295,17 @@ func PowerOffNode(nodeName *string) error {
 		return fmt.Errorf("node configuration not loaded")
 	}
 
-	if info, err := node.NodeDriver.Info(); err != nil {
+	if info, err := node.Driver.Info(); err != nil {
 		return fmt.Errorf("failed to retrieve node driver info: %w", err)
 	} else if info.PowerOffMode != common.AgentMode {
 		return fmt.Errorf("poweroff expects agent mode")
 	}
 
-	if err := node.NodeDriver.PowerOff(); err != nil {
+	if err := node.Driver.PowerOff(); err != nil {
 		return fmt.Errorf("failed to poweroff node: %w", err)
 	}
 
-	_ = cloudinit.UnregisterNode(node.NodeName)
+	_ = cloudinit.UnregisterNode(node.Name)
 
 	return nil
 }
@@ -297,17 +316,17 @@ func ShutdownNode(nodeName *string, message string, time uint32) error {
 		return fmt.Errorf("node configuration not loaded")
 	}
 
-	if info, err := node.NodeDriver.Info(); err != nil {
+	if info, err := node.Driver.Info(); err != nil {
 		return fmt.Errorf("failed to retrieve node driver info: %w", err)
 	} else if info.ShutdownMode != common.AgentMode {
 		return fmt.Errorf("shutdown expects agent mode")
 	}
 
-	if err := node.NodeDriver.Shutdown(message, time); err != nil {
+	if err := node.Driver.Shutdown(message, time); err != nil {
 		return fmt.Errorf("failed to stop node: %w", err)
 	}
 
-	_ = cloudinit.UnregisterNode(node.NodeName)
+	_ = cloudinit.UnregisterNode(node.Name)
 
 	return nil
 }
@@ -318,13 +337,13 @@ func RestartNode(nodeName *string, message string, time uint32) error {
 		return fmt.Errorf("node configuration not loaded")
 	}
 
-	if info, err := node.NodeDriver.Info(); err != nil {
+	if info, err := node.Driver.Info(); err != nil {
 		return fmt.Errorf("failed to retrieve node driver info: %w", err)
 	} else if info.RestartMode != common.AgentMode {
 		return fmt.Errorf("restart expects agent mode")
 	}
 
-	if err := node.NodeDriver.Restart(message, time); err != nil {
+	if err := node.Driver.Restart(message, time); err != nil {
 		return fmt.Errorf("failed to restart node: %w", err)
 	}
 

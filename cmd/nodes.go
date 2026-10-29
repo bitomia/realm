@@ -199,6 +199,8 @@ var loadNodeConfig = &cobra.Command{
 		err := client.ValidateNodesConfig(nodes, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Validating %s completed", color.CyanString(n.Name))
+			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
+				log.Info("Validating %s skipped: %s", color.CyanString(n.Name), err.Error())
 			} else {
 				log.Warn("Validating %s failed: %s", color.CyanString(n.Name), err.Error())
 			}
@@ -214,6 +216,8 @@ var loadNodeConfig = &cobra.Command{
 		client.LoadNodesConfig(nodes, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Loading %s completed", color.CyanString(n.Name))
+			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
+				log.Info("Loading %s skipped: %s", color.CyanString(n.Name), err.Error())
 			} else {
 				log.Warn("Loading %s failed: %s", color.CyanString(n.Name), err.Error())
 			}
@@ -239,7 +243,8 @@ var unloadNodeConfig = &cobra.Command{
 	},
 }
 
-// nodeStartStage is how far a node got through the start sequence.
+// nodeStartStage is how far a node got through the start sequence,
+// or the step where it failed.
 type nodeStartStage string
 
 const (
@@ -247,6 +252,9 @@ const (
 	nodeStagePoweredOn  nodeStartStage = "powered on"
 	nodeStageReady      nodeStartStage = "ready"
 	nodeStageConfigured nodeStartStage = "configured"
+
+	nodeStageInvalidConfig  nodeStartStage = "invalid config"
+	nodeStageConfigMismatch nodeStartStage = "config mismatch"
 )
 
 var startNodes = &cobra.Command{
@@ -258,7 +266,7 @@ var startNodes = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 
 		stages := startNodesSequence(cmd.Context(), &client, nodes)
-		if !isSuccesStartSequence(stages) {
+		if !isSuccessStartSequence(stages) {
 			log.Error("Nodes start drifted")
 			for name, stage := range stages {
 				if stage == nodeStageConfigured {
@@ -274,7 +282,7 @@ var startNodes = &cobra.Command{
 	},
 }
 
-func isSuccesStartSequence(stages map[string]nodeStartStage) bool {
+func isSuccessStartSequence(stages map[string]nodeStartStage) bool {
 	for _, stage := range stages {
 		if stage != nodeStageConfigured {
 			return false
@@ -325,7 +333,12 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 		} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
 			stages[name] = nodeStageConfigured
 			log.Info("Loading %s skipped: %s", color.CyanString(name), err.Error())
+		} else if errors.Is(err, common.ErrNodeConfigMismatch) {
+			stages[name] = nodeStageConfigMismatch
+			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())
+			return stages
 		} else {
+			stages[name] = nodeStageInvalidConfig
 			log.Warn("Validating %s failed: %s", color.CyanString(name), err.Error())
 			return stages
 		}

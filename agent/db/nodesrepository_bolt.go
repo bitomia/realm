@@ -15,23 +15,11 @@ type BoltNodesRepository struct {
 	db *AgentDB
 }
 
-type NodeValue struct {
-	NodeName         string                  `json:"node_name"`
-	NodeDriverConfig common.NodeDriverConfig `json:"node_driver_config"`
-	Registries       []common.RegistryConfig `json:"registries,omitempty"`
-	Metadata         any                     `json:"metadata"`
-}
+func (r *BoltNodesRepository) SetSelf(node common.Node) error {
+	nodeName := node.Name
+	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName, "registries", len(node.Registries))
 
-func (r *BoltNodesRepository) SetSelf(nodeName string, driver common.NodeDriver, registries []common.RegistryConfig) error {
-	slog.Info("BoltNodesRepository.SetSelf", "nodeName", nodeName, "registries", len(registries))
-
-	nodeValue := NodeValue{
-		NodeName:         nodeName,
-		NodeDriverConfig: driver.Config(),
-		Registries:       registries,
-	}
-
-	nodeJson, err := json.Marshal(nodeValue)
+	nodeJson, err := json.Marshal(common.NodeEntry{Node: node})
 	if err != nil {
 		slog.Error("BoltNodesRepository.SetSelf", "nodeName", nodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
@@ -84,24 +72,13 @@ func (r *BoltNodesRepository) GetByAgentId(agentId string) (common.NodeEntry, er
 		}
 	}
 
-	var nodeValue NodeValue
-	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
+	var nodeEntry common.NodeEntry
+	if err := json.Unmarshal([]byte(nodeStr), &nodeEntry); err != nil {
 		slog.Error("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "unmarshalling node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
-	if err != nil {
-		slog.Error("BoltNodesRepository.GetByAgentId", "agentId", agentId, "msg", "building node driver", "error", err.Error())
-		return common.NodeEntry{}, err
-	}
-
-	return common.NodeEntry{
-		NodeName:   nodeValue.NodeName,
-		NodeDriver: nodeDriver,
-		Registries: nodeValue.Registries,
-		Metadata:   nodeValue.Metadata,
-	}, nil
+	return nodeEntry, nil
 }
 
 func (r *BoltNodesRepository) DeleteSelf() error {
@@ -128,15 +105,11 @@ func (r *BoltNodesRepository) DeleteSelf() error {
 	return nil
 }
 
-func (r *BoltNodesRepository) SetGuestNode(guestNodeName string, guestDriver common.NodeDriver) error {
+func (r *BoltNodesRepository) SetGuestNode(guestNode common.Node) error {
+	guestNodeName := guestNode.Name
 	slog.Info("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
 
-	guestNodeValue := NodeValue{
-		NodeName:         guestNodeName,
-		NodeDriverConfig: guestDriver.Config(),
-	}
-
-	guestNodeJson, err := json.Marshal(guestNodeValue)
+	guestNodeJson, err := json.Marshal(common.NodeEntry{Node: guestNode})
 	if err != nil {
 		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshaling node", "error", err.Error())
 		return err
@@ -196,26 +169,20 @@ func (r *BoltNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEnt
 	nodeStr, err := r.db.get(guestNodeKey)
 	if err != nil {
 		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "getting node", "error", err.Error())
-		return common.NodeEntry{}, err
+		if errors.Is(err, ErrKeyNotFound) {
+			return common.NodeEntry{}, common.ErrNodeNotConfigured
+		} else {
+			return common.NodeEntry{}, err
+		}
 	}
 
-	var nodeValue NodeValue
-	if err := json.Unmarshal([]byte(nodeStr), &nodeValue); err != nil {
+	var nodeEntry common.NodeEntry
+	if err := json.Unmarshal([]byte(nodeStr), &nodeEntry); err != nil {
 		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "unmarshalling node", "error", err.Error())
 		return common.NodeEntry{}, err
 	}
 
-	nodeDriver, err := common.BuildNodeDriver(common.NewNodeContext(nodeValue.NodeName), nodeValue.NodeDriverConfig)
-	if err != nil {
-		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "building node driver", "error", err.Error())
-		return common.NodeEntry{}, err
-	}
-
-	return common.NodeEntry{
-		NodeName:   nodeValue.NodeName,
-		NodeDriver: nodeDriver,
-		Metadata:   nodeValue.Metadata,
-	}, nil
+	return nodeEntry, nil
 }
 
 func (r *BoltNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
@@ -252,7 +219,7 @@ func (r *BoltNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 	}
 
 	return r.db.updateValue(nodeKey, func(valueData []byte) ([]byte, error) {
-		var value NodeValue
+		var value common.NodeEntry
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
 		}
@@ -273,7 +240,7 @@ func (r *BoltNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn
 	}
 
 	return r.db.updateValue(guestNodeKey, func(valueData []byte) ([]byte, error) {
-		var value NodeValue
+		var value common.NodeEntry
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
 		}

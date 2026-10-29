@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   Client,
   ErrNodeAlreadyConfigured,
+  ErrNodeConfigMismatch,
   ErrNodesValidation,
   RequestError,
 } from '../src/client.ts';
@@ -70,6 +71,7 @@ describe('nodes', () => {
 
   describe('loadNodeConfig', () => {
     it('posts the node config', async () => {
+      reply = () => ({ status: 201 });
       const n = node('n1');
 
       await new Client(cfg).loadNodeConfig(n);
@@ -77,11 +79,19 @@ describe('nodes', () => {
       expect(received).toEqual([{ method: 'POST', url: '/node/config', body: JSON.stringify(n) }]);
     });
 
-    it('rejects with ErrNodeAlreadyConfigured on 409', async () => {
-      reply = () => ({ status: 409, body: 'conflict' });
+    it('rejects with ErrNodeAlreadyConfigured on 200', async () => {
+      reply = () => ({ status: 200, body: 'node already configured' });
 
       await expect(new Client(cfg).loadNodeConfig(node('n1'))).rejects.toBe(
         ErrNodeAlreadyConfigured,
+      );
+    });
+
+    it('rejects with ErrNodeConfigMismatch on 409', async () => {
+      reply = () => ({ status: 409, body: 'conflict' });
+
+      await expect(new Client(cfg).loadNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeConfigMismatch,
       );
     });
 
@@ -97,6 +107,7 @@ describe('nodes', () => {
 
   describe('validateNodeConfig', () => {
     it('posts the node config for validation', async () => {
+      reply = () => ({ status: 201 });
       const n = node('n1');
 
       await new Client(cfg).validateNodeConfig(n);
@@ -106,11 +117,19 @@ describe('nodes', () => {
       ]);
     });
 
-    it('rejects with ErrNodeAlreadyConfigured on 409', async () => {
-      reply = () => ({ status: 409, body: 'conflict' });
+    it('rejects with ErrNodeAlreadyConfigured on 200', async () => {
+      reply = () => ({ status: 200, body: 'node already configured' });
 
       await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
         ErrNodeAlreadyConfigured,
+      );
+    });
+
+    it('rejects with ErrNodeConfigMismatch on 409', async () => {
+      reply = () => ({ status: 409, body: 'conflict' });
+
+      await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeConfigMismatch,
       );
     });
 
@@ -151,6 +170,7 @@ describe('nodes', () => {
 
   describe('validateNodesConfig', () => {
     it('handles every node and resolves when all are valid', async () => {
+      reply = () => ({ status: 201 });
       const nodes = { n1: node('n1'), n2: node('n2') };
       const handle = vi.fn();
 
@@ -163,7 +183,7 @@ describe('nodes', () => {
     });
 
     it('handles every node and rejects with ErrNodesValidation when any is invalid', async () => {
-      reply = (r) => (r.body.includes('"n1"') ? { status: 400, body: 'invalid' } : { status: 200 });
+      reply = (r) => (r.body.includes('"n1"') ? { status: 400, body: 'invalid' } : { status: 201 });
       const nodes = { n1: node('n1'), n2: node('n2') };
       const handle = vi.fn();
 
@@ -180,7 +200,7 @@ describe('nodes', () => {
 
   describe('loadNodesConfig', () => {
     it('loads every node and handles each result', async () => {
-      reply = (r) => (r.body.includes('"n2"') ? { status: 409 } : { status: 200 });
+      reply = (r) => (r.body.includes('"n2"') ? { status: 200 } : { status: 201 });
       const nodes = { n1: node('n1'), n2: node('n2') };
       const handle = vi.fn();
 

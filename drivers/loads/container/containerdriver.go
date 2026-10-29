@@ -10,9 +10,9 @@ import (
 	"syscall"
 
 	containerd "github.com/containerd/containerd/v2/client"
-	"github.com/containerd/errdefs"
 	"github.com/containerd/containerd/v2/pkg/identifiers"
 	"github.com/containerd/containerd/v2/pkg/oci"
+	"github.com/containerd/errdefs"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/google/uuid"
 

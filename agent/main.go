@@ -123,7 +123,7 @@ func Start(cfg *config.Config, purgeDB bool, onReady func()) {
 
 	// Restore the node name loaded in a previous run for OpenTelemetry
 	if self, err := db.NodesRepository.GetSelf(); err == nil {
-		otel.SetNodeName(self.NodeName)
+		otel.SetNodeName(self.Name)
 	}
 
 	if err := dns.Initialize(); err != nil {

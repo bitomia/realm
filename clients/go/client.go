@@ -85,7 +85,7 @@ func (c *Client) agentAddress(agentURL string) string {
 // doRequest executes an HTTP request and returns the response body along with
 // the HTTP status code. If the request fails before a response is received
 // (e.g. transport error or malformed request), the returned status code is -1.
-// A non-200 status yields an error whose message is the raw response body.
+// A status other than 200 or 201 yields an error whose message is the raw response body.
 func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, timeout time.Duration) ([]byte, int, error) {
 	target, err := common.ResolveAgentTarget(c.agentAddress(agentURL))
 	if err != nil {
@@ -110,7 +110,7 @@ func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, tim
 		return nil, resp.StatusCode, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		if msg := strings.TrimSpace(string(body)); msg != "" {
 			return nil, resp.StatusCode, fmt.Errorf("%s", msg)
 		}

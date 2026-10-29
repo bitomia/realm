@@ -1,5 +1,5 @@
 GO ?= go
-GOLANGCI_LINT_PACKAGE ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1
+GOLANGCI_LINT_PACKAGE ?= github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
 ROOT:=$(realpath .)
 

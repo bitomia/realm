@@ -13,13 +13,14 @@ Responses are the agent's JSON, decoded into plain dicts and lists.
 from __future__ import annotations
 
 from ._client import AsyncRealm, Realm
-from ._errors import NodeAlreadyConfigured, NodeNotConfigured, RealmError
+from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, NodeNotConfigured, RealmError
 
 __version__ = "0.1.0"
 
 __all__ = [
     "AsyncRealm",
     "NodeAlreadyConfigured",
+    "NodeConfigMismatch",
     "NodeNotConfigured",
     "Realm",
     "RealmError",

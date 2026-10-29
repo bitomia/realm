@@ -45,7 +45,7 @@ var provisionLoads = &cobra.Command{
 	Run: func(cmd *cobra.Command, loadNames []string) {
 		loads := cfg.GetLoads(loadNames...)
 		client := clientPkg.NewClient(cfg)
-		client.ProvisionLoads(loads, func(load *common.Load, err error) {
+		_ = client.ProvisionLoads(loads, func(load *common.Load, err error) {
 			if err == nil {
 				log.Success("Provisioning %s completed", color.CyanString(load.Name))
 			} else {

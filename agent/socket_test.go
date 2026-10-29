@@ -19,7 +19,10 @@ import (
 
 func socketPath(t *testing.T) string {
 	t.Helper()
-	return filepath.Join(t.TempDir(), "agent.sock")
+	dir, err := os.MkdirTemp("", "realm")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return filepath.Join(dir, "agent.sock")
 }
 
 func socketGid(t *testing.T, path string) int {

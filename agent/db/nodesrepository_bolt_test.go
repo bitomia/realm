@@ -59,7 +59,7 @@ func (m *mockNodeDriver) Info() (common.NodeDriverInfo, error) {
 }
 
 func (m *mockNodeDriver) Register() error {
-	return m.ctx.Repository.SetSelf(m.ctx.NodeName, m, nil)
+	return m.ctx.Repository.SetSelf(common.Node{Name: m.ctx.NodeName, Url: "http://localhost:8080", Driver: m})
 }
 
 func (m *mockNodeDriver) Unregister() error {
@@ -114,7 +114,7 @@ func TestBoltNodesRepository_SetSelf(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	err := repo.SetSelf("test-node", driver, nil)
+	err := repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver})
 
 	assert.NoError(t, err)
 }
@@ -125,15 +125,15 @@ func TestBoltNodesRepository_GetSelf(t *testing.T) {
 
 	driver := newMockNodeDriver("test-driver")
 	registries := []common.RegistryConfig{{Host: "ghcr.io", Auth: common.RegistryAuth{Token: "token"}}}
-	require.NoError(t, repo.SetSelf("test-node", driver, registries))
+	require.NoError(t, repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver, Registries: registries}))
 	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
 
 	entry, err := repo.GetSelf()
 
 	require.NoError(t, err)
-	assert.Equal(t, "test-node", entry.NodeName)
-	require.IsType(t, &mockNodeDriver{}, entry.NodeDriver)
-	assert.Equal(t, "test-driver", entry.NodeDriver.(*mockNodeDriver).Value)
+	assert.Equal(t, "test-node", entry.Name)
+	require.IsType(t, &mockNodeDriver{}, entry.Driver)
+	assert.Equal(t, "test-driver", entry.Driver.(*mockNodeDriver).Value)
 	assert.Equal(t, registries, entry.Registries)
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
@@ -152,7 +152,7 @@ func TestBoltNodesRepository_DeleteSelf(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	require.NoError(t, repo.SetSelf("test-node", driver, nil))
+	require.NoError(t, repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver}))
 
 	err := repo.DeleteSelf()
 
@@ -175,7 +175,7 @@ func TestBoltNodesRepository_UpdateSelfMetadata(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("test-driver")
-	require.NoError(t, repo.SetSelf("test-node", driver, nil))
+	require.NoError(t, repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver}))
 	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
 
 	err := repo.UpdateSelfMetadata(func(metadataPtr any) error {
@@ -196,7 +196,7 @@ func TestBoltNodesRepository_SetGuestNode(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("guest-driver")
-	err := repo.SetGuestNode("guest-node", driver)
+	err := repo.SetGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver})
 
 	assert.NoError(t, err)
 }
@@ -206,15 +206,15 @@ func TestBoltNodesRepository_GetGuestNode(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("guest-driver")
-	require.NoError(t, repo.SetGuestNode("guest-node", driver))
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver}))
 	require.NoError(t, setGuestMetadata(repo, "guest-node", map[string]any{"key": "value"}))
 
 	entry, err := repo.GetGuestNode("guest-node")
 
 	require.NoError(t, err)
-	assert.Equal(t, "guest-node", entry.NodeName)
-	require.IsType(t, &mockNodeDriver{}, entry.NodeDriver)
-	assert.Equal(t, "guest-driver", entry.NodeDriver.(*mockNodeDriver).Value)
+	assert.Equal(t, "guest-node", entry.Name)
+	require.IsType(t, &mockNodeDriver{}, entry.Driver)
+	assert.Equal(t, "guest-driver", entry.Driver.(*mockNodeDriver).Value)
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
 
@@ -231,14 +231,14 @@ func TestBoltNodesRepository_GetAllGuestNodes(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()
 
-	require.NoError(t, repo.SetGuestNode("guest-1", newMockNodeDriver("driver-1")))
-	require.NoError(t, repo.SetGuestNode("guest-2", newMockNodeDriver("driver-2")))
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-1", Url: "http://localhost:8080", Driver: newMockNodeDriver("driver-1")}))
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-2", Url: "http://localhost:8080", Driver: newMockNodeDriver("driver-2")}))
 
 	nodes, err := repo.GetAllGuestNodes()
 
 	require.NoError(t, err)
 	assert.Len(t, nodes, 2)
-	names := []string{nodes[0].NodeName, nodes[1].NodeName}
+	names := []string{nodes[0].Name, nodes[1].Name}
 	assert.ElementsMatch(t, []string{"guest-1", "guest-2"}, names)
 }
 
@@ -257,7 +257,7 @@ func TestBoltNodesRepository_DeleteGuestNode(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("guest-driver")
-	require.NoError(t, repo.SetGuestNode("guest-node", driver))
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver}))
 
 	err := repo.DeleteGuestNode("guest-node", driver)
 
@@ -281,7 +281,7 @@ func TestBoltNodesRepository_UpdateGuestMetadata(t *testing.T) {
 	defer cleanup()
 
 	driver := newMockNodeDriver("guest-driver")
-	require.NoError(t, repo.SetGuestNode("guest-node", driver))
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver}))
 	require.NoError(t, setGuestMetadata(repo, "guest-node", map[string]any{"key": "value"}))
 
 	err := repo.UpdateGuestMetadata("guest-node", func(metadataPtr any) error {

@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
+from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, RealmError
+
 JsonDict = dict[str, Any]
 
 # Mirrors the timeouts the Go client uses (cmd/client/client.go).
@@ -50,6 +52,8 @@ class Request:
     parse: Callable[[Any], Any] | None = None
     # Streaming responses (NDJSON job results, load logs, artifact downloads).
     stream: bool = False
+    # Statuses with a meaning specific to this request, raised as the given error.
+    errors: dict[int, type[RealmError]] = field(default_factory=dict)
 
 
 def _as_list(body: Any) -> list[Any]:
@@ -117,6 +121,8 @@ def load_node_config(config: JsonDict, validate_only: bool = False) -> Request:
         json=config,
         params={"validate": "true"} if validate_only else {},
         timeout=REQUEST_TIMEOUT,
+        # Validating answers the status loading would: 201 when it can be loaded
+        errors={200: NodeAlreadyConfigured, 409: NodeConfigMismatch},
     )
 
 

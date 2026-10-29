@@ -188,18 +188,22 @@ func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, err
 
 func (c *Client) LoadNodeConfig(node *common.Node) error {
 	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config", node, requestTimeout)
-	if statusCode == http.StatusConflict {
-		return common.ErrNodeAlreadyConfigured
-	} else {
-		return err
-	}
+	return loadNodeConfigError(statusCode, err)
 }
 
 func (c *Client) ValidateNodeConfig(node *common.Node) error {
 	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config?validate=true", node, requestTimeout)
-	if statusCode == http.StatusConflict {
+	return loadNodeConfigError(statusCode, err)
+}
+
+// loadNodeConfigError maps the status of loading or validating a node config
+func loadNodeConfigError(statusCode int, err error) error {
+	switch statusCode {
+	case http.StatusOK:
 		return common.ErrNodeAlreadyConfigured
-	} else {
+	case http.StatusConflict:
+		return common.ErrNodeConfigMismatch
+	default:
 		return err
 	}
 }
@@ -242,13 +246,15 @@ func runNodeOperation(node *common.Node, operation string, mode func(common.Node
 }
 
 // ValidateNodesConfig validates the config of all given nodes, returning
-// ErrNodesValidation if any of them is invalid.
+// ErrNodesValidation if any of them is invalid. Nodes already configured
+// with the same config are handled with ErrNodeAlreadyConfigured but are
+// not considered invalid.
 func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) error {
 	valid := true
 	for _, node := range nodes {
 		err := c.ValidateNodeConfig(node)
 		handle(node, err)
-		if err != nil {
+		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) {
 			valid = false
 		}
 	}

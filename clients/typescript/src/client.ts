@@ -32,6 +32,7 @@ export class RequestError extends Error {
 
 export const ErrNodesValidation = new Error('node config validation failed');
 export const ErrNodeAlreadyConfigured = new Error('node already configured');
+export const ErrNodeConfigMismatch = new Error('node already configured with a different config');
 
 export type NodeResultHandler = (node: NodeConfig, err?: Error) => void;
 
@@ -119,7 +120,7 @@ export class Client {
                 res.on('end', () => {
                     clearTimeout(timer);
                     const body = new Uint8Array(Buffer.concat(chunks));
-                    if (status !== 200) {
+                    if (status !== 200 && status !== 201) {
                         fail(new TextDecoder().decode(body));
                         return;
                     }
@@ -300,24 +301,32 @@ export class Client {
     }
 
     async loadNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
+        let status: number;
         try {
-            await this.doJSONRequest('POST', node.url, '/node/config', node, timeout);
+            status = (await this.doJSONRequest('POST', node.url, '/node/config', node, timeout)).status;
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
-                throw ErrNodeAlreadyConfigured;
+                throw ErrNodeConfigMismatch;
             }
             throw err;
+        }
+        if (status === 200) {
+            throw ErrNodeAlreadyConfigured;
         }
     }
 
     async validateNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
+        let status: number;
         try {
-            await this.doJSONRequest('POST', node.url, '/node/config?validate=true', node, timeout);
+            status = (await this.doJSONRequest('POST', node.url, '/node/config?validate=true', node, timeout)).status;
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
-                throw ErrNodeAlreadyConfigured;
+                throw ErrNodeConfigMismatch;
             }
             throw err;
+        }
+        if (status === 200) {
+            throw ErrNodeAlreadyConfigured;
         }
     }
 
@@ -337,7 +346,7 @@ export class Client {
         for (const node of Object.values(nodes)) {
             const err = await this.#tryOperation(() => this.validateNodeConfig(node));
             handle(node, err);
-            if (err !== undefined) {
+            if (err !== undefined && err !== ErrNodeAlreadyConfigured) {
                 valid = false;
             }
         }
