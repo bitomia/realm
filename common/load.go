@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/dominikbraun/graph"
 )
@@ -80,9 +82,38 @@ func (l *Load) UnmarshalJSON(data []byte) error {
 	l.Name = aux.Name
 	l.Driver = driver
 
-	// TODO
-	// DependsOn and Node references need to be resolved externally
-	// as they require access to the full configuration context
+	// Node and DependsOn hold placeholders with only their names
+	// because actual references require the full configuration
+	l.Node = nil
+	if aux.Node != "" {
+		l.Node = &Node{Name: aux.Node}
+	}
+	l.DependsOn = make([]*Load, len(aux.DependsOn))
+	for i, dep := range aux.DependsOn {
+		l.DependsOn[i] = &Load{Name: dep}
+	}
+
+	return nil
+}
+
+// ResolveReferences replaces the Node and DependsOn entries of the load with
+// the nodes and loads of the same name
+func (l *Load) ResolveReferences(nodes map[string]*Node, loads map[string]*Load) error {
+	if l.Node != nil {
+		node, exists := nodes[l.Node.Name]
+		if !exists {
+			return fmt.Errorf("node '%s' referenced by load '%s' does not exist", l.Node.Name, l.Name)
+		}
+		l.Node = node
+	}
+
+	for i, dep := range l.DependsOn {
+		load, exists := loads[dep.Name]
+		if !exists {
+			return fmt.Errorf("load '%s' referenced as dependency by load '%s' does not exist", dep.Name, l.Name)
+		}
+		l.DependsOn[i] = load
+	}
 
 	return nil
 }
@@ -102,25 +133,37 @@ func (l *Load) Hash() [32]byte {
 }
 
 func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMap map[string]*Load) error {
-	l.StartChain = LoadChain{}
-	if err := graph.DFS(configGraph, l.Name, func(value string) bool {
-		if load, exists := loadsMap[value]; exists {
-			l.StartChain = append(l.StartChain, load)
-		}
-		return false
-	}); err != nil {
-		return fmt.Errorf("failed to build start chain for load %s: %w", l.Name, err)
+	adjacencyMap, err := configGraph.AdjacencyMap()
+	if err != nil {
+		return fmt.Errorf("failed to build chains for load %s: %w", l.Name, err)
+	}
+	if _, exists := adjacencyMap[l.Name]; !exists {
+		return fmt.Errorf("failed to build chains for load %s: load not in graph", l.Name)
 	}
 
-	l.StopChain = LoadChain{}
-	if err := graph.DFS(configGraph, l.Name, func(value string) bool {
-		if load, exists := loadsMap[value]; exists {
-			l.StopChain = append([]*Load{load}, l.StopChain...)
+	// Build start chain with a post-order DFS
+	l.StartChain = LoadChain{}
+	visited := make(map[string]bool)
+	var visit func(name string)
+	visit = func(name string) {
+		if visited[name] {
+			return
 		}
-		return false
-	}); err != nil {
-		return fmt.Errorf("failed to build stop chain for load %s: %w", l.Name, err)
+		visited[name] = true
+		// Dependencies are visited sorted by name to keep chains and hashes deterministic
+		for _, dep := range slices.Sorted(maps.Keys(adjacencyMap[name])) {
+			visit(dep)
+		}
+		if load, exists := loadsMap[name]; exists {
+			l.StartChain = append(l.StartChain, load)
+		}
 	}
+	visit(l.Name)
+
+	// Dependents shall be stopped before their dependencies
+	l.StopChain = slices.Clone(l.StartChain)
+	slices.Reverse(l.StopChain)
+
 	return nil
 }
 

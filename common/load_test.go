@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"testing"
@@ -449,15 +450,15 @@ func TestUpdateLoadChains_Integration(t *testing.T) {
 
 		assert.Equal(t, 2, len(api.StartChain), "API should have 2 items in start chain")
 		if len(api.StartChain) >= 2 {
-			assert.Equal(t, "api", api.StartChain[0].Name)
-			assert.Equal(t, "db", api.StartChain[1].Name)
+			assert.Equal(t, "db", api.StartChain[0].Name)
+			assert.Equal(t, "api", api.StartChain[1].Name)
 		}
 
 		assert.Equal(t, 3, len(web.StartChain), "Web should have 3 items in start chain")
 		if len(web.StartChain) >= 3 {
-			assert.Equal(t, "web", web.StartChain[0].Name)
+			assert.Equal(t, "db", web.StartChain[0].Name)
 			assert.Equal(t, "api", web.StartChain[1].Name)
-			assert.Equal(t, "db", web.StartChain[2].Name)
+			assert.Equal(t, "web", web.StartChain[2].Name)
 		}
 	})
 
@@ -478,25 +479,11 @@ func TestUpdateLoadChains_Integration(t *testing.T) {
 		assert.Equal(t, 1, len(db.StartChain), "DB should have 1 item in start chain")
 		assert.Equal(t, 1, len(cache.StartChain), "Cache should have 1 item in start chain")
 
-		assert.Equal(t, 3, len(api1.StartChain), "api1 should include itself and its dependencies")
-		assert.Equal(t, "api1", api1.StartChain[0].Name)
-		assert.Contains(t, []string{api1.StartChain[1].Name, api1.StartChain[2].Name}, "db")
-		assert.Contains(t, []string{api1.StartChain[1].Name, api1.StartChain[2].Name}, "cache")
-
-		assert.Equal(t, 2, len(api2.StartChain), "api2 should include itself and db")
-		assert.Equal(t, "api2", api2.StartChain[0].Name)
-		assert.Equal(t, "db", api2.StartChain[1].Name)
-
-		webChainNames := make([]string, len(web.StartChain))
-		for i, load := range web.StartChain {
-			webChainNames[i] = load.Name
-		}
-		assert.Contains(t, webChainNames, "db")
-		assert.Contains(t, webChainNames, "cache")
-		assert.Contains(t, webChainNames, "api1")
-		assert.Contains(t, webChainNames, "api2")
-		assert.Contains(t, webChainNames, "web")
-		assert.Equal(t, "web", webChainNames[0], "web should be first in its own chain")
+		// Dependencies come first, visited in name order
+		assert.Equal(t, []string{"cache", "db", "api1"}, chainNames(api1.StartChain))
+		assert.Equal(t, []string{"db", "api2"}, chainNames(api2.StartChain))
+		assert.Equal(t, []string{"cache", "db", "api1", "api2", "web"}, chainNames(web.StartChain))
+		assert.Equal(t, []string{"web", "api2", "api1", "db", "cache"}, chainNames(web.StopChain))
 	})
 
 	t.Run("dependency_change_invalidates_chains", func(t *testing.T) {
@@ -517,5 +504,94 @@ func TestUpdateLoadChains_Integration(t *testing.T) {
 		newHash := web.StartChain.Hash()
 
 		assert.NotEqual(t, originalHash, newHash, "Changing dependency config should invalidate chain hash")
+	})
+}
+
+func chainNames(chain LoadChain) []string {
+	names := make([]string, len(chain))
+	for i, l := range chain {
+		names[i] = l.Name
+	}
+	return names
+}
+
+func TestLoad_UpdateLoadChainsOrder(t *testing.T) {
+	db := createTestLoad("db", "node1", "container", map[string]any{"image": "postgres"})
+	cache := createTestLoad("cache", "node1", "container", map[string]any{"image": "redis"})
+	api := createTestLoad("api", "node1", "container", map[string]any{"image": "golang"})
+	web := createTestLoad("web", "node1", "container", map[string]any{"image": "nginx"})
+
+	// db is reached both directly from api and through cache
+	cache.DependsOn = []*Load{db}
+	api.DependsOn = []*Load{db, cache}
+	web.DependsOn = []*Load{api}
+
+	updateLoadChains([]*Load{db, cache, api, web})
+
+	assert.Equal(t, []string{"db"}, chainNames(db.StartChain))
+	assert.Equal(t, []string{"db", "cache"}, chainNames(cache.StartChain))
+	assert.Equal(t, []string{"db", "cache", "api", "web"}, chainNames(web.StartChain))
+	assert.Equal(t, []string{"web", "api", "cache", "db"}, chainNames(web.StopChain))
+}
+
+func TestLoad_UpdateLoadChainsDeterministic(t *testing.T) {
+	loads := make([]*Load, 0, 6)
+	root := createTestLoad("root", "node1", "container", map[string]any{"image": "nginx"})
+	for i := range 5 {
+		dep := createTestLoad(fmt.Sprintf("dep%d", i), "node1", "container", map[string]any{"image": "redis"})
+		root.DependsOn = append(root.DependsOn, dep)
+		loads = append(loads, dep)
+	}
+	loads = append(loads, root)
+
+	updateLoadChains(loads)
+	startHash, stopHash := root.StartChain.Hash(), root.StopChain.Hash()
+	for range 20 {
+		updateLoadChains(loads)
+		assert.Equal(t, startHash, root.StartChain.Hash())
+		assert.Equal(t, stopHash, root.StopChain.Hash())
+	}
+}
+
+func TestLoad_UnmarshalJSONKeepsReferenceNames(t *testing.T) {
+	driverID := LoadDriverID("mock-unmarshal")
+	assert.NoError(t, RegisterLoadDriver(&MockLoadDriver{driver: driverID}))
+	t.Cleanup(func() { _ = UnregisterLoadDriver(driverID) })
+
+	db := createTestLoad("db", "node1", driverID, nil)
+	api := createTestLoad("api", "node1", driverID, nil)
+	api.DependsOn = []*Load{db}
+	updateLoadChains([]*Load{db, api})
+
+	data, err := json.Marshal(api)
+	assert.NoError(t, err)
+
+	var decoded Load
+	assert.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, "api", decoded.Name)
+	assert.Equal(t, "node1", decoded.Node.Name)
+	assert.Equal(t, []string{"db"}, decoded.GetDependencies())
+	assert.Equal(t, api.Hash(), decoded.Hash())
+
+	t.Run("resolve_references", func(t *testing.T) {
+		node := &Node{Name: "node1", Url: "http://node1"}
+		err := decoded.ResolveReferences(map[string]*Node{"node1": node}, map[string]*Load{"db": db, "api": api})
+		assert.NoError(t, err)
+		assert.Same(t, node, decoded.Node)
+		assert.Same(t, db, decoded.DependsOn[0])
+	})
+
+	t.Run("unknown_dependency", func(t *testing.T) {
+		var orphan Load
+		assert.NoError(t, json.Unmarshal(data, &orphan))
+		err := orphan.ResolveReferences(map[string]*Node{"node1": {Name: "node1"}}, map[string]*Load{})
+		assert.ErrorContains(t, err, "load 'db' referenced as dependency by load 'api' does not exist")
+	})
+
+	t.Run("unknown_node", func(t *testing.T) {
+		var orphan Load
+		assert.NoError(t, json.Unmarshal(data, &orphan))
+		err := orphan.ResolveReferences(map[string]*Node{}, map[string]*Load{"db": db})
+		assert.ErrorContains(t, err, "node 'node1' referenced by load 'api' does not exist")
 	})
 }

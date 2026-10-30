@@ -107,29 +107,43 @@ func (c *Client) DeprovisionLoads(loads map[string]*common.Load, handle LoadResu
 
 // StartLoads starts the given loads following their start chains.
 func (c *Client) StartLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runChains(loads, func(l *common.Load) []*common.Load { return l.StartChain }, c.StartLoad, handle)
+	runLoads(startOrder(loads), c.StartLoad, handle)
 }
 
 // StopLoads stops the given loads following their stop chains.
 func (c *Client) StopLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runChains(loads, func(l *common.Load) []*common.Load { return l.StopChain }, c.StopLoad, handle)
+	runLoads(stopOrder(loads), c.StopLoad, handle)
 }
 
 // KillLoads kills the given loads following their stop chains.
 func (c *Client) KillLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runChains(loads, func(l *common.Load) []*common.Load { return l.StopChain }, c.KillLoad, handle)
+	runLoads(stopOrder(loads), c.KillLoad, handle)
 }
 
-func runChains(loads map[string]*common.Load, chain func(*common.Load) []*common.Load, operation func(*common.Load) error, handle LoadResultHandler) {
-	done := make(map[string]bool)
-	for _, load := range loads {
-		for _, l := range chain(load) {
-			if done[l.Name] {
+func startOrder(loads map[string]*common.Load) []*common.Load {
+	var order []*common.Load
+	added := make(map[string]bool)
+	for _, name := range slices.Sorted(maps.Keys(loads)) {
+		for _, l := range loads[name].StartChain {
+			if added[l.Name] {
 				continue
 			}
-			done[l.Name] = true
-			handle(l, operation(l))
+			added[l.Name] = true
+			order = append(order, l)
 		}
+	}
+	return order
+}
+
+func stopOrder(loads map[string]*common.Load) []*common.Load {
+	order := startOrder(loads)
+	slices.Reverse(order)
+	return order
+}
+
+func runLoads(loads []*common.Load, operation func(*common.Load) error, handle LoadResultHandler) {
+	for _, l := range loads {
+		handle(l, operation(l))
 	}
 }
 

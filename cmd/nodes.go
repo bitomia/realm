@@ -243,8 +243,6 @@ var unloadNodeConfig = &cobra.Command{
 	},
 }
 
-// nodeStartStage is how far a node got through the start sequence,
-// or the step where it failed.
 type nodeStartStage string
 
 const (
@@ -267,7 +265,7 @@ var startNodes = &cobra.Command{
 
 		stages := startNodesSequence(cmd.Context(), &client, nodes)
 		if !isSuccessStartSequence(stages) {
-			log.Error("Nodes start drifted")
+			log.Error("Nodes drifted")
 			for name, stage := range stages {
 				if stage == nodeStageConfigured {
 					log.Success(" %s: %s", color.CyanString(name), stage)

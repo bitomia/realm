@@ -106,3 +106,30 @@ func TestClientStreamLoadStdout(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "hello\n", out.String())
 }
+
+func TestClientStopLoadsStopsSharedDependencyLast(t *testing.T) {
+	var stopped []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /loads/{name}/stop", func(w http.ResponseWriter, r *http.Request) {
+		stopped = append(stopped, r.PathValue("name"))
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	node := &common.Node{Name: "lab1", Url: server.URL}
+	db := &common.Load{Name: "db", Node: node}
+	api := &common.Load{Name: "api", Node: node, DependsOn: []*common.Load{db}}
+	worker := &common.Load{Name: "worker", Node: node, DependsOn: []*common.Load{db}}
+	api.StartChain = common.LoadChain{db, api}
+	api.StopChain = common.LoadChain{api, db}
+	worker.StartChain = common.LoadChain{db, worker}
+	worker.StopChain = common.LoadChain{worker, db}
+
+	client := newTestClient()
+	client.StopLoads(map[string]*common.Load{"api": api, "worker": worker}, func(load *common.Load, err error) {
+		assert.NoError(t, err)
+	})
+
+	assert.ElementsMatch(t, []string{"api", "worker", "db"}, stopped)
+	assert.Equal(t, "db", stopped[len(stopped)-1])
+}

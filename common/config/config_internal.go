@@ -351,11 +351,10 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 	// Traverse all loads and build a DAG
 	for loadName, load := range loadsConfig {
 		for _, depLoad := range allLoadDeps[loadName] {
-			loads, exist := loadsConfig[depLoad]
-			if !exist {
-				log.Fatalf("dependency node '%s' not exists", depLoad)
-			}
-			load.DependsOn = append(load.DependsOn, loads)
+			load.DependsOn = append(load.DependsOn, &common.Load{Name: depLoad})
+		}
+		if err := load.ResolveReferences(nodesConfig, loadsConfig); err != nil {
+			return nil, err
 		}
 	}
 
