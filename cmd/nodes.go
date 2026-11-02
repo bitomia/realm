@@ -236,6 +236,8 @@ var unloadNodeConfig = &cobra.Command{
 		client.UnloadNodesConfig(nodes, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Unloading %s completed", color.CyanString(n.Name))
+			} else if errors.Is(err, common.ErrNodeNotConfigured) {
+				log.Info("Unloading %s skipped: %s", color.CyanString(n.Name), err.Error())
 			} else {
 				log.Warn("Unloading %s failed: %s", color.CyanString(n.Name), err.Error())
 			}
@@ -266,8 +268,8 @@ var startNodes = &cobra.Command{
 		stages := startNodesSequence(cmd.Context(), &client, nodes)
 		if !isSuccessStartSequence(stages) {
 			log.Error("Nodes drifted")
-			for name, stage := range stages {
-				if stage == nodeStageConfigured {
+			for _, name := range slices.Sorted(maps.Keys(stages)) {
+				if stage := stages[name]; stage == nodeStageConfigured {
 					log.Success(" %s: %s", color.CyanString(name), stage)
 				} else {
 					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
@@ -348,6 +350,112 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 			return stages
 		}
 		stages[name] = nodeStageConfigured
+	}
+
+	return stages
+}
+
+type nodeStopStage string
+
+const (
+	nodeStageRunning      nodeStopStage = "running"
+	nodeStageUnconfigured nodeStopStage = "unconfigured"
+	nodeStageShuttingDown nodeStopStage = "shutting down"
+	nodeStageStopped      nodeStopStage = "stopped"
+)
+
+var stopNodes = &cobra.Command{
+	Use:                   "stop",
+	Short:                 "Unconfigure and shutdown nodes",
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, args []string) {
+		nodes := cfg.GetNodes()
+		client := clientPkg.NewClient(cfg)
+
+		stages := stopNodesSequence(cmd.Context(), &client, nodes)
+		if !isSuccessStopSequence(stages) {
+			log.Error("Nodes drifted")
+			for _, name := range slices.Sorted(maps.Keys(stages)) {
+				if stage := stages[name]; stage == nodeStageStopped {
+					log.Success(" %s: %s", color.CyanString(name), stage)
+				} else {
+					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageStopped)
+				}
+			}
+		} else {
+			log.Success("Nodes successfully stopped")
+		}
+	},
+}
+
+func isSuccessStopSequence(stages map[string]nodeStopStage) bool {
+	for _, stage := range stages {
+		if stage != nodeStageStopped {
+			return false
+		}
+	}
+	return true
+}
+
+// stopNodesSequence unconfigures, shuts down and waits for the given nodes to
+// stop, powering off the ones still running after their stop timeout.
+// Returns the last report stop stages, if all nodes are nodeStageStopped then it's success
+func stopNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map[string]*common.Node) map[string]nodeStopStage {
+	stages := make(map[string]nodeStopStage, len(nodes))
+	running := make(map[string]*common.Node, len(nodes))
+	for _, name := range slices.Sorted(maps.Keys(nodes)) {
+		if _, err := client.GetVersion(nodes[name].Url); err != nil {
+			stages[name] = nodeStageStopped
+			log.Info("Shutting down %s skipped: node not running", color.CyanString(name))
+		} else {
+			stages[name] = nodeStageRunning
+			running[name] = nodes[name]
+		}
+	}
+
+	names := slices.Sorted(maps.Keys(running))
+
+	for _, name := range names {
+		if err := client.UnloadNodeConfig(running[name]); err == nil {
+			log.Success("Unloading %s completed", color.CyanString(name))
+		} else if errors.Is(err, common.ErrNodeNotConfigured) {
+			log.Info("Unloading %s skipped: %s", color.CyanString(name), err.Error())
+		} else {
+			log.Warn("Unloading %s failed: %s", color.CyanString(name), err.Error())
+			return stages
+		}
+		stages[name] = nodeStageUnconfigured
+	}
+
+	for _, name := range names {
+		if err := client.ShutdownNode(running[name], "", 0); err != nil {
+			log.Warn("Shutting down %s failed: %s", color.CyanString(name), err.Error())
+			return stages
+		}
+		stages[name] = nodeStageShuttingDown
+	}
+
+	var timedOut []string
+	client.WaitNodesStopped(ctx, running, func(n *common.Node, err error) {
+		if err == nil {
+			stages[n.Name] = nodeStageStopped
+		} else {
+			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+			timedOut = append(timedOut, n.Name)
+		}
+	})
+	if ctx.Err() != nil {
+		return stages
+	}
+
+	slices.Sort(timedOut)
+	for _, name := range timedOut {
+		if err := client.PowerOffNode(running[name]); err != nil {
+			log.Warn("Powering off %s failed: %s", color.CyanString(name), err.Error())
+			continue
+		}
+		stages[name] = nodeStageStopped
+		log.Info("Powering off %s completed", color.CyanString(name))
 	}
 
 	return stages
@@ -439,6 +547,7 @@ func init() {
 	listNodes.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Duration("timeout", 2*time.Second, "Time to wait for mDNS discovery")
 	startNodes.Flags().Bool("all", false, "All nodes")
+	stopNodes.Flags().Bool("all", false, "All nodes")
 	powerOnNodes.Flags().Bool("all", false, "All nodes")
 	powerOffNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
@@ -448,6 +557,7 @@ func init() {
 	hostCmd.AddCommand(nodeStates)
 	hostCmd.AddCommand(configCmd)
 	hostCmd.AddCommand(startNodes)
+	hostCmd.AddCommand(stopNodes)
 	hostCmd.AddCommand(powerOnNodes)
 	hostCmd.AddCommand(powerOffNodes)
 	hostCmd.AddCommand(shutdownNodes)

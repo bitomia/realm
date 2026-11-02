@@ -84,7 +84,11 @@ func UnloadNodeConfig(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.UnloadNodeConfig")
 
 	if err := api.UnloadNodeConfig(); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, common.ErrNodeNotConfigured) {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 
@@ -243,7 +247,11 @@ func UnloadGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.UnloadGuestNodeConfig", "guest", guestName)
 
 	if err := api.UnloadGuestNodeConfig(guestName); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, common.ErrNodeNotConfigured) {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 

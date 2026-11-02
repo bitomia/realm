@@ -219,7 +219,10 @@ func (c *Client) UnloadNodeConfig(node *common.Node) error {
 		path = guestNodePath(node.Name, "/config")
 	}
 
-	_, _, err = c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
+	_, statusCode, err := c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
+	if statusCode == http.StatusNoContent {
+		return common.ErrNodeNotConfigured
+	}
 	return err
 }
 
@@ -332,6 +335,50 @@ func (c *Client) WaitNodeReady(ctx context.Context, node *common.Node) error {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 				return fmt.Errorf("node not ready after %s: %w", timeout, err)
+			}
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+// WaitNodesStopped waits concurrently for the given nodes to stop, each one
+// bounded by its stop timeout.
+func (c *Client) WaitNodesStopped(ctx context.Context, nodes map[string]*common.Node, handle NodeResultHandler) {
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			err := c.WaitNodeStopped(ctx, node)
+			mu.Lock()
+			defer mu.Unlock()
+			handle(node, err)
+		}()
+	}
+	wg.Wait()
+}
+
+// WaitNodeStopped polls the node agent /version endpoint until it stops
+// responding or the node stop timeout expires.
+func (c *Client) WaitNodeStopped(ctx context.Context, node *common.Node) error {
+	timeout := time.Duration(node.Timeout.WithDefaults().Stop)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	ticker := time.NewTicker(nodeReadyPollInterval)
+	defer ticker.Stop()
+
+	for {
+		if _, err := c.GetVersion(node.Url); err != nil {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return fmt.Errorf("node still running after %s", timeout)
 			}
 			return ctx.Err()
 		case <-ticker.C:

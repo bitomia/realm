@@ -131,3 +131,34 @@ func TestWaitNodeReadyTimeout(t *testing.T) {
 	err := client.WaitNodeReady(context.Background(), node)
 	assert.ErrorContains(t, err, "node not ready after 100ms: unexpected status 503 Service Unavailable")
 }
+
+func TestWaitNodeStopped(t *testing.T) {
+	stopped := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/version", r.URL.Path)
+		_, _ = w.Write([]byte(`{"version":"test"}`))
+		close(stopped)
+	}))
+	go func() {
+		<-stopped
+		server.Close()
+	}()
+
+	node := &common.Node{Name: "lab1", Url: server.URL, Timeout: common.TimeoutConfig{Stop: common.Duration(10 * time.Second)}}
+
+	client := newTestClient()
+	assert.NoError(t, client.WaitNodeStopped(context.Background(), node))
+}
+
+func TestWaitNodeStoppedTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"version":"test"}`))
+	}))
+	defer server.Close()
+
+	node := &common.Node{Name: "lab1", Url: server.URL, Timeout: common.TimeoutConfig{Stop: common.Duration(100 * time.Millisecond)}}
+
+	client := newTestClient()
+	err := client.WaitNodeStopped(context.Background(), node)
+	assert.ErrorContains(t, err, "node still running after 100ms")
+}
