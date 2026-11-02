@@ -257,31 +257,6 @@ const (
 	nodeStageConfigMismatch nodeStartStage = "config mismatch"
 )
 
-var startNodes = &cobra.Command{
-	Use:                   "start",
-	Short:                 "Power-on and configure nodes",
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		nodes := cfg.GetNodes()
-		client := clientPkg.NewClient(cfg)
-
-		stages := startNodesSequence(cmd.Context(), &client, nodes)
-		if !isSuccessStartSequence(stages) {
-			log.Error("Nodes drifted")
-			for _, name := range slices.Sorted(maps.Keys(stages)) {
-				if stage := stages[name]; stage == nodeStageConfigured {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
-				}
-			}
-
-		} else {
-			log.Success("Nodes successfully started")
-		}
-	},
-}
-
 func isSuccessStartSequence(stages map[string]nodeStartStage) bool {
 	for _, stage := range stages {
 		if stage != nodeStageConfigured {
@@ -546,7 +521,6 @@ func init() {
 	nodeStates.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Duration("timeout", 2*time.Second, "Time to wait for mDNS discovery")
-	startNodes.Flags().Bool("all", false, "All nodes")
 	stopNodes.Flags().Bool("all", false, "All nodes")
 	powerOnNodes.Flags().Bool("all", false, "All nodes")
 	powerOffNodes.Flags().Bool("all", false, "All nodes")
@@ -556,7 +530,6 @@ func init() {
 	hostCmd.AddCommand(listNodes)
 	hostCmd.AddCommand(nodeStates)
 	hostCmd.AddCommand(configCmd)
-	hostCmd.AddCommand(startNodes)
 	hostCmd.AddCommand(stopNodes)
 	hostCmd.AddCommand(powerOnNodes)
 	hostCmd.AddCommand(powerOffNodes)
