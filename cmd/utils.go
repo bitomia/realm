@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"strings"
 )
 
 func prettyJSON(v any, excludeFields ...string) {
@@ -43,6 +47,16 @@ func prettyJSON(v any, excludeFields ...string) {
 	}
 }
 
-func NewNodeContext() {
+func confirm(question string, in io.Reader, out io.Writer) (bool, error) {
+	fmt.Fprintf(out, "%s (y/N): ", question)
+	response, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("failed to read confirmation: %w", err)
+	}
+	if errors.Is(err, io.EOF) {
+		fmt.Fprintln(out)
+	}
 
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes", nil
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"net"
 	"slices"
 	"strings"
@@ -190,6 +191,15 @@ func (c *Config) GetLoads(loadsFilter ...string) map[string]*common.Load {
 		}
 	}
 	return loads
+}
+
+// GetClusterState returns the planned state of every node in the config
+func (c *Config) GetClusterState() common.ClusterState {
+	state := common.ClusterState{Nodes: make([]*common.Node, 0, len(c.processedNodes))}
+	for _, name := range slices.Sorted(maps.Keys(c.processedNodes)) {
+		state.Nodes = append(state.Nodes, c.processedNodes[name])
+	}
+	return state
 }
 
 func (c *Config) GetLoadsGraph() graph.Graph[string, string] {

@@ -53,7 +53,7 @@ func TestPowerOnNodeAgentMode(t *testing.T) {
 	assert.Equal(t, 1, driver.powerOnCalls)
 }
 
-func TestSameNodeConfigComparesLoads(t *testing.T) {
+func TestSameConfigComparesLoads(t *testing.T) {
 	newNode := func(loads map[string]any) *common.Node {
 		node := &common.Node{Name: "n1", Driver: &fakeNodeDriver{}}
 		for name, config := range loads {
@@ -64,8 +64,8 @@ func TestSameNodeConfigComparesLoads(t *testing.T) {
 
 	current := newNode(map[string]any{"web": "v1", "db": "v1"})
 
-	assert.True(t, sameNodeConfig(newNode(map[string]any{"db": "v1", "web": "v1"}), current))
-	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v2", "db": "v1"}), current))
-	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v1"}), current))
-	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v1", "cache": "v1"}), current))
+	assert.True(t, newNode(map[string]any{"db": "v1", "web": "v1"}).SameConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v2", "db": "v1"}).SameConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v1"}).SameConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v1", "cache": "v1"}).SameConfig(current))
 }

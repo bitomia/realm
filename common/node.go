@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/bitomia/realm/common/cloudinit"
 )
@@ -94,4 +95,31 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 
 		return nil
 	}
+}
+
+// SameConfig tells whether both nodes hold the same config and loads
+func (n *Node) SameConfig(other *Node) bool {
+	return n.Name == other.Name &&
+		n.Url == other.Url &&
+		n.Timeout == other.Timeout &&
+		reflect.DeepEqual(n.CloudInit, other.CloudInit) &&
+		reflect.DeepEqual(n.Registries, other.Registries) &&
+		n.Driver.Config().Equal(other.Driver.Config()) &&
+		sameLoads(n.Loads, other.Loads)
+}
+
+func sameLoads(loads []LoadConfig, other []LoadConfig) bool {
+	if len(loads) != len(other) {
+		return false
+	}
+	hashes := make(map[string]Hash, len(other))
+	for _, load := range other {
+		hashes[load.Name] = load.Hash()
+	}
+	for _, load := range loads {
+		if hash, exists := hashes[load.Name]; !exists || hash != load.Hash() {
+			return false
+		}
+	}
+	return true
 }
