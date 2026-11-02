@@ -248,11 +248,12 @@ var unloadNodeConfig = &cobra.Command{
 type nodeStartStage string
 
 const (
-	nodeStagePending    nodeStartStage = "pending"
-	nodeStagePoweredOn  nodeStartStage = "powered on"
-	nodeStageReady      nodeStartStage = "ready"
-	nodeStageConfigured nodeStartStage = "configured"
+	nodeStagePending          nodeStartStage = "pending"
+	nodeStatePowerOnRequested nodeStartStage = "power-on requested"
+	nodeStageReady            nodeStartStage = "ready"
+	nodeStageConfigured       nodeStartStage = "configured"
 
+	nodeStageNotReady       nodeStartStage = "not ready"
 	nodeStageInvalidConfig  nodeStartStage = "invalid config"
 	nodeStageConfigMismatch nodeStartStage = "config mismatch"
 )
@@ -282,7 +283,7 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 			log.Warn("Powering on %s failed: %s", color.CyanString(name), err.Error())
 			return stages
 		}
-		stages[name] = nodeStagePoweredOn
+		stages[name] = nodeStatePowerOnRequested
 	}
 
 	waitCtx, cancel := context.WithCancel(ctx)
@@ -291,8 +292,15 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 	client.WaitNodesReady(waitCtx, nodes, func(n *common.Node, err error) {
 		if err == nil {
 			stages[n.Name] = nodeStageReady
-		} else if ready {
-			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+			return
+		}
+		// Nodes whose wait was cancelled by another node's failure keep their stage
+		if errors.Is(err, context.Canceled) && !ready {
+			return
+		}
+		stages[n.Name] = nodeStageNotReady
+		log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+		if ready {
 			ready = false
 			cancel()
 		}
