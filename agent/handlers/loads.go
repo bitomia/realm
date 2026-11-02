@@ -8,30 +8,7 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/bitomia/realm/agent/api"
-	"github.com/bitomia/realm/common"
 )
-
-func ProvisionLoadHandler(w http.ResponseWriter, r *http.Request) {
-	slog.Info("handlers.ProvisionLoadHandler")
-
-	var load common.Load
-	err := json.NewDecoder(r.Body).Decode(&load)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	slog.Info("handlers.ProvisionLoadHandler", "load", load.Name, "driver", load.Driver)
-
-	provisionLoadInfo, err := api.ProvisionLoad(&load)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(provisionLoadInfo)
-}
 
 func StartLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	loadName := mux.Vars(r)["loadName"]
@@ -62,18 +39,6 @@ func KillLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.KillLoadDeploymentsHandler", "loadName", loadName)
 
 	if err := api.KillLoadDeployments(loadName); err != nil {
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func DeprovisionLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
-	loadName := mux.Vars(r)["loadName"]
-	slog.Info("handlers.DeprovisionLoadDeploymentsHandler", "loadName", loadName)
-
-	if err := api.DeprovisionLoadDeployments(loadName); err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

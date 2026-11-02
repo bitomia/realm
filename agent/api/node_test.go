@@ -52,3 +52,20 @@ func TestPowerOnNodeAgentMode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, driver.powerOnCalls)
 }
+
+func TestSameNodeConfigComparesLoads(t *testing.T) {
+	newNode := func(loads map[string]any) *common.Node {
+		node := &common.Node{Name: "n1", Driver: &fakeNodeDriver{}}
+		for name, config := range loads {
+			node.Loads = append(node.Loads, common.LoadConfig{Name: name, Node: node.Name, Driver: "fake_load_driver", DriverConfig: config})
+		}
+		return node
+	}
+
+	current := newNode(map[string]any{"web": "v1", "db": "v1"})
+
+	assert.True(t, sameNodeConfig(newNode(map[string]any{"db": "v1", "web": "v1"}), current))
+	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v2", "db": "v1"}), current))
+	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v1"}), current))
+	assert.False(t, sameNodeConfig(newNode(map[string]any{"web": "v1", "cache": "v1"}), current))
+}

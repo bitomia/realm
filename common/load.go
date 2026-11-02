@@ -24,12 +24,22 @@ type LoadConfig struct {
 	StopChainHash  string       `json:"stop_chain_hash"`
 }
 
-type HashableLoadConfig struct {
-	Name         string       `json:"name"`
-	Node         string       `json:"node"`
-	DependsOn    []string     `json:"depends_on"`
-	Driver       LoadDriverID `json:"driver"`
-	DriverConfig any          `json:"driver_config"`
+// Hash returns a hash of the config which does not depend on how its driver
+// config is held: a typed struct and the map decoded from its JSON hash the same
+func (c LoadConfig) Hash() Hash {
+	data, err := json.Marshal(c)
+	if err != nil {
+		panic(err)
+	}
+	// Round trip through a generic value so map keys are sorted on the final marshal
+	var canonical any
+	if err := json.Unmarshal(data, &canonical); err != nil {
+		panic(err)
+	}
+	if data, err = json.Marshal(canonical); err != nil {
+		panic(err)
+	}
+	return sha256.Sum256(data)
 }
 
 type Load struct {
@@ -49,24 +59,34 @@ func (l *Load) GetDependencies() []string {
 	return dependsOn
 }
 
-func (l *Load) MarshalJSON() ([]byte, error) {
+func (l *Load) baseConfig() LoadConfig {
 	var nodeName string
 	if l.Node != nil {
 		nodeName = l.Node.Name
 	}
 
+	return LoadConfig{
+		Name:         l.Name,
+		Node:         nodeName,
+		Driver:       l.Driver.ID(),
+		DriverConfig: l.Driver.Config().DriverConfig,
+		DependsOn:    l.GetDependencies(),
+	}
+}
+
+func (l *Load) GetConfig() LoadConfig {
+	cfg := l.baseConfig()
+
 	startChainHash := l.StartChain.Hash()
 	stopChainHash := l.StopChain.Hash()
+	cfg.StartChainHash = base64.StdEncoding.EncodeToString(startChainHash[:])
+	cfg.StopChainHash = base64.StdEncoding.EncodeToString(stopChainHash[:])
 
-	return json.Marshal(&LoadConfig{
-		Name:           l.Name,
-		Node:           nodeName,
-		Driver:         l.Driver.ID(),
-		DriverConfig:   l.Driver.Config().DriverConfig,
-		DependsOn:      l.GetDependencies(),
-		StartChainHash: base64.StdEncoding.EncodeToString(startChainHash[:]),
-		StopChainHash:  base64.StdEncoding.EncodeToString(stopChainHash[:]),
-	})
+	return cfg
+}
+
+func (l *Load) MarshalJSON() ([]byte, error) {
+	return json.Marshal(l.GetConfig())
 }
 
 func (l *Load) UnmarshalJSON(data []byte) error {
@@ -118,20 +138,6 @@ func (l *Load) ResolveReferences(nodes map[string]*Node, loads map[string]*Load)
 	return nil
 }
 
-func (l *Load) Hash() [32]byte {
-	data, err := json.Marshal(HashableLoadConfig{
-		Name:         l.Name,
-		Node:         l.Node.Name,
-		Driver:       l.Driver.ID(),
-		DriverConfig: l.Driver.Config().DriverConfig,
-		DependsOn:    l.GetDependencies(),
-	})
-	if err != nil {
-		panic(err)
-	}
-	return sha256.Sum256(data)
-}
-
 func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMap map[string]*Load) error {
 	adjacencyMap, err := configGraph.AdjacencyMap()
 	if err != nil {
@@ -172,7 +178,7 @@ func (l *Load) UpdateLoadChains(configGraph graph.Graph[string, string], loadsMa
 func (chain LoadChain) Hash() Hash {
 	var hashes [][32]byte
 	for _, l := range chain {
-		hashes = append(hashes, l.Hash())
+		hashes = append(hashes, l.baseConfig().Hash())
 	}
 
 	var combined []byte

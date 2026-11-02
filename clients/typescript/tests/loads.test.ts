@@ -77,31 +77,10 @@ describe('loads', () => {
         return { db, api, web, cfg: config(db, api, web) };
     };
 
-    describe('provisionLoad', () => {
-        it('posts the load config', async () => {
-            const web = load('web');
-
-            await new Client(config(web)).provisionLoad(web);
-
-            expect(received).toEqual([
-                { method: 'POST', url: '/loads/provision', body: JSON.stringify(web) },
-            ]);
-        });
-
-        it('rejects with the request error on failure', async () => {
-            reply = () => ({ status: 500, body: '' });
-            const web = load('web');
-
-            const err = await new Client(config(web)).provisionLoad(web).catch((e) => e);
-            expect(err).toBeInstanceOf(RequestError);
-        });
-    });
-
     describe.each([
         ['startLoad', 'start'],
         ['stopLoad', 'stop'],
         ['killLoad', 'kill'],
-        ['deprovisionLoad', 'deprovision'],
     ] as const)('%s', (method, action) => {
         it(`posts to the load ${action} endpoint`, async () => {
             const web = load('web');
@@ -129,30 +108,6 @@ describe('loads', () => {
 
             expect(got).toEqual(deployments);
             expect(received).toEqual([{ method: 'GET', url: '/loads', body: '' }]);
-        });
-    });
-
-    describe('provisionLoads', () => {
-        it('rejects when there are no loads', async () => {
-            const handle = vi.fn();
-
-            await expect(new Client(config()).provisionLoads({}, handle)).rejects.toThrow('no loads');
-
-            expect(handle).not.toHaveBeenCalled();
-            expect(received).toEqual([]);
-        });
-    });
-
-    describe('deprovisionLoads', () => {
-        it('deprovisions every load and handles each result', async () => {
-            reply = (r) => (r.url === '/loads/web/deprovision' ? { status: 500, body: 'boom' } : { status: 200 });
-            const loads = { web: load('web'), db: load('db') };
-            const handle = vi.fn();
-
-            await new Client(config(loads.web, loads.db)).deprovisionLoads(loads, handle);
-
-            expect(received.map((r) => r.url)).toEqual(['/loads/web/deprovision', '/loads/db/deprovision']);
-            expect(handle).toHaveBeenCalledTimes(2);
         });
     });
 

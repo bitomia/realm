@@ -595,3 +595,22 @@ func TestLoad_UnmarshalJSONKeepsReferenceNames(t *testing.T) {
 		assert.ErrorContains(t, err, "node 'node1' referenced by load 'api' does not exist")
 	})
 }
+
+func TestLoadConfigHashIgnoresDriverConfigRepresentation(t *testing.T) {
+	type driverConfig struct {
+		Zeta  string `json:"zeta"`
+		Alpha int    `json:"alpha"`
+	}
+	typed := LoadConfig{Name: "web", Node: "n1", Driver: "d", DriverConfig: driverConfig{Zeta: "z", Alpha: 1}}
+
+	data, err := json.Marshal(typed)
+	assert.NoError(t, err)
+	var decoded LoadConfig
+	assert.NoError(t, json.Unmarshal(data, &decoded))
+
+	assert.Equal(t, typed.Hash(), decoded.Hash())
+
+	changed := decoded
+	changed.DriverConfig = map[string]any{"zeta": "z", "alpha": 2}
+	assert.NotEqual(t, typed.Hash(), changed.Hash())
+}

@@ -309,3 +309,27 @@ func setGuestMetadata(repo *BoltNodesRepository, guestNodeName string, metadata 
 		return nil
 	})
 }
+
+func TestBoltNodesRepository_SetSelfWithLoads(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	node := common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: newMockNodeDriver("test-driver")}
+	node.Loads = []common.LoadConfig{
+		{Name: "api", Node: node.Name, Driver: MockLoadDriverID, DriverConfig: map[string]any{"value": "api"}, DependsOn: []string{"db"}},
+		{Name: "db", Node: node.Name, Driver: MockLoadDriverID, DriverConfig: map[string]any{"value": "db"}},
+	}
+	require.NoError(t, repo.SetSelf(node))
+
+	entry, err := repo.GetSelf()
+
+	require.NoError(t, err)
+	require.Len(t, entry.Loads, 2)
+	assert.Equal(t, "api", entry.Loads[0].Name)
+	assert.Equal(t, "test-node", entry.Loads[0].Node)
+	assert.Equal(t, []string{"db"}, entry.Loads[0].DependsOn)
+	assert.Equal(t, "db", entry.Loads[1].Name)
+	for i := range node.Loads {
+		assert.Equal(t, node.Loads[i].Hash(), entry.Loads[i].Hash())
+	}
+}

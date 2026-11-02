@@ -12,6 +12,7 @@ import {
   RequestError,
 } from '../src/client.ts';
 import type { Config, NodeConfig } from '../src/models/config.ts';
+import type { LoadConfig } from '../src/models/load.ts';
 
 type Received = { method?: string; url?: string; body: string };
 
@@ -77,6 +78,27 @@ describe('nodes', () => {
       await new Client(cfg).loadNodeConfig(n);
 
       expect(received).toEqual([{ method: 'POST', url: '/node/config', body: JSON.stringify(n) }]);
+    });
+
+    it('posts the node config along with its loads sorted by name', async () => {
+      reply = () => ({ status: 201 });
+      const n = node('n1');
+      const load = (name: string, nodeName: string): LoadConfig => ({
+        name,
+        node: nodeName,
+        depends_on: [],
+        driver: 'container',
+        driver_config: { image: name },
+      });
+      const web = load('web', 'n1');
+      const db = load('db', 'n1');
+      const other = load('other', 'n2');
+
+      await new Client({ ...cfg, loads: { web, db, other } }).loadNodeConfig(n);
+
+      expect(received).toEqual([
+        { method: 'POST', url: '/node/config', body: JSON.stringify({ ...n, loads: [db, web] }) },
+      ]);
     });
 
     it('rejects with ErrNodeAlreadyConfigured on 200', async () => {

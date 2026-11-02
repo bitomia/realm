@@ -2,7 +2,6 @@ package golang
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -29,16 +28,6 @@ type LoadState struct {
 type LoadsDependency struct {
 	From string
 	To   string
-}
-
-func (c *Client) ProvisionLoad(load *common.Load) error {
-	_, _, err := c.doJSONRequest("POST", load.Node.Url, "/loads/provision", load, requestTimeout)
-	return err
-}
-
-func (c *Client) DeprovisionLoad(load *common.Load) error {
-	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
-	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
@@ -81,28 +70,6 @@ func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer)
 		return fmt.Errorf("failed to stream %s: %v", output, err)
 	}
 	return nil
-}
-
-// ProvisionLoads provisions the given loads, stopping at the first failure.
-func (c *Client) ProvisionLoads(loads map[string]*common.Load, handle LoadResultHandler) error {
-	if len(loads) == 0 {
-		return errors.New("no loads")
-	}
-	for _, load := range loads {
-		err := c.ProvisionLoad(load)
-		handle(load, err)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// DeprovisionLoads deprovisions the given loads.
-func (c *Client) DeprovisionLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	for _, load := range loads {
-		handle(load, c.DeprovisionLoad(load))
-	}
 }
 
 // StartLoads starts the given loads following their start chains.

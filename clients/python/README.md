@@ -46,15 +46,22 @@ with Realm(socket="/run/realm/agent.sock") as agent:
         print(deployment["load_name"], deployment["deployment_status"]["status"])
 ```
 
-Deploy a load and follow its output:
+Deploy a load and follow its output. Loads are provisioned along with the
+config of the node that holds them, and deprovisioned when it is unloaded:
 
 ```python
-deployment_id = agent.provision_load(
+agent.load_node_config(
     {
-        "name": "web",
-        "node": "lab1",
-        "driver": "container",
-        "driver_config": {"image": "docker.io/library/nginx:latest"},
+        "name": "lab1",
+        "driver": "linux",
+        "loads": [
+            {
+                "name": "web",
+                "node": "lab1",
+                "driver": "container",
+                "driver_config": {"image": "docker.io/library/nginx:latest"},
+            }
+        ],
     }
 )
 agent.start_load("web")

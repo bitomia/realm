@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/bitomia/realm/agent/capabilities"
 	"github.com/bitomia/realm/agent/cloudinit"
@@ -173,6 +175,9 @@ func LoadNodeConfig(node *common.Node) error {
 	}
 
 	if info.GuestMode {
+		if len(node.Loads) > 0 {
+			return fmt.Errorf("loads are not supported on guest node '%s'", node.Name)
+		}
 		if err := db.NodesRepository.SetGuestNode(*node); err != nil {
 			return err
 		}
@@ -182,6 +187,15 @@ func LoadNodeConfig(node *common.Node) error {
 		}
 		otel.SetNodeName(node.Name)
 		slog.Info("Agent named", "node", node.Name)
+
+		// Loads are provisioned once the node is configured, which is undone if they fail
+		if err := provisionLoads(node.Loads); err != nil {
+			if err := db.NodesRepository.DeleteSelf(); err != nil {
+				slog.Error("LoadNodeConfig", "node", node.Name, "msg", "rolling back node config", "error", err)
+			}
+			otel.SetNodeName("")
+			return err
+		}
 	}
 	return nil
 }
@@ -212,7 +226,6 @@ func UnloadGuestNodeConfig(nodeName string) error {
 }
 
 func UnloadNodeConfig() error {
-
 	db := db.GetDB()
 	if db == nil {
 		return fmt.Errorf("db not initialized")
@@ -229,15 +242,19 @@ func UnloadNodeConfig() error {
 		}
 	}
 
-	// Deprovision all deployments on this node before deprovisioning the node
+	// Deprovision the loads of all deployments on this node before unloading the node
 	deployments, err := db.DeploymentsRepository.GetAll()
 	if err != nil {
 		return fmt.Errorf("failed to get deployments: %w", err)
 	}
 
+	loadNames := make(map[string]bool)
 	for _, deployment := range deployments {
-		if err := DeprovisionLoadDeployments(deployment.LoadName); err != nil {
-			return fmt.Errorf("failed to deprovision deployment %s: %w", deployment.ID, err)
+		loadNames[deployment.LoadName] = true
+	}
+	for _, loadName := range slices.Sorted(maps.Keys(loadNames)) {
+		if err := deprovisionLoadDeployments(loadName); err != nil {
+			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
 		}
 	}
 

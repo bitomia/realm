@@ -32,10 +32,8 @@ func createBaseRoutes(router *mux.Router) {
 	router.Handle("/node/guests/{guestName}/restart", auth.WithAuth(handlers.RestartGuestNode)).Methods("POST")
 
 	router.Handle("/loads", auth.WithAuth(handlers.GetLoadsDeploymentsHandler)).Methods("GET")
-	router.Handle("/loads/provision", auth.WithAuth(handlers.ProvisionLoadHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/start", auth.WithAuth(handlers.StartLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/stop", auth.WithAuth(handlers.StopLoadDeploymentsHandler)).Methods("POST")
-	router.Handle("/loads/{loadName}/deprovision", auth.WithAuth(handlers.DeprovisionLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/kill", auth.WithAuth(handlers.KillLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/stdout", auth.WithAuth(handlers.ReadLoadStdoutHandler)).Methods("GET")
 	router.Handle("/loads/{loadName}/stderr", auth.WithAuth(handlers.ReadLoadStderrHandler)).Methods("GET")

@@ -32,5 +32,23 @@ func sameNodeConfig(node *common.Node, current *common.Node) bool {
 		node.Timeout == current.Timeout &&
 		reflect.DeepEqual(node.CloudInit, current.CloudInit) &&
 		reflect.DeepEqual(node.Registries, current.Registries) &&
-		node.Driver.Config().Equal(current.Driver.Config())
+		node.Driver.Config().Equal(current.Driver.Config()) &&
+		sameLoads(node.Loads, current.Loads)
+}
+
+// sameLoads tells whether both lists hold the same loads, regardless of their order
+func sameLoads(loads []common.LoadConfig, current []common.LoadConfig) bool {
+	if len(loads) != len(current) {
+		return false
+	}
+	hashes := make(map[string]common.Hash, len(current))
+	for _, load := range current {
+		hashes[load.Name] = load.Hash()
+	}
+	for _, load := range loads {
+		if hash, exists := hashes[load.Name]; !exists || hash != load.Hash() {
+			return false
+		}
+	}
+	return true
 }

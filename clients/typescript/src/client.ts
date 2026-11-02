@@ -192,6 +192,13 @@ export class Client {
         return '/node/guests/' + encodeURIComponent(name) + suffix;
     }
 
+    #nodeConfigPayload(node: NodeConfig): NodeConfig & { loads?: LoadConfig[] } {
+        const loads = Object.values(this.cfg.loads)
+            .filter((l) => l.node === node.name)
+            .sort((a, b) => a.name.localeCompare(b.name));
+        return loads.length > 0 ? { ...node, loads } : node;
+    }
+
     async #runOnNodes(
         nodes: { [k: string]: NodeConfig },
         operation: (node: NodeConfig) => Promise<void>,
@@ -303,7 +310,8 @@ export class Client {
     async loadNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
         let status: number;
         try {
-            status = (await this.doJSONRequest('POST', node.url, '/node/config', node, timeout)).status;
+            status = (await this.doJSONRequest('POST', node.url, '/node/config', this.#nodeConfigPayload(node), timeout))
+                .status;
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;
@@ -318,7 +326,8 @@ export class Client {
     async validateNodeConfig(node: NodeConfig, timeout: number = requestTimeout): Promise<void> {
         let status: number;
         try {
-            status = (await this.doJSONRequest('POST', node.url, '/node/config?validate=true', node, timeout)).status;
+            const payload = this.#nodeConfigPayload(node);
+            status = (await this.doJSONRequest('POST', node.url, '/node/config?validate=true', payload, timeout)).status;
         } catch (err) {
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;
@@ -365,14 +374,6 @@ export class Client {
         await this.#runOnNodes(nodes, (n) => this.unloadNodeConfig(n), handle);
     }
 
-    async provisionLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
-        await this.doJSONRequest('POST', this.cfg.nodes[load.node].url, '/loads/provision', load, timeout);
-    }
-
-    async deprovisionLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
-        await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/deprovision`, undefined, timeout);
-    }
-
     async startLoad(load: LoadConfig, timeout: number = requestTimeout): Promise<void> {
         await this.doRequest('POST', this.cfg.nodes[load.node].url, `/loads/${load.name}/start`, undefined, timeout);
     }
@@ -392,35 +393,6 @@ export class Client {
             return JSON.parse(new TextDecoder().decode(body)) as LoadsDeployments;
         } catch (err) {
             throw new Error(`failed to parse response: ${(err as Error).message}`, { cause: err });
-        }
-    }
-
-    // provisionLoads provisions the given loads, stopping at the first failure.
-    async provisionLoads(
-        loads: { [k: string]: LoadConfig },
-        handle: LoadResultHandler,
-        timeout: number = requestTimeout,
-    ): Promise<void> {
-        if (Object.keys(loads).length === 0) {
-            throw new Error('no loads');
-        }
-        for (const load of Object.values(loads)) {
-            const err = await this.#tryOperation(() => this.provisionLoad(load, timeout));
-            handle(load, err);
-            if (err !== undefined) {
-                throw err;
-            }
-        }
-    }
-
-    // deprovisionLoads deprovisions the given loads.
-    async deprovisionLoads(
-        loads: { [k: string]: LoadConfig },
-        handle: LoadResultHandler,
-        timeout: number = requestTimeout,
-    ): Promise<void> {
-        for (const load of Object.values(loads)) {
-            handle(load, await this.#tryOperation(() => this.deprovisionLoad(load, timeout)));
         }
     }
 
