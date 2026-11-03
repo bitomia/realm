@@ -3,11 +3,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"os"
-	"slices"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -40,50 +37,11 @@ var planCmd = &cobra.Command{
 			return confirm(fmt.Sprintf("Update %s?", stateFile), os.Stdin, os.Stdout)
 		}
 
-		if err := plan(stateFile, dry, approve); err != nil {
+		client := clientPkg.NewClient(cfg)
+		if err := client.PlanCluster(stateFile, dry, approve); err != nil {
 			log.Fatal("%s", err)
 		}
 	},
-}
-
-func plan(stateFile string, dry bool, approve func() (bool, error)) error {
-	previous, err := common.ReadClusterStateFile(stateFile)
-	if errors.Is(err, os.ErrNotExist) {
-		previous = nil
-	} else if err != nil {
-		return err
-	}
-
-	planned := cfg.GetClusterState()
-	diff := common.DiffClusterStates(previous, planned)
-	if diff.IsEmpty() {
-		log.Success("No changes, cluster state on %s is up to date", stateFile)
-		return nil
-	}
-
-	if err := common.PrintClusterStateDiff(diff, previous, planned); err != nil {
-		return err
-	}
-
-	if dry {
-		log.Info("Dry run, %s left untouched", stateFile)
-		return nil
-	}
-
-	approved, err := approve()
-	if err != nil {
-		return err
-	}
-	if !approved {
-		log.Warn("Plan discarded, %s left untouched", stateFile)
-		return nil
-	}
-
-	if err := planned.WriteFile(stateFile); err != nil {
-		return err
-	}
-	log.Success("Cluster state planned on %s", stateFile)
-	return nil
 }
 
 var startCmd = &cobra.Command{
@@ -98,39 +56,13 @@ var startCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		stateFile, _ := cmd.Flags().GetString("state")
 
-		if err := checkClusterState(stateFile); err != nil {
-			log.Fatal("%s", err)
-		}
-
 		client := clientPkg.NewClient(cfg)
-		startSeq := startNodesSequence(cmd.Context(), &client, cfg.GetNodes())
-
-		if !isSuccessStartSequence(startSeq) {
-			log.Error("Nodes drifted")
-			for _, name := range slices.Sorted(maps.Keys(startSeq)) {
-				if stage := startSeq[name]; stage == nodeStageConfigured {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
-				}
-			}
-			os.Exit(1)
+		exitCode := client.StartCluster(cmd.Context(), stateFile)
+		if exitCode == 0 {
+			log.Success("Cluster started")
 		}
 
-		loadsSeq := startLoadsSequence(&client, cfg.GetLoads())
-		if !isSuccessLoadsStartSequence(loadsSeq) {
-			log.Error("Loads drifted")
-			for _, name := range slices.Sorted(maps.Keys(loadsSeq)) {
-				if stage := loadsSeq[name]; stage == loadStageRunning {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageRunning)
-				}
-			}
-			os.Exit(1)
-		}
-
-		log.Success("Cluster started")
+		os.Exit(exitCode)
 	},
 }
 
@@ -146,63 +78,14 @@ var stopCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		stateFile, _ := cmd.Flags().GetString("state")
 
-		if err := checkClusterState(stateFile); err != nil {
-			log.Fatal("%s", err)
-		}
-
 		client := clientPkg.NewClient(cfg)
-
-		loadsSeq := stopLoadsSequence(&client, cfg.GetLoads())
-		if !isSuccessLoadsStopSequence(loadsSeq) {
-			log.Error("Loads drifted")
-			for _, name := range slices.Sorted(maps.Keys(loadsSeq)) {
-				if stage := loadsSeq[name]; stage == loadStageStopped {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageStopped)
-				}
-			}
-			os.Exit(1)
-		}
-
-		stopSeq := powerOffNodesSequence(cmd.Context(), &client, cfg.GetNodes())
-
-		if isSuccessPowerOffSequence(stopSeq) {
+		exitCode := client.StopCluster(cmd.Context(), stateFile)
+		if exitCode == 0 {
 			log.Success("Cluster stopped")
-			return
 		}
 
-		log.Error("Nodes drifted")
-		for _, name := range slices.Sorted(maps.Keys(stopSeq)) {
-			if stage := stopSeq[name]; stage == nodeStagePoweredOff {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStagePoweredOff)
-			}
-		}
-
-		os.Exit(1)
+		os.Exit(exitCode)
 	},
-}
-
-func checkClusterState(stateFile string) error {
-	previous, err := common.ReadClusterStateFile(stateFile)
-	if errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("no cluster state found on %s: run 'plan' first", stateFile)
-	} else if err != nil {
-		return err
-	}
-
-	planned := cfg.GetClusterState()
-	diff := common.DiffClusterStates(previous, planned)
-	if diff.IsEmpty() {
-		return nil
-	}
-
-	if err := common.PrintClusterStateDiff(diff, previous, planned); err != nil {
-		return err
-	}
-	return fmt.Errorf("config differs from cluster state on %s: run 'plan' to review and update it", stateFile)
 }
 
 func init() {

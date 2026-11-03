@@ -1,9 +1,8 @@
-package cmd
+package golang
 
 import (
 	"github.com/fatih/color"
 
-	clientPkg "github.com/bitomia/realm/clients/go"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 )
@@ -28,8 +27,8 @@ func isSuccessLoadsStartSequence(stages map[string]loadStartStage) bool {
 // startLoadsSequence starts the given loads following their start chains,
 // skipping the ones already running and stopping at the first failure.
 // Returns the last report start stages, if all loads are loadStageRunning then it's success
-func startLoadsSequence(client *clientPkg.Client, loads map[string]*common.Load) map[string]loadStartStage {
-	order := clientPkg.StartOrder(loads)
+func (client *Client) startLoadsSequence(loads map[string]*common.Load) map[string]loadStartStage {
+	order := StartOrder(loads)
 	stages := make(map[string]loadStartStage, len(order))
 	chained := make(map[string]*common.Load, len(order))
 	for _, l := range order {
@@ -80,8 +79,8 @@ func isSuccessLoadsStopSequence(stages map[string]loadStopStage) bool {
 // stopLoadsSequence stops the given loads following their stop chains,
 // skipping the ones not running and stopping at the first failure.
 // Returns the last report stop stages, if all loads are loadStageStopped then it's success
-func stopLoadsSequence(client *clientPkg.Client, loads map[string]*common.Load) map[string]loadStopStage {
-	order := clientPkg.StopOrder(loads)
+func (client *Client) stopLoadsSequence(loads map[string]*common.Load) map[string]loadStopStage {
+	order := StopOrder(loads)
 	stages := make(map[string]loadStopStage, len(order))
 	chained := make(map[string]*common.Load, len(order))
 	for _, l := range order {
