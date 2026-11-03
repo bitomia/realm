@@ -119,29 +119,29 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func GetNodeConfig() (*common.NodeDriverConfig, error) {
+// GetNodeConfig returns the node config loaded on this agent
+func GetNodeConfig() (*common.Node, error) {
 	db := db.GetDB()
 	if db == nil {
 		return nil, fmt.Errorf("db not initialized")
 	}
-	if node, err := db.NodesRepository.GetSelf(); err != nil {
+	if entry, err := db.NodesRepository.GetSelf(); err != nil {
 		return nil, err
 	} else {
-		config := node.Driver.Config()
-		return &config, nil
+		return &entry.Node, nil
 	}
 }
 
-func GetGuestNodeConfig(nodeName string) (*common.NodeDriverConfig, error) {
+// GetGuestNodeConfig returns the guest node config loaded on this agent
+func GetGuestNodeConfig(nodeName string) (*common.Node, error) {
 	db := db.GetDB()
 	if db == nil {
 		return nil, fmt.Errorf("db not initialized")
 	}
-	if node, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
+	if entry, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
 		return nil, err
 	} else {
-		config := node.Driver.Config()
-		return &config, nil
+		return &entry.Node, nil
 	}
 }
 

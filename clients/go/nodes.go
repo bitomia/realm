@@ -171,18 +171,29 @@ func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
 	return ip != nil && slices.ContainsFunc(agent.IPs, ip.Equal)
 }
 
-func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, error) {
-	payload, statusCode, err := c.doRequest("GET", node.Url, "/node/config", nil, requestTimeout)
+// GetNodeConfig returns the config loaded on the node agent.
+func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeConfig, error) {
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/node/config"
+	if driverInfo.GuestMode {
+		path = guestNodePath(node.Name, "/config")
+	}
+
+	payload, statusCode, err := c.doRequest("GET", node.Url, path, nil, requestTimeout)
 	if statusCode == http.StatusNoContent {
 		return nil, common.ErrNodeNotConfigured
 	} else if err != nil {
 		return nil, err
 	} else {
-		var nodeDriverConfig common.NodeDriverConfig
-		if err := json.Unmarshal(payload, &nodeDriverConfig); err != nil {
+		var nodeConfig common.NodeConfig
+		if err := json.Unmarshal(payload, &nodeConfig); err != nil {
 			return nil, err
 		}
-		return &nodeDriverConfig, nil
+		return &nodeConfig, nil
 	}
 }
 

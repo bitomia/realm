@@ -225,6 +225,66 @@ var loadNodeConfig = &cobra.Command{
 	},
 }
 
+var getNodeConfig = &cobra.Command{
+	Use:                   "get [--all | node...] [--json]",
+	Short:                 "Get node configurations loaded on agents",
+	Args:                  validateNodeArgs,
+	DisableFlagsInUseLine: true,
+	Run: func(cmd *cobra.Command, nodeNames []string) {
+		nodes := cfg.GetNodes(nodeNames...)
+		client := clientPkg.NewClient(cfg)
+
+		result := make(map[string]*common.NodeConfig, len(nodes))
+		for name, node := range nodes {
+			config, err := client.GetNodeConfig(node)
+			if err != nil {
+				log.Warn("Getting %s config failed: %s", color.CyanString(name), err.Error())
+				continue
+			}
+			result[name] = config
+		}
+
+		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
+			json, _ := json.Marshal(result)
+			fmt.Println(string(json))
+			return
+		}
+
+		for _, config := range result {
+			log.Info(" URL: %s", color.CyanString(config.Url))
+			log.Info(" Driver: %s", color.CyanString(string(config.Driver)))
+			if config.DriverConfig != nil {
+				log.Info(" Driver config:")
+				prettyJSON(*config.DriverConfig)
+			}
+			if len(config.Registries) > 0 {
+				hosts := make([]string, 0, len(config.Registries))
+				for _, registry := range config.Registries {
+					hosts = append(hosts, registry.Host)
+				}
+				log.Info(" Registries: %s", color.CyanString(strings.Join(hosts, ", ")))
+			}
+			if len(config.Loads) == 0 {
+				log.Info(" Loads: %s", color.CyanString("0"))
+				return
+			}
+			log.Info(" Loads (%d):", len(config.Loads))
+			for _, load := range config.Loads {
+				log.Info("  - %s:", color.YellowString(load.Name))
+				log.Info("    Driver: %s", color.CyanString(string(load.Driver)))
+				if len(load.DependsOn) > 0 {
+					log.Info("    Depends on: %s", color.CyanString(strings.Join(load.DependsOn, ", ")))
+				}
+				if load.DriverConfig != nil {
+					log.Info("    Driver config:")
+					prettyJSON(load.DriverConfig)
+				}
+			}
+			fmt.Println()
+		}
+	},
+}
+
 var unloadNodeConfig = &cobra.Command{
 	Use:                   "unload [--all | node...]",
 	Short:                 "Unload node configurations",
@@ -564,7 +624,10 @@ func init() {
 	loadNodeConfig.Flags().Bool("all", false, "All nodes")
 	loadNodeConfig.Flags().Bool("validate", false, "Validate only")
 	unloadNodeConfig.Flags().Bool("all", false, "All nodes")
+	getNodeConfig.Flags().Bool("all", false, "All nodes")
+	getNodeConfig.Flags().Bool("json", false, "Output as JSON")
 
+	configCmd.AddCommand(getNodeConfig)
 	configCmd.AddCommand(loadNodeConfig)
 	configCmd.AddCommand(unloadNodeConfig)
 
