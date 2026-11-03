@@ -179,12 +179,13 @@ func (c *Client) LoadsDependencies() ([]LoadsDependency, error) {
 	}
 
 	var dependencies []LoadsDependency
-	for from, adjacencies := range adjacencyMap {
+	for _, from := range slices.Sorted(maps.Keys(adjacencyMap)) {
+		adjacencies := adjacencyMap[from]
 		if len(adjacencies) == 0 {
 			dependencies = append(dependencies, LoadsDependency{From: from})
 			continue
 		}
-		for to := range adjacencies {
+		for _, to := range slices.Sorted(maps.Keys(adjacencies)) {
 			dependencies = append(dependencies, LoadsDependency{From: from, To: to})
 		}
 	}
