@@ -88,12 +88,34 @@ var stopCmd = &cobra.Command{
 	},
 }
 
+var updateCmd = &cobra.Command{
+	Use:                   "update [--state file]",
+	GroupID:               "main",
+	Short:                 "Roll out planned loads changes on a running cluster",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		stateFile, _ := cmd.Flags().GetString("state")
+
+		client := clientPkg.NewClient(cfg)
+		exitCode := client.UpdateCluster(cmd.Context(), stateFile)
+		if exitCode == 0 {
+			log.Success("Cluster updated")
+		}
+
+		os.Exit(exitCode)
+	},
+}
+
 func init() {
 	startCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	rootCmd.AddCommand(startCmd)
 
 	stopCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	rootCmd.AddCommand(stopCmd)
+
+	updateCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
+	rootCmd.AddCommand(updateCmd)
 
 	planCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	planCmd.Flags().Bool("dry", false, "Show the differences without updating the state file")

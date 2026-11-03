@@ -24,11 +24,14 @@ func isSuccessLoadsStartSequence(stages map[string]loadStartStage) bool {
 	return true
 }
 
-// startLoadsSequence starts the given loads following their start chains,
-// skipping the ones already running and stopping at the first failure.
+// startLoadsSequence starts the given loads following their start chains
 // Returns the last report start stages, if all loads are loadStageRunning then it's success
 func (client *Client) startLoadsSequence(loads map[string]*common.Load) map[string]loadStartStage {
-	order := StartOrder(loads)
+	return client.startOrderedLoadsSequence(StartOrder(loads))
+}
+
+// startOrderedLoadsSequence starts the given loads in the given order
+func (client *Client) startOrderedLoadsSequence(order []*common.Load) map[string]loadStartStage {
 	stages := make(map[string]loadStartStage, len(order))
 	chained := make(map[string]*common.Load, len(order))
 	for _, l := range order {
@@ -77,10 +80,13 @@ func isSuccessLoadsStopSequence(stages map[string]loadStopStage) bool {
 }
 
 // stopLoadsSequence stops the given loads following their stop chains,
-// skipping the ones not running and stopping at the first failure.
 // Returns the last report stop stages, if all loads are loadStageStopped then it's success
 func (client *Client) stopLoadsSequence(loads map[string]*common.Load) map[string]loadStopStage {
-	order := StopOrder(loads)
+	return client.stopOrderedLoadsSequence(StopOrder(loads))
+}
+
+// stopOrderedLoadsSequence stops the given loads in the given order,
+func (client *Client) stopOrderedLoadsSequence(order []*common.Load) map[string]loadStopStage {
 	stages := make(map[string]loadStopStage, len(order))
 	chained := make(map[string]*common.Load, len(order))
 	for _, l := range order {
@@ -92,6 +98,9 @@ func (client *Client) stopLoadsSequence(loads map[string]*common.Load) map[strin
 		if state.Err != nil {
 			stages[state.Load.Name] = loadStageStopped
 			log.Info("Stopping %s skipped: node not reachable: %s", color.CyanString(state.Load.Name), state.Err.Error())
+		} else if !state.Provisioned {
+			// Nothing deployed yet, e.g. a load rolled out on a fresh node
+			stages[state.Load.Name] = loadStageStopped
 		} else if state.Status.StatusCode != common.DeploymentStatusRunning {
 			stages[state.Load.Name] = loadStageStopped
 			log.Info("Stopping %s skipped: load not running", color.CyanString(state.Load.Name))
