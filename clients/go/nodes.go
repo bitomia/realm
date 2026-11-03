@@ -261,16 +261,16 @@ func runNodeOperation(node *common.Node, operation string, mode func(common.Node
 	return remote("/node/" + operation)
 }
 
-// ValidateNodesConfig validates the config of all given nodes, returning
-// ErrNodesValidation if any of them is invalid. Nodes already configured
-// with the same config are handled with ErrNodeAlreadyConfigured but are
-// not considered invalid.
+// ValidateNodesConfig validates the config of all given nodes
+//
+// Returns ErrNodesValidation if any of them is invalid, ErrNodeAlreadyConfigured
+// for node with same config and ErrNodeLoadsMismatch when loads drift
 func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) error {
 	valid := true
 	for _, node := range nodes {
 		err := c.ValidateNodeConfig(node)
 		handle(node, err)
-		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) {
+		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) && !errors.Is(err, common.ErrNodeLoadsMismatch) {
 			valid = false
 		}
 	}

@@ -42,8 +42,12 @@ var (
 // this repository might be stored in a distributed database
 // so no memory references must be used
 type NodesRepository interface {
-	// SetSelf creates or updates the node for the caller
+	// SetSelf creates the node for the caller
 	SetSelf(node Node) error
+
+	// UpdateSelf replaces the config of the caller node
+	// metadata stays untouched (use UpdateSelfMetadata)
+	UpdateSelf(node Node) error
 
 	// GetSelf return nodeentry for the caller node
 	GetSelf() (NodeEntry, error)

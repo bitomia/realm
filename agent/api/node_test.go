@@ -69,3 +69,20 @@ func TestSameLoadsConfigComparesLoads(t *testing.T) {
 	assert.False(t, newNode(map[string]any{"web": "v1"}).SameLoadsConfig(current))
 	assert.False(t, newNode(map[string]any{"web": "v1", "cache": "v1"}).SameLoadsConfig(current))
 }
+
+func TestDiffLoads(t *testing.T) {
+	load := func(name string, config any) common.LoadConfig {
+		return common.LoadConfig{Name: name, Node: "n1", Driver: "fake_load_driver", DriverConfig: config}
+	}
+	current := []common.LoadConfig{load("web", "v1"), load("db", "v1"), load("cache", "v1")}
+	next := []common.LoadConfig{load("web", "v2"), load("db", "v1"), load("queue", "v1")}
+
+	stale, fresh := diffLoads(current, next)
+
+	assert.Equal(t, []string{"web", "cache"}, stale)
+	assert.Equal(t, []common.LoadConfig{load("web", "v2"), load("queue", "v1")}, fresh)
+
+	stale, fresh = diffLoads(current, current)
+	assert.Empty(t, stale)
+	assert.Empty(t, fresh)
+}

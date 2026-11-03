@@ -43,6 +43,36 @@ func (r *BoltNodesRepository) SetSelf(node common.Node) error {
 	return nil
 }
 
+func (r *BoltNodesRepository) UpdateSelf(node common.Node) error {
+	nodeName := node.Name
+	slog.Info("BoltNodesRepository.UpdateSelf", "nodeName", nodeName)
+
+	nodeKey, err := r.db.nodeKey()
+	if err != nil {
+		slog.Error("BoltNodesRepository.UpdateSelf", "nodeName", nodeName, "msg", "creating node key", "error", err.Error())
+		return err
+	}
+
+	if _, err := r.db.get(nodeKey); err != nil {
+		return common.ErrNodeNotConfigured
+	}
+
+	return r.db.updateValue(nodeKey, func(valueData []byte) ([]byte, error) {
+		// Only the metadata is decoded so the stored node driver is not rebuilt
+		var stored struct {
+			Metadata json.RawMessage `json:"metadata"`
+		}
+		if err := json.Unmarshal(valueData, &stored); err != nil {
+			return nil, err
+		}
+		entry := common.NodeEntry{Node: node}
+		if len(stored.Metadata) > 0 {
+			entry.Metadata = stored.Metadata
+		}
+		return json.Marshal(entry)
+	})
+}
+
 func (r *BoltNodesRepository) GetSelf() (common.NodeEntry, error) {
 	slog.Debug("BoltNodesRepository.GetSelf")
 

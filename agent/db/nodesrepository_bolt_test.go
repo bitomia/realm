@@ -190,6 +190,33 @@ func TestBoltNodesRepository_UpdateSelfMetadata(t *testing.T) {
 	assert.Equal(t, map[string]any{"key": "updated"}, entry.Metadata)
 }
 
+func TestBoltNodesRepository_UpdateSelf(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	driver := newMockNodeDriver("test-driver")
+	require.NoError(t, repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver}))
+	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
+
+	err := repo.UpdateSelf(common.Node{Name: "test-node", Url: "http://localhost:9090", Driver: newMockNodeDriver("updated-driver")})
+
+	require.NoError(t, err)
+	entry, err := repo.GetSelf()
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost:9090", entry.Url)
+	assert.Equal(t, "updated-driver", entry.Driver.(*mockNodeDriver).Value)
+	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
+}
+
+func TestBoltNodesRepository_UpdateSelf_NotConfigured(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	err := repo.UpdateSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: newMockNodeDriver("test-driver")})
+
+	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
+}
+
 // Tests for guest nodes
 func TestBoltNodesRepository_SetGuestNode(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)

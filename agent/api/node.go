@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -170,7 +171,9 @@ func LoadNodeConfig(node *common.Node) error {
 		return err
 	}
 
-	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); err != nil {
+	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); errors.Is(err, common.ErrNodeLoadsMismatch) && !info.GuestMode {
+		return reprovisionNodeLoads(db.NodesRepository, node)
+	} else if err != nil {
 		return err
 	}
 
@@ -198,6 +201,54 @@ func LoadNodeConfig(node *common.Node) error {
 		}
 	}
 	return nil
+}
+
+func reprovisionNodeLoads(repository common.NodesRepository, node *common.Node) error {
+	current, err := repository.GetSelf()
+	if err != nil {
+		return err
+	}
+
+	stale, fresh := diffLoads(current.Loads, node.Loads)
+	for _, loadName := range stale {
+		slog.Info("LoadNodeConfig", "node", node.Name, "load", loadName, "msg", "deprovisioning load")
+		if err := stopAndDeprovisionLoad(loadName); err != nil {
+			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
+		}
+	}
+
+	if err := provisionLoads(fresh); err != nil {
+		return err
+	}
+
+	if err := repository.UpdateSelf(*node); err != nil {
+		return err
+	}
+
+	slog.Info("LoadNodeConfig", "node", node.Name, "msg", "loads reprovisioned", "deprovisioned", stale, "provisioned", len(fresh))
+	return nil
+}
+
+func diffLoads(current []common.LoadConfig, next []common.LoadConfig) ([]string, []common.LoadConfig) {
+	nextHashes := make(map[string]common.Hash, len(next))
+	for _, load := range next {
+		nextHashes[load.Name] = load.Hash()
+	}
+	currentHashes := make(map[string]common.Hash, len(current))
+	var stale []string
+	for _, load := range current {
+		currentHashes[load.Name] = load.Hash()
+		if hash, exists := nextHashes[load.Name]; !exists || hash != currentHashes[load.Name] {
+			stale = append(stale, load.Name)
+		}
+	}
+	var fresh []common.LoadConfig
+	for _, load := range next {
+		if hash, exists := currentHashes[load.Name]; !exists || hash != nextHashes[load.Name] {
+			fresh = append(fresh, load)
+		}
+	}
+	return stale, fresh
 }
 
 func ValidateNodeConfig(node *common.Node) error {

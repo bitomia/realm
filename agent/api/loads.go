@@ -226,6 +226,33 @@ func deprovisionLoadDeployments(loadName string) error {
 	return nil
 }
 
+func stopAndDeprovisionLoad(loadName string) error {
+	database := db.GetDB()
+
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
+	if err != nil {
+		return err
+	}
+	if len(deployments) == 0 {
+		return nil
+	}
+
+	for _, deployment := range deployments {
+		status, err := deployment.LoadDriver.UpdateStatus(database.DeploymentsRepository, deployment)
+		if err != nil {
+			return fmt.Errorf("cannot update deployment status %s: %w", deployment.ID, err)
+		}
+		if status.StatusCode == common.DeploymentStatusRunning {
+			slog.Info("stopAndDeprovisionLoad", "load", loadName, "deployment", deployment.ID, "msg", "stopping deployment")
+			if err := deployment.LoadDriver.Stop(database.DeploymentsRepository, deployment); err != nil {
+				return err
+			}
+		}
+	}
+
+	return deprovisionLoadDeployments(loadName)
+}
+
 func StreamLoadStdout(loadName string, w io.Writer) error {
 	database := db.GetDB()
 
@@ -313,7 +340,7 @@ func CheckDeploymentStatus(deployments []common.Deployment, repository *common.D
 		d.Status = status
 
 		if !check(d.Status.StatusCode) {
-			err := fmt.Errorf("cannot run deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
+			err := fmt.Errorf("error on deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
 			slog.Error(msgContext, "deployment", d.ID, "msg", err)
 			return err
 		}

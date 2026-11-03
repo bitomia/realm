@@ -201,6 +201,8 @@ var loadNodeConfig = &cobra.Command{
 				log.Success("Validating %s completed", color.CyanString(n.Name))
 			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
 				log.Info("Validating %s skipped: %s", color.CyanString(n.Name), err.Error())
+			} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
+				log.Info("Validating %s completed: %s, loads will be reprovisioned", color.CyanString(n.Name), err.Error())
 			} else {
 				log.Warn("Validating %s failed: %s", color.CyanString(n.Name), err.Error())
 			}
@@ -313,10 +315,9 @@ const (
 	nodeStageReady            nodeStartStage = "ready"
 	nodeStageConfigured       nodeStartStage = "configured"
 
-	nodeStageNotReady           nodeStartStage = "not ready"
-	nodeStageInvalidConfig      nodeStartStage = "invalid config"
-	nodeStageConfigMismatch     nodeStartStage = "config mismatch"
-	nodeStageLoadConfigMismatch nodeStartStage = "load config mismatch"
+	nodeStageNotReady       nodeStartStage = "not ready"
+	nodeStageInvalidConfig  nodeStartStage = "invalid config"
+	nodeStageConfigMismatch nodeStartStage = "config mismatch"
 )
 
 func isSuccessStartSequence(stages map[string]nodeStartStage) bool {
@@ -378,9 +379,8 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 			stages[name] = nodeStageConfigured
 			log.Info("Loading %s skipped: %s", color.CyanString(name), err.Error())
 		} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
-			stages[name] = nodeStageLoadConfigMismatch
-			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())
-			return stages
+			toLoad = append(toLoad, name)
+			log.Info("Loading %s reprovisions loads: %s", color.CyanString(name), err.Error())
 		} else if errors.Is(err, common.ErrNodeConfigMismatch) {
 			stages[name] = nodeStageConfigMismatch
 			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())
