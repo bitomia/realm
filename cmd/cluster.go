@@ -89,8 +89,8 @@ func plan(stateFile string, dry bool, approve func() (bool, error)) error {
 var startCmd = &cobra.Command{
 	Use:     "start [--state file]",
 	GroupID: "main",
-	Short:   "Power-on and configure the cluster nodes",
-	Long: "Power-on and configure the cluster nodes.\n" +
+	Short:   "Power-on, configure and start loads for cluster nodes,",
+	Long: "Power-on, configure and start loads for cluster nodes.\n" +
 		"Aborts if the config differs from the state file,\n" +
 		"or if any running node holds a config different from the planned one.",
 	DisableFlagsInUseLine: true,
@@ -105,29 +105,41 @@ var startCmd = &cobra.Command{
 		client := clientPkg.NewClient(cfg)
 		startSeq := startNodesSequence(cmd.Context(), &client, cfg.GetNodes())
 
-		if isSuccessStartSequence(startSeq) {
-			log.Success("Nodes successfully started")
-			return
-		}
-
-		log.Error("Nodes drifted")
-		for _, name := range slices.Sorted(maps.Keys(startSeq)) {
-			if stage := startSeq[name]; stage == nodeStageConfigured {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
+		if !isSuccessStartSequence(startSeq) {
+			log.Error("Nodes drifted")
+			for _, name := range slices.Sorted(maps.Keys(startSeq)) {
+				if stage := startSeq[name]; stage == nodeStageConfigured {
+					log.Success(" %s: %s", color.CyanString(name), stage)
+				} else {
+					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
+				}
 			}
+			os.Exit(1)
 		}
 
-		os.Exit(1)
+		loadsSeq := startLoadsSequence(&client, cfg.GetLoads())
+		if !isSuccessLoadsStartSequence(loadsSeq) {
+			log.Error("Loads drifted")
+			for _, name := range slices.Sorted(maps.Keys(loadsSeq)) {
+				if stage := loadsSeq[name]; stage == loadStageRunning {
+					log.Success(" %s: %s", color.CyanString(name), stage)
+				} else {
+					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageRunning)
+				}
+			}
+			os.Exit(1)
+		}
+
+		log.Success("Cluster started")
 	},
 }
 
 var stopCmd = &cobra.Command{
 	Use:     "stop [--state file]",
 	GroupID: "main",
-	Short:   "Power-off the cluster nodes",
-	Long: "Power-off the cluster nodes.\n" +
+	Short:   "Stop loads and power-off cluster nodes",
+	Long: "Stop loads and power-off cluster nodes.\n" +
+		"Aborts powering off if any load fails to stop.\n" +
 		"Aborts if the config differs from the state file.",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
@@ -139,10 +151,24 @@ var stopCmd = &cobra.Command{
 		}
 
 		client := clientPkg.NewClient(cfg)
+
+		loadsSeq := stopLoadsSequence(&client, cfg.GetLoads())
+		if !isSuccessLoadsStopSequence(loadsSeq) {
+			log.Error("Loads drifted")
+			for _, name := range slices.Sorted(maps.Keys(loadsSeq)) {
+				if stage := loadsSeq[name]; stage == loadStageStopped {
+					log.Success(" %s: %s", color.CyanString(name), stage)
+				} else {
+					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageStopped)
+				}
+			}
+			os.Exit(1)
+		}
+
 		stopSeq := powerOffNodesSequence(cmd.Context(), &client, cfg.GetNodes())
 
 		if isSuccessPowerOffSequence(stopSeq) {
-			log.Success("Nodes successfully stopped")
+			log.Success("Cluster stopped")
 			return
 		}
 

@@ -74,20 +74,21 @@ func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer)
 
 // StartLoads starts the given loads following their start chains.
 func (c *Client) StartLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(startOrder(loads), c.StartLoad, handle)
+	runLoads(StartOrder(loads), c.StartLoad, handle)
 }
 
 // StopLoads stops the given loads following their stop chains.
 func (c *Client) StopLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(stopOrder(loads), c.StopLoad, handle)
+	runLoads(StopOrder(loads), c.StopLoad, handle)
 }
 
 // KillLoads kills the given loads following their stop chains.
 func (c *Client) KillLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(stopOrder(loads), c.KillLoad, handle)
+	runLoads(StopOrder(loads), c.KillLoad, handle)
 }
 
-func startOrder(loads map[string]*common.Load) []*common.Load {
+// StartOrder returns the given loads and their dependencies in start order.
+func StartOrder(loads map[string]*common.Load) []*common.Load {
 	var order []*common.Load
 	added := make(map[string]bool)
 	for _, name := range slices.Sorted(maps.Keys(loads)) {
@@ -102,8 +103,9 @@ func startOrder(loads map[string]*common.Load) []*common.Load {
 	return order
 }
 
-func stopOrder(loads map[string]*common.Load) []*common.Load {
-	order := startOrder(loads)
+// StopOrder returns the given loads and their dependencies in stop order.
+func StopOrder(loads map[string]*common.Load) []*common.Load {
+	order := StartOrder(loads)
 	slices.Reverse(order)
 	return order
 }
