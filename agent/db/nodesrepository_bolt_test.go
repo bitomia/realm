@@ -190,6 +190,33 @@ func TestBoltNodesRepository_UpdateSelfMetadata(t *testing.T) {
 	assert.Equal(t, map[string]any{"key": "updated"}, entry.Metadata)
 }
 
+func TestBoltNodesRepository_UpdateSelf(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	driver := newMockNodeDriver("test-driver")
+	require.NoError(t, repo.SetSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: driver}))
+	require.NoError(t, setSelfMetadata(repo, map[string]any{"key": "value"}))
+
+	err := repo.UpdateSelf(common.Node{Name: "test-node", Url: "http://localhost:9090", Driver: newMockNodeDriver("updated-driver")})
+
+	require.NoError(t, err)
+	entry, err := repo.GetSelf()
+	require.NoError(t, err)
+	assert.Equal(t, "http://localhost:9090", entry.Url)
+	assert.Equal(t, "updated-driver", entry.Driver.(*mockNodeDriver).Value)
+	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
+}
+
+func TestBoltNodesRepository_UpdateSelf_NotConfigured(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	err := repo.UpdateSelf(common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: newMockNodeDriver("test-driver")})
+
+	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
+}
+
 // Tests for guest nodes
 func TestBoltNodesRepository_SetGuestNode(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
@@ -308,4 +335,28 @@ func setGuestMetadata(repo *BoltNodesRepository, guestNodeName string, metadata 
 		*(metadataPtr.(*any)) = metadata
 		return nil
 	})
+}
+
+func TestBoltNodesRepository_SetSelfWithLoads(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	node := common.Node{Name: "test-node", Url: "http://localhost:8080", Driver: newMockNodeDriver("test-driver")}
+	node.Loads = []common.LoadConfig{
+		{Name: "api", Node: node.Name, Driver: MockLoadDriverID, DriverConfig: map[string]any{"value": "api"}, DependsOn: []string{"db"}},
+		{Name: "db", Node: node.Name, Driver: MockLoadDriverID, DriverConfig: map[string]any{"value": "db"}},
+	}
+	require.NoError(t, repo.SetSelf(node))
+
+	entry, err := repo.GetSelf()
+
+	require.NoError(t, err)
+	require.Len(t, entry.Loads, 2)
+	assert.Equal(t, "api", entry.Loads[0].Name)
+	assert.Equal(t, "test-node", entry.Loads[0].Node)
+	assert.Equal(t, []string{"db"}, entry.Loads[0].DependsOn)
+	assert.Equal(t, "db", entry.Loads[1].Name)
+	for i := range node.Loads {
+		assert.Equal(t, node.Loads[i].Hash(), entry.Loads[i].Hash())
+	}
 }

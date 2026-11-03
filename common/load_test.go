@@ -148,8 +148,8 @@ func TestHashableLoadConfig_BasicHashing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hash1 := tt.load.Hash()
-			hash2 := tt.load.Hash()
+			hash1 := tt.load.GetConfig().Hash()
+			hash2 := tt.load.GetConfig().Hash()
 
 			assert.Equal(t, hash1, hash2, "Hash should be consistent for same load")
 			assert.NotEqual(t, [32]byte{}, hash1, "Hash should not be empty")
@@ -164,11 +164,11 @@ func TestHashableLoadConfig_HashUniqueness(t *testing.T) {
 	load4 := createTestLoad("api", "node1", "container", map[string]any{"image": "nginx"})
 	load5 := createTestLoad("web", "node1", "process", map[string]any{"image": "nginx"})
 
-	hash1 := load1.Hash()
-	hash2 := load2.Hash()
-	hash3 := load3.Hash()
-	hash4 := load4.Hash()
-	hash5 := load5.Hash()
+	hash1 := load1.GetConfig().Hash()
+	hash2 := load2.GetConfig().Hash()
+	hash3 := load3.GetConfig().Hash()
+	hash4 := load4.GetConfig().Hash()
+	hash5 := load5.GetConfig().Hash()
 
 	assert.NotEqual(t, hash1, hash2, "Different driver configs should produce different hashes")
 	assert.NotEqual(t, hash1, hash3, "Different nodes should produce different hashes")
@@ -184,7 +184,7 @@ func TestHashableLoadConfig_NilHandling(t *testing.T) {
 		Node:      &Node{Name: "node1"},
 	}
 
-	hash := load.Hash()
+	hash := load.GetConfig().Hash()
 	assert.NotEqual(t, [32]byte{}, hash, "Hash should handle nil dependencies gracefully")
 }
 
@@ -326,8 +326,8 @@ func TestHashableLoadConfig_EdgeCases(t *testing.T) {
 		load1 := createTestLoad("test", "node1", "container", nil)
 		load2 := createTestLoad("test", "node1", "container", map[string]any{})
 
-		hash1 := load1.Hash()
-		hash2 := load2.Hash()
+		hash1 := load1.GetConfig().Hash()
+		hash2 := load2.GetConfig().Hash()
 
 		assert.NotEqual(t, hash1, hash2, "nil and empty map driver configs should produce different hashes")
 	})
@@ -337,9 +337,9 @@ func TestHashableLoadConfig_EdgeCases(t *testing.T) {
 		load2 := createTestLoad("test_service", "node1", "container", map[string]any{"image": "nginx"})
 		load3 := createTestLoad("test service", "node1", "container", map[string]any{"image": "nginx"})
 
-		hash1 := load1.Hash()
-		hash2 := load2.Hash()
-		hash3 := load3.Hash()
+		hash1 := load1.GetConfig().Hash()
+		hash2 := load2.GetConfig().Hash()
+		hash3 := load3.GetConfig().Hash()
 
 		assert.NotEqual(t, hash1, hash2, "Different name formats should produce different hashes")
 		assert.NotEqual(t, hash1, hash3, "Names with spaces should produce different hashes")
@@ -350,8 +350,8 @@ func TestHashableLoadConfig_EdgeCases(t *testing.T) {
 		load1 := createTestLoad("test-α", "node1", "container", map[string]any{"image": "nginx"})
 		load2 := createTestLoad("test-β", "node1", "container", map[string]any{"image": "nginx"})
 
-		hash1 := load1.Hash()
-		hash2 := load2.Hash()
+		hash1 := load1.GetConfig().Hash()
+		hash2 := load2.GetConfig().Hash()
 
 		assert.NotEqual(t, hash1, hash2, "Unicode characters should be handled correctly in hashing")
 	})
@@ -372,8 +372,8 @@ func TestHashableLoadConfig_FieldOrderIndependence(t *testing.T) {
 	load1 := createTestLoad("test", "node1", "container", config1)
 	load2 := createTestLoad("test", "node1", "container", config2)
 
-	hash1 := load1.Hash()
-	hash2 := load2.Hash()
+	hash1 := load1.GetConfig().Hash()
+	hash2 := load2.GetConfig().Hash()
 
 	assert.Equal(t, hash1, hash2, "JSON field order should not affect hash")
 }
@@ -571,7 +571,7 @@ func TestLoad_UnmarshalJSONKeepsReferenceNames(t *testing.T) {
 	assert.Equal(t, "api", decoded.Name)
 	assert.Equal(t, "node1", decoded.Node.Name)
 	assert.Equal(t, []string{"db"}, decoded.GetDependencies())
-	assert.Equal(t, api.Hash(), decoded.Hash())
+	assert.Equal(t, api.baseConfig().Hash(), decoded.baseConfig().Hash())
 
 	t.Run("resolve_references", func(t *testing.T) {
 		node := &Node{Name: "node1", Url: "http://node1"}
@@ -594,4 +594,23 @@ func TestLoad_UnmarshalJSONKeepsReferenceNames(t *testing.T) {
 		err := orphan.ResolveReferences(map[string]*Node{}, map[string]*Load{"db": db})
 		assert.ErrorContains(t, err, "node 'node1' referenced by load 'api' does not exist")
 	})
+}
+
+func TestLoadConfigHashIgnoresDriverConfigRepresentation(t *testing.T) {
+	type driverConfig struct {
+		Zeta  string `json:"zeta"`
+		Alpha int    `json:"alpha"`
+	}
+	typed := LoadConfig{Name: "web", Node: "n1", Driver: "d", DriverConfig: driverConfig{Zeta: "z", Alpha: 1}}
+
+	data, err := json.Marshal(typed)
+	assert.NoError(t, err)
+	var decoded LoadConfig
+	assert.NoError(t, json.Unmarshal(data, &decoded))
+
+	assert.Equal(t, typed.Hash(), decoded.Hash())
+
+	changed := decoded
+	changed.DriverConfig = map[string]any{"zeta": "z", "alpha": 2}
+	assert.NotEqual(t, typed.Hash(), changed.Hash())
 }

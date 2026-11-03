@@ -194,7 +194,10 @@ class Realm:
         return result
 
     def load_node_config(self, config: JsonDict, validate_only: bool = False) -> None:
-        """Push a node configuration. ``validate_only`` checks without applying."""
+        """Push a node configuration, provisioning the loads it holds under ``loads``.
+
+        ``validate_only`` checks without applying.
+        """
         self._send(ops.load_node_config(config, validate_only))
 
     def unload_node_config(self, guest: str | None = None) -> None:
@@ -221,10 +224,6 @@ class Realm:
         result: list[JsonDict] = self._send(ops.loads())
         return result
 
-    def provision_load(self, load: JsonDict) -> str:
-        """Provision a load; returns the deployment id."""
-        return str(self._send(ops.provision_load(load)))
-
     def start_load(self, name: str) -> None:
         self._send(ops.start_load(name))
 
@@ -233,9 +232,6 @@ class Realm:
 
     def kill_load(self, name: str) -> None:
         self._send(ops.kill_load(name))
-
-    def deprovision_load(self, name: str) -> None:
-        self._send(ops.deprovision_load(name))
 
     def stdout(self, name: str) -> Iterator[str]:
         """Stream a load's stdout, line by line."""
@@ -406,9 +402,6 @@ class AsyncRealm:
         result: list[JsonDict] = await self._send(ops.loads())
         return result
 
-    async def provision_load(self, load: JsonDict) -> str:
-        return str(await self._send(ops.provision_load(load)))
-
     async def start_load(self, name: str) -> None:
         await self._send(ops.start_load(name))
 
@@ -417,9 +410,6 @@ class AsyncRealm:
 
     async def kill_load(self, name: str) -> None:
         await self._send(ops.kill_load(name))
-
-    async def deprovision_load(self, name: str) -> None:
-        await self._send(ops.deprovision_load(name))
 
     def stdout(self, name: str) -> AsyncIterator[str]:
         return self._stream_lines(ops.load_stdout(name))

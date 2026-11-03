@@ -171,19 +171,45 @@ func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
 	return ip != nil && slices.ContainsFunc(agent.IPs, ip.Equal)
 }
 
-func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeDriverConfig, error) {
-	payload, statusCode, err := c.doRequest("GET", node.Url, "/node/config", nil, requestTimeout)
+// GetNodeConfig returns the config loaded on the node agent.
+func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeConfig, error) {
+	driverInfo, err := node.Driver.Info()
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/node/config"
+	if driverInfo.GuestMode {
+		path = guestNodePath(node.Name, "/config")
+	}
+
+	payload, statusCode, err := c.doRequest("GET", node.Url, path, nil, requestTimeout)
 	if statusCode == http.StatusNoContent {
 		return nil, common.ErrNodeNotConfigured
 	} else if err != nil {
 		return nil, err
 	} else {
-		var nodeDriverConfig common.NodeDriverConfig
-		if err := json.Unmarshal(payload, &nodeDriverConfig); err != nil {
+		var nodeConfig common.NodeConfig
+		if err := json.Unmarshal(payload, &nodeConfig); err != nil {
 			return nil, err
 		}
-		return &nodeDriverConfig, nil
+		return &nodeConfig, nil
 	}
+}
+
+// GetNodesConfig returns the configs loaded on the given nodes
+func (c *Client) GetNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) map[string]*common.NodeConfig {
+	result := make(map[string]*common.NodeConfig, len(nodes))
+	for name, node := range nodes {
+		config, err := c.GetNodeConfig(node)
+		handle(node, err)
+		if err != nil {
+			continue
+		}
+		result[name] = config
+	}
+
+	return result
 }
 
 func (c *Client) LoadNodeConfig(node *common.Node) error {
@@ -201,6 +227,8 @@ func loadNodeConfigError(statusCode int, err error) error {
 	switch statusCode {
 	case http.StatusOK:
 		return common.ErrNodeAlreadyConfigured
+	case http.StatusUnprocessableEntity:
+		return common.ErrNodeLoadsMismatch
 	case http.StatusConflict:
 		return common.ErrNodeConfigMismatch
 	default:
@@ -248,16 +276,16 @@ func runNodeOperation(node *common.Node, operation string, mode func(common.Node
 	return remote("/node/" + operation)
 }
 
-// ValidateNodesConfig validates the config of all given nodes, returning
-// ErrNodesValidation if any of them is invalid. Nodes already configured
-// with the same config are handled with ErrNodeAlreadyConfigured but are
-// not considered invalid.
+// ValidateNodesConfig validates the config of all given nodes
+//
+// Returns ErrNodesValidation if any of them is invalid, ErrNodeAlreadyConfigured
+// for node with same config and ErrNodeLoadsMismatch when loads drift
 func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) error {
 	valid := true
 	for _, node := range nodes {
 		err := c.ValidateNodeConfig(node)
 		handle(node, err)
-		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) {
+		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) && !errors.Is(err, common.ErrNodeLoadsMismatch) {
 			valid = false
 		}
 	}
@@ -265,16 +293,6 @@ func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeR
 		return ErrNodesValidation
 	}
 	return nil
-}
-
-// LoadNodesConfig loads the config to the given nodes.
-func (c *Client) LoadNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) {
-	runOnNodes(nodes, c.LoadNodeConfig, handle)
-}
-
-// UnloadNodesConfig unloads the config from the given nodes.
-func (c *Client) UnloadNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) {
-	runOnNodes(nodes, c.UnloadNodeConfig, handle)
 }
 
 // PowerOnNodes powers on the given nodes.

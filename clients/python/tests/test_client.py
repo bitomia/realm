@@ -12,6 +12,7 @@ from realm import (
     AsyncRealm,
     NodeAlreadyConfigured,
     NodeConfigMismatch,
+    NodeLoadsMismatch,
     NodeNotConfigured,
     Realm,
     RealmError,
@@ -119,9 +120,24 @@ def test_list_responses_are_returned_as_lists() -> None:
         assert agent.loads() == payload
 
 
-def test_provision_returns_the_deployment_id() -> None:
-    with client(lambda _: json_response({"deployment_id": "d42"})) as agent:
-        assert agent.provision_load({"name": "web"}) == "d42"
+def test_load_node_config_sends_its_loads() -> None:
+    config = {
+        "name": "lab1",
+        "driver": "linux",
+        "loads": [{"name": "web", "node": "lab1", "driver": "container", "driver_config": {}}],
+    }
+    sent: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(201)
+
+    with client(handler) as agent:
+        agent.load_node_config(config)
+
+    assert sent[0].method == "POST"
+    assert sent[0].url.path == "/node/config"
+    assert json.loads(sent[0].content) == config
 
 
 def test_empty_body_is_accepted() -> None:
@@ -183,6 +199,15 @@ def test_conflict_means_config_mismatch() -> None:
         pytest.raises(NodeConfigMismatch),
     ):
         agent.load_node_config({"name": "lab1"})
+
+
+def test_unprocessable_means_loads_mismatch() -> None:
+    with (
+        client(lambda _: httpx.Response(422, text="loads mismatch")) as agent,
+        pytest.raises(NodeLoadsMismatch) as exc,
+    ):
+        agent.load_node_config({"name": "lab1"})
+    assert isinstance(exc.value, NodeConfigMismatch)
 
 
 def test_stream_errors_are_raised_before_iterating() -> None:

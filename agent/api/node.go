@@ -1,8 +1,11 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
+	"slices"
 
 	"github.com/bitomia/realm/agent/capabilities"
 	"github.com/bitomia/realm/agent/cloudinit"
@@ -117,29 +120,29 @@ func GetSystemInfo() (*dto.SystemInfo, error) {
 	return info, nil
 }
 
-func GetNodeConfig() (*common.NodeDriverConfig, error) {
+// GetNodeConfig returns the node config loaded on this agent
+func GetNodeConfig() (*common.Node, error) {
 	db := db.GetDB()
 	if db == nil {
 		return nil, fmt.Errorf("db not initialized")
 	}
-	if node, err := db.NodesRepository.GetSelf(); err != nil {
+	if entry, err := db.NodesRepository.GetSelf(); err != nil {
 		return nil, err
 	} else {
-		config := node.Driver.Config()
-		return &config, nil
+		return &entry.Node, nil
 	}
 }
 
-func GetGuestNodeConfig(nodeName string) (*common.NodeDriverConfig, error) {
+// GetGuestNodeConfig returns the guest node config loaded on this agent
+func GetGuestNodeConfig(nodeName string) (*common.Node, error) {
 	db := db.GetDB()
 	if db == nil {
 		return nil, fmt.Errorf("db not initialized")
 	}
-	if node, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
+	if entry, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
 		return nil, err
 	} else {
-		config := node.Driver.Config()
-		return &config, nil
+		return &entry.Node, nil
 	}
 }
 
@@ -168,11 +171,16 @@ func LoadNodeConfig(node *common.Node) error {
 		return err
 	}
 
-	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); err != nil {
+	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); errors.Is(err, common.ErrNodeLoadsMismatch) && !info.GuestMode {
+		return reprovisionNodeLoads(db.NodesRepository, node)
+	} else if err != nil {
 		return err
 	}
 
 	if info.GuestMode {
+		if len(node.Loads) > 0 {
+			return fmt.Errorf("loads are not supported on guest node '%s'", node.Name)
+		}
 		if err := db.NodesRepository.SetGuestNode(*node); err != nil {
 			return err
 		}
@@ -182,8 +190,65 @@ func LoadNodeConfig(node *common.Node) error {
 		}
 		otel.SetNodeName(node.Name)
 		slog.Info("Agent named", "node", node.Name)
+
+		// Loads are provisioned once the node is configured, which is undone if they fail
+		if err := provisionLoads(node.Loads); err != nil {
+			if err := db.NodesRepository.DeleteSelf(); err != nil {
+				slog.Error("LoadNodeConfig", "node", node.Name, "msg", "rolling back node config", "error", err)
+			}
+			otel.SetNodeName("")
+			return err
+		}
 	}
 	return nil
+}
+
+func reprovisionNodeLoads(repository common.NodesRepository, node *common.Node) error {
+	current, err := repository.GetSelf()
+	if err != nil {
+		return err
+	}
+
+	stale, fresh := diffLoads(current.Loads, node.Loads)
+	for _, loadName := range stale {
+		slog.Info("LoadNodeConfig", "node", node.Name, "load", loadName, "msg", "deprovisioning load")
+		if err := stopAndDeprovisionLoad(loadName); err != nil {
+			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
+		}
+	}
+
+	if err := provisionLoads(fresh); err != nil {
+		return err
+	}
+
+	if err := repository.UpdateSelf(*node); err != nil {
+		return err
+	}
+
+	slog.Info("LoadNodeConfig", "node", node.Name, "msg", "loads reprovisioned", "deprovisioned", stale, "provisioned", len(fresh))
+	return nil
+}
+
+func diffLoads(current []common.LoadConfig, next []common.LoadConfig) ([]string, []common.LoadConfig) {
+	nextHashes := make(map[string]common.Hash, len(next))
+	for _, load := range next {
+		nextHashes[load.Name] = load.Hash()
+	}
+	currentHashes := make(map[string]common.Hash, len(current))
+	var stale []string
+	for _, load := range current {
+		currentHashes[load.Name] = load.Hash()
+		if hash, exists := nextHashes[load.Name]; !exists || hash != currentHashes[load.Name] {
+			stale = append(stale, load.Name)
+		}
+	}
+	var fresh []common.LoadConfig
+	for _, load := range next {
+		if hash, exists := currentHashes[load.Name]; !exists || hash != nextHashes[load.Name] {
+			fresh = append(fresh, load)
+		}
+	}
+	return stale, fresh
 }
 
 func ValidateNodeConfig(node *common.Node) error {
@@ -212,7 +277,6 @@ func UnloadGuestNodeConfig(nodeName string) error {
 }
 
 func UnloadNodeConfig() error {
-
 	db := db.GetDB()
 	if db == nil {
 		return fmt.Errorf("db not initialized")
@@ -229,15 +293,19 @@ func UnloadNodeConfig() error {
 		}
 	}
 
-	// Deprovision all deployments on this node before deprovisioning the node
+	// Deprovision the loads of all deployments on this node before unloading the node
 	deployments, err := db.DeploymentsRepository.GetAll()
 	if err != nil {
 		return fmt.Errorf("failed to get deployments: %w", err)
 	}
 
+	loadNames := make(map[string]bool)
 	for _, deployment := range deployments {
-		if err := DeprovisionLoadDeployments(deployment.LoadName); err != nil {
-			return fmt.Errorf("failed to deprovision deployment %s: %w", deployment.ID, err)
+		loadNames[deployment.LoadName] = true
+	}
+	for _, loadName := range slices.Sorted(maps.Keys(loadNames)) {
+		if err := deprovisionLoadDeployments(loadName); err != nil {
+			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
 		}
 	}
 

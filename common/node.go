@@ -1,9 +1,9 @@
 package common
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"reflect"
 
 	"github.com/bitomia/realm/common/cloudinit"
 )
@@ -16,6 +16,7 @@ type NodeConfig struct {
 	Driver       NodeDriverID         `json:"driver,omitempty"`
 	DriverConfig *any                 `json:"driver_config,omitempty"`
 	Registries   []RegistryConfig     `json:"registries,omitempty"`
+	Loads        []LoadConfig         `json:"loads,omitempty"`
 }
 
 type Node struct {
@@ -25,6 +26,7 @@ type Node struct {
 	CloudInit  *cloudinit.CloudInit
 	Registries []RegistryConfig
 	Driver     NodeDriver
+	Loads      []LoadConfig
 }
 
 func newNodeFromConfig(ctx NodeContext, config *NodeConfig) (*Node, error) {
@@ -49,6 +51,7 @@ func newNodeFromConfig(ctx NodeContext, config *NodeConfig) (*Node, error) {
 	node.CloudInit = config.CloudInit
 	node.Registries = config.Registries
 	node.Driver = driver
+	node.Loads = config.Loads
 
 	return &node, nil
 }
@@ -62,16 +65,24 @@ func (n *Node) MarshalJSON() ([]byte, error) {
 		Registries:   n.Registries,
 		Driver:       n.Driver.ID(),
 		DriverConfig: n.Driver.Config().DriverConfig,
+		Loads:        n.Loads,
 	})
 }
 
 func (n *Node) UnmarshalJSON(data []byte) error {
-	config := NodeConfig{}
-	if err := json.Unmarshal(data, &config); err != nil {
+	nodeConfig := NodeConfig{}
+	if err := json.Unmarshal(data, &nodeConfig); err != nil {
 		return err
 	}
 
-	if naux, err := newNodeFromConfig(NewNodeContext(config.Name), &config); err != nil {
+	// Check loads belong to this node
+	for _, load := range nodeConfig.Loads {
+		if load.Node != nodeConfig.Name {
+			return fmt.Errorf("load '%s' belongs to node '%s', not to '%s'", load.Name, load.Node, nodeConfig.Name)
+		}
+	}
+
+	if naux, err := newNodeFromConfig(NewNodeContext(nodeConfig.Name), &nodeConfig); err != nil {
 		return err
 	} else {
 		n.Name = naux.Name
@@ -80,15 +91,39 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 		n.CloudInit = naux.CloudInit
 		n.Registries = naux.Registries
 		n.Driver = naux.Driver
+		n.Loads = naux.Loads
+
 		return nil
 	}
 }
 
-func (n *Node) Hash() [32]byte {
-	data, err := json.Marshal(n)
-	if err != nil {
-		panic(err)
-	}
+// SameNodeConfig tells whether both nodes hold the same config
+func (n *Node) SameNodeConfig(other *Node) bool {
+	return n.Name == other.Name &&
+		n.Url == other.Url &&
+		n.Timeout == other.Timeout &&
+		reflect.DeepEqual(n.CloudInit, other.CloudInit) &&
+		reflect.DeepEqual(n.Registries, other.Registries) &&
+		n.Driver.Config().Equal(other.Driver.Config())
+}
 
-	return sha256.Sum256(data)
+// SameLoadsConfig tells whether both nodes hold the same loads
+func (n *Node) SameLoadsConfig(other *Node) bool {
+	return sameLoads(n.Loads, other.Loads)
+}
+
+func sameLoads(loads []LoadConfig, other []LoadConfig) bool {
+	if len(loads) != len(other) {
+		return false
+	}
+	hashes := make(map[string]Hash, len(other))
+	for _, load := range other {
+		hashes[load.Name] = load.Hash()
+	}
+	for _, load := range loads {
+		if hash, exists := hashes[load.Name]; !exists || hash != load.Hash() {
+			return false
+		}
+	}
+	return true
 }

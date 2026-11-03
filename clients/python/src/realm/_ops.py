@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
-from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, RealmError
+from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, NodeLoadsMismatch, RealmError
 
 JsonDict = dict[str, Any]
 
@@ -122,7 +122,7 @@ def load_node_config(config: JsonDict, validate_only: bool = False) -> Request:
         params={"validate": "true"} if validate_only else {},
         timeout=REQUEST_TIMEOUT,
         # Validating answers the status loading would: 201 when it can be loaded
-        errors={200: NodeAlreadyConfigured, 409: NodeConfigMismatch},
+        errors={200: NodeAlreadyConfigured, 409: NodeConfigMismatch, 422: NodeLoadsMismatch},
     )
 
 
@@ -170,17 +170,6 @@ def loads() -> Request:
     return Request("GET", "/loads", parse=_as_list)
 
 
-@endpoint("POST", "/loads/provision")
-def provision_load(load: JsonDict) -> Request:
-    return Request(
-        "POST",
-        "/loads/provision",
-        json=load,
-        timeout=REQUEST_TIMEOUT,
-        parse=lambda body: str(body["deployment_id"]),
-    )
-
-
 @endpoint("POST", "/loads/{loadName}/start")
 def start_load(name: str) -> Request:
     return Request("POST", f"/loads/{_seg(name)}/start", timeout=REQUEST_TIMEOUT)
@@ -194,11 +183,6 @@ def stop_load(name: str) -> Request:
 @endpoint("POST", "/loads/{loadName}/kill")
 def kill_load(name: str) -> Request:
     return Request("POST", f"/loads/{_seg(name)}/kill", timeout=REQUEST_TIMEOUT)
-
-
-@endpoint("POST", "/loads/{loadName}/deprovision")
-def deprovision_load(name: str) -> Request:
-    return Request("POST", f"/loads/{_seg(name)}/deprovision", timeout=REQUEST_TIMEOUT)
 
 
 @endpoint("GET", "/loads/{loadName}/stdout")

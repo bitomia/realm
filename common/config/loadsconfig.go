@@ -40,7 +40,7 @@ func newLoadsConfigGraph() error {
 	for _, load := range allLoads {
 		for _, dep := range load.DependsOn {
 			if err := loadsConfigGraph.AddEdge(load.Name, dep.Name); err != nil {
-				return fmt.Errorf("failed to add edge %s -> %s: %s", dep.Name, load.Name, err.Error())
+				return fmt.Errorf("failed to add edge %s -> %s: %s", load.Name, dep.Name, err.Error())
 			}
 		}
 	}

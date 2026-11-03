@@ -47,7 +47,7 @@ func StartLoadDeployments(loadName string) error {
 	}
 
 	if len(deployments) == 0 {
-		return fmt.Errorf("no provisioned deployment found, run 'provision' first")
+		return fmt.Errorf("no provisioned deployment found, load the node config first")
 	}
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
@@ -128,7 +128,33 @@ func KillLoadDeployments(loadName string) error {
 	return nil
 }
 
-func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
+// provisionLoads provisions the given loads, deprovisioning the already
+// provisioned ones when any of them fails
+func provisionLoads(configs []common.LoadConfig) error {
+	// Build every driver first so an invalid config fails before provisioning anything
+	loads := make([]*common.Load, len(configs))
+	for i, config := range configs {
+		driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
+		if err != nil {
+			return fmt.Errorf("failed to build driver for load %s: %w", config.Name, err)
+		}
+		loads[i] = &common.Load{Name: config.Name, Driver: driver}
+	}
+
+	for i, load := range loads {
+		if err := provisionLoad(load); err != nil {
+			for _, provisioned := range loads[:i] {
+				if err := deprovisionLoadDeployments(provisioned.Name); err != nil {
+					slog.Error("provisionLoads", "load", provisioned.Name, "msg", "rolling back provision", "error", err)
+				}
+			}
+			return fmt.Errorf("failed to provision load %s: %w", load.Name, err)
+		}
+	}
+	return nil
+}
+
+func provisionLoad(load *common.Load) error {
 	database := db.GetDB()
 
 	unlock := lockLoad(load.Name)
@@ -136,39 +162,40 @@ func ProvisionLoad(load *common.Load) (*dto.ProvisionLoadInfo, error) {
 
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
-		return nil, fmt.Errorf("node not configured")
+		return fmt.Errorf("node not configured")
 	}
 
 	nodeStatus, err := node.Driver.UpdateStatus()
 	if err != nil {
-		return nil, fmt.Errorf("cannot update node status: %s", err)
+		return fmt.Errorf("cannot update node status: %s", err)
 	}
 	if nodeStatus.StatusCode != common.NodeStatusReady {
-		return nil, fmt.Errorf("node not ready, current status %s", nodeStatus.StatusCode)
+		return fmt.Errorf("node not ready, current status %s", nodeStatus.StatusCode)
 	}
 
 	// Check if deployments already exist for this load
 	existingDeployments, err := database.DeploymentsRepository.GetByLoad(load.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if len(existingDeployments) > 0 {
-		err := fmt.Errorf("cannot provision load: deployment already exists for load '%s', run 'deprovision' first", load.Name)
-		slog.Error("ProvisionLoad", "error", err)
+		err := fmt.Errorf("cannot provision load: deployment already exists for load '%s'", load.Name)
+		slog.Error("provisionLoad", "error", err)
 
-		return nil, err
+		return err
 	}
 
 	deploymentID, err := load.Driver.Provision(node.Driver, database.DeploymentsRepository, load.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	slog.Info("provisionLoad", "load", load.Name, "deploymentID", deploymentID)
 
-	return &dto.ProvisionLoadInfo{DeploymentId: deploymentID.String()}, nil
+	return nil
 }
 
-func DeprovisionLoadDeployments(loadName string) error {
+func deprovisionLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	unlock := lockLoad(loadName)
@@ -185,18 +212,45 @@ func DeprovisionLoadDeployments(loadName string) error {
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
 		return s == common.DeploymentStatusError || s == common.DeploymentStatusStopped || s == common.DeploymentStatusReady
-	}, "DeprovisionLoadDeployments"); err != nil {
+	}, "deprovisionLoadDeployments"); err != nil {
 		return err
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("DeprovisionLoad", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
+		slog.Info("deprovisionLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
 		if err := deployment.LoadDriver.Deprovision(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func stopAndDeprovisionLoad(loadName string) error {
+	database := db.GetDB()
+
+	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
+	if err != nil {
+		return err
+	}
+	if len(deployments) == 0 {
+		return nil
+	}
+
+	for _, deployment := range deployments {
+		status, err := deployment.LoadDriver.UpdateStatus(database.DeploymentsRepository, deployment)
+		if err != nil {
+			return fmt.Errorf("cannot update deployment status %s: %w", deployment.ID, err)
+		}
+		if status.StatusCode == common.DeploymentStatusRunning {
+			slog.Info("stopAndDeprovisionLoad", "load", loadName, "deployment", deployment.ID, "msg", "stopping deployment")
+			if err := deployment.LoadDriver.Stop(database.DeploymentsRepository, deployment); err != nil {
+				return err
+			}
+		}
+	}
+
+	return deprovisionLoadDeployments(loadName)
 }
 
 func StreamLoadStdout(loadName string, w io.Writer) error {
@@ -286,7 +340,7 @@ func CheckDeploymentStatus(deployments []common.Deployment, repository *common.D
 		d.Status = status
 
 		if !check(d.Status.StatusCode) {
-			err := fmt.Errorf("cannot run deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
+			err := fmt.Errorf("error on deployment %s: deployment is in %s state", d.ID, d.Status.StatusCode)
 			slog.Error(msgContext, "deployment", d.ID, "msg", err)
 			return err
 		}

@@ -37,42 +37,6 @@ var loadsCmd = &cobra.Command{
 	},
 }
 
-var provisionLoads = &cobra.Command{
-	Use:                   "provision [--all | load...]",
-	Short:                 "Provision loads on nodes",
-	Args:                  validateLoadArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
-		_ = client.ProvisionLoads(loads, func(load *common.Load, err error) {
-			if err == nil {
-				log.Success("Provisioning %s completed", color.CyanString(load.Name))
-			} else {
-				log.Warn("Provisioning %s failed: %s", color.CyanString(load.Name), err.Error())
-			}
-		})
-	},
-}
-
-var deprovisionLoads = &cobra.Command{
-	Use:                   "deprovision [--all | load...]",
-	Short:                 "Remove provisioned loads",
-	Args:                  validateLoadArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, loadNames []string) {
-		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
-		client.DeprovisionLoads(loads, func(load *common.Load, err error) {
-			if err == nil {
-				log.Success("Deprovisioning %s completed", color.CyanString(load.Name))
-			} else {
-				log.Warn("Deprovisioning %s failed: %s", color.CyanString(load.Name), err.Error())
-			}
-		})
-	},
-}
-
 var deploymentsState = &cobra.Command{
 	Use:                   "state [--all | load...]",
 	Aliases:               []string{"ls"},
@@ -241,20 +205,16 @@ var stderrLoad = &cobra.Command{
 
 func init() {
 	startLoads.Flags().Bool("all", false, "All loads")
-	provisionLoads.Flags().Bool("all", false, "All loads")
 	deploymentsState.Flags().Bool("all", false, "All loads")
 	stopLoads.Flags().Bool("all", false, "All loads")
 	killLoads.Flags().Bool("all", false, "All loads")
-	deprovisionLoads.Flags().Bool("all", false, "All loads")
 
 	loadsCmd.AddCommand(graphLoads)
 	loadsCmd.AddCommand(deploymentsState)
-	loadsCmd.AddCommand(provisionLoads)
 	loadsCmd.AddCommand(startLoads)
 	loadsCmd.AddCommand(stdoutLoad)
 	loadsCmd.AddCommand(stderrLoad)
 	loadsCmd.AddCommand(stopLoads)
 	loadsCmd.AddCommand(killLoads)
-	loadsCmd.AddCommand(deprovisionLoads)
 	rootCmd.AddCommand(loadsCmd)
 }

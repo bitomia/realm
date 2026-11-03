@@ -1,13 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"maps"
 	"os"
-	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -40,14 +36,6 @@ var hostCmd = &cobra.Command{
 	Use:     "nodes",
 	Aliases: []string{"n"},
 	Short:   "Interface with nodes",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Realm CLI. Use -h for help.")
-	},
-}
-
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Interface with node config",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},
@@ -187,278 +175,60 @@ var listNodes = &cobra.Command{
 	},
 }
 
-var loadNodeConfig = &cobra.Command{
-	Use:                   "load [--all | node...] [--validate]",
-	Short:                 "Load node configurations",
+var retrieveNodeConfig = &cobra.Command{
+	Use:                   "config [--all | node...] [--json]",
+	Short:                 "Retrieve node configurations loaded on agents",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
 		client := clientPkg.NewClient(cfg)
 
-		err := client.ValidateNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Validating %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				log.Info("Validating %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Validating %s failed: %s", color.CyanString(n.Name), err.Error())
+		result := client.GetNodesConfig(nodes, func(node *common.Node, err error) {
+			if err != nil {
+				log.Warn("Getting %s config failed: %s", color.CyanString(node.Name), err.Error())
 			}
 		})
-		if err != nil {
-			log.Error("Loading aborted: %s", err.Error())
-			return
-		}
-		if validate, _ := cmd.Flags().GetBool("validate"); validate {
+
+		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
+			json, _ := json.Marshal(result)
+			fmt.Println(string(json))
 			return
 		}
 
-		client.LoadNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Loading %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				log.Info("Loading %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Loading %s failed: %s", color.CyanString(n.Name), err.Error())
+		for _, config := range result {
+			log.Info(" URL: %s", color.CyanString(config.Url))
+			log.Info(" Driver: %s", color.CyanString(string(config.Driver)))
+			if config.DriverConfig != nil {
+				log.Info(" Driver config:")
+				prettyJSON(*config.DriverConfig)
 			}
-		})
-	},
-}
-
-var unloadNodeConfig = &cobra.Command{
-	Use:                   "unload [--all | node...]",
-	Short:                 "Unload node configurations",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
-		client.UnloadNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Unloading %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeNotConfigured) {
-				log.Info("Unloading %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Unloading %s failed: %s", color.CyanString(n.Name), err.Error())
+			if len(config.Registries) > 0 {
+				hosts := make([]string, 0, len(config.Registries))
+				for _, registry := range config.Registries {
+					hosts = append(hosts, registry.Host)
+				}
+				log.Info(" Registries: %s", color.CyanString(strings.Join(hosts, ", ")))
 			}
-		})
-	},
-}
-
-type nodeStartStage string
-
-const (
-	nodeStagePending    nodeStartStage = "pending"
-	nodeStagePoweredOn  nodeStartStage = "powered on"
-	nodeStageReady      nodeStartStage = "ready"
-	nodeStageConfigured nodeStartStage = "configured"
-
-	nodeStageInvalidConfig  nodeStartStage = "invalid config"
-	nodeStageConfigMismatch nodeStartStage = "config mismatch"
-)
-
-var startNodes = &cobra.Command{
-	Use:                   "start",
-	Short:                 "Power-on and configure nodes",
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		nodes := cfg.GetNodes()
-		client := clientPkg.NewClient(cfg)
-
-		stages := startNodesSequence(cmd.Context(), &client, nodes)
-		if !isSuccessStartSequence(stages) {
-			log.Error("Nodes drifted")
-			for _, name := range slices.Sorted(maps.Keys(stages)) {
-				if stage := stages[name]; stage == nodeStageConfigured {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageConfigured)
+			if len(config.Loads) == 0 {
+				log.Info(" Loads: %s", color.CyanString("0"))
+				return
+			}
+			log.Info(" Loads (%d):", len(config.Loads))
+			for _, load := range config.Loads {
+				log.Info("  - %s:", color.YellowString(load.Name))
+				log.Info("    Driver: %s", color.CyanString(string(load.Driver)))
+				if len(load.DependsOn) > 0 {
+					log.Info("    Depends on: %s", color.CyanString(strings.Join(load.DependsOn, ", ")))
+				}
+				if load.DriverConfig != nil {
+					log.Info("    Driver config:")
+					prettyJSON(load.DriverConfig)
 				}
 			}
-
-		} else {
-			log.Success("Nodes successfully started")
+			fmt.Println()
 		}
 	},
-}
-
-func isSuccessStartSequence(stages map[string]nodeStartStage) bool {
-	for _, stage := range stages {
-		if stage != nodeStageConfigured {
-			return false
-		}
-	}
-	return true
-}
-
-// startNodesSequence powers on, waits for and configures the given nodes,
-// stopping at the first failure.
-// Returns the last report start stages, if all nodes are nodeStageConfigured then it's success
-func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map[string]*common.Node) map[string]nodeStartStage {
-	stages := make(map[string]nodeStartStage, len(nodes))
-	for name := range nodes {
-		stages[name] = nodeStagePending
-	}
-
-	names := slices.Sorted(maps.Keys(nodes))
-
-	for _, name := range names {
-		if err := client.PowerOnNode(nodes[name]); err != nil {
-			log.Warn("Powering on %s failed: %s", color.CyanString(name), err.Error())
-			return stages
-		}
-		stages[name] = nodeStagePoweredOn
-	}
-
-	waitCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	ready := true
-	client.WaitNodesReady(waitCtx, nodes, func(n *common.Node, err error) {
-		if err == nil {
-			stages[n.Name] = nodeStageReady
-		} else if ready {
-			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
-			ready = false
-			cancel()
-		}
-	})
-	if !ready {
-		return stages
-	}
-
-	toLoad := make([]string, 0, len(names))
-	for _, name := range names {
-		if err := client.ValidateNodeConfig(nodes[name]); err == nil {
-			toLoad = append(toLoad, name)
-		} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-			stages[name] = nodeStageConfigured
-			log.Info("Loading %s skipped: %s", color.CyanString(name), err.Error())
-		} else if errors.Is(err, common.ErrNodeConfigMismatch) {
-			stages[name] = nodeStageConfigMismatch
-			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())
-			return stages
-		} else {
-			stages[name] = nodeStageInvalidConfig
-			log.Warn("Validating %s failed: %s", color.CyanString(name), err.Error())
-			return stages
-		}
-	}
-
-	for _, name := range toLoad {
-		if err := client.LoadNodeConfig(nodes[name]); err != nil {
-			log.Warn("Loading %s failed: %s", color.CyanString(name), err.Error())
-			return stages
-		}
-		stages[name] = nodeStageConfigured
-	}
-
-	return stages
-}
-
-type nodeStopStage string
-
-const (
-	nodeStageRunning      nodeStopStage = "running"
-	nodeStageUnconfigured nodeStopStage = "unconfigured"
-	nodeStageShuttingDown nodeStopStage = "shutting down"
-	nodeStageStopped      nodeStopStage = "stopped"
-)
-
-var stopNodes = &cobra.Command{
-	Use:                   "stop",
-	Short:                 "Unconfigure and shutdown nodes",
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, args []string) {
-		nodes := cfg.GetNodes()
-		client := clientPkg.NewClient(cfg)
-
-		stages := stopNodesSequence(cmd.Context(), &client, nodes)
-		if !isSuccessStopSequence(stages) {
-			log.Error("Nodes drifted")
-			for _, name := range slices.Sorted(maps.Keys(stages)) {
-				if stage := stages[name]; stage == nodeStageStopped {
-					log.Success(" %s: %s", color.CyanString(name), stage)
-				} else {
-					log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageStopped)
-				}
-			}
-		} else {
-			log.Success("Nodes successfully stopped")
-		}
-	},
-}
-
-func isSuccessStopSequence(stages map[string]nodeStopStage) bool {
-	for _, stage := range stages {
-		if stage != nodeStageStopped {
-			return false
-		}
-	}
-	return true
-}
-
-// stopNodesSequence unconfigures, shuts down and waits for the given nodes to
-// stop, powering off the ones still running after their stop timeout.
-// Returns the last report stop stages, if all nodes are nodeStageStopped then it's success
-func stopNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map[string]*common.Node) map[string]nodeStopStage {
-	stages := make(map[string]nodeStopStage, len(nodes))
-	running := make(map[string]*common.Node, len(nodes))
-	for _, name := range slices.Sorted(maps.Keys(nodes)) {
-		if _, err := client.GetVersion(nodes[name].Url); err != nil {
-			stages[name] = nodeStageStopped
-			log.Info("Shutting down %s skipped: node not running", color.CyanString(name))
-		} else {
-			stages[name] = nodeStageRunning
-			running[name] = nodes[name]
-		}
-	}
-
-	names := slices.Sorted(maps.Keys(running))
-
-	for _, name := range names {
-		if err := client.UnloadNodeConfig(running[name]); err == nil {
-			log.Success("Unloading %s completed", color.CyanString(name))
-		} else if errors.Is(err, common.ErrNodeNotConfigured) {
-			log.Info("Unloading %s skipped: %s", color.CyanString(name), err.Error())
-		} else {
-			log.Warn("Unloading %s failed: %s", color.CyanString(name), err.Error())
-			return stages
-		}
-		stages[name] = nodeStageUnconfigured
-	}
-
-	for _, name := range names {
-		if err := client.ShutdownNode(running[name], "", 0); err != nil {
-			log.Warn("Shutting down %s failed: %s", color.CyanString(name), err.Error())
-			return stages
-		}
-		stages[name] = nodeStageShuttingDown
-	}
-
-	var timedOut []string
-	client.WaitNodesStopped(ctx, running, func(n *common.Node, err error) {
-		if err == nil {
-			stages[n.Name] = nodeStageStopped
-		} else {
-			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
-			timedOut = append(timedOut, n.Name)
-		}
-	})
-	if ctx.Err() != nil {
-		return stages
-	}
-
-	slices.Sort(timedOut)
-	for _, name := range timedOut {
-		if err := client.PowerOffNode(running[name]); err != nil {
-			log.Warn("Powering off %s failed: %s", color.CyanString(name), err.Error())
-			continue
-		}
-		stages[name] = nodeStageStopped
-		log.Info("Powering off %s completed", color.CyanString(name))
-	}
-
-	return stages
 }
 
 var powerOnNodes = &cobra.Command{
@@ -534,20 +304,12 @@ var shutdownNodes = &cobra.Command{
 }
 
 func init() {
-	// Node config commands
-	loadNodeConfig.Flags().Bool("all", false, "All nodes")
-	loadNodeConfig.Flags().Bool("validate", false, "Validate only")
-	unloadNodeConfig.Flags().Bool("all", false, "All nodes")
-
-	configCmd.AddCommand(loadNodeConfig)
-	configCmd.AddCommand(unloadNodeConfig)
-
 	// General commands
+	retrieveNodeConfig.Flags().Bool("all", false, "All nodes")
+	retrieveNodeConfig.Flags().Bool("json", false, "Output as JSON")
 	nodeStates.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Duration("timeout", 2*time.Second, "Time to wait for mDNS discovery")
-	startNodes.Flags().Bool("all", false, "All nodes")
-	stopNodes.Flags().Bool("all", false, "All nodes")
 	powerOnNodes.Flags().Bool("all", false, "All nodes")
 	powerOffNodes.Flags().Bool("all", false, "All nodes")
 	shutdownNodes.Flags().Bool("all", false, "All nodes")
@@ -555,9 +317,7 @@ func init() {
 
 	hostCmd.AddCommand(listNodes)
 	hostCmd.AddCommand(nodeStates)
-	hostCmd.AddCommand(configCmd)
-	hostCmd.AddCommand(startNodes)
-	hostCmd.AddCommand(stopNodes)
+	hostCmd.AddCommand(retrieveNodeConfig)
 	hostCmd.AddCommand(powerOnNodes)
 	hostCmd.AddCommand(powerOffNodes)
 	hostCmd.AddCommand(shutdownNodes)

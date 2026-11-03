@@ -2,7 +2,6 @@ package golang
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"maps"
@@ -29,16 +28,6 @@ type LoadState struct {
 type LoadsDependency struct {
 	From string
 	To   string
-}
-
-func (c *Client) ProvisionLoad(load *common.Load) error {
-	_, _, err := c.doJSONRequest("POST", load.Node.Url, "/loads/provision", load, requestTimeout)
-	return err
-}
-
-func (c *Client) DeprovisionLoad(load *common.Load) error {
-	_, _, err := c.doRequest("POST", load.Node.Url, fmt.Sprintf("/loads/%s/deprovision", load.Name), nil, requestTimeout)
-	return err
 }
 
 func (c *Client) StartLoad(load *common.Load) error {
@@ -83,44 +72,23 @@ func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer)
 	return nil
 }
 
-// ProvisionLoads provisions the given loads, stopping at the first failure.
-func (c *Client) ProvisionLoads(loads map[string]*common.Load, handle LoadResultHandler) error {
-	if len(loads) == 0 {
-		return errors.New("no loads")
-	}
-	for _, load := range loads {
-		err := c.ProvisionLoad(load)
-		handle(load, err)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// DeprovisionLoads deprovisions the given loads.
-func (c *Client) DeprovisionLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	for _, load := range loads {
-		handle(load, c.DeprovisionLoad(load))
-	}
-}
-
 // StartLoads starts the given loads following their start chains.
 func (c *Client) StartLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(startOrder(loads), c.StartLoad, handle)
+	runLoads(StartOrder(loads), c.StartLoad, handle)
 }
 
 // StopLoads stops the given loads following their stop chains.
 func (c *Client) StopLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(stopOrder(loads), c.StopLoad, handle)
+	runLoads(StopOrder(loads), c.StopLoad, handle)
 }
 
 // KillLoads kills the given loads following their stop chains.
 func (c *Client) KillLoads(loads map[string]*common.Load, handle LoadResultHandler) {
-	runLoads(stopOrder(loads), c.KillLoad, handle)
+	runLoads(StopOrder(loads), c.KillLoad, handle)
 }
 
-func startOrder(loads map[string]*common.Load) []*common.Load {
+// StartOrder returns the given loads and their dependencies in start order.
+func StartOrder(loads map[string]*common.Load) []*common.Load {
 	var order []*common.Load
 	added := make(map[string]bool)
 	for _, name := range slices.Sorted(maps.Keys(loads)) {
@@ -135,8 +103,9 @@ func startOrder(loads map[string]*common.Load) []*common.Load {
 	return order
 }
 
-func stopOrder(loads map[string]*common.Load) []*common.Load {
-	order := startOrder(loads)
+// StopOrder returns the given loads and their dependencies in stop order.
+func StopOrder(loads map[string]*common.Load) []*common.Load {
+	order := StartOrder(loads)
 	slices.Reverse(order)
 	return order
 }
@@ -210,12 +179,13 @@ func (c *Client) LoadsDependencies() ([]LoadsDependency, error) {
 	}
 
 	var dependencies []LoadsDependency
-	for from, adjacencies := range adjacencyMap {
+	for _, from := range slices.Sorted(maps.Keys(adjacencyMap)) {
+		adjacencies := adjacencyMap[from]
 		if len(adjacencies) == 0 {
 			dependencies = append(dependencies, LoadsDependency{From: from})
 			continue
 		}
-		for to := range adjacencies {
+		for _, to := range slices.Sorted(maps.Keys(adjacencies)) {
 			dependencies = append(dependencies, LoadsDependency{From: from, To: to})
 		}
 	}

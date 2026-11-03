@@ -52,3 +52,37 @@ func TestPowerOnNodeAgentMode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, driver.powerOnCalls)
 }
+
+func TestSameLoadsConfigComparesLoads(t *testing.T) {
+	newNode := func(loads map[string]any) *common.Node {
+		node := &common.Node{Name: "n1", Driver: &fakeNodeDriver{}}
+		for name, config := range loads {
+			node.Loads = append(node.Loads, common.LoadConfig{Name: name, Node: node.Name, Driver: "fake_load_driver", DriverConfig: config})
+		}
+		return node
+	}
+
+	current := newNode(map[string]any{"web": "v1", "db": "v1"})
+
+	assert.True(t, newNode(map[string]any{"db": "v1", "web": "v1"}).SameLoadsConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v2", "db": "v1"}).SameLoadsConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v1"}).SameLoadsConfig(current))
+	assert.False(t, newNode(map[string]any{"web": "v1", "cache": "v1"}).SameLoadsConfig(current))
+}
+
+func TestDiffLoads(t *testing.T) {
+	load := func(name string, config any) common.LoadConfig {
+		return common.LoadConfig{Name: name, Node: "n1", Driver: "fake_load_driver", DriverConfig: config}
+	}
+	current := []common.LoadConfig{load("web", "v1"), load("db", "v1"), load("cache", "v1")}
+	next := []common.LoadConfig{load("web", "v2"), load("db", "v1"), load("queue", "v1")}
+
+	stale, fresh := diffLoads(current, next)
+
+	assert.Equal(t, []string{"web", "cache"}, stale)
+	assert.Equal(t, []common.LoadConfig{load("web", "v2"), load("queue", "v1")}, fresh)
+
+	stale, fresh = diffLoads(current, current)
+	assert.Empty(t, stale)
+	assert.Empty(t, fresh)
+}

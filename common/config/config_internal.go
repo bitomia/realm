@@ -206,7 +206,6 @@ func checkForCycles(l map[string]*common.Load) error {
 }
 
 func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, configFilePath string) (*Config, error) {
-
 	setDefaults()
 
 	viper.AutomaticEnv()
@@ -373,6 +372,12 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 		if err := load.UpdateLoadChains(loadsConfigGraph, loadsConfig); err != nil {
 			return nil, err
 		}
+	}
+
+	// Nodes hold their loads, sorted by name to keep their config deterministic
+	for _, loadName := range slices.Sorted(maps.Keys(loadsConfig)) {
+		load := loadsConfig[loadName]
+		load.Node.Loads = append(load.Node.Loads, load.GetConfig())
 	}
 
 	// Populate instance fields

@@ -48,7 +48,7 @@ func GetNodeConfig(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if nodeConfig != nil {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(*nodeConfig)
+			_ = json.NewEncoder(w).Encode(nodeConfig)
 		} else {
 			http.NotFound(w, r)
 		}
@@ -195,7 +195,7 @@ func GetGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if nodeConfig != nil {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(*nodeConfig)
+			_ = json.NewEncoder(w).Encode(nodeConfig)
 		} else {
 			http.NotFound(w, r)
 		}
