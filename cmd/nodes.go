@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -37,14 +36,6 @@ var hostCmd = &cobra.Command{
 	Use:     "nodes",
 	Aliases: []string{"n"},
 	Short:   "Interface with nodes",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Realm CLI. Use -h for help.")
-	},
-}
-
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Interface with node config",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Realm CLI. Use -h for help.")
 	},
@@ -184,64 +175,20 @@ var listNodes = &cobra.Command{
 	},
 }
 
-var loadNodeConfig = &cobra.Command{
-	Use:                   "load [--all | node...] [--validate]",
-	Short:                 "Load node configurations",
+var retrieveNodeConfig = &cobra.Command{
+	Use:                   "config [--all | node...] [--json]",
+	Short:                 "Retrieve node configurations loaded on agents",
 	Args:                  validateNodeArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
 		client := clientPkg.NewClient(cfg)
 
-		err := client.ValidateNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Validating %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				log.Info("Validating %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
-				log.Info("Validating %s completed: %s, loads will be reprovisioned", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Validating %s failed: %s", color.CyanString(n.Name), err.Error())
-			}
-		})
-		if err != nil {
-			log.Error("Loading aborted: %s", err.Error())
-			return
-		}
-		if validate, _ := cmd.Flags().GetBool("validate"); validate {
-			return
-		}
-
-		client.LoadNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Loading %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
-				log.Info("Loading %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Loading %s failed: %s", color.CyanString(n.Name), err.Error())
-			}
-		})
-	},
-}
-
-var getNodeConfig = &cobra.Command{
-	Use:                   "get [--all | node...] [--json]",
-	Short:                 "Get node configurations loaded on agents",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
-
-		result := make(map[string]*common.NodeConfig, len(nodes))
-		for name, node := range nodes {
-			config, err := client.GetNodeConfig(node)
+		result := client.GetNodesConfig(nodes, func(node *common.Node, err error) {
 			if err != nil {
-				log.Warn("Getting %s config failed: %s", color.CyanString(name), err.Error())
-				continue
+				log.Warn("Getting %s config failed: %s", color.CyanString(node.Name), err.Error())
 			}
-			result[name] = config
-		}
+		})
 
 		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
 			json, _ := json.Marshal(result)
@@ -281,26 +228,6 @@ var getNodeConfig = &cobra.Command{
 			}
 			fmt.Println()
 		}
-	},
-}
-
-var unloadNodeConfig = &cobra.Command{
-	Use:                   "unload [--all | node...]",
-	Short:                 "Unload node configurations",
-	Args:                  validateNodeArgs,
-	DisableFlagsInUseLine: true,
-	Run: func(cmd *cobra.Command, nodeNames []string) {
-		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
-		client.UnloadNodesConfig(nodes, func(n *common.Node, err error) {
-			if err == nil {
-				log.Success("Unloading %s completed", color.CyanString(n.Name))
-			} else if errors.Is(err, common.ErrNodeNotConfigured) {
-				log.Info("Unloading %s skipped: %s", color.CyanString(n.Name), err.Error())
-			} else {
-				log.Warn("Unloading %s failed: %s", color.CyanString(n.Name), err.Error())
-			}
-		})
 	},
 }
 
@@ -377,18 +304,9 @@ var shutdownNodes = &cobra.Command{
 }
 
 func init() {
-	// Node config commands
-	loadNodeConfig.Flags().Bool("all", false, "All nodes")
-	loadNodeConfig.Flags().Bool("validate", false, "Validate only")
-	unloadNodeConfig.Flags().Bool("all", false, "All nodes")
-	getNodeConfig.Flags().Bool("all", false, "All nodes")
-	getNodeConfig.Flags().Bool("json", false, "Output as JSON")
-
-	configCmd.AddCommand(getNodeConfig)
-	configCmd.AddCommand(loadNodeConfig)
-	configCmd.AddCommand(unloadNodeConfig)
-
 	// General commands
+	retrieveNodeConfig.Flags().Bool("all", false, "All nodes")
+	retrieveNodeConfig.Flags().Bool("json", false, "Output as JSON")
 	nodeStates.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Bool("json", false, "Output as JSON")
 	listNodes.Flags().Duration("timeout", 2*time.Second, "Time to wait for mDNS discovery")
@@ -399,7 +317,7 @@ func init() {
 
 	hostCmd.AddCommand(listNodes)
 	hostCmd.AddCommand(nodeStates)
-	hostCmd.AddCommand(configCmd)
+	hostCmd.AddCommand(retrieveNodeConfig)
 	hostCmd.AddCommand(powerOnNodes)
 	hostCmd.AddCommand(powerOffNodes)
 	hostCmd.AddCommand(shutdownNodes)

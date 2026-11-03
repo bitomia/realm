@@ -197,6 +197,21 @@ func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeConfig, error) {
 	}
 }
 
+// GetNodesConfig returns the configs loaded on the given nodes
+func (c *Client) GetNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) map[string]*common.NodeConfig {
+	result := make(map[string]*common.NodeConfig, len(nodes))
+	for name, node := range nodes {
+		config, err := c.GetNodeConfig(node)
+		handle(node, err)
+		if err != nil {
+			continue
+		}
+		result[name] = config
+	}
+
+	return result
+}
+
 func (c *Client) LoadNodeConfig(node *common.Node) error {
 	_, statusCode, err := c.doJSONRequest("POST", node.Url, "/node/config", node, requestTimeout)
 	return loadNodeConfigError(statusCode, err)
@@ -278,16 +293,6 @@ func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeR
 		return ErrNodesValidation
 	}
 	return nil
-}
-
-// LoadNodesConfig loads the config to the given nodes.
-func (c *Client) LoadNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) {
-	runOnNodes(nodes, c.LoadNodeConfig, handle)
-}
-
-// UnloadNodesConfig unloads the config from the given nodes.
-func (c *Client) UnloadNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) {
-	runOnNodes(nodes, c.UnloadNodeConfig, handle)
 }
 
 // PowerOnNodes powers on the given nodes.
