@@ -33,6 +33,9 @@ export class RequestError extends Error {
 export const ErrNodesValidation = new Error('node config validation failed');
 export const ErrNodeAlreadyConfigured = new Error('node already configured');
 export const ErrNodeConfigMismatch = new Error('node already configured with a different config');
+export const ErrNodeLoadsMismatch = new Error(`${ErrNodeConfigMismatch.message}: only loads differ`, {
+    cause: ErrNodeConfigMismatch,
+});
 
 export type NodeResultHandler = (node: NodeConfig, err?: Error) => void;
 
@@ -313,6 +316,9 @@ export class Client {
             status = (await this.doJSONRequest('POST', node.url, '/node/config', this.#nodeConfigPayload(node), timeout))
                 .status;
         } catch (err) {
+            if (err instanceof RequestError && err.status === 422) {
+                throw ErrNodeLoadsMismatch;
+            }
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;
             }
@@ -329,6 +335,9 @@ export class Client {
             const payload = this.#nodeConfigPayload(node);
             status = (await this.doJSONRequest('POST', node.url, '/node/config?validate=true', payload, timeout)).status;
         } catch (err) {
+            if (err instanceof RequestError && err.status === 422) {
+                throw ErrNodeLoadsMismatch;
+            }
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;
             }

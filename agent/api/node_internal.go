@@ -15,10 +15,14 @@ func checkNodeConfig(repository common.NodesRepository, node *common.Node, guest
 		current, err = repository.GetSelf()
 	}
 	if err == nil {
-		if node.SameConfig(&current.Node) {
+		switch {
+		case !node.SameNodeConfig(&current.Node):
+			return common.ErrNodeConfigMismatch
+		case !node.SameLoadsConfig(&current.Node):
+			return common.ErrNodeLoadsMismatch
+		default:
 			return common.ErrNodeAlreadyConfigured
 		}
-		return common.ErrNodeConfigMismatch
 	} else if errors.Is(err, common.ErrNodeNotConfigured) {
 		return nil
 	}

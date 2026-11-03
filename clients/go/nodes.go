@@ -212,6 +212,8 @@ func loadNodeConfigError(statusCode int, err error) error {
 	switch statusCode {
 	case http.StatusOK:
 		return common.ErrNodeAlreadyConfigured
+	case http.StatusUnprocessableEntity:
+		return common.ErrNodeLoadsMismatch
 	case http.StatusConflict:
 		return common.ErrNodeConfigMismatch
 	default:

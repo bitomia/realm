@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 )
 
 type NodeEntry struct {
@@ -32,6 +33,7 @@ var (
 	ErrNodeNotConfigured     = errors.New("node not configured")
 	ErrNodeAlreadyConfigured = errors.New("node already configured")
 	ErrNodeConfigMismatch    = errors.New("node already configured with a different config")
+	ErrNodeLoadsMismatch     = fmt.Errorf("%w: only loads differ", ErrNodeConfigMismatch)
 )
 
 // Store interface for nodes

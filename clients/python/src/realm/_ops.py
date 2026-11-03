@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import quote
 
-from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, RealmError
+from ._errors import NodeAlreadyConfigured, NodeConfigMismatch, NodeLoadsMismatch, RealmError
 
 JsonDict = dict[str, Any]
 
@@ -122,7 +122,7 @@ def load_node_config(config: JsonDict, validate_only: bool = False) -> Request:
         params={"validate": "true"} if validate_only else {},
         timeout=REQUEST_TIMEOUT,
         # Validating answers the status loading would: 201 when it can be loaded
-        errors={200: NodeAlreadyConfigured, 409: NodeConfigMismatch},
+        errors={200: NodeAlreadyConfigured, 409: NodeConfigMismatch, 422: NodeLoadsMismatch},
     )
 
 

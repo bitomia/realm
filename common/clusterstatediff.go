@@ -59,7 +59,7 @@ func DiffClusterStates(previous *ClusterState, planned ClusterState) ClusterStat
 			diff.Nodes = append(diff.Nodes, NodeChange{Name: name, Kind: ChangeAdd})
 		case !inAfter:
 			diff.Nodes = append(diff.Nodes, NodeChange{Name: name, Kind: ChangeRemove})
-		case !next.SameConfig(prev):
+		case !next.SameNodeConfig(prev) || !next.SameLoadsConfig(prev):
 			diff.Nodes = append(diff.Nodes, NodeChange{Name: name, Kind: ChangeUpdate})
 		}
 	}

@@ -313,9 +313,10 @@ const (
 	nodeStageReady            nodeStartStage = "ready"
 	nodeStageConfigured       nodeStartStage = "configured"
 
-	nodeStageNotReady       nodeStartStage = "not ready"
-	nodeStageInvalidConfig  nodeStartStage = "invalid config"
-	nodeStageConfigMismatch nodeStartStage = "config mismatch"
+	nodeStageNotReady           nodeStartStage = "not ready"
+	nodeStageInvalidConfig      nodeStartStage = "invalid config"
+	nodeStageConfigMismatch     nodeStartStage = "config mismatch"
+	nodeStageLoadConfigMismatch nodeStartStage = "load config mismatch"
 )
 
 func isSuccessStartSequence(stages map[string]nodeStartStage) bool {
@@ -376,6 +377,10 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 		} else if errors.Is(err, common.ErrNodeAlreadyConfigured) {
 			stages[name] = nodeStageConfigured
 			log.Info("Loading %s skipped: %s", color.CyanString(name), err.Error())
+		} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
+			stages[name] = nodeStageLoadConfigMismatch
+			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())
+			return stages
 		} else if errors.Is(err, common.ErrNodeConfigMismatch) {
 			stages[name] = nodeStageConfigMismatch
 			log.Warn("Loading %s aborted: %s", color.CyanString(name), err.Error())

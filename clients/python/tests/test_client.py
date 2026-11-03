@@ -12,6 +12,7 @@ from realm import (
     AsyncRealm,
     NodeAlreadyConfigured,
     NodeConfigMismatch,
+    NodeLoadsMismatch,
     NodeNotConfigured,
     Realm,
     RealmError,
@@ -198,6 +199,15 @@ def test_conflict_means_config_mismatch() -> None:
         pytest.raises(NodeConfigMismatch),
     ):
         agent.load_node_config({"name": "lab1"})
+
+
+def test_unprocessable_means_loads_mismatch() -> None:
+    with (
+        client(lambda _: httpx.Response(422, text="loads mismatch")) as agent,
+        pytest.raises(NodeLoadsMismatch) as exc,
+    ):
+        agent.load_node_config({"name": "lab1"})
+    assert isinstance(exc.value, NodeConfigMismatch)
 
 
 def test_stream_errors_are_raised_before_iterating() -> None:

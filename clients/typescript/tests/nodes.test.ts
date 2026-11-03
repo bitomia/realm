@@ -8,6 +8,7 @@ import {
   Client,
   ErrNodeAlreadyConfigured,
   ErrNodeConfigMismatch,
+  ErrNodeLoadsMismatch,
   ErrNodesValidation,
   RequestError,
 } from '../src/client.ts';
@@ -117,6 +118,14 @@ describe('nodes', () => {
       );
     });
 
+    it('rejects with ErrNodeLoadsMismatch on 422', async () => {
+      reply = () => ({ status: 422, body: 'loads mismatch' });
+
+      await expect(new Client(cfg).loadNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeLoadsMismatch,
+      );
+    });
+
     it('rejects with the request error on other failures', async () => {
       reply = () => ({ status: 500, body: 'boom' });
 
@@ -152,6 +161,14 @@ describe('nodes', () => {
 
       await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
         ErrNodeConfigMismatch,
+      );
+    });
+
+    it('rejects with ErrNodeLoadsMismatch on 422', async () => {
+      reply = () => ({ status: 422, body: 'loads mismatch' });
+
+      await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeLoadsMismatch,
       );
     });
 
