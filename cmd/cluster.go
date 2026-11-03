@@ -123,6 +123,42 @@ var startCmd = &cobra.Command{
 	},
 }
 
+var stopCmd = &cobra.Command{
+	Use:     "stop [--state file]",
+	GroupID: "main",
+	Short:   "Power-off the cluster nodes",
+	Long: "Power-off the cluster nodes.\n" +
+		"Aborts if the config differs from the state file.",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		stateFile, _ := cmd.Flags().GetString("state")
+
+		if err := checkClusterState(stateFile); err != nil {
+			log.Fatal("%s", err)
+		}
+
+		client := clientPkg.NewClient(cfg)
+		stopSeq := powerOffNodesSequence(cmd.Context(), &client, cfg.GetNodes())
+
+		if isSuccessPowerOffSequence(stopSeq) {
+			log.Success("Nodes successfully stopped")
+			return
+		}
+
+		log.Error("Nodes drifted")
+		for _, name := range slices.Sorted(maps.Keys(stopSeq)) {
+			if stage := stopSeq[name]; stage == nodeStagePoweredOff {
+				log.Success(" %s: %s", color.CyanString(name), stage)
+			} else {
+				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStagePoweredOff)
+			}
+		}
+
+		os.Exit(1)
+	},
+}
+
 func checkClusterState(stateFile string) error {
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
@@ -146,6 +182,9 @@ func checkClusterState(stateFile string) error {
 func init() {
 	startCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	rootCmd.AddCommand(startCmd)
+
+	stopCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
+	rootCmd.AddCommand(stopCmd)
 
 	planCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	planCmd.Flags().Bool("dry", false, "Show the differences without updating the state file")

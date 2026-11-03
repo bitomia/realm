@@ -338,6 +338,49 @@ func startNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map
 	return stages
 }
 
+type nodePowerOffStage string
+
+const (
+	nodeStagePowerOffRequested nodePowerOffStage = "power-off requested"
+	nodeStagePoweredOff        nodePowerOffStage = "powered off"
+	nodeStageStillRunning      nodePowerOffStage = "still running"
+)
+
+func isSuccessPowerOffSequence(stages map[string]nodePowerOffStage) bool {
+	for _, stage := range stages {
+		if stage != nodeStagePoweredOff {
+			return false
+		}
+	}
+	return true
+}
+
+// powerOffNodesSequence checks that no running node drifted from its config
+// (loads are not checked) and only then powers off and waits for all of them.
+// Returns the last report stages, if all nodes are nodeStagePoweredOff then it's success
+func powerOffNodesSequence(ctx context.Context, client *clientPkg.Client, nodes map[string]*common.Node) map[string]nodePowerOffStage {
+	stages := make(map[string]nodePowerOffStage, len(nodes))
+
+	for _, name := range slices.Sorted(maps.Keys(nodes)) {
+		if err := client.PowerOffNode(nodes[name]); err != nil {
+			log.Warn("Powering off %s failed: %s", color.CyanString(name), err.Error())
+			return stages
+		}
+		stages[name] = nodeStagePowerOffRequested
+	}
+
+	client.WaitNodesStopped(ctx, nodes, func(n *common.Node, err error) {
+		if err == nil {
+			stages[n.Name] = nodeStagePoweredOff
+		} else {
+			stages[n.Name] = nodeStageStillRunning
+			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+		}
+	})
+
+	return stages
+}
+
 type nodeStopStage string
 
 const (
