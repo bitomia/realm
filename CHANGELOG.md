@@ -1,3 +1,12 @@
+## 0.3.0
+
+- Client generates now a plan file with the planned state of the cluster
+- New 'plan' command added to generate the plan
+- New 'start' command added to power-on nodes and apply the plan
+- New 'stop' command added to stop loads and power-off nodes
+- New 'update' command added to update the loads of the available nodes
+- Agent: Now holds full state including loads
+
 ## 0.2.8
 
 - Agent: can now listen on a unix socket. New `listen_socket_group` option sets the group owning the socket.
