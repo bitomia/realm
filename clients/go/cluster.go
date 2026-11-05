@@ -8,8 +8,6 @@ import (
 	"os"
 	"slices"
 
-	"github.com/fatih/color"
-
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 )
@@ -57,145 +55,128 @@ func (c *Client) PlanCluster(stateFile string, dry bool, approve func() (bool, e
 
 // StartCluster powers on and waits for the nodes, rolls out the planned
 // config (see UpdateCluster) and starts all loads.
-func (c *Client) StartCluster(ctx context.Context, stateFile string) int {
-	if err := c.checkClusterState(stateFile); err != nil {
-		log.Fatal("%s", err)
-		return 1
+func (client *Client) StartCluster(ctx context.Context, stateFile string) error {
+	if err := client.checkClusterState(stateFile); err != nil {
+		return err
 	}
 
-	powerOnSeq := c.powerOnNodesSequence(ctx, c.cfg.GetNodes())
+	powerOnSeq := client.powerOnNodesSequence(ctx, client.cfg.GetNodes())
 	if !isSuccessPowerOnSequence(powerOnSeq) {
-		log.Error("Nodes drifted")
+		var errs []error
 		for _, name := range slices.Sorted(maps.Keys(powerOnSeq)) {
-			if stage := powerOnSeq[name]; stage == nodeStageReady {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageReady)
+			if result := powerOnSeq[name]; result.stage != nodeStageReady {
+				errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, nodeStageReady, result.err))
 			}
 		}
-		return 1
+		return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))
 	}
 
-	plan, err := c.planUpdate(c.cfg.GetNodes(), c.cfg.GetLoads())
+	plan, err := client.planUpdate(client.cfg.GetNodes(), client.cfg.GetLoads())
 	if err != nil {
-		log.Fatal("%s", err)
-		return 1
+		return err
 	}
-	if !c.rollout(plan) {
-		return 1
+	if err := client.rollout(plan); err != nil {
+		return err
 	}
 
-	return c.startLoads(c.cfg.GetLoads())
+	return client.startLoads(client.cfg.GetLoads())
 }
 
-func (client *Client) StopCluster(ctx context.Context, stateFile string) int {
+func (client *Client) StopCluster(ctx context.Context, stateFile string) error {
 	if err := client.checkClusterState(stateFile); err != nil {
-		log.Fatal("%s", err)
-		return 1
+		return err
 	}
 
-	loadsSeq := client.stopLoadsSequence(client.cfg.GetLoads())
-	if !isSuccessLoadsStopSequence(loadsSeq) {
-		log.Error("Loads drifted")
-		for _, name := range slices.Sorted(maps.Keys(loadsSeq)) {
-			if stage := loadsSeq[name]; stage == loadStageStopped {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageStopped)
+	loadsStopResult := client.stopLoadsSequence(client.cfg.GetLoads())
+	if !isSuccessLoadsStopSequence(loadsStopResult) {
+		var errs []error
+		for _, name := range slices.Sorted(maps.Keys(loadsStopResult)) {
+			if result := loadsStopResult[name]; result.stage != loadStageStopped {
+				errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, loadStageStopped, result.err))
 			}
 		}
-		return 1
+		return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 	}
 
 	stopSeq := client.powerOffNodesSequence(ctx, client.cfg.GetNodes())
 	if isSuccessPowerOffSequence(stopSeq) {
-		return 0
+		return nil
 	}
 
-	log.Error("Nodes drifted")
+	var errs []error
 	for _, name := range slices.Sorted(maps.Keys(stopSeq)) {
-		if stage := stopSeq[name]; stage == nodeStagePoweredOff {
-			log.Success(" %s: %s", color.CyanString(name), stage)
-		} else {
-			log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStagePoweredOff)
+		if result := stopSeq[name]; result.stage != nodeStagePoweredOff {
+			errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, nodeStagePoweredOff, result.err))
 		}
 	}
-
-	return 1
+	return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))
 }
 
 // UpdateCluster rolls out the planned loads changes on a running cluster.
 // Node config changes other than loads are refused, they require 'stop' and 'start'.
-func (c *Client) UpdateCluster(ctx context.Context, stateFile string) int {
+func (c *Client) UpdateCluster(ctx context.Context, stateFile string) error {
 	if err := c.checkClusterState(stateFile); err != nil {
-		log.Fatal("%s", err)
-		return 1
+		return err
 	}
 
 	plan, err := c.planUpdate(c.cfg.GetNodes(), c.cfg.GetLoads())
 	if err != nil {
-		log.Fatal("%s", err)
-		return 1
+		return err
 	}
 	if plan.isEmpty() {
 		log.Success("No changes, cluster is up to date")
-		return 0
+		return nil
 	}
 
-	if !c.rollout(plan) {
-		return 1
+	if err := c.rollout(plan); err != nil {
+		return err
 	}
 
 	return c.startLoads(plan.loads)
 }
 
 // rollout stops loads to roll out in stop order and loads the planned config.
-func (c *Client) rollout(plan updatePlan) bool {
-	stopSeq := c.stopOrderedLoadsSequence(rolloutStopOrder(plan.loads))
-	if !isSuccessLoadsStopSequence(stopSeq) {
-		log.Error("Loads drifted")
-		for _, name := range slices.Sorted(maps.Keys(stopSeq)) {
-			if stage := stopSeq[name]; stage == loadStageStopped {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageStopped)
+func (c *Client) rollout(plan updatePlan) error {
+	results := c.stopOrderedLoadsSequence(rolloutStopOrder(plan.loads))
+	if !isSuccessLoadsStopSequence(results) {
+		var errs []error
+		for _, name := range slices.Sorted(maps.Keys(results)) {
+			if result := results[name]; result.stage != loadStageStopped {
+				errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, loadStageStopped, result.err))
 			}
 		}
-		return false
+		return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 	}
 
-	updateSeq := c.updateNodesSequence(plan.nodes)
-	if !isSuccessUpdateSequence(updateSeq) {
-		log.Error("Nodes drifted")
-		for _, name := range slices.Sorted(maps.Keys(updateSeq)) {
-			if stage := updateSeq[name]; stage == nodeStageUpdated {
-				log.Success(" %s: %s", color.CyanString(name), stage)
-			} else {
-				log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, nodeStageUpdated)
+	var errs []error
+	updateSeqResult := c.updateNodesSequence(plan.nodes)
+	if !isSuccessUpdateSequence(updateSeqResult) {
+		for _, name := range slices.Sorted(maps.Keys(updateSeqResult)) {
+			if result := updateSeqResult[name]; result.stage != nodeStageUpdated {
+				errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, nodeStageUpdated, result.err))
 			}
 		}
-		return false
+		return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))
 	}
 
-	return true
+	return nil
 }
 
 // startLoads starts the given loads and their dependencies in start order.
-func (c *Client) startLoads(loads map[string]*common.Load) int {
-	startSeq := c.startLoadsSequence(loads)
-	if isSuccessLoadsStartSequence(startSeq) {
-		return 0
+func (c *Client) startLoads(loads map[string]*common.Load) error {
+	results := c.startLoadsSequence(loads)
+	if isSuccessLoadsStartSequence(results) {
+		return nil
 	}
 
-	log.Error("Loads drifted")
-	for _, name := range slices.Sorted(maps.Keys(startSeq)) {
-		if stage := startSeq[name]; stage == loadStageRunning {
-			log.Success(" %s: %s", color.CyanString(name), stage)
-		} else {
-			log.Warn(" %s: %s (expected %s)", color.CyanString(name), stage, loadStageRunning)
+	var errs []error
+	for _, name := range slices.Sorted(maps.Keys(results)) {
+		if result := results[name]; result.stage != loadStageRunning {
+			errs = append(errs, fmt.Errorf(" %s: %s (expected %s): %w", name, result.stage, loadStageRunning, result.err))
 		}
 	}
-	return 1
+
+	return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 }
 
 func (c *Client) checkClusterState(stateFile string) error {
@@ -215,5 +196,6 @@ func (c *Client) checkClusterState(stateFile string) error {
 	if err := common.PrintClusterStateDiff(diff, previous, planned); err != nil {
 		return err
 	}
+
 	return fmt.Errorf("config differs from cluster state on %s: run 'plan' to review and update it", stateFile)
 }

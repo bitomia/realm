@@ -3,6 +3,7 @@ package golang
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 
@@ -12,18 +13,60 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-type nodeStartStage string
+type nodePowerStage string
+type nodeUpdateStage string
 
 const (
-	nodeStagePending          nodeStartStage = "pending"
-	nodeStatePowerOnRequested nodeStartStage = "power-on requested"
-	nodeStageReady            nodeStartStage = "ready"
-	nodeStageNotReady         nodeStartStage = "not ready"
+	// power-on stages
+	nodeStagePowerOnPending   nodePowerStage = "pending"
+	nodeStatePowerOnRequested nodePowerStage = "power-on requested"
+	nodeStageReady            nodePowerStage = "ready"
+	nodeStageNotReady         nodePowerStage = "not ready"
+	nodeStageFailed           nodePowerStage = "failed"
+
+	// power-off stages
+	nodeStagePowerOffPending   nodePowerStage = "pending"
+	nodeStagePowerOffRequested nodePowerStage = "power-off requested"
+	nodeStagePoweredOff        nodePowerStage = "powered off"
+	nodeStageStillRunning      nodePowerStage = "still running"
+
+	// update stages
+	nodeStageUpdatePending nodeUpdateStage = "pending"
+	nodeStageUpdated       nodeUpdateStage = "updated"
+	nodeStageUpdateFailed  nodeUpdateStage = "update failed"
 )
 
-func isSuccessPowerOnSequence(stages map[string]nodeStartStage) bool {
-	for _, stage := range stages {
-		if stage != nodeStageReady {
+type nodePowerSequenceResult struct {
+	stage nodePowerStage
+	err   error
+}
+
+func isSuccessPowerOnSequence(sequenceRes map[string]nodePowerSequenceResult) bool {
+	for _, result := range sequenceRes {
+		if result.stage != nodeStageReady {
+			return false
+		}
+	}
+	return true
+}
+
+func isSuccessPowerOffSequence(sequenceRes map[string]nodePowerSequenceResult) bool {
+	for _, result := range sequenceRes {
+		if result.stage != nodeStagePoweredOff {
+			return false
+		}
+	}
+	return true
+}
+
+type nodeUpdateSequenceResult struct {
+	stage nodeUpdateStage
+	err   error
+}
+
+func isSuccessUpdateSequence(results map[string]nodeUpdateSequenceResult) bool {
+	for _, result := range results {
+		if result.err != nil {
 			return false
 		}
 	}
@@ -32,18 +75,18 @@ func isSuccessPowerOnSequence(stages map[string]nodeStartStage) bool {
 
 // powerOnNodesSequence powers on and waits for the given nodes to be ready,
 // Returns the last report start stages, if all nodes are nodeStageReady then it's success
-func (client *Client) powerOnNodesSequence(ctx context.Context, nodes map[string]*common.Node) map[string]nodeStartStage {
-	stages := make(map[string]nodeStartStage, len(nodes))
+func (client *Client) powerOnNodesSequence(ctx context.Context, nodes map[string]*common.Node) map[string]nodePowerSequenceResult {
+	state := make(map[string]nodePowerSequenceResult, len(nodes))
 	for name := range nodes {
-		stages[name] = nodeStagePending
+		state[name] = nodePowerSequenceResult{stage: nodeStagePowerOnPending}
 	}
 
 	for _, name := range slices.Sorted(maps.Keys(nodes)) {
 		if err := client.PowerOnNode(nodes[name]); err != nil {
-			log.Warn("Powering on %s failed: %s", color.CyanString(name), err.Error())
-			return stages
+			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("Powering on %s failed: %w", name, err)}
+			return state
 		}
-		stages[name] = nodeStatePowerOnRequested
+		state[name] = nodePowerSequenceResult{stage: nodeStatePowerOnRequested}
 	}
 
 	waitCtx, cancel := context.WithCancel(ctx)
@@ -51,61 +94,65 @@ func (client *Client) powerOnNodesSequence(ctx context.Context, nodes map[string
 	ready := true
 	client.WaitNodesReady(waitCtx, nodes, func(n *common.Node, err error) {
 		if err == nil {
-			stages[n.Name] = nodeStageReady
+			state[n.Name] = nodePowerSequenceResult{stage: nodeStageReady}
 			return
 		}
 		if errors.Is(err, context.Canceled) && !ready {
 			return
 		}
-		stages[n.Name] = nodeStageNotReady
-		log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+		state[n.Name] = nodePowerSequenceResult{nodeStageNotReady, fmt.Errorf("waiting for %s failed: %w", n.Name, err)}
 		if ready {
 			ready = false
 			cancel()
 		}
 	})
 
-	return stages
+	return state
 }
 
-type nodePowerOffStage string
-
-const (
-	nodeStagePowerOffRequested nodePowerOffStage = "power-off requested"
-	nodeStagePoweredOff        nodePowerOffStage = "powered off"
-	nodeStageStillRunning      nodePowerOffStage = "still running"
-)
-
-func isSuccessPowerOffSequence(stages map[string]nodePowerOffStage) bool {
-	for _, stage := range stages {
-		if stage != nodeStagePoweredOff {
-			return false
-		}
-	}
-	return true
-}
-
-// powerOffNodesSequence checks that no running node drifted from its config
+// powerOffNodesSequence powers off each node and wait for stop state
 // Returns the last report stages, if all nodes are nodeStagePoweredOff then it's success
-func (client *Client) powerOffNodesSequence(ctx context.Context, nodes map[string]*common.Node) map[string]nodePowerOffStage {
-	stages := make(map[string]nodePowerOffStage, len(nodes))
+func (client *Client) powerOffNodesSequence(ctx context.Context, nodes map[string]*common.Node) map[string]nodePowerSequenceResult {
+	state := make(map[string]nodePowerSequenceResult, len(nodes))
+	for name := range nodes {
+		state[name] = nodePowerSequenceResult{stage: nodeStagePowerOffPending}
+	}
 
 	for _, name := range slices.Sorted(maps.Keys(nodes)) {
 		if err := client.PowerOffNode(nodes[name]); err != nil {
 			log.Warn("Powering off %s failed: %s", color.CyanString(name), err.Error())
-			return stages
+			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("powering off %s failed: %s", name, err.Error())}
+			return state
 		}
-		stages[name] = nodeStagePowerOffRequested
+		state[name] = nodePowerSequenceResult{stage: nodeStagePowerOffRequested}
 	}
 
 	client.WaitNodesStopped(ctx, nodes, func(n *common.Node, err error) {
 		if err == nil {
-			stages[n.Name] = nodeStagePoweredOff
+			state[n.Name] = nodePowerSequenceResult{stage: nodeStagePoweredOff}
 		} else {
-			stages[n.Name] = nodeStageStillRunning
-			log.Warn("Waiting for %s failed: %s", color.CyanString(n.Name), err.Error())
+			state[n.Name] = nodePowerSequenceResult{nodeStageStillRunning, fmt.Errorf("waiting for %s failed: %s", color.CyanString(n.Name), err.Error())}
 		}
 	})
 
-	return stages
+	return state
+}
+
+// updateNodesSequence loads the planned config on the given nodes.
+// Returns the last report update stages, if all nodes are nodeStageUpdated then it's success
+func (client *Client) updateNodesSequence(nodes map[string]*common.Node) map[string]nodeUpdateSequenceResult {
+	results := make(map[string]nodeUpdateSequenceResult, len(nodes))
+	for name := range nodes {
+		results[name] = nodeUpdateSequenceResult{stage: nodeStageUpdatePending}
+	}
+
+	for _, name := range slices.Sorted(maps.Keys(nodes)) {
+		if err := client.LoadNodeConfig(nodes[name]); err != nil {
+			results[name] = nodeUpdateSequenceResult{nodeStageUpdateFailed, fmt.Errorf("configuring %s failed: %s", name, err.Error())}
+			return results
+		}
+		results[name] = nodeUpdateSequenceResult{stage: nodeStageUpdated}
+	}
+
+	return results
 }

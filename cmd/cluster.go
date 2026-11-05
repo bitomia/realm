@@ -57,12 +57,10 @@ var startCmd = &cobra.Command{
 		stateFile, _ := cmd.Flags().GetString("state")
 
 		client := clientPkg.NewClient(cfg)
-		exitCode := client.StartCluster(cmd.Context(), stateFile)
-		if exitCode == 0 {
-			log.Success("Cluster started")
+		if err := client.StartCluster(cmd.Context(), stateFile); err != nil {
+			log.Fatal("%s", err.Error())
 		}
-
-		os.Exit(exitCode)
+		log.Success("Cluster started")
 	},
 }
 
@@ -79,12 +77,10 @@ var stopCmd = &cobra.Command{
 		stateFile, _ := cmd.Flags().GetString("state")
 
 		client := clientPkg.NewClient(cfg)
-		exitCode := client.StopCluster(cmd.Context(), stateFile)
-		if exitCode == 0 {
-			log.Success("Cluster stopped")
+		if err := client.StopCluster(cmd.Context(), stateFile); err != nil {
+			log.Fatal("%s", err.Error())
 		}
-
-		os.Exit(exitCode)
+		log.Success("Cluster stopped")
 	},
 }
 
@@ -98,12 +94,10 @@ var updateCmd = &cobra.Command{
 		stateFile, _ := cmd.Flags().GetString("state")
 
 		client := clientPkg.NewClient(cfg)
-		exitCode := client.UpdateCluster(cmd.Context(), stateFile)
-		if exitCode == 0 {
-			log.Success("Cluster updated")
+		if err := client.UpdateCluster(cmd.Context(), stateFile); err != nil {
+			log.Fatal("%s", err.Error())
 		}
-
-		os.Exit(exitCode)
+		log.Success("Cluster updated")
 	},
 }
 
