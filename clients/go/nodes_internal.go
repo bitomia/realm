@@ -24,10 +24,10 @@ const (
 	nodeStageNotReady         nodePowerStage = "not ready"
 	nodeStageFailed           nodePowerStage = "failed"
 
-	// power-off stages
-	nodeStagePowerOffPending   nodePowerStage = "pending"
-	nodeStagePowerOffRequested nodePowerStage = "power-off requested"
-	nodeStagePoweredOff        nodePowerStage = "powered off"
+	// shutdown stages
+	nodeStageShutdownPending   nodePowerStage = "pending"
+	nodeStageShutdownRequested nodePowerStage = "shutdown requested"
+	nodeStageShutDown          nodePowerStage = "shut down"
 	nodeStageStillRunning      nodePowerStage = "still running"
 
 	// update stages
@@ -50,9 +50,9 @@ func isSuccessPowerOnSequence(sequenceRes map[string]nodePowerSequenceResult) bo
 	return true
 }
 
-func isSuccessPowerOffSequence(sequenceRes map[string]nodePowerSequenceResult) bool {
+func isSuccessShutdownSequence(sequenceRes map[string]nodePowerSequenceResult) bool {
 	for _, result := range sequenceRes {
-		if result.stage != nodeStagePoweredOff {
+		if result.stage != nodeStageShutDown {
 			return false
 		}
 	}
@@ -110,26 +110,26 @@ func (client *Client) powerOnNodesSequence(ctx context.Context, nodes map[string
 	return state
 }
 
-// powerOffNodesSequence powers off each node and wait for stop state
-// Returns the last report stages, if all nodes are nodeStagePoweredOff then it's success
-func (client *Client) powerOffNodesSequence(ctx context.Context, nodes map[string]*common.Node) map[string]nodePowerSequenceResult {
+// shutdownNodesSequence shuts down each node and wait for stop state
+// Returns the last report stages, if all nodes are nodeStageShutDown then it's success
+func (client *Client) shutdownNodesSequence(ctx context.Context, nodes map[string]*common.Node, wallMessage string, offsetTime uint32) map[string]nodePowerSequenceResult {
 	state := make(map[string]nodePowerSequenceResult, len(nodes))
 	for name := range nodes {
-		state[name] = nodePowerSequenceResult{stage: nodeStagePowerOffPending}
+		state[name] = nodePowerSequenceResult{stage: nodeStageShutdownPending}
 	}
 
 	for _, name := range slices.Sorted(maps.Keys(nodes)) {
-		if err := client.PowerOffNode(nodes[name]); err != nil {
-			log.Warn("Powering off %s failed: %s", color.CyanString(name), err.Error())
-			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("powering off %s failed: %s", name, err.Error())}
+		if err := client.ShutdownNode(nodes[name], wallMessage, offsetTime); err != nil {
+			log.Warn("Shutting down %s failed: %s", color.CyanString(name), err.Error())
+			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("shutting down %s failed: %s", name, err.Error())}
 			return state
 		}
-		state[name] = nodePowerSequenceResult{stage: nodeStagePowerOffRequested}
+		state[name] = nodePowerSequenceResult{stage: nodeStageShutdownRequested}
 	}
 
 	client.WaitNodesStopped(ctx, nodes, func(n *common.Node, err error) {
 		if err == nil {
-			state[n.Name] = nodePowerSequenceResult{stage: nodeStagePoweredOff}
+			state[n.Name] = nodePowerSequenceResult{stage: nodeStageShutDown}
 		} else {
 			state[n.Name] = nodePowerSequenceResult{nodeStageStillRunning, fmt.Errorf("waiting for %s failed: %s", color.CyanString(n.Name), err.Error())}
 		}

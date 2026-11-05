@@ -82,7 +82,7 @@ func (client *Client) StartCluster(ctx context.Context, stateFile string) error 
 	return client.startLoads(client.cfg.GetLoads())
 }
 
-func (client *Client) StopCluster(ctx context.Context, stateFile string) error {
+func (client *Client) StopCluster(ctx context.Context, stateFile string, wallMessage string, offsetTime uint32) error {
 	if err := client.checkClusterState(stateFile); err != nil {
 		return err
 	}
@@ -98,15 +98,15 @@ func (client *Client) StopCluster(ctx context.Context, stateFile string) error {
 		return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 	}
 
-	stopSeq := client.powerOffNodesSequence(ctx, client.cfg.GetNodes())
-	if isSuccessPowerOffSequence(stopSeq) {
+	stopSeq := client.shutdownNodesSequence(ctx, client.cfg.GetNodes(), wallMessage, offsetTime)
+	if isSuccessShutdownSequence(stopSeq) {
 		return nil
 	}
 
 	var errs []error
 	for _, name := range slices.Sorted(maps.Keys(stopSeq)) {
-		if result := stopSeq[name]; result.stage != nodeStagePoweredOff {
-			errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, nodeStagePoweredOff, result.err))
+		if result := stopSeq[name]; result.stage != nodeStageShutDown {
+			errs = append(errs, fmt.Errorf("%s: %s (expected %s): %w", name, result.stage, nodeStageShutDown, result.err))
 		}
 	}
 	return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))

@@ -32,7 +32,7 @@ var planCmd = &cobra.Command{
 				return true, nil
 			}
 			if !term.IsTerminal(int(os.Stdin.Fd())) {
-				return false, errors.New("cannot ask for confirmation, stdin is not a terminal: use -y to update the state anyway")
+				return false, errors.New("cannot ask for confirmation, stdin is not a terminal")
 			}
 			return confirm(fmt.Sprintf("Update %s?", stateFile), os.Stdin, os.Stdout)
 		}
@@ -65,7 +65,7 @@ var startCmd = &cobra.Command{
 }
 
 var stopCmd = &cobra.Command{
-	Use:     "stop [--state file]",
+	Use:     "stop [--state file] [--message text] [--time offset] [-y]",
 	GroupID: "main",
 	Short:   "Stop loads and power-off cluster nodes",
 	Long: "Stop loads and power-off cluster nodes.\n" +
@@ -75,9 +75,25 @@ var stopCmd = &cobra.Command{
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		stateFile, _ := cmd.Flags().GetString("state")
+		wallMessage, _ := cmd.Flags().GetString("message")
+		offsetTime, _ := cmd.Flags().GetUint32("time")
+		yes, _ := cmd.Flags().GetBool("yes")
+
+		if !yes {
+			if !term.IsTerminal(int(os.Stdin.Fd())) {
+				log.Fatal("cannot ask for confirmation, stdin is not a terminal")
+			}
+			ok, err := confirm("Stop the cluster?", os.Stdin, os.Stdout)
+			if err != nil {
+				log.Fatal("%s", err)
+			}
+			if !ok {
+				return
+			}
+		}
 
 		client := clientPkg.NewClient(cfg)
-		if err := client.StopCluster(cmd.Context(), stateFile); err != nil {
+		if err := client.StopCluster(cmd.Context(), stateFile, wallMessage, offsetTime); err != nil {
 			log.Fatal("%s", err.Error())
 		}
 		log.Success("Cluster stopped")
@@ -106,6 +122,9 @@ func init() {
 	rootCmd.AddCommand(startCmd)
 
 	stopCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
+	stopCmd.Flags().String("message", "", "Wall message broadcast to logged-in users before shutdown")
+	stopCmd.Flags().Uint32("time", 0, "Shutdown time offset, 0 shuts down now")
+	stopCmd.Flags().BoolP("yes", "y", false, "Stop the cluster without asking for confirmation")
 	rootCmd.AddCommand(stopCmd)
 
 	updateCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
