@@ -4,6 +4,7 @@ package mesh
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	netplane "github.com/bitomia/netplane/bindings/gonetplane"
 
 	"github.com/bitomia/realm/common/config"
+	"github.com/bitomia/realm/common/logging"
 )
 
 func StartMesh(cfg *config.Config) error {
@@ -29,6 +31,9 @@ func startMesh(cfg *config.Config, errChan chan error) {
 	logFormat := netplane.LogFormatLogfmt
 	if cfg.Agent.LogFormat == "json" {
 		logFormat = netplane.LogFormatJSON
+	}
+	if os.Getenv("RUST_LOG") == "" {
+		os.Setenv("RUST_LOG", meshLogFilter(cfg.LogLevel))
 	}
 	netplane.ClientInitLogger(logFormat)
 
@@ -79,4 +84,16 @@ func startMesh(cfg *config.Config, errChan chan error) {
 	<-sigCh
 
 	netplane.ClientStop()
+}
+
+func meshLogFilter(configured string) string {
+	level, _, _ := logging.ResolveLevel(configured)
+	switch {
+	case level <= slog.LevelDebug:
+		return "debug"
+	case level >= slog.LevelError:
+		return "error"
+	default:
+		return "warn"
+	}
 }
