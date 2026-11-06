@@ -24,8 +24,10 @@ type NetConfig struct {
 	HostIfaceName  string `json:"host_ifname"`
 }
 
-func (db *AgentDB) NewOrRetrieveSubnetOffset(network string) (int32, error) {
-	return db.getNextSubnet(network)
+// NewOrRetrieveSubnetOffset returns the subnet offset of a network, allocating
+// one if needed.
+func (db *AgentDB) NewOrRetrieveSubnetOffset(network string, maxOffset int32, usable func(int32) bool) (int32, error) {
+	return db.getNextSubnet(network, maxOffset, usable)
 }
 
 // We store guest and host ifnames because we are storing only bridge configs

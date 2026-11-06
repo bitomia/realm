@@ -2,7 +2,9 @@ package db
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"log/slog"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -242,12 +244,17 @@ func (db *AgentDB) deletePrefix(prefix string) (int, error) {
 	return deleted, nil
 }
 
-// getNextSubnet returns the subnet assigned to a network, allocating the next
-// one from the counter if the network doesn't have one yet
-func (db *AgentDB) getNextSubnet(network string) (int32, error) {
+// getNextSubnet returns the subnet offset assigned to a network, allocating
+// the next one from the counter if the network doesn't have one yet.
+//
+// usable rejects offsets that can't be used, nil if any offset is usable
+func (db *AgentDB) getNextSubnet(network string, maxOffset int32, usable func(int32) bool) (int32, error) {
 	subnetKey, err := db.subnetKey(network)
 	if err != nil {
 		return 0, err
+	}
+	if usable == nil {
+		usable = func(int32) bool { return true }
 	}
 
 	counterKey := "subnet_counter"
@@ -258,12 +265,15 @@ func (db *AgentDB) getNextSubnet(network string) (int32, error) {
 
 		// Network already has a subnet assigned
 		if v := bucket.Get([]byte(subnetKey)); v != nil {
-			parsed, err := strconv.Atoi(string(v))
+			parsed, err := strconv.ParseInt(string(v), 10, 32)
 			if err != nil {
 				return err
 			}
-			subnet = int32(parsed)
-			return nil
+			if usable(int32(parsed)) {
+				subnet = int32(parsed)
+				return nil
+			}
+			slog.Warn("Subnet assigned to network is not usable anymore, reassigning", "network", network, "offset", parsed)
 		}
 
 		// Assign a new subnet from the counter
@@ -275,14 +285,24 @@ func (db *AgentDB) getNextSubnet(network string) (int32, error) {
 			}
 		}
 
-		newVal := strconv.FormatInt(currentVal+1, 10)
+		next := currentVal + 1
+		for ; next <= int64(maxOffset); next++ {
+			if usable(int32(next)) {
+				break
+			}
+		}
+		if next > int64(maxOffset) {
+			return errors.New("no more subnets available")
+		}
+
+		newVal := strconv.FormatInt(next, 10)
 		if err := bucket.Put([]byte(counterKey), []byte(newVal)); err != nil {
 			return err
 		}
 		if err := bucket.Put([]byte(subnetKey), []byte(newVal)); err != nil {
 			return err
 		}
-		subnet = int32(currentVal + 1)
+		subnet = int32(next)
 		return nil
 	})
 	if err != nil {

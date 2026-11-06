@@ -327,19 +327,41 @@ func TestSubnet_NewOrRetrieve(t *testing.T) {
 	defer cleanup()
 
 	// First call should allocate a new subnet
-	offset1, err := db.NewOrRetrieveSubnetOffset("network1")
+	offset1, err := db.NewOrRetrieveSubnetOffset("network1", 1000, nil)
 	assert.NoError(t, err)
 	assert.Greater(t, offset1, int32(0))
 
 	// Second call with same network should return same offset
-	offset2, err := db.NewOrRetrieveSubnetOffset("network1")
+	offset2, err := db.NewOrRetrieveSubnetOffset("network1", 1000, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, offset1, offset2)
 
 	// Different network should get different offset
-	offset3, err := db.NewOrRetrieveSubnetOffset("network2")
+	offset3, err := db.NewOrRetrieveSubnetOffset("network2", 1000, nil)
 	assert.NoError(t, err)
 	assert.NotEqual(t, offset1, offset3)
+}
+
+func TestSubnet_SkipsUnusable(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	blocked := map[int32]bool{1: true, 2: true}
+	usable := func(o int32) bool { return !blocked[o] }
+
+	offset, err := db.NewOrRetrieveSubnetOffset("web", 1000, usable)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(3), offset)
+
+	// A stored assignment that became unusable is replaced
+	blocked[3] = true
+	offset, err = db.NewOrRetrieveSubnetOffset("web", 1000, usable)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(4), offset)
+
+	// Exhausted pool
+	_, err = db.NewOrRetrieveSubnetOffset("other", 4, usable)
+	assert.Error(t, err)
 }
 
 func TestHealthStatus_PublishAndGet(t *testing.T) {

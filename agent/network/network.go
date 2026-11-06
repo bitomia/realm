@@ -51,19 +51,98 @@ func int32ToIPv4(i int32) net.IP {
 	return net.IP(ipBytes)
 }
 
+// getSubnet returns the /24 assigned to a network
+// It skips subnets that overlap a host route or address
 func getSubnet(network string) (string, error) {
-	subnetOffset, err := db.GetDB().NewOrRetrieveSubnetOffset(network)
+	hostNets := hostNetworks(getBridgeName(network))
+	usable := func(offset int32) bool {
+		candidate := subnetFromOffset(offset)
+		for _, n := range hostNets {
+			if subnetsOverlap(candidate, n) {
+				return false
+			}
+		}
+		return true
+	}
+
+	maxOffset := int32((MAX_SUBNET - MIN_SUBNET) / SUBNET_OFFSET)
+	subnetOffset, err := db.GetDB().NewOrRetrieveSubnetOffset(network, maxOffset, usable)
 	if err != nil {
 		return "", fmt.Errorf("error acquiring new subnet: %w", err)
 	}
 
-	subnet := MIN_SUBNET + subnetOffset*SUBNET_OFFSET
-	if subnet > MAX_SUBNET {
-		return "", errors.New("no more subnets available")
+	return subnetFromOffset(subnetOffset).String(), nil
+}
+
+func subnetFromOffset(offset int32) *net.IPNet {
+	return &net.IPNet{
+		IP:   int32ToIPv4(MIN_SUBNET + offset*SUBNET_OFFSET),
+		Mask: net.CIDRMask(24, 32),
+	}
+}
+
+func subnetsOverlap(a, b *net.IPNet) bool {
+	return a.Contains(b.IP.Mask(b.Mask)) || b.Contains(a.IP.Mask(a.Mask))
+}
+
+func hostNetworks(bridgeName string) []*net.IPNet {
+	bridgeIndex := -1
+	if link, err := netlink.LinkByName(bridgeName); err == nil {
+		bridgeIndex = link.Attrs().Index
 	}
 
-	subnetAddr := int32ToIPv4(subnet)
-	return fmt.Sprintf("%s/24", subnetAddr.String()), nil
+	var nets []*net.IPNet
+	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	if err != nil {
+		slog.Warn("Cannot list host routes, subnet overlap check skipped", "error", err)
+	}
+	for _, r := range routes {
+		if r.Dst == nil || r.LinkIndex == bridgeIndex {
+			continue
+		}
+		if ones, _ := r.Dst.Mask.Size(); ones == 0 {
+			continue
+		}
+		nets = append(nets, r.Dst)
+	}
+
+	addrs, err := netlink.AddrList(nil, netlink.FAMILY_V4)
+	if err != nil {
+		slog.Warn("Cannot list host addresses, subnet overlap check skipped", "error", err)
+	}
+	for _, a := range addrs {
+		if a.IPNet == nil || a.LinkIndex == bridgeIndex {
+			continue
+		}
+		nets = append(nets, a.IPNet)
+	}
+	return nets
+}
+
+// removeStaleBridge deletes the bridge if it has an address outside subnet,
+// for example when network was moved to another subnet.
+func removeStaleBridge(bridgeName string, subnet string) {
+	link, err := netlink.LinkByName(bridgeName)
+	if err != nil {
+		return
+	}
+	_, want, err := net.ParseCIDR(subnet)
+	if err != nil {
+		return
+	}
+	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	if err != nil {
+		return
+	}
+	for _, a := range addrs {
+		if !want.Contains(a.IP) {
+			slog.Warn("Bridge is on a stale subnet, recreating it", "bridge", bridgeName, "address", a.IPNet.String(), "subnet", subnet)
+			if err := deleteBridge(bridgeName); err != nil {
+				slog.Warn("Failed to delete stale bridge", "bridge", bridgeName, "error", err)
+			}
+			return
+		}
+	}
 }
 
 // deriveGatewayFromSubnet extracts the gateway IP from a subnet CIDR (e.g., "10.5.0.0/24" -> "10.5.0.1")
@@ -273,6 +352,8 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (map[string
 		return nil, nil, nil, fmt.Errorf("failed to get subnet: %w", err)
 	}
 	bridgeName := getBridgeName(netConfig.Network)
+	removeStaleBridge(bridgeName, subnet)
+
 	netConf := createNetworkConfig(bridgeName, subnet, netConfig.IPMasq, netConfig.PortMap)
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
