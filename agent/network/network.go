@@ -33,6 +33,7 @@ import (
 const MIN_SUBNET = 167772160 // 10.0.0.0
 const MAX_SUBNET = 184549120 // 10.255.255.0
 const SUBNET_OFFSET = 256
+const MESH_INTERFACE = "netplane0"
 
 // Required CNI plugins
 var (
@@ -52,7 +53,6 @@ func int32ToIPv4(i int32) net.IP {
 }
 
 // getSubnet returns the /24 assigned to a network
-// It skips subnets that overlap a host route or address
 func getSubnet(network string) (string, error) {
 	hostNets := hostNetworks(getBridgeName(network))
 	usable := func(offset int32) bool {
@@ -168,7 +168,37 @@ func deriveGatewayFromSubnet(subnet string) string {
 	return gateway.String()
 }
 
-func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.Portmap) string {
+// meshNetworks returns the networks routed over the mesh interface, or none
+// when the node is not in a mesh.
+func meshNetworks() []*net.IPNet {
+	link, err := netlink.LinkByName(MESH_INTERFACE)
+	if err != nil {
+		return nil
+	}
+	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+	if err != nil {
+		slog.Warn("Cannot list mesh routes, containers won't route to the mesh", "iface", MESH_INTERFACE, "error", err)
+		return nil
+	}
+
+	var nets []*net.IPNet
+	for _, r := range routes {
+		if r.Dst == nil {
+			continue
+		}
+		if ones, _ := r.Dst.Mask.Size(); ones == 0 {
+			continue
+		}
+		nets = append(nets, r.Dst)
+	}
+	return nets
+}
+
+// createNetworkConfig builds the CNI config of a bridge network.
+//
+// The container routes cover everything but 10.0.0.0/8, where the bridge
+// subnets live.
+func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []dto.Portmap, extraRoutes []*net.IPNet) string {
 	var ipMaskStr string
 	if ipMask {
 		ipMaskStr = "true"
@@ -185,6 +215,18 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
 	portmapConfig := ""
 	if len(portmappings) > 0 {
 		portmapConfig = fmt.Sprintf(`, { "type": "portmap", "capabilities": { "portMappings": true }, "runtimeConfig": { "portMappings": [ %s ] } }`, portmappings)
+	}
+
+	routes := []string{
+		"0.0.0.0/5", "8.0.0.0/7", "11.0.0.0/8", "12.0.0.0/6",
+		"16.0.0.0/4", "32.0.0.0/3", "64.0.0.0/2", "128.0.0.0/1",
+	}
+	for _, r := range extraRoutes {
+		routes = append(routes, r.String())
+	}
+	routeEntries := make([]string, 0, len(routes))
+	for _, r := range routes {
+		routeEntries = append(routeEntries, fmt.Sprintf(`{ "dst": "%s" }`, r))
 	}
 
 	// Derive the gateway IP from the subnet for DNS nameserver
@@ -204,14 +246,7 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
                 "type": "host-local",
                 "subnet": "%s",
                 "routes": [
-                    { "dst": "0.0.0.0/5" },
-                    { "dst": "8.0.0.0/7" },
-                    { "dst": "11.0.0.0/8" },
-                    { "dst": "12.0.0.0/6" },
-                    { "dst": "16.0.0.0/4" },
-                    { "dst": "32.0.0.0/3" },
-                    { "dst": "64.0.0.0/2" },
-                    { "dst": "128.0.0.0/1" }
+                    %s
                 ]
             },
             "dns": {
@@ -228,7 +263,7 @@ func createNetworkConfig(network string, subnet string, ipMask bool, portmaps []
         }%s
     ]
 }
-`, network, network, ipMaskStr, subnet, gatewayIP, portmapConfig)
+`, network, network, ipMaskStr, subnet, strings.Join(routeEntries, ",\n                    "), gatewayIP, portmapConfig)
 }
 
 func generateInterfaceName(containerID string) string {
@@ -353,8 +388,7 @@ func StartNetwork(containerName string, netConfig dto.NetworkConfig) (map[string
 	}
 	bridgeName := getBridgeName(netConfig.Network)
 	removeStaleBridge(bridgeName, subnet)
-
-	netConf := createNetworkConfig(bridgeName, subnet, netConfig.IPMasq, netConfig.PortMap)
+	netConf := createNetworkConfig(bridgeName, subnet, netConfig.IPMasq, netConfig.PortMap, meshNetworks())
 	confList, err := libcni.ConfListFromBytes([]byte(netConf))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to parse CNI config: %w", err)

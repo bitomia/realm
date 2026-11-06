@@ -12,7 +12,15 @@ import (
 	"github.com/bitomia/realm/agent/config"
 )
 
+const (
+	serviceType = "_realm._tcp"
+	serviceTTL  = 255
+)
+
+var serviceTXT = []string{"txtv=0"}
+
 type MDNSService struct {
+	avahi  *avahiPublisher
 	server *zeroconf.Server
 	mutex  sync.Mutex
 }
@@ -64,11 +72,19 @@ func (m *MDNSService) Start() error {
 		return fmt.Errorf("failed to start mDNS server: cannot get hostname")
 	}
 
-	server, err := zeroconf.Register(hostname, "_realm._tcp", "local.", port, []string{"txtv=0"}, networkInterfaces)
+	publisher, err := startAvahiPublisher(hostname, serviceType, port, serviceTXT, networkInterfaces)
+	if err == nil {
+		m.avahi = publisher
+		slog.Info("mDNS service started with Avahi", "hostname", hostname, "port", port)
+		return nil
+	}
+	slog.Info("Avahi not available, using the built-in mDNS responder", "reason", err.Error())
+
+	server, err := zeroconf.Register(hostname, serviceType, "local.", port, serviceTXT, networkInterfaces)
 	if err != nil {
 		return fmt.Errorf("failed to start mDNS server: %w", err)
 	}
-	server.TTL(255)
+	server.TTL(serviceTTL)
 
 	m.server = server
 
@@ -83,6 +99,10 @@ func (m *MDNSService) Stop() {
 
 	slog.Info("Stopping mDNS service")
 
+	if m.avahi != nil {
+		m.avahi.Stop()
+		m.avahi = nil
+	}
 	if m.server != nil {
 		m.server.Shutdown()
 		m.server = nil
