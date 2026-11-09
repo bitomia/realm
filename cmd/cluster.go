@@ -23,7 +23,7 @@ var planCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile, _ := cmd.Flags().GetString("state")
+		stateFile := getStateFile(cmd)
 		dry, _ := cmd.Flags().GetBool("dry")
 		yes, _ := cmd.Flags().GetBool("yes")
 
@@ -80,7 +80,7 @@ var startCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile, _ := cmd.Flags().GetString("state")
+		stateFile := getStateFile(cmd)
 
 		client := clientPkg.NewClient(cfg)
 		if err := client.StartCluster(cmd.Context(), stateFile); err != nil {
@@ -100,7 +100,7 @@ var stopCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile, _ := cmd.Flags().GetString("state")
+		stateFile := getStateFile(cmd)
 		wallMessage, _ := cmd.Flags().GetString("message")
 		offsetTime, _ := cmd.Flags().GetUint32("time")
 		yes, _ := cmd.Flags().GetBool("yes")
@@ -133,7 +133,7 @@ var updateCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile, _ := cmd.Flags().GetString("state")
+		stateFile := getStateFile(cmd)
 
 		client := clientPkg.NewClient(cfg)
 		if err := client.UpdateCluster(cmd.Context(), stateFile); err != nil {
@@ -162,4 +162,11 @@ func init() {
 	planCmd.MarkFlagsMutuallyExclusive("dry", "yes")
 
 	rootCmd.AddCommand(planCmd)
+}
+
+func getStateFile(cmd *cobra.Command) string {
+	if stateFile, _ := cmd.Flags().GetString("state"); stateFile != "" {
+		return stateFile
+	}
+	return cfg.GetClusterStateFile()
 }

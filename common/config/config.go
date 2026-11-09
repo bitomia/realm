@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"maps"
 	"net"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -132,6 +133,7 @@ type Config struct {
 	processedJobs  map[string]*common.Job      `json:"-"`
 	processedLoads map[string]*common.Load     `json:"-"`
 	loadsGraph     graph.Graph[string, string] `json:"-"`
+	dataPathSet    bool                        `json:"-"`
 
 	MeshConfig *MeshConfig `json:"mesh,omitempty"`
 }
@@ -163,6 +165,13 @@ func Init(configFilePath *string) (*Config, error) {
 		return nil, fmt.Errorf("%s", err.Error())
 	}
 	return cfg, nil
+}
+
+func (c *Config) GetClusterStateFile() string {
+	if c.dataPathSet {
+		return filepath.Join(c.DataPath, common.DefaultClusterStateFile)
+	}
+	return common.DefaultClusterStateFile
 }
 
 func (c *Config) GetJob(jobName string) *common.Job {

@@ -231,6 +231,9 @@ func readConfig(unmarshall func(in io.Reader) (*Config, error), in io.Reader, co
 		return nil, err
 	}
 
+	_, dataPathEnv := os.LookupEnv("REALM_DATA_PATH")
+	config.dataPathSet = viper.InConfig("data_path") || dataPathEnv
+
 	if config.Agent.DisableTCP && config.Agent.ListenSocket == "" {
 		return nil, fmt.Errorf("agent.disable_tcp requires agent.listen_socket to be set")
 	}

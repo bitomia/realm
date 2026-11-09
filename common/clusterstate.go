@@ -23,6 +23,10 @@ func (s ClusterState) WriteFile(path string) error {
 		return fmt.Errorf("failed to marshal cluster state: %w", err)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create cluster state directory: %w", err)
+	}
+
 	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create cluster state file: %w", err)
