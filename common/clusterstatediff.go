@@ -66,18 +66,19 @@ func DiffClusterStates(previous *ClusterState, planned ClusterState) ClusterStat
 	return diff
 }
 
-func PrintClusterStateDiff(diff ClusterStateDiff, previous *ClusterState, planned ClusterState) error {
+func ClusterStateDiffToString(diff ClusterStateDiff, previous *ClusterState, planned ClusterState) ([]string, error) {
 	before := nodesByName(previous)
 	after := nodesByName(&planned)
 
+	var diffs []string
 	for _, change := range diff.Nodes {
 		text, err := nodeDiff(change.Name, before[change.Name], after[change.Name])
 		if err != nil {
-			return err
+			return nil, err
 		}
-		printColoredDiff(text)
+		diffs = append(diffs, text)
 	}
-	return nil
+	return diffs, nil
 }
 
 func nodesByName(state *ClusterState) map[string]*Node {
@@ -190,21 +191,23 @@ func splitLines(text string) []string {
 	return lines
 }
 
-func printColoredDiff(text string) {
-	inHeader := true
-	for _, line := range strings.Split(strings.TrimSuffix(text, "\n"), "\n") {
-		switch {
-		case strings.HasPrefix(line, "@@"):
-			inHeader = false
-			fmt.Println(color.CyanString(line))
-		case inHeader:
-			fmt.Println(color.New(color.Bold).Sprint(line))
-		case strings.HasPrefix(line, "+"):
-			fmt.Println(color.GreenString(line))
-		case strings.HasPrefix(line, "-"):
-			fmt.Println(color.RedString(line))
-		default:
-			fmt.Println(line)
+func PrintColoredDiff(diffs []string) {
+	for _, d := range diffs {
+		inHeader := true
+		for line := range strings.SplitSeq(strings.TrimSuffix(d, "\n"), "\n") {
+			switch {
+			case strings.HasPrefix(line, "@@"):
+				inHeader = false
+				fmt.Println(color.CyanString(line))
+			case inHeader:
+				fmt.Println(color.New(color.Bold).Sprint(line))
+			case strings.HasPrefix(line, "+"):
+				fmt.Println(color.GreenString(line))
+			case strings.HasPrefix(line, "-"):
+				fmt.Println(color.RedString(line))
+			default:
+				fmt.Println(line)
+			}
 		}
 	}
 }

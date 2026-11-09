@@ -27,19 +27,45 @@ var planCmd = &cobra.Command{
 		dry, _ := cmd.Flags().GetBool("dry")
 		yes, _ := cmd.Flags().GetBool("yes")
 
-		approve := func() (bool, error) {
+		approve := func(diffs []string) (bool, error) {
+			common.PrintColoredDiff(diffs)
+
 			if yes {
 				return true, nil
 			}
 			if !term.IsTerminal(int(os.Stdin.Fd())) {
 				return false, errors.New("cannot ask for confirmation, stdin is not a terminal")
 			}
-			return confirm(fmt.Sprintf("Update %s?", stateFile), os.Stdin, os.Stdout)
+
+			if approved, err := confirm(fmt.Sprintf("Update %s?", stateFile), os.Stdin, os.Stdout); err != nil {
+				return false, err
+			} else {
+				if !approved {
+					log.Warn("Plan discarded, %s left untouched", stateFile)
+				}
+				return approved, nil
+			}
 		}
 
 		client := clientPkg.NewClient(cfg)
-		if err := client.PlanCluster(stateFile, dry, approve); err != nil {
-			log.Fatal("%s", err)
+		if dry {
+			diffs, err := client.DryPlanCluster(stateFile)
+			if err != nil {
+				log.Fatal("%s", err)
+			}
+			if len(diffs) == 0 {
+				log.Success("Cluster state on %s is up to date", stateFile)
+			} else {
+				common.PrintColoredDiff(diffs)
+			}
+		} else {
+			updated, err := client.PlanCluster(stateFile, approve)
+			if err != nil {
+				log.Fatal("%s", err)
+			}
+			if updated {
+				log.Success("Cluster state planned on %s", stateFile)
+			}
 		}
 	},
 }

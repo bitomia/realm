@@ -12,45 +12,59 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-func (c *Client) PlanCluster(stateFile string, dry bool, approve func() (bool, error)) error {
+func (c *Client) PlanCluster(stateFile string, approve func([]string) (bool, error)) (bool, error) {
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
 		previous = nil
 	} else if err != nil {
-		return err
+		return false, err
 	}
 
 	planned := c.cfg.GetClusterState()
 	diff := common.DiffClusterStates(previous, planned)
 	if diff.IsEmpty() {
 		log.Success("No changes, cluster state on %s is up to date", stateFile)
-		return nil
+		return false, nil
 	}
 
-	if err := common.PrintClusterStateDiff(diff, previous, planned); err != nil {
-		return err
-	}
-
-	if dry {
-		log.Info("Dry run, %s left untouched", stateFile)
-		return nil
-	}
-
-	approved, err := approve()
+	diffs, err := common.ClusterStateDiffToString(diff, previous, planned)
 	if err != nil {
-		return err
-	}
-	if !approved {
-		log.Warn("Plan discarded, %s left untouched", stateFile)
-		return nil
+		return false, err
 	}
 
-	if err := planned.WriteFile(stateFile); err != nil {
-		return err
+	approved, err := approve(diffs)
+	if err != nil {
+		return false, err
+	}
+	if approved {
+		if err := planned.WriteFile(stateFile); err != nil {
+			return false, err
+		}
+	}
+	return approved, nil
+}
+
+func (c *Client) DryPlanCluster(stateFile string) ([]string, error) {
+	previous, err := common.ReadClusterStateFile(stateFile)
+	if errors.Is(err, os.ErrNotExist) {
+		previous = nil
+	} else if err != nil {
+		return nil, err
 	}
 
-	log.Success("Cluster state planned on %s", stateFile)
-	return nil
+	planned := c.cfg.GetClusterState()
+	diff := common.DiffClusterStates(previous, planned)
+	if diff.IsEmpty() {
+		return nil, nil
+	}
+
+	diffs, err := common.ClusterStateDiffToString(diff, previous, planned)
+	if err != nil {
+		return nil, err
+	}
+
+	//		log.Info("Dry run, %s left untouched", stateFile)
+	return diffs, nil
 }
 
 // StartCluster powers on and waits for the nodes, rolls out the planned
@@ -193,7 +207,7 @@ func (c *Client) checkClusterState(stateFile string) error {
 		return nil
 	}
 
-	if err := common.PrintClusterStateDiff(diff, previous, planned); err != nil {
+	if _, err := common.ClusterStateDiffToString(diff, previous, planned); err != nil {
 		return err
 	}
 
