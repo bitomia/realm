@@ -83,7 +83,7 @@ func (client *Client) powerOnNodesSequence(ctx context.Context, nodes map[string
 
 	for _, name := range slices.Sorted(maps.Keys(nodes)) {
 		if err := client.PowerOnNode(nodes[name]); err != nil {
-			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("Powering on %s failed: %w", name, err)}
+			state[name] = nodePowerSequenceResult{nodeStageFailed, fmt.Errorf("powering on %s failed: %w", name, err)}
 			return state
 		}
 		state[name] = nodePowerSequenceResult{stage: nodeStatePowerOnRequested}

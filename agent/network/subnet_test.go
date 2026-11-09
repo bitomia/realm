@@ -2,14 +2,13 @@ package network
 
 import (
 	"encoding/json"
-
-	"github.com/containernetworking/cni/libcni"
-
-	"github.com/bitomia/realm/common/dto"
 	"net"
 	"testing"
 
+	"github.com/containernetworking/cni/libcni"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/bitomia/realm/common/dto"
 )
 
 func cidr(t *testing.T, s string) *net.IPNet {
