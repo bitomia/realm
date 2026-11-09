@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,11 @@ const (
 )
 
 const unixHost = "http://unix"
+
+var (
+	agentProtocolsMu sync.RWMutex
+	agentProtocols   = map[string]func(*url.URL) (*AgentTarget, error){}
+)
 
 func ResolveAgentURL(nodeConfig *NodeConfig) (string, error) {
 	if nodeConfig == nil {
@@ -37,8 +43,8 @@ func ResolveAgentURL(nodeConfig *NodeConfig) (string, error) {
 }
 
 type AgentTarget struct {
-	baseURL   string
-	transport http.RoundTripper
+	BaseURL   string
+	Transport http.RoundTripper
 }
 
 func ResolveAgentTarget(agentURL string) (*AgentTarget, error) {
@@ -52,9 +58,9 @@ func ResolveAgentTarget(agentURL string) (*AgentTarget, error) {
 		if parsed.Host == "" {
 			return nil, fmt.Errorf("invalid agent url '%s': missing host", agentURL)
 		}
-		target := &AgentTarget{baseURL: strings.TrimSuffix(agentURL, "/")}
+		target := &AgentTarget{BaseURL: strings.TrimSuffix(agentURL, "/")}
 		if isMDNSHost(parsed.Hostname()) {
-			target.transport = agentMDNSTransport()
+			target.Transport = agentMDNSTransport()
 		}
 		return target, nil
 
@@ -63,22 +69,48 @@ func ResolveAgentTarget(agentURL string) (*AgentTarget, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid agent url '%s': %w", agentURL, err)
 		}
-		return &AgentTarget{baseURL: unixHost, transport: unixTransport(socketPath)}, nil
-
-	case "":
-		return nil, fmt.Errorf("invalid agent url '%s': missing scheme, expected one of http, https or unix", agentURL)
+		return &AgentTarget{BaseURL: unixHost, Transport: unixTransport(socketPath)}, nil
 
 	default:
-		return nil, fmt.Errorf("unsupported agent url scheme '%s', expected one of http, https or unix", parsed.Scheme)
+		agentProtocolsMu.RLock()
+		handler, ok := agentProtocols[parsed.Scheme]
+		agentProtocolsMu.RUnlock()
+		if ok {
+			target, err := handler(parsed)
+			if err != nil {
+				return nil, fmt.Errorf("invalid agent url '%s': %w", agentURL, err)
+			}
+			return target, nil
+		}
+		return nil, fmt.Errorf("unsupported agent url scheme '%s'", parsed.Scheme)
 	}
 }
 
 func (t *AgentTarget) URL(path string) string {
-	return t.baseURL + path
+	return t.BaseURL + path
 }
 
 func (t *AgentTarget) Client(timeout time.Duration) *http.Client {
-	return &http.Client{Timeout: timeout, Transport: t.transport}
+	return &http.Client{Timeout: timeout, Transport: t.Transport}
+}
+
+func RegisterAgentProtocol(protocol string, handler func(*url.URL) (*AgentTarget, error)) {
+	if handler == nil {
+		panic("RegisterAgentProtocol: nil handler for protocol " + protocol)
+	}
+
+	switch protocol {
+	case AgentSchemeHTTP, AgentSchemeHTTPS, AgentSchemeUnix:
+		panic("RegisterAgentProtocol: cannot register reserved protocol '" + protocol + "'")
+	}
+
+	agentProtocolsMu.Lock()
+	defer agentProtocolsMu.Unlock()
+
+	if _, exists := agentProtocols[protocol]; exists {
+		panic("RegisterAgentProtocol: protocol '" + protocol + "' already registered")
+	}
+	agentProtocols[protocol] = handler
 }
 
 func unixSocketPath(parsed *url.URL) (string, error) {
