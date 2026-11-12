@@ -126,8 +126,7 @@ func (client *Client) StopCluster(ctx context.Context, stateFile string, wallMes
 	return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))
 }
 
-// UpdateCluster rolls out the planned loads changes on a running cluster.
-// Node config changes other than loads are refused, they require 'stop' and 'start'.
+// UpdateCluster rolls out the planned loads, timeout and registries changes on a running cluster.
 func (c *Client) UpdateCluster(ctx context.Context, stateFile string) error {
 	if err := c.checkClusterState(stateFile); err != nil {
 		return err

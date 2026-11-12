@@ -171,7 +171,12 @@ func LoadNodeConfig(node *common.Node) error {
 		return err
 	}
 
-	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); errors.Is(err, common.ErrNodeLoadsMismatch) && !info.GuestMode {
+	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); errors.Is(err, common.ErrNodeLiveConfigMismatch) {
+		if info.GuestMode {
+			return db.NodesRepository.UpdateGuestNode(*node)
+		}
+		return db.NodesRepository.UpdateSelf(*node)
+	} else if errors.Is(err, common.ErrNodeLoadsMismatch) && !info.GuestMode {
 		return reprovisionNodeLoads(db.NodesRepository, node)
 	} else if err != nil {
 		return err
@@ -207,6 +212,15 @@ func reprovisionNodeLoads(repository common.NodesRepository, node *common.Node) 
 	current, err := repository.GetSelf()
 	if err != nil {
 		return err
+	}
+
+	if !node.SameNodeLiveConfig(&current.Node) {
+		live := current.Node
+		live.Timeout = node.Timeout
+		live.Registries = node.Registries
+		if err := repository.UpdateSelf(live); err != nil {
+			return err
+		}
 	}
 
 	stale, fresh := diffLoads(current.Loads, node.Loads)

@@ -70,6 +70,30 @@ func TestSameLoadsConfigComparesLoads(t *testing.T) {
 	assert.False(t, newNode(map[string]any{"web": "v1", "cache": "v1"}).SameLoadsConfig(current))
 }
 
+func TestSameLiveConfigComparesTimeoutAndRegistries(t *testing.T) {
+	newNode := func(start common.Duration, registries ...string) *common.Node {
+		node := &common.Node{Name: "n1", Url: "http://n1", Driver: &fakeNodeDriver{}, Timeout: common.TimeoutConfig{Start: start}}
+		for _, host := range registries {
+			node.Registries = append(node.Registries, common.RegistryConfig{Host: host})
+		}
+		return node
+	}
+
+	current := newNode(10, "ghcr.io")
+
+	assert.True(t, newNode(10, "ghcr.io").SameNodeLiveConfig(current))
+	assert.False(t, newNode(20, "ghcr.io").SameNodeLiveConfig(current))
+	assert.False(t, newNode(10, "docker.io").SameNodeLiveConfig(current))
+	assert.False(t, newNode(10).SameNodeLiveConfig(current))
+
+	// Timeout and registries can be updated on a running node
+	assert.True(t, newNode(20, "docker.io").SameNodeStaticConfig(current))
+
+	moved := newNode(10, "ghcr.io")
+	moved.Url = "http://n2"
+	assert.False(t, moved.SameNodeStaticConfig(current))
+}
+
 func TestDiffLoads(t *testing.T) {
 	load := func(name string, config any) common.LoadConfig {
 		return common.LoadConfig{Name: name, Node: "n1", Driver: "fake_load_driver", DriverConfig: config}

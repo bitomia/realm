@@ -30,10 +30,11 @@ func (e *NodeEntry) UnmarshalJSON(data []byte) error {
 }
 
 var (
-	ErrNodeNotConfigured     = errors.New("node not configured")
-	ErrNodeAlreadyConfigured = errors.New("node already configured")
-	ErrNodeConfigMismatch    = errors.New("node already configured with a different config")
-	ErrNodeLoadsMismatch     = fmt.Errorf("%w: only loads differ", ErrNodeConfigMismatch)
+	ErrNodeNotConfigured      = errors.New("node not configured")
+	ErrNodeAlreadyConfigured  = errors.New("node already configured")
+	ErrNodeConfigMismatch     = errors.New("node already configured with a different config")
+	ErrNodeLoadsMismatch      = fmt.Errorf("%w: loads differ", ErrNodeConfigMismatch)
+	ErrNodeLiveConfigMismatch = fmt.Errorf("%w: only timeout or registries differ", ErrNodeConfigMismatch)
 )
 
 // Store interface for nodes
@@ -63,6 +64,10 @@ type NodesRepository interface {
 
 	// SetGuestNode creates or update the guest node entry for the caller host node
 	SetGuestNode(guestNode Node) error
+
+	// UpdateGuestNode replaces the config of a guest node of the caller host node
+	// metadata stays untouched (use UpdateGuestMetadata)
+	UpdateGuestNode(guestNode Node) error
 
 	// GetGuestNode returns a guest node of the caller host node
 	GetGuestNode(guestNodeName string) (NodeEntry, error)

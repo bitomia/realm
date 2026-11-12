@@ -229,6 +229,8 @@ func loadNodeConfigError(statusCode int, err error) error {
 		return common.ErrNodeAlreadyConfigured
 	case http.StatusUnprocessableEntity:
 		return common.ErrNodeLoadsMismatch
+	case http.StatusPreconditionFailed:
+		return common.ErrNodeLiveConfigMismatch
 	case http.StatusConflict:
 		return common.ErrNodeConfigMismatch
 	default:
@@ -279,13 +281,14 @@ func runNodeOperation(node *common.Node, operation string, mode func(common.Node
 // ValidateNodesConfig validates the config of all given nodes
 //
 // Returns ErrNodesValidation if any of them is invalid, ErrNodeAlreadyConfigured
-// for node with same config and ErrNodeLoadsMismatch when loads drift
+// for node with same config, ErrNodeLoadsMismatch when loads drift and
+// ErrNodeLiveConfigMismatch when timeout or registries drift
 func (c *Client) ValidateNodesConfig(nodes map[string]*common.Node, handle NodeResultHandler) error {
 	valid := true
 	for _, node := range nodes {
 		err := c.ValidateNodeConfig(node)
 		handle(node, err)
-		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) && !errors.Is(err, common.ErrNodeLoadsMismatch) {
+		if err != nil && !errors.Is(err, common.ErrNodeAlreadyConfigured) && !errors.Is(err, common.ErrNodeLoadsMismatch) && !errors.Is(err, common.ErrNodeLiveConfigMismatch) {
 			valid = false
 		}
 	}

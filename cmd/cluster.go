@@ -129,7 +129,7 @@ var stopCmd = &cobra.Command{
 var updateCmd = &cobra.Command{
 	Use:                   "update [--state file]",
 	GroupID:               "main",
-	Short:                 "Roll out planned loads changes on a running cluster",
+	Short:                 "Roll out planned loads, timeout and registries changes on a running cluster",
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {

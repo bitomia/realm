@@ -53,11 +53,16 @@ func (r *BoltNodesRepository) UpdateSelf(node common.Node) error {
 		return err
 	}
 
-	if _, err := r.db.get(nodeKey); err != nil {
+	return r.updateNode(nodeKey, node)
+}
+
+// updateNode replaces the node stored on key, keeping its metadata
+func (r *BoltNodesRepository) updateNode(key string, node common.Node) error {
+	if _, err := r.db.get(key); err != nil {
 		return common.ErrNodeNotConfigured
 	}
 
-	return r.db.updateValue(nodeKey, func(valueData []byte) ([]byte, error) {
+	return r.db.updateValue(key, func(valueData []byte) ([]byte, error) {
 		// Only the metadata is decoded so the stored node driver is not rebuilt
 		var stored struct {
 			Metadata json.RawMessage `json:"metadata"`
@@ -161,6 +166,19 @@ func (r *BoltNodesRepository) SetGuestNode(guestNode common.Node) error {
 	}
 
 	return nil
+}
+
+func (r *BoltNodesRepository) UpdateGuestNode(guestNode common.Node) error {
+	guestNodeName := guestNode.Name
+	slog.Info("BoltNodesRepository.UpdateGuestNode", "guestNodeName", guestNodeName)
+
+	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
+	if err != nil {
+		slog.Error("BoltNodesRepository.UpdateGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
+		return err
+	}
+
+	return r.updateNode(guestNodeKey, guestNode)
 }
 
 func (r *BoltNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver) error {

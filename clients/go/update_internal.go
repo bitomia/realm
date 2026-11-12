@@ -44,7 +44,7 @@ func (client *Client) planUpdate(nodes map[string]*common.Node, loads map[string
 		case errors.Is(err, common.ErrNodeAlreadyConfigured):
 			log.Info("Configuring %s skipped: %s", color.CyanString(name), err.Error())
 			continue
-		case errors.Is(err, common.ErrNodeLoadsMismatch), err == nil:
+		case errors.Is(err, common.ErrNodeLoadsMismatch), errors.Is(err, common.ErrNodeLiveConfigMismatch), err == nil:
 			// err == nil means the node is running but not configured yet
 		case errors.Is(err, common.ErrNodeConfigMismatch):
 			return plan, fmt.Errorf("node %s config: run 'stop' and 'start' to apply it", name)

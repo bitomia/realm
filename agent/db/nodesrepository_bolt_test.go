@@ -245,6 +245,32 @@ func TestBoltNodesRepository_GetGuestNode(t *testing.T) {
 	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
 }
 
+func TestBoltNodesRepository_UpdateGuestNode(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	driver := newMockNodeDriver("guest-driver")
+	require.NoError(t, repo.SetGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver}))
+	require.NoError(t, setGuestMetadata(repo, "guest-node", map[string]any{"key": "value"}))
+
+	err := repo.UpdateGuestNode(common.Node{Name: "guest-node", Url: "http://localhost:8080", Driver: driver, Registries: []common.RegistryConfig{{Host: "ghcr.io"}}})
+
+	require.NoError(t, err)
+	entry, err := repo.GetGuestNode("guest-node")
+	require.NoError(t, err)
+	assert.Equal(t, []common.RegistryConfig{{Host: "ghcr.io"}}, entry.Registries)
+	assert.Equal(t, map[string]any{"key": "value"}, entry.Metadata)
+}
+
+func TestBoltNodesRepository_UpdateGuestNode_NotConfigured(t *testing.T) {
+	repo, cleanup := setupNodesRepository(t)
+	defer cleanup()
+
+	err := repo.UpdateGuestNode(common.Node{Name: "missing-guest", Url: "http://localhost:8080", Driver: newMockNodeDriver("guest-driver")})
+
+	assert.ErrorIs(t, err, common.ErrNodeNotConfigured)
+}
+
 func TestBoltNodesRepository_GetGuestNode_NotFound(t *testing.T) {
 	repo, cleanup := setupNodesRepository(t)
 	defer cleanup()

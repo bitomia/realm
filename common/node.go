@@ -97,14 +97,19 @@ func (n *Node) UnmarshalJSON(data []byte) error {
 	}
 }
 
-// SameNodeConfig tells whether both nodes hold the same config
-func (n *Node) SameNodeConfig(other *Node) bool {
+// SameNodeStaticConfig tells whether both nodes hold the same config,
+// leaving out what can be updated on a running node (see SameLiveConfig and SameLoadsConfig)
+func (n *Node) SameNodeStaticConfig(other *Node) bool {
 	return n.Name == other.Name &&
 		n.Url == other.Url &&
-		n.Timeout == other.Timeout &&
 		reflect.DeepEqual(n.CloudInit, other.CloudInit) &&
-		reflect.DeepEqual(n.Registries, other.Registries) &&
 		n.Driver.Config().Equal(other.Driver.Config())
+}
+
+// SameNodeLiveConfig tells whether both nodes hold the same timeout and registries
+func (n *Node) SameNodeLiveConfig(other *Node) bool {
+	return n.Timeout == other.Timeout &&
+		reflect.DeepEqual(n.Registries, other.Registries)
 }
 
 // SameLoadsConfig tells whether both nodes hold the same loads

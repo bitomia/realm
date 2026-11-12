@@ -16,10 +16,12 @@ func checkNodeConfig(repository common.NodesRepository, node *common.Node, guest
 	}
 	if err == nil {
 		switch {
-		case !node.SameNodeConfig(&current.Node):
+		case !node.SameNodeStaticConfig(&current.Node):
 			return common.ErrNodeConfigMismatch
 		case !node.SameLoadsConfig(&current.Node):
 			return common.ErrNodeLoadsMismatch
+		case !node.SameNodeLiveConfig(&current.Node):
+			return common.ErrNodeLiveConfigMismatch
 		default:
 			return common.ErrNodeAlreadyConfigured
 		}

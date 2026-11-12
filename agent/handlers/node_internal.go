@@ -43,6 +43,8 @@ func writeLoadNodeConfigResult(w http.ResponseWriter, node *common.Node, onlyVal
 		http.Error(w, err.Error(), http.StatusOK)
 	case errors.Is(err, common.ErrNodeLoadsMismatch):
 		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+	case errors.Is(err, common.ErrNodeLiveConfigMismatch):
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
 	case errors.Is(err, common.ErrNodeConfigMismatch):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:

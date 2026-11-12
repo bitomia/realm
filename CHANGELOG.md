@@ -4,7 +4,7 @@
 - New 'plan' command added to generate the plan
 - New 'start' command added to power-on nodes and apply the plan
 - New 'stop' command added to stop loads and power-off nodes
-- New 'update' command added to update the loads of the available nodes
+- New 'update' command added to update the loads, timeout and registries of the available nodes
 - Agent: Now holds full state including loads
 
 ## 0.2.8

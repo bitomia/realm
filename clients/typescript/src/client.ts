@@ -33,7 +33,10 @@ export class RequestError extends Error {
 export const ErrNodesValidation = new Error('node config validation failed');
 export const ErrNodeAlreadyConfigured = new Error('node already configured');
 export const ErrNodeConfigMismatch = new Error('node already configured with a different config');
-export const ErrNodeLoadsMismatch = new Error(`${ErrNodeConfigMismatch.message}: only loads differ`, {
+export const ErrNodeLoadsMismatch = new Error(`${ErrNodeConfigMismatch.message}: loads differ`, {
+    cause: ErrNodeConfigMismatch,
+});
+export const ErrNodeLiveConfigMismatch = new Error(`${ErrNodeConfigMismatch.message}: node live config differs`, {
     cause: ErrNodeConfigMismatch,
 });
 
@@ -319,6 +322,9 @@ export class Client {
             if (err instanceof RequestError && err.status === 422) {
                 throw ErrNodeLoadsMismatch;
             }
+            if (err instanceof RequestError && err.status === 412) {
+                throw ErrNodeLiveConfigMismatch;
+            }
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;
             }
@@ -337,6 +343,9 @@ export class Client {
         } catch (err) {
             if (err instanceof RequestError && err.status === 422) {
                 throw ErrNodeLoadsMismatch;
+            }
+            if (err instanceof RequestError && err.status === 412) {
+                throw ErrNodeLiveConfigMismatch;
             }
             if (err instanceof RequestError && err.status === 409) {
                 throw ErrNodeConfigMismatch;

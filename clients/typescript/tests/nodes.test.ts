@@ -8,6 +8,7 @@ import {
   Client,
   ErrNodeAlreadyConfigured,
   ErrNodeConfigMismatch,
+  ErrNodeLiveConfigMismatch,
   ErrNodeLoadsMismatch,
   ErrNodesValidation,
   RequestError,
@@ -126,6 +127,14 @@ describe('nodes', () => {
       );
     });
 
+    it('rejects with ErrNodeLiveConfigMismatch on 412', async () => {
+      reply = () => ({ status: 412, body: 'live config mismatch' });
+
+      await expect(new Client(cfg).loadNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeLiveConfigMismatch,
+      );
+    });
+
     it('rejects with the request error on other failures', async () => {
       reply = () => ({ status: 500, body: 'boom' });
 
@@ -169,6 +178,14 @@ describe('nodes', () => {
 
       await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
         ErrNodeLoadsMismatch,
+      );
+    });
+
+    it('rejects with ErrNodeLiveConfigMismatch on 412', async () => {
+      reply = () => ({ status: 412, body: 'live config mismatch' });
+
+      await expect(new Client(cfg).validateNodeConfig(node('n1'))).rejects.toBe(
+        ErrNodeLiveConfigMismatch,
       );
     });
 
