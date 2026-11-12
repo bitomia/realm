@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/subosito/gotenv"
 	"gopkg.in/yaml.v3"
 )
 
@@ -22,24 +23,43 @@ func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
-	if err := expandEnvNode(&doc); err != nil {
-		return nil, err
-	}
-
 	absBaseDir, err := filepath.Abs(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve base directory %s: %w", baseDir, err)
 	}
 
-	if err := resolveNode(&doc, absBaseDir); err != nil {
+	dotEnv, err := readDotEnv(absBaseDir)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := expandEnvNode(&doc, dotEnv); err != nil {
+		return nil, err
+	}
+
+	if err := resolveNode(&doc, absBaseDir, dotEnv); err != nil {
 		return nil, err
 	}
 
 	return yaml.Marshal(&doc)
 }
 
-// expandEnvNode recursively expands ${VAR}/$VAR references found in scalar node values
-func expandEnvNode(node *yaml.Node) error {
+// readDotEnv reads .env file found in dir.
+func readDotEnv(dir string) (map[string]string, error) {
+	path := filepath.Join(dir, ".env")
+	env, err := gotenv.Read(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read %s: %w", path, err)
+	}
+	return env, nil
+}
+
+// expandEnvNode recursively expands ${VAR}/$VAR references found in scalar node values.
+// env variables take precedence over the ones defined in dotEnv.
+func expandEnvNode(node *yaml.Node, dotEnv map[string]string) error {
 	var missingEnvVars []string
 
 	var walk func(n *yaml.Node)
@@ -50,6 +70,9 @@ func expandEnvNode(node *yaml.Node) error {
 		if n.Kind == yaml.ScalarNode {
 			n.Value = os.Expand(n.Value, func(key string) string {
 				val, ok := os.LookupEnv(key)
+				if !ok {
+					val, ok = dotEnv[key]
+				}
 				if !ok {
 					missingEnvVars = append(missingEnvVars, key)
 				}
@@ -68,17 +91,17 @@ func expandEnvNode(node *yaml.Node) error {
 	return nil
 }
 
-func resolveNode(node *yaml.Node, baseDir string) error {
+func resolveNode(node *yaml.Node, baseDir string, dotEnv map[string]string) error {
 	if node == nil {
 		return nil
 	}
 
 	if node.Tag == "!include" {
-		return resolveIncludeNode(node, baseDir)
+		return resolveIncludeNode(node, baseDir, dotEnv)
 	}
 
 	for _, child := range node.Content {
-		if err := resolveNode(child, baseDir); err != nil {
+		if err := resolveNode(child, baseDir, dotEnv); err != nil {
 			return err
 		}
 	}
@@ -86,7 +109,7 @@ func resolveNode(node *yaml.Node, baseDir string) error {
 	return nil
 }
 
-func resolveIncludeNode(node *yaml.Node, baseDir string) error {
+func resolveIncludeNode(node *yaml.Node, baseDir string, dotEnv map[string]string) error {
 	includePath := filepath.Join(baseDir, node.Value)
 
 	absPath, err := filepath.Abs(includePath)
@@ -104,8 +127,12 @@ func resolveIncludeNode(node *yaml.Node, baseDir string) error {
 		return fmt.Errorf("failed to parse included YAML %s: %w", absPath, err)
 	}
 
+	if err := expandEnvNode(&included, dotEnv); err != nil {
+		return fmt.Errorf("included file %s: %w", absPath, err)
+	}
+
 	includeDir := filepath.Dir(absPath)
-	if err := resolveNode(&included, includeDir); err != nil {
+	if err := resolveNode(&included, includeDir, dotEnv); err != nil {
 		return err
 	}
 

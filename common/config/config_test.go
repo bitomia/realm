@@ -154,6 +154,76 @@ agent:
 	assert.Equal(t, config.Agent.ListenPort, 202123)
 }
 
+func TestConfig_DotEnv(t *testing.T) {
+	os.Unsetenv("TEST_REALM_DOTENV_PORT")
+	t.Setenv("TEST_REALM_DOTENV_DATA_PATH", "./from_env")
+	dir := t.TempDir()
+
+	dotEnv := `
+TEST_REALM_DOTENV_PORT=12347
+TEST_REALM_DOTENV_DATA_PATH=./from_dotenv
+`
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(dotEnv), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainYAML := `
+data_path: ${TEST_REALM_DOTENV_DATA_PATH}
+agent:
+    listen_port: ${TEST_REALM_DOTENV_PORT}
+`
+	mainPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(mainPath, []byte(mainYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolved, err := resolveConfigFromPath(t, mainPath)
+	require.NoError(t, err)
+	config, err := InitFromBuffer(string(resolved))
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, 12347, config.Agent.ListenPort)
+	assert.Equal(t, "./from_env", config.DataPath)
+}
+
+func TestConfigIncludes_EnvVars(t *testing.T) {
+	os.Unsetenv("TEST_REALM_INCLUDE_DOTENV_PORT")
+	os.Unsetenv("TEST_REALM_INCLUDE_UNSET_VAR")
+	t.Setenv("TEST_REALM_INCLUDE_ADDRESS", "127.0.0.1")
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("TEST_REALM_INCLUDE_DOTENV_PORT=12348\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	agentYAML := `
+listen_address: ${TEST_REALM_INCLUDE_ADDRESS}
+listen_port: ${TEST_REALM_INCLUDE_DOTENV_PORT}
+`
+	if err := os.WriteFile(filepath.Join(dir, "agent.yaml"), []byte(agentYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mainPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(mainPath, []byte("agent: !include agent.yaml\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	resolved, err := resolveConfigFromPath(t, mainPath)
+	require.NoError(t, err)
+	config, err := InitFromBuffer(string(resolved))
+	require.NoError(t, err)
+	require.NotNil(t, config)
+	assert.Equal(t, "127.0.0.1", config.Agent.ListenAddress)
+	assert.Equal(t, 12348, config.Agent.ListenPort)
+
+	if err := os.WriteFile(filepath.Join(dir, "agent.yaml"), []byte("listen_address: ${TEST_REALM_INCLUDE_UNSET_VAR}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = resolveConfigFromPath(t, mainPath)
+	require.ErrorContains(t, err, "TEST_REALM_INCLUDE_UNSET_VAR")
+}
+
 func TestAgentListenSocket(t *testing.T) {
 	config, err := InitFromBuffer(`
 agent:
