@@ -285,25 +285,11 @@ func (c *ContainerDriver) Start(repository common.DeploymentsRepository, deploym
 	if c.config.Network != nil && c.config.Network.Mode != "host" {
 		slog.Info("ContainerDriver.Start", "msg", "attaching network", "container", containerName, "network", c.config.Network.Network)
 
-		if _, gwAddress, ipAddress, err := network.StartNetwork(containerName, *c.config.Network); err != nil {
+		if _, _, _, err := network.StartNetwork(containerName, *c.config.Network); err != nil {
 			err = fmt.Errorf("failed to attach network. rolling back: %s", err.Error())
 			slog.Error("ContainerDriver.Start", "msg", "failed to attach network", "error", err)
 
-			// Kill the task
-			if task != nil {
-				ctx, client, _ := cruntime.CreateClient()
-				if client != nil {
-					defer client.Close()
-					_ = task.Kill(ctx, syscall.SIGKILL)
-					_, _ = task.Wait(ctx)
-					_, _ = task.Delete(ctx)
-				}
-			} else {
-				gwAddressPtr = &gwAddress
-				ipAddressPtr = &ipAddress
-			}
-
-			if err := containers.DeleteContainer(containerName, syscall.SIGKILL, false); err != nil {
+			if err := c.cleanupContainer(containerName, syscall.SIGKILL, false); err != nil {
 				slog.Error("ContainerDriver.Start", "msg", "delete container on network rollback failed", "error", err)
 			}
 
