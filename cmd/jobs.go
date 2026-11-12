@@ -5,7 +5,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	clientPkg "github.com/bitomia/realm/clients/go"
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
 )
@@ -36,7 +35,7 @@ var runJob = &cobra.Command{
 			return fmt.Errorf("job %s not found", args[0])
 		}
 
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 
 		handle := func(result common.JobResult) {
 			if result.Err != nil {

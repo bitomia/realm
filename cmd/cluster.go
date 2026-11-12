@@ -47,9 +47,8 @@ var planCmd = &cobra.Command{
 			}
 		}
 
-		client := clientPkg.NewClient(cfg)
 		if dry {
-			diffs, err := client.DryPlanCluster(stateFile)
+			diffs, err := clientPkg.DryPlanCluster(cfg, stateFile)
 			if err != nil {
 				log.Fatal("%s", err)
 			}
@@ -59,7 +58,7 @@ var planCmd = &cobra.Command{
 				common.PrintColoredDiff(diffs)
 			}
 		} else {
-			updated, err := client.PlanCluster(stateFile, approve)
+			updated, err := clientPkg.PlanCluster(cfg, stateFile, approve)
 			if err != nil {
 				log.Fatal("%s", err)
 			}
@@ -80,10 +79,8 @@ var startCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile := getStateFile(cmd)
-
-		client := clientPkg.NewClient(cfg)
-		if err := client.StartCluster(cmd.Context(), stateFile); err != nil {
+		client := newClient(cmd)
+		if err := client.StartCluster(cmd.Context()); err != nil {
 			log.Fatal("%s", err.Error())
 		}
 		log.Success("Cluster started")
@@ -100,7 +97,6 @@ var stopCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile := getStateFile(cmd)
 		wallMessage, _ := cmd.Flags().GetString("message")
 		offsetTime, _ := cmd.Flags().GetUint32("time")
 		yes, _ := cmd.Flags().GetBool("yes")
@@ -118,8 +114,8 @@ var stopCmd = &cobra.Command{
 			}
 		}
 
-		client := clientPkg.NewClient(cfg)
-		if err := client.StopCluster(cmd.Context(), stateFile, wallMessage, offsetTime); err != nil {
+		client := newClient(cmd)
+		if err := client.StopCluster(cmd.Context(), wallMessage, offsetTime); err != nil {
 			log.Fatal("%s", err.Error())
 		}
 		log.Success("Cluster stopped")
@@ -133,10 +129,8 @@ var updateCmd = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		stateFile := getStateFile(cmd)
-
-		client := clientPkg.NewClient(cfg)
-		if err := client.UpdateCluster(cmd.Context(), stateFile); err != nil {
+		client := newClient(cmd)
+		if err := client.UpdateCluster(cmd.Context()); err != nil {
 			log.Fatal("%s", err.Error())
 		}
 		log.Success("Cluster updated")
@@ -144,29 +138,18 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	startCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	rootCmd.AddCommand(startCmd)
 
-	stopCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	stopCmd.Flags().String("message", "", "Wall message broadcast to logged-in users before shutdown")
 	stopCmd.Flags().Uint32("time", 0, "Shutdown time offset, 0 shuts down now")
 	stopCmd.Flags().BoolP("yes", "y", false, "Stop the cluster without asking for confirmation")
 	rootCmd.AddCommand(stopCmd)
 
-	updateCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	rootCmd.AddCommand(updateCmd)
 
-	planCmd.Flags().String("state", common.DefaultClusterStateFile, "Cluster state file")
 	planCmd.Flags().Bool("dry", false, "Show the differences without updating the state file")
 	planCmd.Flags().BoolP("yes", "y", false, "Update the state file without asking for confirmation")
 	planCmd.MarkFlagsMutuallyExclusive("dry", "yes")
 
 	rootCmd.AddCommand(planCmd)
-}
-
-func getStateFile(cmd *cobra.Command) string {
-	if stateFile, _ := cmd.Flags().GetString("state"); stateFile != "" {
-		return stateFile
-	}
-	return cfg.GetClusterStateFile()
 }

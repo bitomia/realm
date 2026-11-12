@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 )
 
@@ -172,8 +173,8 @@ func containerName(d dto.LoadDeployment) string {
 }
 
 // LoadsDependencies returns the edges of the loads dependency graph.
-func (c *Client) LoadsDependencies() ([]LoadsDependency, error) {
-	adjacencyMap, err := c.cfg.GetLoadsGraph().AdjacencyMap()
+func LoadsDependencies(cfg *config.Config) ([]LoadsDependency, error) {
+	adjacencyMap, err := cfg.GetLoadsGraph().AdjacencyMap()
 	if err != nil {
 		return nil, err
 	}

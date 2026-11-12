@@ -26,11 +26,24 @@ const (
 type Client struct {
 	header         http.Header
 	cfg            *config.Config
+	stateFile      string
 	discovered     []common.DiscoveredAgent
 	discoverCached bool
 }
 
-func NewClient(cfg *config.Config) Client {
+// NewClient returns a client for cfg
+//
+// Fails if cfg differs from the cluster state planned on stateFile
+func NewClient(cfg *config.Config, stateFile string) (Client, error) {
+	c := newClient(cfg)
+	c.stateFile = stateFile
+	if err := c.checkClusterState(); err != nil {
+		return Client{}, err
+	}
+	return c, nil
+}
+
+func newClient(cfg *config.Config) Client {
 	token := getAuthToken()
 	if token == "" {
 		return Client{

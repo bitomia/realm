@@ -46,7 +46,7 @@ var nodeStates = &cobra.Command{
 	Short:                 "Show state of nodes",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 		nodes := cfg.GetNodes(nodeNames...)
 
 		if asJson, _ := cmd.Flags().GetBool("json"); asJson {
@@ -142,8 +142,7 @@ var listNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
 		timeout, _ := cmd.Flags().GetDuration("timeout")
-		client := clientPkg.NewClient(cfg)
-		result, mdnsErr := client.DiscoverNodes(cmd.Context(), timeout)
+		result, mdnsErr := clientPkg.DiscoverNodes(cmd.Context(), cfg, timeout)
 		if mdnsErr != nil {
 			log.Warn("mDNS discovery failed: %s", mdnsErr.Error())
 		}
@@ -182,7 +181,7 @@ var retrieveNodeConfig = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 
 		result := client.GetNodesConfig(nodes, func(node *common.Node, err error) {
 			if err != nil {
@@ -238,7 +237,7 @@ var powerOnNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 		client.PowerOnNodes(nodes, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Powering on %s completed", color.CyanString(n.Name))
@@ -256,7 +255,7 @@ var powerOffNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 		client.PowerOffNodes(nodes, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Powering off %s completed", color.CyanString(n.Name))
@@ -274,7 +273,7 @@ var restartNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 		client.RestartNodes(nodes, "", 0, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Restarting %s completed", color.CyanString(n.Name))
@@ -292,7 +291,7 @@ var shutdownNodes = &cobra.Command{
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, nodeNames []string) {
 		nodes := cfg.GetNodes(nodeNames...)
-		client := clientPkg.NewClient(cfg)
+		client := newClient(cmd)
 		client.ShutdownNodes(nodes, "", 0, func(n *common.Node, err error) {
 			if err == nil {
 				log.Success("Shutting down %s completed", color.CyanString(n.Name))

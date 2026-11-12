@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 	"github.com/bitomia/realm/common/dto"
 )
 
@@ -92,8 +93,9 @@ func (c *Client) GetNodesStates(nodes map[string]*common.Node) []NodeState {
 }
 
 // DiscoverNodes returns the nodes available on the cluster.
-func (c *Client) DiscoverNodes(ctx context.Context, timeout time.Duration) (map[string]*NodeListEntry, error) {
-	nodes := c.cfg.GetNodes()
+func DiscoverNodes(ctx context.Context, cfg *config.Config, timeout time.Duration) (map[string]*NodeListEntry, error) {
+	c := newClient(cfg)
+	nodes := cfg.GetNodes()
 
 	var wg sync.WaitGroup
 	entries := make(map[string]*NodeListEntry, len(nodes))

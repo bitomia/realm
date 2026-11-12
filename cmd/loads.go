@@ -44,12 +44,12 @@ var deploymentsState = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Error("No loads")
 			return
 		}
-		client := clientPkg.NewClient(cfg)
 
 		for _, state := range client.GetLoadsStates(loads) {
 			var deploymentStatusStr string
@@ -90,8 +90,8 @@ var startLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
 		client.StartLoads(loads, func(load *common.Load, err error) {
 			if err == nil {
 				log.Success("Starting %s completed", color.CyanString(load.Name))
@@ -108,8 +108,8 @@ var stopLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
 		client.StopLoads(loads, func(load *common.Load, err error) {
 			if err == nil {
 				log.Success("Stopping %s completed", color.CyanString(load.Name))
@@ -126,8 +126,8 @@ var killLoads = &cobra.Command{
 	Args:                  validateLoadArgs,
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
-		client := clientPkg.NewClient(cfg)
 		client.KillLoads(loads, func(load *common.Load, err error) {
 			if err != nil {
 				log.Warn("Killing load %s failed: %s", color.CyanString(load.Name), err.Error())
@@ -143,8 +143,7 @@ var graphLoads = &cobra.Command{
 	Short:                 "Print the dependency graph",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
-		client := clientPkg.NewClient(cfg)
-		dependencies, err := client.LoadsDependencies()
+		dependencies, err := clientPkg.LoadsDependencies(cfg)
 		if err != nil {
 			log.Fatal("%s", err.Error())
 		}
@@ -165,6 +164,7 @@ var stdoutLoad = &cobra.Command{
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Fatal("Load not found")
@@ -174,7 +174,6 @@ var stdoutLoad = &cobra.Command{
 		}
 
 		load := loads[loadNames[0]]
-		client := clientPkg.NewClient(cfg)
 		if err := client.StreamLoadStdout(load, os.Stdout); err != nil {
 			log.Fatal("Failed to read stdout: %s", err.Error())
 		}
@@ -187,6 +186,7 @@ var stderrLoad = &cobra.Command{
 	Args:                  cobra.ExactArgs(1),
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, loadNames []string) {
+		client := newClient(cmd)
 		loads := cfg.GetLoads(loadNames...)
 		if len(loads) == 0 {
 			log.Fatal("Load not found")
@@ -196,7 +196,6 @@ var stderrLoad = &cobra.Command{
 		}
 
 		load := loads[loadNames[0]]
-		client := clientPkg.NewClient(cfg)
 		if err := client.StreamLoadStderr(load, os.Stdout); err != nil {
 			log.Fatal("Failed to read stderr: %s", err.Error())
 		}

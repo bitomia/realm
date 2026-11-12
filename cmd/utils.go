@@ -8,6 +8,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/spf13/cobra"
+
+	clientPkg "github.com/bitomia/realm/clients/go"
+	"github.com/bitomia/realm/cmd/log"
 )
 
 func prettyJSON(v any, excludeFields ...string) {
@@ -59,4 +64,19 @@ func confirm(question string, in io.Reader, out io.Writer) (bool, error) {
 
 	response = strings.TrimSpace(strings.ToLower(response))
 	return response == "y" || response == "yes", nil
+}
+
+func newClient(cmd *cobra.Command) clientPkg.Client {
+	client, err := clientPkg.NewClient(cfg, getStateFile(cmd))
+	if err != nil {
+		log.Fatal("%s", err.Error())
+	}
+	return client
+}
+
+func getStateFile(cmd *cobra.Command) string {
+	if stateFile, _ := cmd.Flags().GetString("state"); stateFile != "" {
+		return stateFile
+	}
+	return cfg.GetClusterStateFile()
 }

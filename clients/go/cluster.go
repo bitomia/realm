@@ -10,9 +10,11 @@ import (
 
 	"github.com/bitomia/realm/cmd/log"
 	"github.com/bitomia/realm/common"
+	"github.com/bitomia/realm/common/config"
 )
 
-func (c *Client) PlanCluster(stateFile string, approve func([]string) (bool, error)) (bool, error) {
+// PlanCluster stores the cluster state of cfg on stateFile once approved.
+func PlanCluster(cfg *config.Config, stateFile string, approve func([]string) (bool, error)) (bool, error) {
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
 		previous = nil
@@ -20,7 +22,7 @@ func (c *Client) PlanCluster(stateFile string, approve func([]string) (bool, err
 		return false, err
 	}
 
-	planned := c.cfg.GetClusterState()
+	planned := cfg.GetClusterState()
 	diff := common.DiffClusterStates(previous, planned)
 	if diff.IsEmpty() {
 		log.Success("No changes, cluster state on %s is up to date", stateFile)
@@ -44,7 +46,8 @@ func (c *Client) PlanCluster(stateFile string, approve func([]string) (bool, err
 	return approved, nil
 }
 
-func (c *Client) DryPlanCluster(stateFile string) ([]string, error) {
+// DryPlanCluster returns the differences between stateFile and the cluster state of cfg.
+func DryPlanCluster(cfg *config.Config, stateFile string) ([]string, error) {
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
 		previous = nil
@@ -52,7 +55,7 @@ func (c *Client) DryPlanCluster(stateFile string) ([]string, error) {
 		return nil, err
 	}
 
-	planned := c.cfg.GetClusterState()
+	planned := cfg.GetClusterState()
 	diff := common.DiffClusterStates(previous, planned)
 	if diff.IsEmpty() {
 		return nil, nil
@@ -69,8 +72,8 @@ func (c *Client) DryPlanCluster(stateFile string) ([]string, error) {
 
 // StartCluster powers on and waits for the nodes, rolls out the planned
 // config (see UpdateCluster) and starts all loads.
-func (client *Client) StartCluster(ctx context.Context, stateFile string) error {
-	if err := client.checkClusterState(stateFile); err != nil {
+func (client *Client) StartCluster(ctx context.Context) error {
+	if err := client.checkClusterState(); err != nil {
 		return err
 	}
 
@@ -96,8 +99,8 @@ func (client *Client) StartCluster(ctx context.Context, stateFile string) error 
 	return client.startLoads(client.cfg.GetLoads())
 }
 
-func (client *Client) StopCluster(ctx context.Context, stateFile string, wallMessage string, offsetTime uint32) error {
-	if err := client.checkClusterState(stateFile); err != nil {
+func (client *Client) StopCluster(ctx context.Context, wallMessage string, offsetTime uint32) error {
+	if err := client.checkClusterState(); err != nil {
 		return err
 	}
 
@@ -127,8 +130,8 @@ func (client *Client) StopCluster(ctx context.Context, stateFile string, wallMes
 }
 
 // UpdateCluster rolls out the planned loads, timeout and registries changes on a running cluster.
-func (c *Client) UpdateCluster(ctx context.Context, stateFile string) error {
-	if err := c.checkClusterState(stateFile); err != nil {
+func (c *Client) UpdateCluster(ctx context.Context) error {
+	if err := c.checkClusterState(); err != nil {
 		return err
 	}
 
@@ -192,7 +195,9 @@ func (c *Client) startLoads(loads map[string]*common.Load) error {
 	return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 }
 
-func (c *Client) checkClusterState(stateFile string) error {
+// checkClusterState fails if the config differs from the cluster state on the state file.
+func (c *Client) checkClusterState() error {
+	stateFile := c.stateFile
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("no cluster state found on %s: run 'plan' first", stateFile)
