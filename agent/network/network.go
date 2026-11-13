@@ -92,7 +92,7 @@ func hostNetworks(bridgeName string) []*net.IPNet {
 	}
 
 	var nets []*net.IPNet
-	routes, err := netlink.RouteList(nil, netlink.FAMILY_V4)
+	routes, err := netlink.RouteList(nil, familyV4)
 	if err != nil {
 		slog.Warn("Cannot list host routes, subnet overlap check skipped", "error", err)
 	}
@@ -106,7 +106,7 @@ func hostNetworks(bridgeName string) []*net.IPNet {
 		nets = append(nets, r.Dst)
 	}
 
-	addrs, err := netlink.AddrList(nil, netlink.FAMILY_V4)
+	addrs, err := netlink.AddrList(nil, familyV4)
 	if err != nil {
 		slog.Warn("Cannot list host addresses, subnet overlap check skipped", "error", err)
 	}
@@ -130,7 +130,7 @@ func removeStaleBridge(bridgeName string, subnet string) {
 	if err != nil {
 		return
 	}
-	addrs, err := netlink.AddrList(link, netlink.FAMILY_V4)
+	addrs, err := netlink.AddrList(link, familyV4)
 	if err != nil {
 		return
 	}
@@ -175,7 +175,7 @@ func meshNetworks() []*net.IPNet {
 	if err != nil {
 		return nil
 	}
-	routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+	routes, err := netlink.RouteList(link, familyV4)
 	if err != nil {
 		slog.Warn("Cannot list mesh routes, containers won't route to the mesh", "iface", MESH_INTERFACE, "error", err)
 		return nil
