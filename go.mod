@@ -11,7 +11,6 @@ require (
 	github.com/containerd/errdefs/pkg v0.3.0
 	github.com/containerd/log v0.2.0
 	github.com/containernetworking/cni v1.3.1
-	github.com/digitalocean/go-libvirt v0.0.0-20260609165003-6254771e63a8
 	github.com/dominikbraun/graph v0.23.0
 	github.com/expr-lang/expr v1.17.8
 	github.com/fatih/color v1.19.0

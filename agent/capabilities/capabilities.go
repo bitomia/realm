@@ -1,14 +1,9 @@
 package capabilities
 
 import (
-	"errors"
 	"log/slog"
-	"os"
-	"syscall"
 
 	"github.com/containerd/errdefs"
-	"github.com/digitalocean/go-libvirt"
-	"github.com/digitalocean/go-libvirt/socket/dialers"
 
 	"github.com/bitomia/realm/agent/containers"
 	"github.com/bitomia/realm/agent/network"
@@ -27,8 +22,6 @@ type SystemCapabilities struct {
 	volumes bool
 	// Can use github.com/bitomia/realm/agent/volumes zfs
 	volumesZFS bool
-	// Can host virtual machines
-	vmm bool
 }
 
 func Get() *SystemCapabilities {
@@ -41,11 +34,10 @@ func Initialize(cfg *config.Config) {
 		return
 	}
 
-	systemCaps = &SystemCapabilities{false, false, false, false, false}
+	systemCaps = &SystemCapabilities{false, false, false, false}
 	systemCaps.evalContainersEngine()
 	systemCaps.evalContainersNetworking()
 	systemCaps.evalVolumes(cfg)
-	systemCaps.evalVMM()
 }
 
 func (c SystemCapabilities) Print() {
@@ -53,7 +45,6 @@ func (c SystemCapabilities) Print() {
 	slog.Info("Capability", "type", "container network interfaces", "value", c.containersNetworking)
 	slog.Info("Capability", "type", "volumes", "value", c.volumes)
 	slog.Info("Capability", "type", "ZFS volumes", "value", c.volumesZFS)
-	slog.Info("Capability", "type", "VMM", "value", c.vmm)
 }
 
 func (c SystemCapabilities) evalContainersEngine() {
@@ -103,26 +94,6 @@ func (c SystemCapabilities) evalVolumes(cfg *config.Config) {
 	systemCaps.volumesZFS = cfg.Agent.ZFS
 }
 
-func (c SystemCapabilities) evalVMM() {
-	l := libvirt.NewWithDialer(dialers.NewLocal())
-	if err := l.Connect(); err != nil {
-		if errors.Is(err, syscall.ENOENT) || errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, os.ErrDeadlineExceeded) {
-			slog.Info("VMM not available")
-		} else {
-			slog.Warn("Cannot connect to libvirt", "error", err.Error())
-		}
-		systemCaps.vmm = false
-		return
-	}
-	defer func() {
-		if err := l.Disconnect(); err != nil {
-			slog.Warn("Cannot disconnect from libvirt", "error", err.Error())
-		}
-	}()
-
-	systemCaps.vmm = true
-}
-
 func (c SystemCapabilities) ContainersEngine() bool {
 	return c.containersEngine
 }
@@ -137,8 +108,4 @@ func (c SystemCapabilities) Volumes() bool {
 
 func (c SystemCapabilities) VolumesZFS() bool {
 	return c.volumesZFS
-}
-
-func (c SystemCapabilities) VMM() bool {
-	return c.vmm
 }

@@ -9,7 +9,6 @@ type Capabilities struct {
 	ContainersNetworking bool `json:"containers_networking"`
 	Volumes              bool `json:"volumes"`
 	VolumesZFS           bool `json:"volumes_zfs"`
-	VMM                  bool `json:"vmm"`
 }
 
 func NewCapabilities(c common.Capabilities) Capabilities {
@@ -21,6 +20,5 @@ func NewCapabilities(c common.Capabilities) Capabilities {
 		ContainersNetworking: c.ContainersNetworking(),
 		Volumes:              c.Volumes(),
 		VolumesZFS:           c.VolumesZFS(),
-		VMM:                  c.VMM(),
 	}
 }

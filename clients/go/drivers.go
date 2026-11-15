@@ -20,6 +20,9 @@ func GetRegisteredDrivers() RegisteredDrivers {
 		Jobs:  []DriverEntry{},
 	}
 
+	for _, info := range common.RegisteredNodeDrivers() {
+		drivers.Nodes = append(drivers.Nodes, DriverEntry{ID: string(info.ID)})
+	}
 	for _, info := range common.RegisteredLoadDrivers() {
 		drivers.Loads = append(drivers.Loads, DriverEntry{ID: string(info.ID)})
 	}

@@ -65,10 +65,10 @@ func TestAgentTargetURL(t *testing.T) {
 		expected string
 	}{
 		{"http", "http://192.168.1.54:9000", "/images", "http://192.168.1.54:9000/images"},
-		{"http with query", "http://192.168.1.54:9000", "/node?guest=lab1", "http://192.168.1.54:9000/node?guest=lab1"},
+		{"http with query", "http://192.168.1.54:9000", "/node?validate=true", "http://192.168.1.54:9000/node?validate=true"},
 		{"http with base path", "http://192.168.1.54:9000/agent", "/images", "http://192.168.1.54:9000/agent/images"},
 		{"unix", "unix:///run/realm/agent.sock", "/images", "http://unix/images"},
-		{"unix with query", "unix:///run/realm/agent.sock", "/node?guest=lab1", "http://unix/node?guest=lab1"},
+		{"unix with query", "unix:///run/realm/agent.sock", "/node?validate=true", "http://unix/node?validate=true"},
 	}
 
 	for _, test := range tests {
@@ -104,12 +104,12 @@ func TestAgentTargetOverUnixSocket(t *testing.T) {
 	target, err := ResolveAgentTarget("unix://" + socketPath)
 	require.NoError(t, err)
 
-	resp, err := target.Client(5 * time.Second).Get(target.URL("/node?guest=lab1"))
+	resp, err := target.Client(5 * time.Second).Get(target.URL("/node?validate=true"))
 	require.NoError(t, err)
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "GET /node?guest=lab1", string(body))
+	assert.Equal(t, "GET /node?validate=true", string(body))
 }

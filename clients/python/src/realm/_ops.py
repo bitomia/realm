@@ -102,9 +102,7 @@ def containers() -> Request:
 
 
 @endpoint("GET", "/node")
-def node(guest: str | None = None) -> Request:
-    if guest:
-        return Request("GET", f"/node/guests/{_seg(guest)}")
+def node() -> Request:
     return Request("GET", "/node")
 
 
@@ -127,39 +125,30 @@ def load_node_config(config: JsonDict, validate_only: bool = False) -> Request:
 
 
 @endpoint("DELETE", "/node/config")
-def unload_node_config(guest: str | None = None) -> Request:
-    if guest:
-        return Request("DELETE", f"/node/guests/{_seg(guest)}/config", timeout=REQUEST_TIMEOUT)
+def unload_node_config() -> Request:
     return Request("DELETE", "/node/config", timeout=REQUEST_TIMEOUT)
 
 
-def _node_path(operation: str, guest: str | None) -> str:
-    """Agent path for a node operation, on a guest node when ``guest`` is set."""
-    if guest:
-        return f"/node/guests/{_seg(guest)}/{operation}"
-    return f"/node/{operation}"
-
-
 @endpoint("POST", "/node/poweron")
-def power_on(node_config: JsonDict, guest: str | None = None) -> Request:
-    return Request("POST", _node_path("poweron", guest), json=node_config, timeout=REQUEST_TIMEOUT)
+def power_on(node_config: JsonDict) -> Request:
+    return Request("POST", "/node/poweron", json=node_config, timeout=REQUEST_TIMEOUT)
 
 
 @endpoint("POST", "/node/poweroff")
-def power_off(guest: str | None = None) -> Request:
-    return Request("POST", _node_path("poweroff", guest), timeout=REQUEST_TIMEOUT)
+def power_off() -> Request:
+    return Request("POST", "/node/poweroff", timeout=REQUEST_TIMEOUT)
 
 
 @endpoint("POST", "/node/shutdown")
-def shutdown(wall_message: str = "", delay: int = 0, guest: str | None = None) -> Request:
+def shutdown(wall_message: str = "", delay: int = 0) -> Request:
     payload: JsonDict = {"wall_message": wall_message, "time": delay}
-    return Request("POST", _node_path("shutdown", guest), json=payload, timeout=REQUEST_TIMEOUT)
+    return Request("POST", "/node/shutdown", json=payload, timeout=REQUEST_TIMEOUT)
 
 
 @endpoint("POST", "/node/restart")
-def restart(wall_message: str = "", delay: int = 0, guest: str | None = None) -> Request:
+def restart(wall_message: str = "", delay: int = 0) -> Request:
     payload: JsonDict = {"wall_message": wall_message, "time": delay}
-    return Request("POST", _node_path("restart", guest), json=payload, timeout=REQUEST_TIMEOUT)
+    return Request("POST", "/node/restart", json=payload, timeout=REQUEST_TIMEOUT)
 
 
 # --- Loads ------------------------------------------------------------------

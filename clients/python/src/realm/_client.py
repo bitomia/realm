@@ -180,9 +180,9 @@ class Realm:
 
     # --- node --------------------------------------------------------------
 
-    def node(self, guest: str | None = None) -> JsonDict:
-        """Live node state and status. ``guest`` queries a guest node instead."""
-        result: JsonDict = self._send(ops.node(guest))
+    def node(self) -> JsonDict:
+        """Live node state and status."""
+        result: JsonDict = self._send(ops.node())
         return result
 
     def node_config(self) -> JsonDict:
@@ -200,22 +200,22 @@ class Realm:
         """
         self._send(ops.load_node_config(config, validate_only))
 
-    def unload_node_config(self, guest: str | None = None) -> None:
-        self._send(ops.unload_node_config(guest))
+    def unload_node_config(self) -> None:
+        self._send(ops.unload_node_config())
 
-    def power_on(self, node_config: JsonDict, guest: str | None = None) -> None:
-        """Power a node on. ``guest`` targets a guest node."""
-        self._send(ops.power_on(node_config, guest))
+    def power_on(self, node_config: JsonDict) -> None:
+        """Power the node on."""
+        self._send(ops.power_on(node_config))
 
-    def power_off(self, guest: str | None = None) -> None:
-        """Power a node off immediately. ``guest`` targets a guest node."""
-        self._send(ops.power_off(guest))
+    def power_off(self) -> None:
+        """Power the node off immediately."""
+        self._send(ops.power_off())
 
-    def shutdown(self, wall_message: str = "", delay: int = 0, guest: str | None = None) -> None:
-        self._send(ops.shutdown(wall_message, delay, guest))
+    def shutdown(self, wall_message: str = "", delay: int = 0) -> None:
+        self._send(ops.shutdown(wall_message, delay))
 
-    def restart(self, wall_message: str = "", delay: int = 0, guest: str | None = None) -> None:
-        self._send(ops.restart(wall_message, delay, guest))
+    def restart(self, wall_message: str = "", delay: int = 0) -> None:
+        self._send(ops.restart(wall_message, delay))
 
     # --- loads -------------------------------------------------------------
 
@@ -366,8 +366,8 @@ class AsyncRealm:
 
     # --- node --------------------------------------------------------------
 
-    async def node(self, guest: str | None = None) -> JsonDict:
-        result: JsonDict = await self._send(ops.node(guest))
+    async def node(self) -> JsonDict:
+        result: JsonDict = await self._send(ops.node())
         return result
 
     async def node_config(self) -> JsonDict:
@@ -377,24 +377,20 @@ class AsyncRealm:
     async def load_node_config(self, config: JsonDict, validate_only: bool = False) -> None:
         await self._send(ops.load_node_config(config, validate_only))
 
-    async def unload_node_config(self, guest: str | None = None) -> None:
-        await self._send(ops.unload_node_config(guest))
+    async def unload_node_config(self) -> None:
+        await self._send(ops.unload_node_config())
 
-    async def power_on(self, node_config: JsonDict, guest: str | None = None) -> None:
-        await self._send(ops.power_on(node_config, guest))
+    async def power_on(self, node_config: JsonDict) -> None:
+        await self._send(ops.power_on(node_config))
 
-    async def power_off(self, guest: str | None = None) -> None:
-        await self._send(ops.power_off(guest))
+    async def power_off(self) -> None:
+        await self._send(ops.power_off())
 
-    async def shutdown(
-        self, wall_message: str = "", delay: int = 0, guest: str | None = None
-    ) -> None:
-        await self._send(ops.shutdown(wall_message, delay, guest))
+    async def shutdown(self, wall_message: str = "", delay: int = 0) -> None:
+        await self._send(ops.shutdown(wall_message, delay))
 
-    async def restart(
-        self, wall_message: str = "", delay: int = 0, guest: str | None = None
-    ) -> None:
-        await self._send(ops.restart(wall_message, delay, guest))
+    async def restart(self, wall_message: str = "", delay: int = 0) -> None:
+        await self._send(ops.restart(wall_message, delay))
 
     # --- loads -------------------------------------------------------------
 
