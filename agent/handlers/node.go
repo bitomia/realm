@@ -7,15 +7,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
-
 	"github.com/bitomia/realm/agent/api"
 	"github.com/bitomia/realm/common"
 	"github.com/bitomia/realm/common/dto"
 )
 
 func GetNodeState(w http.ResponseWriter, r *http.Request) {
-	state, err := api.GetNode(nil)
+	state, err := api.GetNode()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -77,7 +75,26 @@ func LoadNodeConfig(w http.ResponseWriter, r *http.Request) {
 		onlyValidate = parsed
 	}
 
-	writeLoadNodeConfigResult(w, &node, onlyValidate)
+	if onlyValidate {
+		err = api.CheckNodeConfig(&node)
+	} else {
+		err = api.LoadNodeConfig(&node)
+	}
+
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusCreated)
+	case errors.Is(err, common.ErrNodeAlreadyConfigured):
+		http.Error(w, err.Error(), http.StatusOK)
+	case errors.Is(err, common.ErrNodeLoadsMismatch):
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+	case errors.Is(err, common.ErrNodeLiveConfigMismatch):
+		http.Error(w, err.Error(), http.StatusPreconditionFailed)
+	case errors.Is(err, common.ErrNodeConfigMismatch):
+		http.Error(w, err.Error(), http.StatusConflict)
+	default:
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
 }
 
 func UnloadNodeConfig(w http.ResponseWriter, r *http.Request) {
@@ -122,7 +139,7 @@ func ShutdownNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.ShutdownNode(nil, request.WallMessage, request.Time); err != nil {
+	if err := api.ShutdownNode(request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -133,7 +150,7 @@ func ShutdownNode(w http.ResponseWriter, r *http.Request) {
 func PowerOffNode(w http.ResponseWriter, r *http.Request) {
 	slog.Info("handlers.PowerOffNodeHandler")
 
-	if err := api.PowerOffNode(nil); err != nil {
+	if err := api.PowerOffNode(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -150,178 +167,7 @@ func RestartNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := api.RestartNode(nil, request.WallMessage, request.Time); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func GetGuestNodes(w http.ResponseWriter, r *http.Request) {
-	guests, err := api.GetGuestNodes()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(guests)
-}
-
-func GetGuestNodeState(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-
-	state, err := api.GetNode(&guestName)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(state)
-}
-
-func GetGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Debug("handlers.GetGuestNodeConfig", "guest", guestName)
-
-	if nodeConfig, err := api.GetGuestNodeConfig(guestName); err != nil {
-		if errors.Is(err, common.ErrNodeNotConfigured) {
-			w.WriteHeader(http.StatusNoContent)
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
-	} else {
-		if nodeConfig != nil {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(nodeConfig)
-		} else {
-			http.NotFound(w, r)
-		}
-	}
-}
-
-func LoadGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.LoadGuestNodeConfig", "guest", guestName)
-
-	var node common.Node
-	err := json.NewDecoder(r.Body).Decode(&node)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !checkGuestName(w, guestName, node.Name) {
-		return
-	}
-	node.Name = guestName
-
-	slog.Info("handlers.LoadGuestNodeConfig", "node", node.Name, "driver", node.Driver)
-
-	info, err := node.Driver.Info()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !info.GuestMode {
-		http.Error(w, "node driver is not in guest mode", http.StatusBadRequest)
-		return
-	}
-
-	onlyValidate := false
-	if v := r.URL.Query().Get("validate"); v != "" {
-		parsed, err := strconv.ParseBool(v)
-		if err != nil {
-			http.Error(w, "invalid value for validate", http.StatusBadRequest)
-			return
-		}
-		onlyValidate = parsed
-	}
-
-	writeLoadNodeConfigResult(w, &node, onlyValidate)
-}
-
-func UnloadGuestNodeConfig(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.UnloadGuestNodeConfig", "guest", guestName)
-
-	if err := api.UnloadGuestNodeConfig(guestName); err != nil {
-		if errors.Is(err, common.ErrNodeNotConfigured) {
-			w.WriteHeader(http.StatusNoContent)
-		} else {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func PowerOnGuestNode(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.PowerOnGuestNode", "guest", guestName)
-
-	var node common.Node
-	err := json.NewDecoder(r.Body).Decode(&node)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if !checkGuestName(w, guestName, node.Name) {
-		return
-	}
-	node.Name = guestName
-
-	if err := api.PowerOnNode(&node); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func PowerOffGuestNode(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.PowerOffGuestNode", "guest", guestName)
-
-	if err := api.PowerOffNode(&guestName); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func ShutdownGuestNode(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.ShutdownGuestNode", "guest", guestName)
-
-	var request dto.ShutdownNodeRequest
-	if err := decodeOptionalBody(r, &request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := api.ShutdownNode(&guestName, request.WallMessage, request.Time); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func RestartGuestNode(w http.ResponseWriter, r *http.Request) {
-	guestName := mux.Vars(r)["guestName"]
-	slog.Info("handlers.RestartGuestNode", "guest", guestName)
-
-	var request dto.RestartNodeRequest
-	if err := decodeOptionalBody(r, &request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	if err := api.RestartNode(&guestName, request.WallMessage, request.Time); err != nil {
+	if err := api.RestartNode(request.WallMessage, request.Time); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

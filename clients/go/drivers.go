@@ -3,8 +3,7 @@ package golang
 import "github.com/bitomia/realm/common"
 
 type DriverEntry struct {
-	ID        string `json:"id"`
-	GuestMode *bool  `json:"guest_mode,omitempty"`
+	ID string `json:"id"`
 }
 
 type RegisteredDrivers struct {
@@ -21,10 +20,6 @@ func GetRegisteredDrivers() RegisteredDrivers {
 		Jobs:  []DriverEntry{},
 	}
 
-	for _, info := range common.RegisteredNodeDrivers() {
-		guestMode := info.GuestMode
-		drivers.Nodes = append(drivers.Nodes, DriverEntry{ID: string(info.ID), GuestMode: &guestMode})
-	}
 	for _, info := range common.RegisteredLoadDrivers() {
 		drivers.Loads = append(drivers.Loads, DriverEntry{ID: string(info.ID)})
 	}

@@ -5,9 +5,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-
-	"github.com/bitomia/realm/agent/api"
-	"github.com/bitomia/realm/common"
 )
 
 // checkGuestName rejects requests whose body names a different node than the URL path.
@@ -25,29 +22,4 @@ func decodeOptionalBody(r *http.Request, v any) error {
 		return err
 	}
 	return nil
-}
-
-// writeLoadNodeConfigResult loads the node config or checks it when validating.
-func writeLoadNodeConfigResult(w http.ResponseWriter, node *common.Node, onlyValidate bool) {
-	var err error
-	if onlyValidate {
-		err = api.CheckNodeConfig(node)
-	} else {
-		err = api.LoadNodeConfig(node)
-	}
-
-	switch {
-	case err == nil:
-		w.WriteHeader(http.StatusCreated)
-	case errors.Is(err, common.ErrNodeAlreadyConfigured):
-		http.Error(w, err.Error(), http.StatusOK)
-	case errors.Is(err, common.ErrNodeLoadsMismatch):
-		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
-	case errors.Is(err, common.ErrNodeLiveConfigMismatch):
-		http.Error(w, err.Error(), http.StatusPreconditionFailed)
-	case errors.Is(err, common.ErrNodeConfigMismatch):
-		http.Error(w, err.Error(), http.StatusConflict)
-	default:
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
 }

@@ -6,14 +6,11 @@ import (
 	"github.com/bitomia/realm/common"
 )
 
-func checkNodeConfig(repository common.NodesRepository, node *common.Node, guestMode bool) error {
+func checkNodeConfig(repository common.NodesRepository, node *common.Node) error {
 	var current common.NodeEntry
 	var err error
-	if guestMode {
-		current, err = repository.GetGuestNode(node.Name)
-	} else {
-		current, err = repository.GetSelf()
-	}
+	current, err = repository.GetSelf()
+
 	if err == nil {
 		switch {
 		case !node.SameNodeStaticConfig(&current.Node):

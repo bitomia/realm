@@ -21,16 +21,6 @@ func createBaseRoutes(router *mux.Router) {
 	router.Handle("/node/shutdown", auth.WithAuth(handlers.ShutdownNode)).Methods("POST")
 	router.Handle("/node/restart", auth.WithAuth(handlers.RestartNode)).Methods("POST")
 
-	router.Handle("/node/guests", auth.WithAuth(handlers.GetGuestNodes)).Methods("GET")
-	router.Handle("/node/guests/{guestName}", auth.WithAuth(handlers.GetGuestNodeState)).Methods("GET")
-	router.Handle("/node/guests/{guestName}/config", auth.WithAuth(handlers.GetGuestNodeConfig)).Methods("GET")
-	router.Handle("/node/guests/{guestName}/config", auth.WithAuth(handlers.LoadGuestNodeConfig)).Methods("POST")
-	router.Handle("/node/guests/{guestName}/config", auth.WithAuth(handlers.UnloadGuestNodeConfig)).Methods("DELETE")
-	router.Handle("/node/guests/{guestName}/poweron", auth.WithAuth(handlers.PowerOnGuestNode)).Methods("POST")
-	router.Handle("/node/guests/{guestName}/poweroff", auth.WithAuth(handlers.PowerOffGuestNode)).Methods("POST")
-	router.Handle("/node/guests/{guestName}/shutdown", auth.WithAuth(handlers.ShutdownGuestNode)).Methods("POST")
-	router.Handle("/node/guests/{guestName}/restart", auth.WithAuth(handlers.RestartGuestNode)).Methods("POST")
-
 	router.Handle("/loads", auth.WithAuth(handlers.GetLoadsDeploymentsHandler)).Methods("GET")
 	router.Handle("/loads/{loadName}/start", auth.WithAuth(handlers.StartLoadDeploymentsHandler)).Methods("POST")
 	router.Handle("/loads/{loadName}/stop", auth.WithAuth(handlers.StopLoadDeploymentsHandler)).Methods("POST")

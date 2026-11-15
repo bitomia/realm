@@ -50,16 +50,7 @@ type NodeListEntry struct {
 func (c *Client) GetNode(node *common.Node) (dto.NodeResponse, error) {
 	nodeRes := dto.NewNodeResponse()
 
-	driverInfo, err := node.Driver.Info()
-	if err != nil {
-		return nodeRes, err
-	}
-
 	path := "/node"
-	if driverInfo.GuestMode {
-		path = guestNodePath(node.Name, "")
-	}
-
 	body, statusCode, err := c.doRequest("GET", node.Url, path, nil, 50*time.Second)
 	if statusCode != -1 {
 		// Node is online by default if it replied (with success or error)
@@ -175,16 +166,7 @@ func matchesDiscoveredAgent(nodeUrl string, agent common.DiscoveredAgent) bool {
 
 // GetNodeConfig returns the config loaded on the node agent.
 func (c *Client) GetNodeConfig(node *common.Node) (*common.NodeConfig, error) {
-	driverInfo, err := node.Driver.Info()
-	if err != nil {
-		return nil, err
-	}
-
 	path := "/node/config"
-	if driverInfo.GuestMode {
-		path = guestNodePath(node.Name, "/config")
-	}
-
 	payload, statusCode, err := c.doRequest("GET", node.Url, path, nil, requestTimeout)
 	if statusCode == http.StatusNoContent {
 		return nil, common.ErrNodeNotConfigured
@@ -241,16 +223,7 @@ func loadNodeConfigError(statusCode int, err error) error {
 }
 
 func (c *Client) UnloadNodeConfig(node *common.Node) error {
-	driverInfo, err := node.Driver.Info()
-	if err != nil {
-		return err
-	}
-
 	path := "/node/config"
-	if driverInfo.GuestMode {
-		path = guestNodePath(node.Name, "/config")
-	}
-
 	_, statusCode, err := c.doRequest("DELETE", node.Url, path, nil, requestTimeout)
 	if statusCode == http.StatusNoContent {
 		return common.ErrNodeNotConfigured
@@ -258,14 +231,9 @@ func (c *Client) UnloadNodeConfig(node *common.Node) error {
 	return err
 }
 
-// guestNodePath returns the agent path for a guest node, optionally followed by suffix.
-func guestNodePath(name string, suffix string) string {
-	return "/node/guests/" + url.PathEscape(name) + suffix
-}
-
 // runNodeOperation executes the operation locally when the driver declares it
 // in client mode, or through the node agent otherwise. remote receives the agent
-// path for the operation, which targets the guest node routes for guest drivers.
+// path for the operation
 func runNodeOperation(node *common.Node, operation string, mode func(common.NodeDriverInfo) common.RunMode, local func() error, remote func(path string) error) error {
 	driverInfo, err := node.Driver.Info()
 	if err != nil {
@@ -273,9 +241,6 @@ func runNodeOperation(node *common.Node, operation string, mode func(common.Node
 	}
 	if mode(driverInfo) == common.ClientMode {
 		return local()
-	}
-	if driverInfo.GuestMode {
-		return remote(guestNodePath(node.Name, "/"+operation))
 	}
 	return remote("/node/" + operation)
 }

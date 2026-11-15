@@ -39,23 +39,14 @@ func GetHealthStatus() (map[string]any, error) {
 }
 
 // GetNode returns the node state (CPU, memory, etc) and status
-// If a node is provided, it will be used to query the node state. Otherwise, the self node is used.
-func GetNode(nodeName *string) (*dto.NodeResponse, error) {
+func GetNode() (*dto.NodeResponse, error) {
 	database := db.GetDB()
 
 	var nodeEntry common.NodeEntry
-	if nodeName == nil {
-		var err error
-		nodeEntry, err = database.NodesRepository.GetSelf()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get self node: %w", err)
-		}
-	} else {
-		var err error
-		nodeEntry, err = database.NodesRepository.GetGuestNode(*nodeName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get guest node: %w", err)
-		}
+	var err error
+	nodeEntry, err = database.NodesRepository.GetSelf()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get self node: %w", err)
 	}
 
 	return nodeResponse(nodeEntry.Driver)
@@ -74,34 +65,6 @@ func nodeResponse(driver common.NodeDriver) (*dto.NodeResponse, error) {
 	}
 
 	return &dto.NodeResponse{State: state, Status: status}, nil
-}
-
-// GetGuestNodes returns the name, config, state and status of every guest node
-func GetGuestNodes() ([]dto.GuestNodeResponse, error) {
-	database := db.GetDB()
-	if database == nil {
-		return nil, fmt.Errorf("db not initialized")
-	}
-
-	nodes, err := database.NodesRepository.GetAllGuestNodes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get guest nodes: %w", err)
-	}
-
-	guests := make([]dto.GuestNodeResponse, 0, len(nodes))
-	for _, node := range nodes {
-		response, err := nodeResponse(node.Driver)
-		if err != nil {
-			return nil, fmt.Errorf("guest node %s: %w", node.Name, err)
-		}
-		guests = append(guests, dto.GuestNodeResponse{
-			Name:         node.Name,
-			Config:       node.Driver.Config(),
-			NodeResponse: *response,
-		})
-	}
-
-	return guests, nil
 }
 
 // GetSystemInfo returns static system information about the host
@@ -133,31 +96,13 @@ func GetNodeConfig() (*common.Node, error) {
 	}
 }
 
-// GetGuestNodeConfig returns the guest node config loaded on this agent
-func GetGuestNodeConfig(nodeName string) (*common.Node, error) {
-	db := db.GetDB()
-	if db == nil {
-		return nil, fmt.Errorf("db not initialized")
-	}
-	if entry, err := db.NodesRepository.GetGuestNode(nodeName); err != nil {
-		return nil, err
-	} else {
-		return &entry.Node, nil
-	}
-}
-
 func CheckNodeConfig(node *common.Node) error {
 	db := db.GetDB()
 	if db == nil {
 		return fmt.Errorf("db not initialized")
 	}
 
-	info, err := node.Driver.Info()
-	if err != nil {
-		return err
-	}
-
-	return checkNodeConfig(db.NodesRepository, node, info.GuestMode)
+	return checkNodeConfig(db.NodesRepository, node)
 }
 
 func LoadNodeConfig(node *common.Node) error {
@@ -166,44 +111,27 @@ func LoadNodeConfig(node *common.Node) error {
 		return fmt.Errorf("db not initialized")
 	}
 
-	info, err := node.Driver.Info()
-	if err != nil {
-		return err
-	}
-
-	if err := checkNodeConfig(db.NodesRepository, node, info.GuestMode); errors.Is(err, common.ErrNodeLiveConfigMismatch) {
-		if info.GuestMode {
-			return db.NodesRepository.UpdateGuestNode(*node)
-		}
+	if err := checkNodeConfig(db.NodesRepository, node); errors.Is(err, common.ErrNodeLiveConfigMismatch) {
 		return db.NodesRepository.UpdateSelf(*node)
-	} else if errors.Is(err, common.ErrNodeLoadsMismatch) && !info.GuestMode {
+	} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
 		return reprovisionNodeLoads(db.NodesRepository, node)
 	} else if err != nil {
 		return err
 	}
 
-	if info.GuestMode {
-		if len(node.Loads) > 0 {
-			return fmt.Errorf("loads are not supported on guest node '%s'", node.Name)
-		}
-		if err := db.NodesRepository.SetGuestNode(*node); err != nil {
-			return err
-		}
-	} else {
-		if err := db.NodesRepository.SetSelf(*node); err != nil {
-			return err
-		}
-		otel.SetNodeName(node.Name)
-		slog.Info("Agent named", "node", node.Name)
+	if err := db.NodesRepository.SetSelf(*node); err != nil {
+		return err
+	}
+	otel.SetNodeName(node.Name)
+	slog.Info("Agent named", "node", node.Name)
 
-		// Loads are provisioned once the node is configured, which is undone if they fail
-		if err := provisionLoads(node.Loads); err != nil {
-			if err := db.NodesRepository.DeleteSelf(); err != nil {
-				slog.Error("LoadNodeConfig", "node", node.Name, "msg", "rolling back node config", "error", err)
-			}
-			otel.SetNodeName("")
-			return err
+	// Loads are provisioned once the node is configured, which is undone if they fail
+	if err := provisionLoads(node.Loads); err != nil {
+		if err := db.NodesRepository.DeleteSelf(); err != nil {
+			slog.Error("LoadNodeConfig", "node", node.Name, "msg", "rolling back node config", "error", err)
 		}
+		otel.SetNodeName("")
+		return err
 	}
 	return nil
 }
@@ -271,40 +199,10 @@ func ValidateNodeConfig(node *common.Node) error {
 	return err
 }
 
-func UnloadGuestNodeConfig(nodeName string) error {
-	db := db.GetDB()
-	if db == nil {
-		return fmt.Errorf("db not initialized")
-	}
-
-	var err error
-	var node common.NodeEntry
-	if node, err = db.NodesRepository.GetGuestNode(nodeName); err != nil {
-		return err
-	}
-
-	if err := db.NodesRepository.DeleteGuestNode(nodeName, node.Driver); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func UnloadNodeConfig() error {
 	db := db.GetDB()
 	if db == nil {
 		return fmt.Errorf("db not initialized")
-	}
-
-	// Unregister all guest nodes if they exist
-	if nodes, err := db.NodesRepository.GetAllGuestNodes(); err != nil {
-		return err
-	} else {
-		for _, node := range nodes {
-			if err := UnloadGuestNodeConfig(node.Name); err != nil {
-				return err
-			}
-		}
 	}
 
 	// Deprovision the loads of all deployments on this node before unloading the node
@@ -350,29 +248,19 @@ func PowerOnNode(node *common.Node) error {
 	return nil
 }
 
-// Return self node if nodename is nil, or try to return guest node otherwise
-func getNode(nodeName *string) (*common.NodeEntry, error) {
+func getNode() (*common.NodeEntry, error) {
 	db := db.GetDB()
 
-	if nodeName == nil {
-		node, err := db.NodesRepository.GetSelf()
-		if err != nil {
-			return nil, err
-		} else {
-			return &node, err
-		}
+	node, err := db.NodesRepository.GetSelf()
+	if err != nil {
+		return nil, err
 	} else {
-		node, err := db.NodesRepository.GetGuestNode(*nodeName)
-		if err != nil {
-			return nil, err
-		} else {
-			return &node, err
-		}
+		return &node, err
 	}
 }
 
-func PowerOffNode(nodeName *string) error {
-	node, err := getNode(nodeName)
+func PowerOffNode() error {
+	node, err := getNode()
 	if err != nil {
 		return fmt.Errorf("node configuration not loaded")
 	}
@@ -392,8 +280,8 @@ func PowerOffNode(nodeName *string) error {
 	return nil
 }
 
-func ShutdownNode(nodeName *string, message string, time uint32) error {
-	node, err := getNode(nodeName)
+func ShutdownNode(message string, time uint32) error {
+	node, err := getNode()
 	if err != nil {
 		return fmt.Errorf("node configuration not loaded")
 	}
@@ -413,8 +301,8 @@ func ShutdownNode(nodeName *string, message string, time uint32) error {
 	return nil
 }
 
-func RestartNode(nodeName *string, message string, time uint32) error {
-	node, err := getNode(nodeName)
+func RestartNode(message string, time uint32) error {
+	node, err := getNode()
 	if err != nil {
 		return fmt.Errorf("node configuration not loaded")
 	}

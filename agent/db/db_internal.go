@@ -26,7 +26,6 @@ const (
 	deploymentsPrefix = "deployments"
 	loadsPrefix       = "loads"
 	nodePrefix        = "node"
-	guestNodesPrefix  = "guest_nodes"
 )
 
 func getDBPath() string {
@@ -124,22 +123,6 @@ func (db *AgentDB) nodeKey() (string, error) {
 		return "", err
 	}
 	return path.Join(agentId, nodePrefix), nil
-}
-
-func (db *AgentDB) guestNodeKey(guestNodeName string) (string, error) {
-	agentId, err := id.GetAgentId()
-	if err != nil {
-		return "", err
-	}
-	return path.Join(agentId, guestNodesPrefix, guestNodeName), nil
-}
-
-func (db *AgentDB) guestNodesKeyPrefix() (string, error) {
-	agentId, err := id.GetAgentId()
-	if err != nil {
-		return "", err
-	}
-	return path.Join(agentId, guestNodesPrefix) + "/", nil
 }
 
 func (db *AgentDB) nodeKeyByAgentId(agentId string) (string, error) {

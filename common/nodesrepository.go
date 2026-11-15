@@ -61,53 +61,10 @@ type NodesRepository interface {
 
 	// Retrieve node entry by agent ID
 	GetByAgentId(agentId string) (NodeEntry, error)
-
-	// SetGuestNode creates or update the guest node entry for the caller host node
-	SetGuestNode(guestNode Node) error
-
-	// UpdateGuestNode replaces the config of a guest node of the caller host node
-	// metadata stays untouched (use UpdateGuestMetadata)
-	UpdateGuestNode(guestNode Node) error
-
-	// GetGuestNode returns a guest node of the caller host node
-	GetGuestNode(guestNodeName string) (NodeEntry, error)
-
-	// GetAllGuestNodes returns all guest nodes of the self node
-	GetAllGuestNodes() ([]NodeEntry, error)
-
-	// DeleteGuestNode deletes the guest node entry for the caller host node
-	DeleteGuestNode(guestNodeName string, guestDriver NodeDriver) error
-
-	// Update guest node metadata
-	UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error
 }
 
 func UpdateSelfNodeMetadata[T any](repo NodesRepository, updateFn func(metadata *T) error) error {
 	return repo.UpdateSelfMetadata(func(metadataPtr any) error {
-		ptr := metadataPtr.(*any)
-
-		var metadata T
-		if *ptr != nil {
-			data, err := json.Marshal(*ptr)
-			if err != nil {
-				return err
-			}
-			if err := json.Unmarshal(data, &metadata); err != nil {
-				return err
-			}
-		}
-
-		if err := updateFn(&metadata); err != nil {
-			return err
-		}
-
-		*ptr = metadata
-		return nil
-	})
-}
-
-func UpdateGuestNodeMetadata[T any](guestNodeName string, repo NodesRepository, updateFn func(metadata *T) error) error {
-	return repo.UpdateGuestMetadata(guestNodeName, func(metadataPtr any) error {
 		ptr := metadataPtr.(*any)
 
 		var metadata T

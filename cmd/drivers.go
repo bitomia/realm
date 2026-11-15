@@ -20,11 +20,7 @@ func printDrivers(kind string, entries []clientPkg.DriverEntry) {
 	}
 
 	for _, entry := range entries {
-		if entry.GuestMode != nil && *entry.GuestMode {
-			log.Info("  - %s [%s]", color.CyanString(entry.ID), "guest mode")
-		} else {
-			log.Info("  - %s", color.CyanString(entry.ID))
-		}
+		log.Info("  - %s", color.CyanString(entry.ID))
 	}
 }
 

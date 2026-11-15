@@ -3,9 +3,7 @@ package db
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
-	"path"
 
 	"github.com/bitomia/realm/agent/id"
 	"github.com/bitomia/realm/common"
@@ -140,125 +138,6 @@ func (r *BoltNodesRepository) DeleteSelf() error {
 	return nil
 }
 
-func (r *BoltNodesRepository) SetGuestNode(guestNode common.Node) error {
-	guestNodeName := guestNode.Name
-	slog.Info("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName)
-
-	guestNodeJson, err := json.Marshal(common.NodeEntry{Node: guestNode})
-	if err != nil {
-		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "Marshaling node", "error", err.Error())
-		return err
-	}
-
-	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
-	if err != nil {
-		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
-		return err
-	}
-
-	if err := r.db.putIfNotExists(guestNodeKey, string(guestNodeJson)); err != nil {
-		slog.Error("BoltNodesRepository.SetGuestNode", "guestNodeName", guestNodeName, "msg", "db put", "error", err.Error())
-		if errors.Is(err, ErrKeyAlreadyExists) {
-			return common.ErrNodeAlreadyConfigured
-		} else {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (r *BoltNodesRepository) UpdateGuestNode(guestNode common.Node) error {
-	guestNodeName := guestNode.Name
-	slog.Info("BoltNodesRepository.UpdateGuestNode", "guestNodeName", guestNodeName)
-
-	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
-	if err != nil {
-		slog.Error("BoltNodesRepository.UpdateGuestNode", "guestNodeName", guestNodeName, "msg", "creating node key", "error", err.Error())
-		return err
-	}
-
-	return r.updateNode(guestNodeKey, guestNode)
-}
-
-func (r *BoltNodesRepository) DeleteGuestNode(guestNodeName string, guestDriver common.NodeDriver) error {
-	slog.Info("BoltNodesRepository.DeleteGuestNode", "guestNodeName", guestNodeName)
-
-	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
-	if err != nil {
-		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "nodeKey failed", "error", err.Error())
-		return err
-	}
-
-	// Check if node exists first
-	_, err = r.db.get(guestNodeKey)
-	if err != nil {
-		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "node not found", "error", err.Error())
-		return common.ErrNodeNotConfigured
-	}
-
-	if err := r.db.delete(guestNodeKey); err != nil {
-		slog.Error("BoltNodesRepository.DeleteGuestNode", "nodeKey", guestNodeKey, "msg", "deleting node", "error", err.Error())
-		return err
-	}
-
-	return nil
-}
-
-func (r *BoltNodesRepository) GetGuestNode(guestNodeName string) (common.NodeEntry, error) {
-	slog.Info("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName)
-
-	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
-	if err != nil {
-		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
-		return common.NodeEntry{}, err
-	}
-
-	nodeStr, err := r.db.get(guestNodeKey)
-	if err != nil {
-		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "getting node", "error", err.Error())
-		if errors.Is(err, ErrKeyNotFound) {
-			return common.NodeEntry{}, common.ErrNodeNotConfigured
-		} else {
-			return common.NodeEntry{}, err
-		}
-	}
-
-	var nodeEntry common.NodeEntry
-	if err := json.Unmarshal([]byte(nodeStr), &nodeEntry); err != nil {
-		slog.Error("BoltNodesRepository.GetGuestNode", "guestNodeName", guestNodeName, "msg", "unmarshalling node", "error", err.Error())
-		return common.NodeEntry{}, err
-	}
-
-	return nodeEntry, nil
-}
-
-func (r *BoltNodesRepository) GetAllGuestNodes() ([]common.NodeEntry, error) {
-	slog.Debug("BoltNodesRepository.GetAllGuestNodes")
-
-	prefix, err := r.db.guestNodesKeyPrefix()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build guest nodes prefix: %w", err)
-	}
-
-	entries, err := r.db.getPrefix(prefix)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list guest nodes: %w", err)
-	}
-
-	var nodes []common.NodeEntry
-	for key := range entries {
-		guestName := path.Base(key)
-		node, err := r.GetGuestNode(guestName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get guest node %s: %w", guestName, err)
-		}
-		nodes = append(nodes, node)
-	}
-
-	return nodes, nil
-}
-
 func (r *BoltNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) error) error {
 	nodeKey, err := r.db.nodeKey()
 	if err != nil {
@@ -267,27 +146,6 @@ func (r *BoltNodesRepository) UpdateSelfMetadata(updateFn func(metadataPtr any) 
 	}
 
 	return r.db.updateValue(nodeKey, func(valueData []byte) ([]byte, error) {
-		var value common.NodeEntry
-		if err := json.Unmarshal(valueData, &value); err != nil {
-			return nil, err
-		}
-		if err := updateFn(&value.Metadata); err != nil {
-			return nil, err
-		}
-		return json.Marshal(value)
-	})
-}
-
-func (r *BoltNodesRepository) UpdateGuestMetadata(guestNodeName string, updateFn func(metadataPtr any) error) error {
-	slog.Info("BoltNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName)
-
-	guestNodeKey, err := r.db.guestNodeKey(guestNodeName)
-	if err != nil {
-		slog.Error("BoltNodesRepository.UpdateGuestMetadata", "guestNodeName", guestNodeName, "msg", "nodeKey failed", "error", err.Error())
-		return err
-	}
-
-	return r.db.updateValue(guestNodeKey, func(valueData []byte) ([]byte, error) {
 		var value common.NodeEntry
 		if err := json.Unmarshal(valueData, &value); err != nil {
 			return nil, err
