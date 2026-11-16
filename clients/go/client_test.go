@@ -4,7 +4,7 @@ import "net/http"
 
 func newTestClient() Client {
 	return Client{
-		header: http.Header{
+		Header: http.Header{
 			"ContentType": []string{"application/json"},
 		},
 	}

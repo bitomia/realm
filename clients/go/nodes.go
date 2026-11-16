@@ -96,7 +96,7 @@ func DiscoverNodes(ctx context.Context, cfg *config.Config, timeout time.Duratio
 	}
 
 	discovered, mdnsErr := common.DiscoverAgents(ctx, timeout)
-	c.discovered, c.discoverCached = discovered, true
+	c.Discovered, c.DiscoverCached = discovered, true
 	wg.Wait()
 
 	meshNetworkIPs := meshNetworks()

@@ -77,7 +77,7 @@ func (client *Client) StartCluster(ctx context.Context) error {
 		return err
 	}
 
-	powerOnSeq := client.powerOnNodesSequence(ctx, client.cfg.GetNodes())
+	powerOnSeq := client.powerOnNodesSequence(ctx, client.Cfg.GetNodes())
 	if !isSuccessPowerOnSequence(powerOnSeq) {
 		var errs []error
 		for _, name := range slices.Sorted(maps.Keys(powerOnSeq)) {
@@ -88,7 +88,7 @@ func (client *Client) StartCluster(ctx context.Context) error {
 		return fmt.Errorf("nodes drifted: %w", errors.Join(errs...))
 	}
 
-	plan, err := client.planUpdate(client.cfg.GetNodes(), client.cfg.GetLoads())
+	plan, err := client.planUpdate(client.Cfg.GetNodes(), client.Cfg.GetLoads())
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (client *Client) StartCluster(ctx context.Context) error {
 		return err
 	}
 
-	return client.startLoads(client.cfg.GetLoads())
+	return client.startLoads(client.Cfg.GetLoads())
 }
 
 func (client *Client) StopCluster(ctx context.Context, wallMessage string, offsetTime uint32) error {
@@ -104,7 +104,7 @@ func (client *Client) StopCluster(ctx context.Context, wallMessage string, offse
 		return err
 	}
 
-	loadsStopResult := client.stopLoadsSequence(client.cfg.GetLoads())
+	loadsStopResult := client.stopLoadsSequence(client.Cfg.GetLoads())
 	if !isSuccessLoadsStopSequence(loadsStopResult) {
 		var errs []error
 		for _, name := range slices.Sorted(maps.Keys(loadsStopResult)) {
@@ -115,7 +115,7 @@ func (client *Client) StopCluster(ctx context.Context, wallMessage string, offse
 		return fmt.Errorf("loads drifted: %w", errors.Join(errs...))
 	}
 
-	stopSeq := client.shutdownNodesSequence(ctx, client.cfg.GetNodes(), wallMessage, offsetTime)
+	stopSeq := client.shutdownNodesSequence(ctx, client.Cfg.GetNodes(), wallMessage, offsetTime)
 	if isSuccessShutdownSequence(stopSeq) {
 		return nil
 	}
@@ -135,7 +135,7 @@ func (c *Client) UpdateCluster(ctx context.Context) error {
 		return err
 	}
 
-	plan, err := c.planUpdate(c.cfg.GetNodes(), c.cfg.GetLoads())
+	plan, err := c.planUpdate(c.Cfg.GetNodes(), c.Cfg.GetLoads())
 	if err != nil {
 		return err
 	}
@@ -197,7 +197,7 @@ func (c *Client) startLoads(loads map[string]*common.Load) error {
 
 // checkClusterState fails if the config differs from the cluster state on the state file.
 func (c *Client) checkClusterState() error {
-	stateFile := c.stateFile
+	stateFile := c.StateFile
 	previous, err := common.ReadClusterStateFile(stateFile)
 	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("no cluster state found on %s: run 'plan' first", stateFile)
@@ -205,7 +205,7 @@ func (c *Client) checkClusterState() error {
 		return err
 	}
 
-	planned := c.cfg.GetClusterState()
+	planned := c.Cfg.GetClusterState()
 	diff := common.DiffClusterStates(previous, planned)
 	if diff.IsEmpty() {
 		return nil

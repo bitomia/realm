@@ -24,11 +24,11 @@ const (
 )
 
 type Client struct {
-	header         http.Header
-	cfg            *config.Config
-	stateFile      string
-	discovered     []common.DiscoveredAgent
-	discoverCached bool
+	Header         http.Header
+	Cfg            *config.Config
+	StateFile      string
+	Discovered     []common.DiscoveredAgent
+	DiscoverCached bool
 }
 
 // NewClient returns a client for cfg
@@ -36,7 +36,7 @@ type Client struct {
 // Fails if cfg differs from the cluster state planned on stateFile
 func NewClient(cfg *config.Config, stateFile string) (Client, error) {
 	c := newClient(cfg)
-	c.stateFile = stateFile
+	c.StateFile = stateFile
 	if err := c.checkClusterState(); err != nil {
 		return Client{}, err
 	}
@@ -47,18 +47,18 @@ func newClient(cfg *config.Config) Client {
 	token := getAuthToken()
 	if token == "" {
 		return Client{
-			header: http.Header{
+			Header: http.Header{
 				"ContentType": []string{"application/json"},
 			},
-			cfg: cfg,
+			Cfg: cfg,
 		}
 	}
 	return Client{
-		header: http.Header{
+		Header: http.Header{
 			"ContentType":   []string{"application/json"},
 			"Authorization": []string{fmt.Sprintf("Bearer %s", token)},
 		},
-		cfg: cfg,
+		Cfg: cfg,
 	}
 }
 
@@ -68,12 +68,12 @@ func (c *Client) agentAddress(agentURL string) string {
 		return agentURL
 	}
 
-	if !c.discoverCached {
-		c.discovered, _ = common.DiscoverAgents(context.Background(), discoveryLookupTimeout)
-		c.discoverCached = true
+	if !c.DiscoverCached {
+		c.Discovered, _ = common.DiscoverAgents(context.Background(), discoveryLookupTimeout)
+		c.DiscoverCached = true
 	}
 
-	for _, agent := range c.discovered {
+	for _, agent := range c.Discovered {
 		if !matchesDiscoveredAgent(agentURL, agent) {
 			continue
 		}
@@ -110,7 +110,7 @@ func (c *Client) doRequest(method, agentURL, path string, payload io.Reader, tim
 	if err != nil {
 		return nil, -1, fmt.Errorf("failed to create request: %v", err)
 	}
-	req.Header = c.header
+	req.Header = c.Header
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -161,7 +161,7 @@ func (c *Client) doStreamRequest(method, agentURL, path string, body io.Reader) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-	req.Header = c.header
+	req.Header = c.Header
 
 	resp, err := client.Do(req)
 	if err != nil {
