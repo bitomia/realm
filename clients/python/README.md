@@ -46,8 +46,9 @@ with Realm(socket="/run/realm/agent.sock") as agent:
         print(deployment["load_name"], deployment["deployment_status"]["status"])
 ```
 
-Deploy a load and follow its output. Loads are provisioned along with the
-config of the node that holds them, and deprovisioned when it is unloaded:
+Deploy a load and follow its output. Loads are held by the config of their
+node and provisioned out of it one by one. They shall be deprovisioned before
+the node config is unloaded:
 
 ```python
 agent.load_node_config(
@@ -64,6 +65,7 @@ agent.load_node_config(
         ],
     }
 )
+agent.provision_load("web")
 agent.start_load("web")
 
 for line in agent.stdout("web"):

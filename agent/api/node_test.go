@@ -93,20 +93,3 @@ func TestSameLiveConfigComparesTimeoutAndRegistries(t *testing.T) {
 	moved.Url = "http://n2"
 	assert.False(t, moved.SameNodeStaticConfig(current))
 }
-
-func TestDiffLoads(t *testing.T) {
-	load := func(name string, config any) common.LoadConfig {
-		return common.LoadConfig{Name: name, Node: "n1", Driver: "fake_load_driver", DriverConfig: config}
-	}
-	current := []common.LoadConfig{load("web", "v1"), load("db", "v1"), load("cache", "v1")}
-	next := []common.LoadConfig{load("web", "v2"), load("db", "v1"), load("queue", "v1")}
-
-	stale, fresh := diffLoads(current, next)
-
-	assert.Equal(t, []string{"web", "cache"}, stale)
-	assert.Equal(t, []common.LoadConfig{load("web", "v2"), load("queue", "v1")}, fresh)
-
-	stale, fresh = diffLoads(current, current)
-	assert.Empty(t, stale)
-	assert.Empty(t, fresh)
-}

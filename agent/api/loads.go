@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 
 	"github.com/bitomia/realm/agent/db"
 	"github.com/bitomia/realm/common"
@@ -128,41 +129,31 @@ func KillLoadDeployments(loadName string) error {
 	return nil
 }
 
-// provisionLoads provisions the given loads, deprovisioning the already
-// provisioned ones when any of them fails
-func provisionLoads(configs []common.LoadConfig) error {
-	// Build every driver first so an invalid config fails before provisioning anything
-	loads := make([]*common.Load, len(configs))
-	for i, config := range configs {
-		driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
-		if err != nil {
-			return fmt.Errorf("failed to build driver for load %s: %w", config.Name, err)
-		}
-		loads[i] = &common.Load{Name: config.Name, Driver: driver}
-	}
-
-	for i, load := range loads {
-		if err := provisionLoad(load); err != nil {
-			for _, provisioned := range loads[:i] {
-				if err := deprovisionLoadDeployments(provisioned.Name); err != nil {
-					slog.Error("provisionLoads", "load", provisioned.Name, "msg", "rolling back provision", "error", err)
-				}
-			}
-			return fmt.Errorf("failed to provision load %s: %w", load.Name, err)
-		}
-	}
-	return nil
-}
-
-func provisionLoad(load *common.Load) error {
+// ProvisionLoad provisions the load as held by the loaded node config
+func ProvisionLoad(loadName string) error {
 	database := db.GetDB()
 
-	unlock := lockLoad(load.Name)
+	unlock := lockLoad(loadName)
 	defer unlock()
+
+	// The node config shall not change while the load is provisioned out of it
+	nodeConfigMutex.RLock()
+	defer nodeConfigMutex.RUnlock()
 
 	node, err := database.NodesRepository.GetSelf()
 	if err != nil {
 		return fmt.Errorf("node not configured")
+	}
+
+	index := slices.IndexFunc(node.Loads, func(l common.LoadConfig) bool { return l.Name == loadName })
+	if index < 0 {
+		return fmt.Errorf("load '%s' not found on the node config", loadName)
+	}
+	config := node.Loads[index]
+
+	driver, err := common.BuildLoadDriver(common.LoadDriverConfig{Driver: config.Driver, DriverConfig: config.DriverConfig})
+	if err != nil {
+		return fmt.Errorf("failed to build driver for load %s: %w", loadName, err)
 	}
 
 	nodeStatus, err := node.Driver.UpdateStatus()
@@ -174,28 +165,28 @@ func provisionLoad(load *common.Load) error {
 	}
 
 	// Check if deployments already exist for this load
-	existingDeployments, err := database.DeploymentsRepository.GetByLoad(load.Name)
+	existingDeployments, err := database.DeploymentsRepository.GetByLoad(loadName)
 	if err != nil {
 		return err
 	}
 
 	if len(existingDeployments) > 0 {
-		err := fmt.Errorf("cannot provision load: deployment already exists for load '%s'", load.Name)
-		slog.Error("provisionLoad", "error", err)
+		err := fmt.Errorf("cannot provision load: deployment already exists for load '%s'", loadName)
+		slog.Error("ProvisionLoad", "error", err)
 
 		return err
 	}
 
-	deploymentID, err := load.Driver.Provision(node.Driver, database.DeploymentsRepository, load.Name)
+	deploymentID, err := driver.Provision(node.Driver, database.DeploymentsRepository, loadName)
 	if err != nil {
 		return err
 	}
-	slog.Info("provisionLoad", "load", load.Name, "deploymentID", deploymentID)
+	slog.Info("ProvisionLoad", "load", loadName, "deploymentID", deploymentID)
 
 	return nil
 }
 
-func deprovisionLoadDeployments(loadName string) error {
+func DeprovisionLoadDeployments(loadName string) error {
 	database := db.GetDB()
 
 	unlock := lockLoad(loadName)
@@ -212,45 +203,18 @@ func deprovisionLoadDeployments(loadName string) error {
 
 	if err := CheckDeploymentStatus(deployments, &database.DeploymentsRepository, func(s common.DeploymentStatusCode) bool {
 		return s == common.DeploymentStatusError || s == common.DeploymentStatusStopped || s == common.DeploymentStatusReady
-	}, "deprovisionLoadDeployments"); err != nil {
+	}, "DeprovisionLoadDeployments"); err != nil {
 		return err
 	}
 
 	for _, deployment := range deployments {
-		slog.Info("deprovisionLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
+		slog.Info("DeprovisionLoadDeployments", "loadName", loadName, "driverID", deployment.LoadDriver.ID())
 		if err := deployment.LoadDriver.Deprovision(database.DeploymentsRepository, deployment); err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func stopAndDeprovisionLoad(loadName string) error {
-	database := db.GetDB()
-
-	deployments, err := database.DeploymentsRepository.GetByLoad(loadName)
-	if err != nil {
-		return err
-	}
-	if len(deployments) == 0 {
-		return nil
-	}
-
-	for _, deployment := range deployments {
-		status, err := deployment.LoadDriver.UpdateStatus(database.DeploymentsRepository, deployment)
-		if err != nil {
-			return fmt.Errorf("cannot update deployment status %s: %w", deployment.ID, err)
-		}
-		if status.StatusCode == common.DeploymentStatusRunning {
-			slog.Info("stopAndDeprovisionLoad", "load", loadName, "deployment", deployment.ID, "msg", "stopping deployment")
-			if err := deployment.LoadDriver.Stop(database.DeploymentsRepository, deployment); err != nil {
-				return err
-			}
-		}
-	}
-
-	return deprovisionLoadDeployments(loadName)
 }
 
 func StreamLoadStdout(loadName string, w io.Writer) error {

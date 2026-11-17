@@ -138,16 +138,17 @@ func (client *Client) shutdownNodesSequence(ctx context.Context, nodes map[strin
 	return state
 }
 
-// updateNodesSequence loads the planned config on the given nodes.
+// updateNodesSequence loads the planned config on the given nodes and
+// reprovisions their loads (see updateNode).
 // Returns the last report update stages, if all nodes are nodeStageUpdated then it's success
-func (client *Client) updateNodesSequence(nodes map[string]*common.Node) map[string]nodeUpdateSequenceResult {
-	results := make(map[string]nodeUpdateSequenceResult, len(nodes))
-	for name := range nodes {
+func (client *Client) updateNodesSequence(updates map[string]nodeUpdate) map[string]nodeUpdateSequenceResult {
+	results := make(map[string]nodeUpdateSequenceResult, len(updates))
+	for name := range updates {
 		results[name] = nodeUpdateSequenceResult{stage: nodeStageUpdatePending}
 	}
 
-	for _, name := range slices.Sorted(maps.Keys(nodes)) {
-		if err := client.LoadNodeConfig(nodes[name]); err != nil {
+	for _, name := range slices.Sorted(maps.Keys(updates)) {
+		if err := client.updateNode(updates[name]); err != nil {
 			results[name] = nodeUpdateSequenceResult{nodeStageUpdateFailed, fmt.Errorf("configuring %s failed: %s", name, err.Error())}
 			return results
 		}

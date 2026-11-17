@@ -194,7 +194,9 @@ class Realm:
         return result
 
     def load_node_config(self, config: JsonDict, validate_only: bool = False) -> None:
-        """Push a node configuration, provisioning the loads it holds under ``loads``.
+        """Push a node configuration, including the loads it holds under ``loads``.
+
+        Loads are not provisioned by this call, see :meth:`provision_load`.
 
         ``validate_only`` checks without applying.
         """
@@ -223,6 +225,13 @@ class Realm:
         """Every load deployment the agent knows about."""
         result: list[JsonDict] = self._send(ops.loads())
         return result
+
+    def provision_load(self, name: str) -> None:
+        """Provision a load held by the loaded node config."""
+        self._send(ops.provision_load(name))
+
+    def deprovision_load(self, name: str) -> None:
+        self._send(ops.deprovision_load(name))
 
     def start_load(self, name: str) -> None:
         self._send(ops.start_load(name))
@@ -397,6 +406,12 @@ class AsyncRealm:
     async def loads(self) -> list[JsonDict]:
         result: list[JsonDict] = await self._send(ops.loads())
         return result
+
+    async def provision_load(self, name: str) -> None:
+        await self._send(ops.provision_load(name))
+
+    async def deprovision_load(self, name: str) -> None:
+        await self._send(ops.deprovision_load(name))
 
     async def start_load(self, name: str) -> None:
         await self._send(ops.start_load(name))

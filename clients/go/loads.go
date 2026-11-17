@@ -73,6 +73,17 @@ func (c *Client) streamLoadOutput(load *common.Load, output string, w io.Writer)
 	return nil
 }
 
+// ProvisionLoad provisions the load as held by the config loaded on the node.
+func (c *Client) ProvisionLoad(node *common.Node, loadName string) error {
+	_, _, err := c.doRequest("POST", node.Url, fmt.Sprintf("/loads/%s/provision", loadName), nil, requestTimeout)
+	return err
+}
+
+func (c *Client) DeprovisionLoad(node *common.Node, loadName string) error {
+	_, _, err := c.doRequest("POST", node.Url, fmt.Sprintf("/loads/%s/deprovision", loadName), nil, requestTimeout)
+	return err
+}
+
 // StartLoads starts the given loads following their start chains.
 func (c *Client) StartLoads(loads map[string]*common.Load, handle LoadResultHandler) {
 	runLoads(StartOrder(loads), c.StartLoad, handle)

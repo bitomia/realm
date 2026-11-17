@@ -76,3 +76,29 @@ func ReadLoadStderrHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func ProvisionLoadHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+
+	slog.Info("handlers.ProvisionLoadHandler", "loadName", loadName)
+
+	if err := api.ProvisionLoad(loadName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func DeprovisionLoadDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
+	loadName := mux.Vars(r)["loadName"]
+
+	slog.Info("handlers.DeprovisionLoadDeploymentsHandler", "loadName", loadName)
+
+	if err := api.DeprovisionLoadDeployments(loadName); err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}

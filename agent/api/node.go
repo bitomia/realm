@@ -4,8 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"maps"
-	"slices"
+	"sync"
 
 	"github.com/bitomia/realm/agent/capabilities"
 	"github.com/bitomia/realm/agent/cloudinit"
@@ -16,6 +15,10 @@ import (
 	"github.com/bitomia/realm/common/dto"
 	"github.com/bitomia/realm/common/otel"
 )
+
+// nodeConfigMutex guards the stored node config: loading and unloading it
+// hold the write lock, provisioning a load out of it holds the read lock
+var nodeConfigMutex sync.RWMutex
 
 // GetVersion returns the agent version
 func GetVersion() (string, error) {
@@ -111,10 +114,12 @@ func LoadNodeConfig(node *common.Node) error {
 		return fmt.Errorf("db not initialized")
 	}
 
-	if err := checkNodeConfig(db.NodesRepository, node); errors.Is(err, common.ErrNodeLiveConfigMismatch) {
+	nodeConfigMutex.Lock()
+	defer nodeConfigMutex.Unlock()
+
+	// Loads are stored along with the node config, the client provisions them afterwards
+	if err := checkNodeConfig(db.NodesRepository, node); errors.Is(err, common.ErrNodeLiveConfigMismatch) || errors.Is(err, common.ErrNodeLoadsMismatch) {
 		return db.NodesRepository.UpdateSelf(*node)
-	} else if errors.Is(err, common.ErrNodeLoadsMismatch) {
-		return reprovisionNodeLoads(db.NodesRepository, node)
 	} else if err != nil {
 		return err
 	}
@@ -125,72 +130,7 @@ func LoadNodeConfig(node *common.Node) error {
 	otel.SetNodeName(node.Name)
 	slog.Info("Agent named", "node", node.Name)
 
-	// Loads are provisioned once the node is configured, which is undone if they fail
-	if err := provisionLoads(node.Loads); err != nil {
-		if err := db.NodesRepository.DeleteSelf(); err != nil {
-			slog.Error("LoadNodeConfig", "node", node.Name, "msg", "rolling back node config", "error", err)
-		}
-		otel.SetNodeName("")
-		return err
-	}
 	return nil
-}
-
-func reprovisionNodeLoads(repository common.NodesRepository, node *common.Node) error {
-	current, err := repository.GetSelf()
-	if err != nil {
-		return err
-	}
-
-	if !node.SameNodeLiveConfig(&current.Node) {
-		live := current.Node
-		live.Timeout = node.Timeout
-		live.Registries = node.Registries
-		if err := repository.UpdateSelf(live); err != nil {
-			return err
-		}
-	}
-
-	stale, fresh := diffLoads(current.Loads, node.Loads)
-	for _, loadName := range stale {
-		slog.Info("LoadNodeConfig", "node", node.Name, "load", loadName, "msg", "deprovisioning load")
-		if err := stopAndDeprovisionLoad(loadName); err != nil {
-			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
-		}
-	}
-
-	if err := provisionLoads(fresh); err != nil {
-		return err
-	}
-
-	if err := repository.UpdateSelf(*node); err != nil {
-		return err
-	}
-
-	slog.Info("LoadNodeConfig", "node", node.Name, "msg", "loads reprovisioned", "deprovisioned", stale, "provisioned", len(fresh))
-	return nil
-}
-
-func diffLoads(current []common.LoadConfig, next []common.LoadConfig) ([]string, []common.LoadConfig) {
-	nextHashes := make(map[string]common.Hash, len(next))
-	for _, load := range next {
-		nextHashes[load.Name] = load.Hash()
-	}
-	currentHashes := make(map[string]common.Hash, len(current))
-	var stale []string
-	for _, load := range current {
-		currentHashes[load.Name] = load.Hash()
-		if hash, exists := nextHashes[load.Name]; !exists || hash != currentHashes[load.Name] {
-			stale = append(stale, load.Name)
-		}
-	}
-	var fresh []common.LoadConfig
-	for _, load := range next {
-		if hash, exists := currentHashes[load.Name]; !exists || hash != nextHashes[load.Name] {
-			fresh = append(fresh, load)
-		}
-	}
-	return stale, fresh
 }
 
 func ValidateNodeConfig(node *common.Node) error {
@@ -205,20 +145,16 @@ func UnloadNodeConfig() error {
 		return fmt.Errorf("db not initialized")
 	}
 
-	// Deprovision the loads of all deployments on this node before unloading the node
+	nodeConfigMutex.Lock()
+	defer nodeConfigMutex.Unlock()
+
+	// Loads shall be deprovisioned before unloading the node
 	deployments, err := db.DeploymentsRepository.GetAll()
 	if err != nil {
 		return fmt.Errorf("failed to get deployments: %w", err)
 	}
-
-	loadNames := make(map[string]bool)
-	for _, deployment := range deployments {
-		loadNames[deployment.LoadName] = true
-	}
-	for _, loadName := range slices.Sorted(maps.Keys(loadNames)) {
-		if err := deprovisionLoadDeployments(loadName); err != nil {
-			return fmt.Errorf("failed to deprovision load %s: %w", loadName, err)
-		}
+	if len(deployments) > 0 {
+		return fmt.Errorf("cannot unload node config: %d deployments still provisioned", len(deployments))
 	}
 
 	if err := db.NodesRepository.DeleteSelf(); err != nil {

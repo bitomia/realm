@@ -159,6 +159,16 @@ def loads() -> Request:
     return Request("GET", "/loads", parse=_as_list)
 
 
+@endpoint("POST", "/loads/{loadName}/provision")
+def provision_load(name: str) -> Request:
+    return Request("POST", f"/loads/{_seg(name)}/provision", timeout=REQUEST_TIMEOUT)
+
+
+@endpoint("POST", "/loads/{loadName}/deprovision")
+def deprovision_load(name: str) -> Request:
+    return Request("POST", f"/loads/{_seg(name)}/deprovision", timeout=REQUEST_TIMEOUT)
+
+
 @endpoint("POST", "/loads/{loadName}/start")
 def start_load(name: str) -> Request:
     return Request("POST", f"/loads/{_seg(name)}/start", timeout=REQUEST_TIMEOUT)
