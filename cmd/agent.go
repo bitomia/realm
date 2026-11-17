@@ -23,14 +23,12 @@ var startAgent = &cobra.Command{
 	Short:                 "Start a agent",
 	DisableFlagsInUseLine: true,
 	Run: func(cmd *cobra.Command, args []string) {
-		purgeDB, _ := cmd.Flags().GetBool("purge-db")
-		agent.Start(cfg, purgeDB, nil)
+		agent.Start(cfg, false, nil)
 	},
 }
 
 func init() {
 	startAgent.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: config.yaml in current working directory)")
-	startAgent.Flags().Bool("purge-db", false, "Purge all database contents before starting")
 	agentCmd.AddCommand(startAgent)
 	rootCmd.AddCommand(agentCmd)
 }
