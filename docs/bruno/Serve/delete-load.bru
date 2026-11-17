@@ -1,0 +1,28 @@
+meta {
+  name: Delete Load
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{serveUrl}}/config/loads/{{loadName}}
+  body: none
+  auth: none
+}
+
+docs {
+  Removes the load {{loadName}} from the config served by `realm serve`.
+
+  A whole new config is instanced without the load before replacing the
+  current one, so it is rejected while other loads still depend on it.
+
+  After the change, the cluster state is planned on the state file and, if
+  the cluster is running, rolled out to it. The response `cluster` field
+  holds the planned diff (`plan`), whether the cluster runs it (`updated`)
+  and why planning or updating failed (`error`); the config change is kept
+  even if they fail.
+
+  Responses: 200 deleted, 404 load not found, 409 the config without the
+  load is invalid (e.g. other loads depend on it).
+  Body: {"cluster": {...}}
+}

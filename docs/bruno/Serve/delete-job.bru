@@ -1,0 +1,20 @@
+meta {
+  name: Delete Job
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{serveUrl}}/config/jobs/{{jobName}}
+  body: none
+  auth: none
+}
+
+docs {
+  Removes the job {{jobName}} from the config served by `realm serve`.
+
+  Jobs are not part of the cluster state, so the change is neither planned
+  nor rolled out.
+
+  Responses: 204 deleted, 404 job not found.
+}

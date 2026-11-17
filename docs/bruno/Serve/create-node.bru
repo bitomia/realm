@@ -1,0 +1,38 @@
+meta {
+  name: Create Node
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{serveUrl}}/config/nodes/{{nodeName}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "url": "http://192.168.1.55:9000",
+    "driver": "linux"
+  }
+}
+
+docs {
+  Adds or replaces the node {{nodeName}} (common.NodeConfig) in the config
+  served by `realm serve`. The name is taken from the path; a `name` in the
+  body is optional but must match it.
+
+  A whole new config is instanced with the node before replacing the current
+  one, so any config error (missing or unknown driver, invalid url...) is
+  rejected and the current config is kept. Loads already running on a
+  replaced node stay on it.
+
+  After the change, the cluster state is planned on the state file and, if
+  the cluster is running, rolled out to it. The response `cluster` field
+  holds the planned diff (`plan`), whether the cluster runs it (`updated`)
+  and why planning or updating failed (`error`); the config change is kept
+  even if they fail.
+
+  Responses: 201 created, 200 replaced, 400 invalid node or config.
+  Body: {"node": {...}, "cluster": {...}}
+}

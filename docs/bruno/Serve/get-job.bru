@@ -1,0 +1,18 @@
+meta {
+  name: Get Job
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{serveUrl}}/config/jobs/{{jobName}}
+  body: none
+  auth: none
+}
+
+docs {
+  Returns the job {{jobName}} (common.JobConfig) from the config served by
+  `realm serve`.
+
+  Responses: 200 found, 404 job not found.
+}

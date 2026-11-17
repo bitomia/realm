@@ -1,0 +1,35 @@
+meta {
+  name: Create Job
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{serveUrl}}/config/jobs/{{jobName}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "node": "node-1",
+    "driver": "hello",
+    "driver_config": null
+  }
+}
+
+docs {
+  Adds or replaces the job {{jobName}} (common.JobConfig) in the config
+  served by `realm serve`. The name is taken from the path; a `name` in the
+  body is optional but must match it.
+
+  A whole new config is instanced with the job before replacing the current
+  one, so any config error (unknown node or driver...) is rejected and the
+  current config is kept.
+
+  Jobs are not part of the cluster state, so the change is neither planned
+  nor rolled out.
+
+  Responses: 201 created, 200 replaced, 400 invalid job or config.
+  Body: the job.
+}

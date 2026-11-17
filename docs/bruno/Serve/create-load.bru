@@ -1,0 +1,41 @@
+meta {
+  name: Create Load
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{serveUrl}}/config/loads/{{loadName}}
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "node": "node-1",
+    "depends_on": [],
+    "driver": "container",
+    "driver_config": {
+      "image": "docker.io/nginx"
+    }
+  }
+}
+
+docs {
+  Adds or replaces the load {{loadName}} (common.LoadConfig) in the config
+  served by `realm serve`. The name is taken from the path; a `name` in the
+  body is optional but must match it.
+
+  A whole new config is instanced with the load before replacing the current
+  one, so any config error (unknown node, driver or dependency, dependency
+  cycle...) is rejected and the current config is kept.
+
+  After the change, the cluster state is planned on the state file and, if
+  the cluster is running, rolled out to it. The response `cluster` field
+  holds the planned diff (`plan`), whether the cluster runs it (`updated`)
+  and why planning or updating failed (`error`); the config change is kept
+  even if they fail.
+
+  Responses: 201 created, 200 replaced, 400 invalid load or config.
+  Body: {"load": {...}, "cluster": {...}}
+}
