@@ -10,7 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// resolveConfig reads YAML from r and recursively resolves !include tags and expands env variables.
+// resolveConfig reads YAML or JSON from r
+// Resolution of !include tags only supported for YAML files
 // Included file paths are resolved relative to baseDir.
 func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
 	data, err := io.ReadAll(r)
@@ -20,7 +21,7 @@ func resolveConfig(r io.Reader, baseDir string) ([]byte, error) {
 
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("failed to parse YAML: %w", err)
+		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
 	absBaseDir, err := filepath.Abs(baseDir)
@@ -124,7 +125,7 @@ func resolveIncludeNode(node *yaml.Node, baseDir string, dotEnv map[string]strin
 
 	var included yaml.Node
 	if err := yaml.Unmarshal(data, &included); err != nil {
-		return fmt.Errorf("failed to parse included YAML %s: %w", absPath, err)
+		return fmt.Errorf("failed to parse included file %s: %w", absPath, err)
 	}
 
 	if err := expandEnvNode(&included, dotEnv); err != nil {

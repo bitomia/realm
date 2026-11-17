@@ -296,3 +296,34 @@ agent:
 	require.NotNil(t, config)
 	assert.Empty(t, config.Agent.ListenSocketGroup, "an empty group leaves the socket alone")
 }
+
+func TestConfigJSON_File(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("REALM_TEST_NS", "realm-json")
+
+	mainJSON := `{
+  "data_path": "./test_data",
+  "agent": {
+    "listen_address": "127.0.0.1",
+    "listen_port": 12345,
+    "containerd_namespace": "${REALM_TEST_NS}"
+  }
+}`
+	mainPath := filepath.Join(dir, "config.json")
+	require.NoError(t, os.WriteFile(mainPath, []byte(mainJSON), 0644))
+
+	config, err := Init(&mainPath)
+	require.NoError(t, err)
+	assert.Equal(t, "./test_data", config.DataPath)
+	assert.Equal(t, "127.0.0.1", config.Agent.ListenAddress)
+	assert.Equal(t, 12345, config.Agent.ListenPort)
+	assert.Equal(t, "realm-json", config.Agent.ContainerdNamespace)
+}
+
+func TestConfigJSON_DefaultDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"data_path": "./from_json"}`), 0644))
+	t.Chdir(dir)
+
+	assert.Equal(t, filepath.Join(dir, "config.json"), findConfigFile(""))
+}

@@ -60,7 +60,7 @@ func Main(cmdName string, projectName string) {
 			os.Exit(1)
 		}
 	}
-	rootCmd.PersistentFlags().String("config", "config.yaml", "Configuration file")
+	rootCmd.PersistentFlags().String("config", "", "Configuration file (default: config.yaml)")
 	rootCmd.PersistentFlags().String("state", "", "Cluster state file (default: realm.state)")
 
 	if err := rootCmd.Execute(); err != nil {

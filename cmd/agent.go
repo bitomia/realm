@@ -28,7 +28,7 @@ var startAgent = &cobra.Command{
 }
 
 func init() {
-	startAgent.Flags().StringP("config", "c", "", "Path to configuration file (optional, default: config.yaml in current working directory)")
+	startAgent.Flags().StringP("config", "c", "", "Path to configuration file (default: config.yaml)")
 	agentCmd.AddCommand(startAgent)
 	rootCmd.AddCommand(agentCmd)
 }

@@ -77,7 +77,7 @@ func findConfigFile(configFilePath string) string {
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
-		for _, ext := range []string{"yaml", "yml"} {
+		for _, ext := range []string{"yaml", "yml", "json"} {
 			path := filepath.Join(cwd, "config."+ext)
 			if _, err := os.Stat(path); err == nil {
 				return path

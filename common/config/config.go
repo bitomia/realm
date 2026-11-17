@@ -156,7 +156,7 @@ func InitFromBuffer(buffer string) (*Config, error) {
 // Init reads configuration from file or environment variables.
 // If configFilePath is provided, it will be used instead of the default locations.
 func Init(configFilePath *string) (*Config, error) {
-	resolvedConfigPath := "config.yaml"
+	resolvedConfigPath := ""
 	if configFilePath != nil {
 		resolvedConfigPath = *configFilePath
 	}
